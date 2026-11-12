@@ -9,6 +9,9 @@
     },
     {
       "path": "packages/plugins/model-likec4"
+    },
+    {
+      "path": "packages/plugins/export-structurizr"
     }
   ]
 }
