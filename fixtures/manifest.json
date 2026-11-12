@@ -1,0 +1,161 @@
+{
+  "$comment": "Pinned public repositories used as test fixtures (W0-SPIKE-FIXTURES). Cloned by clone-fixtures.mjs into fixtures/repos/ (git-ignored); never vendored.",
+  "fixtures": [
+    {
+      "name": "microservices-demo",
+      "url": "https://github.com/GoogleCloudPlatform/microservices-demo",
+      "commit": "c7cb6d5bfd6ea3aed768634ebbcb98cb7a523712",
+      "licence": "Apache-2.0",
+      "languages": [
+        "Go",
+        "Python",
+        "C#",
+        "JavaScript",
+        "Java"
+      ],
+      "features": [
+        "dockerfile",
+        "kubernetes",
+        "kustomize",
+        "helm",
+        "terraform",
+        "protobuf"
+      ],
+      "sizeMB": 14,
+      "tier": "large"
+    },
+    {
+      "name": "opentelemetry-demo",
+      "url": "https://github.com/open-telemetry/opentelemetry-demo",
+      "commit": "7a07d9fcfd5bd40b94b1cd6b925027595e263e6b",
+      "licence": "Apache-2.0",
+      "languages": [
+        "TypeScript",
+        "Python",
+        "Elixir",
+        "Go",
+        "C#",
+        "JavaScript"
+      ],
+      "features": [
+        "docker-compose",
+        "dockerfile",
+        "protobuf"
+      ],
+      "sizeMB": 12,
+      "tier": "large"
+    },
+    {
+      "name": "eshop",
+      "url": "https://github.com/dotnet/eShop",
+      "commit": "913acea66708a59595351174cee9b29f37179d29",
+      "licence": "MIT",
+      "languages": [
+        "C#"
+      ],
+      "features": [
+        "dotnet-aspire",
+        "protobuf"
+      ],
+      "sizeMB": 22,
+      "tier": "large"
+    },
+    {
+      "name": "spring-petclinic",
+      "url": "https://github.com/spring-projects/spring-petclinic",
+      "commit": "500158f732419217507c7656904b8e6aa1bcc0d6",
+      "licence": "Apache-2.0",
+      "languages": [
+        "Java"
+      ],
+      "features": [
+        "docker-compose",
+        "dockerfile",
+        "kubernetes",
+        "maven",
+        "gradle"
+      ],
+      "sizeMB": 2,
+      "tier": "small"
+    },
+    {
+      "name": "spring-petclinic-microservices",
+      "url": "https://github.com/spring-petclinic/spring-petclinic-microservices",
+      "commit": "e8b747ab522721076cacb5cf688eb8a54ba8c5c9",
+      "licence": "Apache-2.0",
+      "languages": [
+        "Java",
+        "JavaScript"
+      ],
+      "features": [
+        "docker-compose",
+        "dockerfile",
+        "maven-multi-module"
+      ],
+      "sizeMB": 4,
+      "tier": "small"
+    },
+    {
+      "name": "full-stack-fastapi-template",
+      "url": "https://github.com/fastapi/full-stack-fastapi-template",
+      "commit": "aabb90126964a164e02aff39e7c385bb0598236d",
+      "licence": "MIT",
+      "languages": [
+        "TypeScript",
+        "Python"
+      ],
+      "features": [
+        "docker-compose",
+        "dockerfile"
+      ],
+      "sizeMB": 3,
+      "tier": "small"
+    },
+    {
+      "name": "create-t3-turbo",
+      "url": "https://github.com/t3-oss/create-t3-turbo",
+      "commit": "8f945b7bb3bfb3ca8358d48b1ff0214079bc11ee",
+      "licence": "MIT",
+      "languages": [
+        "TypeScript"
+      ],
+      "features": [
+        "pnpm-workspace",
+        "turborepo"
+      ],
+      "sizeMB": 2,
+      "tier": "small"
+    },
+    {
+      "name": "trpc",
+      "url": "https://github.com/trpc/trpc",
+      "commit": "8eff9ff0ddf4be4a682bf205fb66b00a26901075",
+      "licence": "MIT",
+      "languages": [
+        "TypeScript"
+      ],
+      "features": [
+        "pnpm-workspace",
+        "turborepo",
+        "docker-compose",
+        "openapi"
+      ],
+      "sizeMB": 16,
+      "tier": "large"
+    },
+    {
+      "name": "terraform-aws-vpc",
+      "url": "https://github.com/terraform-aws-modules/terraform-aws-vpc",
+      "commit": "b3abd6df2ecf052451a361ed55b8f06f8742a795",
+      "licence": "Apache-2.0",
+      "languages": [
+        "HCL"
+      ],
+      "features": [
+        "terraform"
+      ],
+      "sizeMB": 2,
+      "tier": "small"
+    }
+  ]
+}
