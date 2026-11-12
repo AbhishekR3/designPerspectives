@@ -42,6 +42,18 @@ importers:
         specifier: workspace:*
         version: link:../../packages/plugins/model-likec4
 
+  examples:
+    dependencies:
+      '@designperspectives/contracts':
+        specifier: workspace:*
+        version: link:../packages/contracts
+      '@designperspectives/core':
+        specifier: workspace:*
+        version: link:../packages/core
+      yaml:
+        specifier: ^2.9.0
+        version: 2.9.1
+
   packages/contracts:
     dependencies:
       vitest:

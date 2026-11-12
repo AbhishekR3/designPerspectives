@@ -1,0 +1,9 @@
+- id: ibs.api->ses#calls
+  crossesTrustBoundary: true
+  mode: sync
+  protocol: HTTPS
+- id: ibs.spa->ibs.api#calls
+  authn: bearer access token
+  crossesTrustBoundary: true
+  mode: sync
+  protocol: JSON/HTTPS
