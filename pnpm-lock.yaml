@@ -50,6 +50,9 @@ importers:
       '@designperspectives/core':
         specifier: workspace:*
         version: link:../packages/core
+      '@designperspectives/plugin-model-likec4':
+        specifier: workspace:*
+        version: link:../packages/plugins/model-likec4
       yaml:
         specifier: ^2.9.0
         version: 2.9.1

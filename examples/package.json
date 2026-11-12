@@ -7,6 +7,11 @@
   "dependencies": {
     "@designperspectives/contracts": "workspace:*",
     "@designperspectives/core": "workspace:*",
-    "yaml": "^2.9.0"
+    "yaml": "^2.9.0",
+    "@designperspectives/plugin-model-likec4": "workspace:*"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "check": "node build.mjs --check"
   }
 }

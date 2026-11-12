@@ -1,6 +1,5 @@
 ---
 id: ADR-0001
-approvals: []
 architecturallySignificant:
   - structure
   - nonfunctional
@@ -11,9 +10,7 @@ characteristics:
 elements:
   - ibs.api.statements
   - ibs.statementStore
-fitnessFunctions: []
 status: accepted
-supersedes: []
 title: Cache generated statements in object storage
 ---
 

@@ -1,8 +1,3 @@
-decisions: decisions
 description: Demo workspace modelling the fictional Internet Banking System from The C4 Model by Simon Brown.
-modelBackend: likec4
 name: Internet Banking System (demo)
-plugins: []
 schemaVersion: 1
-thresholds:
-  decisionCostUsd: 5000

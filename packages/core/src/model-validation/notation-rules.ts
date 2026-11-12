@@ -4,7 +4,7 @@ import { compareStrings, defineRule, type Finding, type Rule, type ValidationOpt
 /** Acronyms considered well known; anything else should be defined in the workspace glossary. */
 export const BUILT_IN_GLOSSARY: readonly string[] = [
   "API", "UI", "URL", "HTTP", "HTTPS", "JSON", "XML", "SQL", "TCP", "PDF", "AWS", "S3", "SES",
-  "REST", "ID", "SPA", "CDN", "DNS", "VPC", "JWT", "MFA", "CPU", "OS", "LTS",
+  "REST", "ID", "SPA", "CDN", "DNS", "VPC", "JWT", "MFA", "CPU", "OS", "LTS", "HTML", "CSS", "MVC",
 ];
 
 const ACRONYM_PATTERN = /\b[A-Z]{2,6}s?\b/g;

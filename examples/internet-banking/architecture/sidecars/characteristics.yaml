@@ -1,4 +1,3 @@
-composites: {}
 driving:
   - id: security
     explicit: true
