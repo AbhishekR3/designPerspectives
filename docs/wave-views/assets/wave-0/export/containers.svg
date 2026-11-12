@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1768" height="1633" viewBox="0 0 1768 1633" role="img" aria-label="Container View: Internet Banking System" font-family="Helvetica, Arial, sans-serif">
+  <title>Container View: Internet Banking System</title>
+  <defs><marker id="arrow-containers" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#444444"/></marker></defs>
+  <rect class="background" x="0" y="0" width="1768" height="1633" fill="#ffffff"/>
+  <text class="view-title" x="20" y="38" font-size="18" font-weight="bold" fill="#222222">Container View: Internet Banking System</text>
+  <g class="boundaries">
+    <rect class="boundary" x="28" y="359" width="864" height="984" rx="4" fill="none" stroke="#666666" stroke-width="1" stroke-dasharray="8 4"/>
+    <text class="boundary-label" x="36" y="1335" font-size="12" font-weight="bold" fill="#222222">Internet Banking System [Software system]</text>
+  </g>
+  <g class="edges">
+    <path class="edge sync" d="M460,268 C460,312 460,365 460,410" fill="none" stroke="#444444" stroke-width="1.5" marker-end="url(#arrow-containers)"/>
+    <rect class="edge-label-bg" x="366" y="324" width="188" height="30" fill="#ffffff" fill-opacity="0.85"/>
+    <text class="edge-label" x="460" y="336" font-size="11" text-anchor="middle" fill="#222222">Checks balances and pays bills</text>
+    <text class="edge-label" x="460" y="349" font-size="11" text-anchor="middle" fill="#222222">with</text>
+    <path class="edge sync" d="M422,923 C440,930 459,937 477,943 C572,976 601,968 696,1003 C785,1036 880,1080 960,1119" fill="none" stroke="#444444" stroke-width="1.5" marker-end="url(#arrow-containers)"/>
+    <rect class="edge-label-bg" x="613" y="981" width="164" height="43" fill="#ffffff" fill-opacity="0.85"/>
+    <text class="edge-label" x="695" y="993" font-size="11" text-anchor="middle" fill="#222222">Retrieves account data and</text>
+    <text class="edge-label" x="695" y="1006" font-size="11" text-anchor="middle" fill="#222222">submits payments via</text>
+    <text class="edge-label" x="695" y="1019" font-size="11" text-anchor="middle" fill="#222222">[XML/HTTPS]</text>
+    <path class="edge sync" d="M256,943 C253,994 248,1059 245,1112" fill="none" stroke="#444444" stroke-width="1.5" marker-end="url(#arrow-containers)"/>
+    <rect class="edge-label-bg" x="174" y="1012" width="152" height="30" fill="#ffffff" fill-opacity="0.85"/>
+    <text class="edge-label" x="250" y="1024" font-size="11" text-anchor="middle" fill="#222222">Reads from and writes to</text>
+    <text class="edge-label" x="250" y="1037" font-size="11" text-anchor="middle" fill="#222222">[SQL/TCP]</text>
+    <path class="edge sync" d="M369,943 C392,963 417,984 440,1003 C484,1040 532,1081 573,1117" fill="none" stroke="#444444" stroke-width="1.5" marker-end="url(#arrow-containers)"/>
+    <rect class="edge-label-bg" x="395" y="1014" width="152" height="30" fill="#ffffff" fill-opacity="0.85"/>
+    <text class="edge-label" x="471" y="1026" font-size="11" text-anchor="middle" fill="#222222">Reads from and writes to</text>
+    <text class="edge-label" x="471" y="1039" font-size="11" text-anchor="middle" fill="#222222">[S3 API/HTTPS]</text>
+    <path class="edge sync" d="M422,926 C440,933 459,939 477,943 C742,1010 824,936 1089,1003 C1203,1032 1324,1082 1419,1126" fill="none" stroke="#444444" stroke-width="1.5" marker-end="url(#arrow-containers)"/>
+    <rect class="edge-label-bg" x="820" y="944" width="188" height="30" fill="#ffffff" fill-opacity="0.85"/>
+    <text class="edge-label" x="914" y="956" font-size="11" text-anchor="middle" fill="#222222">Sends notification e-mails via</text>
+    <text class="edge-label" x="914" y="969" font-size="11" text-anchor="middle" fill="#222222">[HTTPS]</text>
+    <path class="edge sync" d="M398,600 C385,619 372,640 360,660 C342,690 325,724 309,754" fill="none" stroke="#444444" stroke-width="1.5" marker-end="url(#arrow-containers)"/>
+    <rect class="edge-label-bg" x="293" y="660" width="116" height="30" fill="#ffffff" fill-opacity="0.85"/>
+    <text class="edge-label" x="351" y="672" font-size="11" text-anchor="middle" fill="#222222">Makes API calls to</text>
+    <text class="edge-label" x="351" y="685" font-size="11" text-anchor="middle" fill="#222222">[JSON/HTTPS]</text>
+    <path class="edge sync" d="M520,600 C552,647 592,705 625,754" fill="none" stroke="#444444" stroke-width="1.5" marker-end="url(#arrow-containers)"/>
+    <rect class="edge-label-bg" x="488" y="655" width="170" height="43" fill="#ffffff" fill-opacity="0.85"/>
+    <text class="edge-label" x="573" y="667" font-size="11" text-anchor="middle" fill="#222222">Loads its application files</text>
+    <text class="edge-label" x="573" y="680" font-size="11" text-anchor="middle" fill="#222222">from</text>
+    <text class="edge-label" x="573" y="693" font-size="11" text-anchor="middle" fill="#222222">[HTTPS]</text>
+  </g>
+  <g class="nodes">
+    <g class="node" data-id="corebanking"><rect class="shape card" x="962" y="1123" width="355" height="180" rx="8" fill="#f5f5f5" stroke="#333333" stroke-width="1"/><text x="1140" y="1196" font-size="14" font-weight="bold" text-anchor="middle" fill="#222222">Core Banking System</text><text x="1140" y="1211" font-size="11" text-anchor="middle" fill="#222222">[Software system]</text><text x="1140" y="1226" font-size="12" text-anchor="middle" fill="#222222">Packaged system of record for customer accounts and</text><text x="1140" y="1241" font-size="12" text-anchor="middle" fill="#222222">transactions, exposed through an API.</text></g>
+    <g class="node" data-id="customer"><rect class="shape person" x="300" y="88" width="320" height="180" rx="12" fill="#ececec" stroke="#333333" stroke-width="1"/><circle class="shape person-head" cx="460" cy="81" r="14" fill="#ececec" stroke="#333333" stroke-width="1"/><text x="460" y="161" font-size="14" font-weight="bold" text-anchor="middle" fill="#222222">Personal Banking Customer</text><text x="460" y="176" font-size="11" text-anchor="middle" fill="#222222">[Person]</text><text x="460" y="191" font-size="12" text-anchor="middle" fill="#222222">A bank customer who holds one or more personal</text><text x="460" y="206" font-size="12" text-anchor="middle" fill="#222222">accounts.</text></g>
+    <g class="node" data-id="ibs.api"><rect class="shape card" x="102" y="763" width="320" height="180" rx="8" fill="#f5f5f5" stroke="#333333" stroke-width="1"/><text x="262" y="836" font-size="14" font-weight="bold" text-anchor="middle" fill="#222222">API Application</text><text x="262" y="851" font-size="11" text-anchor="middle" fill="#222222">[Container: Java and Spring Boot]</text><text x="262" y="866" font-size="12" text-anchor="middle" fill="#222222">Server-side banking logic offered to the front</text><text x="262" y="881" font-size="12" text-anchor="middle" fill="#222222">end as a JSON API.</text></g>
+    <g class="node" data-id="ibs.db"><rect class="shape data-store" x="68" y="1123" width="340" height="180" fill="#f5f5f5" stroke="#333333" stroke-width="1"/><ellipse class="shape data-store-top" cx="238" cy="1123" rx="170" ry="8" fill="#f5f5f5" stroke="#333333" stroke-width="1"/><text x="238" y="1196" font-size="14" font-weight="bold" text-anchor="middle" fill="#222222">Database</text><text x="238" y="1211" font-size="11" text-anchor="middle" fill="#222222">[Data store: MySQL database schema]</text><text x="238" y="1226" font-size="12" text-anchor="middle" fill="#222222">Keeps customer login credentials and related</text><text x="238" y="1241" font-size="12" text-anchor="middle" fill="#222222">security data.</text></g>
+    <g class="node" data-id="ibs.spa"><rect class="shape card" x="299" y="420" width="321" height="180" rx="8" fill="#f5f5f5" stroke="#333333" stroke-width="1"/><text x="460" y="493" font-size="14" font-weight="bold" text-anchor="middle" fill="#222222">Single-Page Application</text><text x="460" y="508" font-size="11" text-anchor="middle" fill="#222222">[Container: JavaScript and Angular]</text><text x="460" y="523" font-size="12" text-anchor="middle" fill="#222222">Browser-based user interface for all online</text><text x="460" y="538" font-size="12" text-anchor="middle" fill="#222222">banking features.</text></g>
+    <g class="node" data-id="ibs.statementStore"><rect class="shape data-store" x="518" y="1123" width="334" height="180" fill="#f5f5f5" stroke="#333333" stroke-width="1"/><ellipse class="shape data-store-top" cx="685" cy="1123" rx="167" ry="8" fill="#f5f5f5" stroke="#333333" stroke-width="1"/><text x="685" y="1196" font-size="14" font-weight="bold" text-anchor="middle" fill="#222222">Statement Store</text><text x="685" y="1211" font-size="11" text-anchor="middle" fill="#222222">[Data store: Amazon S3 bucket]</text><text x="685" y="1226" font-size="12" text-anchor="middle" fill="#222222">Cache of previously generated PDF account</text><text x="685" y="1241" font-size="12" text-anchor="middle" fill="#222222">statements.</text></g>
+    <g class="node" data-id="ibs.staticContent"><rect class="shape data-store" x="532" y="763" width="320" height="180" fill="#f5f5f5" stroke="#333333" stroke-width="1"/><ellipse class="shape data-store-top" cx="692" cy="763" rx="160" ry="8" fill="#f5f5f5" stroke="#333333" stroke-width="1"/><text x="692" y="836" font-size="14" font-weight="bold" text-anchor="middle" fill="#222222">Static Content</text><text x="692" y="851" font-size="11" text-anchor="middle" fill="#222222">[Data store: Directory of static HTML, CSS and JavaScript files]</text><text x="692" y="866" font-size="12" text-anchor="middle" fill="#222222">Holds the built files that make up the</text><text x="692" y="881" font-size="12" text-anchor="middle" fill="#222222">single-page application.</text></g>
+    <g class="node" data-id="ses"><rect class="shape card" x="1428" y="1123" width="320" height="180" rx="8" fill="#f5f5f5" stroke="#333333" stroke-width="1"/><text x="1588" y="1196" font-size="14" font-weight="bold" text-anchor="middle" fill="#222222">Amazon Simple Email Service</text><text x="1588" y="1211" font-size="11" text-anchor="middle" fill="#222222">[Software system]</text><text x="1588" y="1226" font-size="12" text-anchor="middle" fill="#222222">Cloud e-mail delivery service the bank already</text><text x="1588" y="1241" font-size="12" text-anchor="middle" fill="#222222">relies on.</text></g>
+  </g>
+  <g class="key">
+    <text class="key-title" x="20" y="1381" font-size="13" font-weight="bold" fill="#222222">Key</text>
+    <g class="key-row" data-key="container"><rect class="shape card" x="20" y="1397" width="60" height="26" rx="8" fill="#f5f5f5" stroke="#333333" stroke-width="1"/><text x="96" y="1414" font-size="12" fill="#222222">Container</text></g>
+    <g class="key-row" data-key="dataStore"><rect class="shape data-store" x="20" y="1433" width="60" height="26" fill="#f5f5f5" stroke="#333333" stroke-width="1"/><ellipse class="shape data-store-top" cx="50" cy="1433" rx="30" ry="4" fill="#f5f5f5" stroke="#333333" stroke-width="1"/><text x="96" y="1450" font-size="12" fill="#222222">Data store</text></g>
+    <g class="key-row" data-key="person"><rect class="shape person" x="20" y="1469" width="60" height="26" rx="12" fill="#ececec" stroke="#333333" stroke-width="1"/><circle class="shape person-head" cx="50" cy="1466" r="6" fill="#ececec" stroke="#333333" stroke-width="1"/><text x="96" y="1486" font-size="12" fill="#222222">Person</text></g>
+    <g class="key-row" data-key="softwareSystem"><rect class="shape card" x="20" y="1505" width="60" height="26" rx="8" fill="#f5f5f5" stroke="#333333" stroke-width="1"/><text x="96" y="1522" font-size="12" fill="#222222">Software system</text></g>
+    <g class="key-row" data-key="softwareSystem:boundary"><rect class="key-sample boundary" x="20" y="1541" width="60" height="26" rx="4" fill="none" stroke="#666666" stroke-width="1" stroke-dasharray="8 4"/><text x="96" y="1558" font-size="12" fill="#222222">Software system boundary (dashed border)</text></g>
+    <g class="key-row" data-key="sync"><path class="key-sample sync" d="M20,1590 L80,1590" fill="none" stroke="#444444" stroke-width="1.5" marker-end="url(#arrow-containers)"/><text x="96" y="1594" font-size="12" fill="#222222">Synchronous relationship (solid line)</text></g>
+  </g>
+</svg>

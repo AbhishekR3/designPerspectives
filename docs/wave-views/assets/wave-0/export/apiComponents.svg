@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="3009" height="2275" viewBox="0 0 3009 2275" role="img" aria-label="Component View: API Application" font-family="Helvetica, Arial, sans-serif">
+  <title>Component View: API Application</title>
+  <defs><marker id="arrow-apiComponents" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#444444"/></marker></defs>
+  <rect class="background" x="0" y="0" width="3009" height="2275" fill="#ffffff"/>
+  <text class="view-title" x="20" y="38" font-size="18" font-weight="bold" fill="#222222">Component View: API Application</text>
+  <g class="boundaries">
+    <rect class="boundary" x="28" y="379" width="2115" height="1311" rx="4" fill="none" stroke="#666666" stroke-width="1" stroke-dasharray="8 4"/>
+    <text class="boundary-label" x="36" y="1682" font-size="12" font-weight="bold" fill="#222222">API Application [Container]</text>
+  </g>
+  <g class="edges">
+    <path class="edge sync" d="M1019,620 C994,715 973,865 1047,964 C1130,1074 1511,1153 1738,1190" fill="none" stroke="#444444" stroke-width="1.5" marker-end="url(#arrow-apiComponents)"/>
+    <rect class="edge-label-bg" x="1092" y="1070" width="182" height="30" fill="#ffffff" fill-opacity="0.85"/>
+    <text class="edge-label" x="1183" y="1082" font-size="11" text-anchor="middle" fill="#222222">Fetches account summaries via</text>
+    <text class="edge-label" x="1183" y="1095" font-size="11" text-anchor="middle" fill="#222222">[Java method call]</text>
+    <path class="edge sync" d="M890,620 C829,662 765,718 725,784 C663,885 646,1024 642,1116" fill="none" stroke="#444444" stroke-width="1.5" marker-end="url(#arrow-apiComponents)"/>
+    <rect class="edge-label-bg" x="607" y="818" width="176" height="30" fill="#ffffff" fill-opacity="0.85"/>
+    <text class="edge-label" x="695" y="830" font-size="11" text-anchor="middle" fill="#222222">Validates access tokens with</text>
+    <text class="edge-label" x="695" y="843" font-size="11" text-anchor="middle" fill="#222222">[Java method call]</text>
+    <path class="edge sync" d="M2068,1288 C2088,1295 2108,1301 2128,1307 C2307,1355 2369,1297 2542,1367 C2600,1390 2656,1428 2703,1464" fill="none" stroke="#444444" stroke-width="1.5" marker-end="url(#arrow-apiComponents)"/>
+    <rect class="edge-label-bg" x="2331" y="1290" width="116" height="30" fill="#ffffff" fill-opacity="0.85"/>
+    <text class="edge-label" x="2389" y="1302" font-size="11" text-anchor="middle" fill="#222222">Makes API calls to</text>
+    <text class="edge-label" x="2389" y="1315" font-size="11" text-anchor="middle" fill="#222222">[XML/HTTPS]</text>
+    <path class="edge sync" d="M642,1650 C642,1697 642,1754 642,1803" fill="none" stroke="#444444" stroke-width="1.5" marker-end="url(#arrow-apiComponents)"/>
+    <rect class="edge-label-bg" x="581" y="1712" width="122" height="30" fill="#ffffff" fill-opacity="0.85"/>
+    <text class="edge-label" x="642" y="1724" font-size="11" text-anchor="middle" fill="#222222">Sends e-mails using</text>
+    <text class="edge-label" x="642" y="1737" font-size="11" text-anchor="middle" fill="#222222">[HTTPS]</text>
+    <path class="edge sync" d="M642,1307 C642,1353 642,1411 642,1460" fill="none" stroke="#444444" stroke-width="1.5" marker-end="url(#arrow-apiComponents)"/>
+    <rect class="edge-label-bg" x="584" y="1362" width="116" height="43" fill="#ffffff" fill-opacity="0.85"/>
+    <text class="edge-label" x="642" y="1374" font-size="11" text-anchor="middle" fill="#222222">Triggers security</text>
+    <text class="edge-label" x="642" y="1387" font-size="11" text-anchor="middle" fill="#222222">notifications via</text>
+    <text class="edge-label" x="642" y="1400" font-size="11" text-anchor="middle" fill="#222222">[Java method call]</text>
+    <path class="edge sync" d="M802,1229 C1084,1252 1686,1316 2170,1470 C2173,1471 2175,1472 2178,1473" fill="none" stroke="#444444" stroke-width="1.5" marker-end="url(#arrow-apiComponents)"/>
+    <rect class="edge-label-bg" x="1425" y="1281" width="152" height="30" fill="#ffffff" fill-opacity="0.85"/>
+    <text class="edge-label" x="1501" y="1293" font-size="11" text-anchor="middle" fill="#222222">Reads from and writes to</text>
+    <text class="edge-label" x="1501" y="1306" font-size="11" text-anchor="middle" fill="#222222">[SQL/TCP]</text>
+    <path class="edge sync" d="M270,620 C309,709 373,850 444,964 C478,1017 521,1073 558,1119" fill="none" stroke="#444444" stroke-width="1.5" marker-end="url(#arrow-apiComponents)"/>
+    <rect class="edge-label-bg" x="305" y="867" width="176" height="30" fill="#ffffff" fill-opacity="0.85"/>
+    <text class="edge-label" x="393" y="879" font-size="11" text-anchor="middle" fill="#222222">Authenticates customers with</text>
+    <text class="edge-label" x="393" y="892" font-size="11" text-anchor="middle" fill="#222222">[Java method call]</text>
+    <path class="edge sync" d="M1469,620 C1440,717 1379,870 1277,964 C1146,1084 951,1150 812,1184" fill="none" stroke="#444444" stroke-width="1.5" marker-end="url(#arrow-apiComponents)"/>
+    <rect class="edge-label-bg" x="1144" y="990" width="176" height="30" fill="#ffffff" fill-opacity="0.85"/>
+    <text class="edge-label" x="1232" y="1002" font-size="11" text-anchor="middle" fill="#222222">Validates access tokens with</text>
+    <text class="edge-label" x="1232" y="1015" font-size="11" text-anchor="middle" fill="#222222">[Java method call]</text>
+    <path class="edge sync" d="M1608,620 C1670,669 1748,728 1811,778" fill="none" stroke="#444444" stroke-width="1.5" marker-end="url(#arrow-apiComponents)"/>
+    <rect class="edge-label-bg" x="1619" y="677" width="182" height="43" fill="#ffffff" fill-opacity="0.85"/>
+    <text class="edge-label" x="1710" y="689" font-size="11" text-anchor="middle" fill="#222222">Delegates statement retrieval</text>
+    <text class="edge-label" x="1710" y="702" font-size="11" text-anchor="middle" fill="#222222">to</text>
+    <text class="edge-label" x="1710" y="715" font-size="11" text-anchor="middle" fill="#222222">[Java method call]</text>
+    <path class="edge sync" d="M1927,963 C1924,1010 1919,1068 1916,1117" fill="none" stroke="#444444" stroke-width="1.5" marker-end="url(#arrow-apiComponents)"/>
+    <rect class="edge-label-bg" x="1836" y="1018" width="170" height="43" fill="#ffffff" fill-opacity="0.85"/>
+    <text class="edge-label" x="1921" y="1030" font-size="11" text-anchor="middle" fill="#222222">Fetches transaction history</text>
+    <text class="edge-label" x="1921" y="1043" font-size="11" text-anchor="middle" fill="#222222">via</text>
+    <text class="edge-label" x="1921" y="1056" font-size="11" text-anchor="middle" fill="#222222">[Java method call]</text>
+    <path class="edge sync" d="M2066,963 C2093,983 2120,1003 2145,1024 C2181,1053 2219,1087 2252,1119" fill="none" stroke="#444444" stroke-width="1.5" marker-end="url(#arrow-apiComponents)"/>
+    <rect class="edge-label-bg" x="2086" y="1023" width="152" height="30" fill="#ffffff" fill-opacity="0.85"/>
+    <text class="edge-label" x="2162" y="1035" font-size="11" text-anchor="middle" fill="#222222">Reads from and writes to</text>
+    <text class="edge-label" x="2162" y="1048" font-size="11" text-anchor="middle" fill="#222222">[S3 API/HTTPS]</text>
+    <path class="edge sync" d="M1047,268 C1047,317 1047,379 1047,430" fill="none" stroke="#444444" stroke-width="1.5" marker-end="url(#arrow-apiComponents)"/>
+    <rect class="edge-label-bg" x="965" y="328" width="164" height="43" fill="#ffffff" fill-opacity="0.85"/>
+    <text class="edge-label" x="1047" y="340" font-size="11" text-anchor="middle" fill="#222222">Requests account overviews</text>
+    <text class="edge-label" x="1047" y="353" font-size="11" text-anchor="middle" fill="#222222">from</text>
+    <text class="edge-label" x="1047" y="366" font-size="11" text-anchor="middle" fill="#222222">[JSON/HTTPS]</text>
+    <path class="edge sync" d="M887,248 C749,307 551,393 409,454" fill="none" stroke="#444444" stroke-width="1.5" marker-end="url(#arrow-apiComponents)"/>
+    <rect class="edge-label-bg" x="563" y="336" width="170" height="30" fill="#ffffff" fill-opacity="0.85"/>
+    <text class="edge-label" x="648" y="348" font-size="11" text-anchor="middle" fill="#222222">Submits sign-in requests to</text>
+    <text class="edge-label" x="648" y="361" font-size="11" text-anchor="middle" fill="#222222">[JSON/HTTPS]</text>
+    <path class="edge sync" d="M1204,268 C1233,287 1263,307 1290,328 C1330,359 1371,398 1405,433" fill="none" stroke="#444444" stroke-width="1.5" marker-end="url(#arrow-apiComponents)"/>
+    <rect class="edge-label-bg" x="1234" y="329" width="152" height="30" fill="#ffffff" fill-opacity="0.85"/>
+    <text class="edge-label" x="1310" y="341" font-size="11" text-anchor="middle" fill="#222222">Requests statements from</text>
+    <text class="edge-label" x="1310" y="354" font-size="11" text-anchor="middle" fill="#222222">[JSON/HTTPS]</text>
+  </g>
+  <g class="nodes">
+    <g class="node" data-id="corebanking"><rect class="shape card" x="2633" y="1470" width="355" height="180" rx="8" fill="#f5f5f5" stroke="#333333" stroke-width="1"/><text x="2811" y="1543" font-size="14" font-weight="bold" text-anchor="middle" fill="#222222">Core Banking System</text><text x="2811" y="1558" font-size="11" text-anchor="middle" fill="#222222">[Software system]</text><text x="2811" y="1573" font-size="12" text-anchor="middle" fill="#222222">Packaged system of record for customer accounts and</text><text x="2811" y="1588" font-size="12" text-anchor="middle" fill="#222222">transactions, exposed through an API.</text></g>
+    <g class="node" data-id="ibs.api.accountsSummaryApi"><rect class="shape card" x="887" y="440" width="320" height="180" rx="8" fill="#f5f5f5" stroke="#333333" stroke-width="1"/><text x="1047" y="513" font-size="14" font-weight="bold" text-anchor="middle" fill="#222222">Accounts Summary API</text><text x="1047" y="528" font-size="11" text-anchor="middle" fill="#222222">[Component: Spring Web MVC]</text><text x="1047" y="543" font-size="12" text-anchor="middle" fill="#222222">Endpoint returning an overview of a customer's</text><text x="1047" y="558" font-size="12" text-anchor="middle" fill="#222222">accounts.</text></g>
+    <g class="node" data-id="ibs.api.coreBankingAdapter"><rect class="shape card" x="1748" y="1127" width="320" height="180" rx="8" fill="#f5f5f5" stroke="#333333" stroke-width="1"/><text x="1908" y="1200" font-size="14" font-weight="bold" text-anchor="middle" fill="#222222">Core Banking System Adapter</text><text x="1908" y="1215" font-size="11" text-anchor="middle" fill="#222222">[Component: Spring Bean]</text><text x="1908" y="1230" font-size="12" text-anchor="middle" fill="#222222">Translates internal requests into calls on the</text><text x="1908" y="1245" font-size="12" text-anchor="middle" fill="#222222">core banking API.</text></g>
+    <g class="node" data-id="ibs.api.email"><rect class="shape card" x="469" y="1470" width="345" height="180" rx="8" fill="#f5f5f5" stroke="#333333" stroke-width="1"/><text x="642" y="1543" font-size="14" font-weight="bold" text-anchor="middle" fill="#222222">Email Component</text><text x="642" y="1558" font-size="11" text-anchor="middle" fill="#222222">[Component: Spring Bean]</text><text x="642" y="1573" font-size="12" text-anchor="middle" fill="#222222">Composes and dispatches notification e-mails to</text><text x="642" y="1588" font-size="12" text-anchor="middle" fill="#222222">customers.</text></g>
+    <g class="node" data-id="ibs.api.security"><rect class="shape card" x="482" y="1127" width="320" height="180" rx="8" fill="#f5f5f5" stroke="#333333" stroke-width="1"/><text x="642" y="1200" font-size="14" font-weight="bold" text-anchor="middle" fill="#222222">Security Component</text><text x="642" y="1215" font-size="11" text-anchor="middle" fill="#222222">[Component: Spring Bean]</text><text x="642" y="1230" font-size="12" text-anchor="middle" fill="#222222">Checks credentials, issues tokens and</text><text x="642" y="1245" font-size="12" text-anchor="middle" fill="#222222">validates them on later requests.</text></g>
+    <g class="node" data-id="ibs.api.signInApi"><rect class="shape card" x="68" y="440" width="332" height="180" rx="8" fill="#f5f5f5" stroke="#333333" stroke-width="1"/><text x="234" y="513" font-size="14" font-weight="bold" text-anchor="middle" fill="#222222">Sign In API</text><text x="234" y="528" font-size="11" text-anchor="middle" fill="#222222">[Component: Spring Web MVC]</text><text x="234" y="543" font-size="12" text-anchor="middle" fill="#222222">Endpoint where customers authenticate and obtain</text><text x="234" y="558" font-size="12" text-anchor="middle" fill="#222222">an access token.</text></g>
+    <g class="node" data-id="ibs.api.statementApi"><rect class="shape card" x="1317" y="440" width="351" height="180" rx="8" fill="#f5f5f5" stroke="#333333" stroke-width="1"/><text x="1493" y="513" font-size="14" font-weight="bold" text-anchor="middle" fill="#222222">Statement API</text><text x="1493" y="528" font-size="11" text-anchor="middle" fill="#222222">[Component: Spring Web MVC]</text><text x="1493" y="543" font-size="12" text-anchor="middle" fill="#222222">Endpoint returning account statements as PDF</text><text x="1493" y="558" font-size="12" text-anchor="middle" fill="#222222">documents.</text></g>
+    <g class="node" data-id="ibs.api.statements"><rect class="shape card" x="1765" y="784" width="338" height="180" rx="8" fill="#f5f5f5" stroke="#333333" stroke-width="1"/><text x="1934" y="857" font-size="14" font-weight="bold" text-anchor="middle" fill="#222222">Statement Component</text><text x="1934" y="872" font-size="11" text-anchor="middle" fill="#222222">[Component: Spring Bean]</text><text x="1934" y="887" font-size="12" text-anchor="middle" fill="#222222">Produces statements, reusing cached copies where</text><text x="1934" y="902" font-size="12" text-anchor="middle" fill="#222222">they already exist.</text></g>
+    <g class="node" data-id="ibs.db"><rect class="shape data-store" x="2183" y="1470" width="340" height="180" fill="#f5f5f5" stroke="#333333" stroke-width="1"/><ellipse class="shape data-store-top" cx="2353" cy="1470" rx="170" ry="8" fill="#f5f5f5" stroke="#333333" stroke-width="1"/><text x="2353" y="1543" font-size="14" font-weight="bold" text-anchor="middle" fill="#222222">Database</text><text x="2353" y="1558" font-size="11" text-anchor="middle" fill="#222222">[Data store: MySQL database schema]</text><text x="2353" y="1573" font-size="12" text-anchor="middle" fill="#222222">Keeps customer login credentials and related</text><text x="2353" y="1588" font-size="12" text-anchor="middle" fill="#222222">security data.</text></g>
+    <g class="node" data-id="ibs.spa"><rect class="shape card" x="886" y="88" width="321" height="180" rx="8" fill="#f5f5f5" stroke="#333333" stroke-width="1"/><text x="1047" y="161" font-size="14" font-weight="bold" text-anchor="middle" fill="#222222">Single-Page Application</text><text x="1047" y="176" font-size="11" text-anchor="middle" fill="#222222">[Container: JavaScript and Angular]</text><text x="1047" y="191" font-size="12" text-anchor="middle" fill="#222222">Browser-based user interface for all online</text><text x="1047" y="206" font-size="12" text-anchor="middle" fill="#222222">banking features.</text></g>
+    <g class="node" data-id="ibs.statementStore"><rect class="shape data-store" x="2183" y="1127" width="334" height="180" fill="#f5f5f5" stroke="#333333" stroke-width="1"/><ellipse class="shape data-store-top" cx="2350" cy="1127" rx="167" ry="8" fill="#f5f5f5" stroke="#333333" stroke-width="1"/><text x="2350" y="1200" font-size="14" font-weight="bold" text-anchor="middle" fill="#222222">Statement Store</text><text x="2350" y="1215" font-size="11" text-anchor="middle" fill="#222222">[Data store: Amazon S3 bucket]</text><text x="2350" y="1230" font-size="12" text-anchor="middle" fill="#222222">Cache of previously generated PDF account</text><text x="2350" y="1245" font-size="12" text-anchor="middle" fill="#222222">statements.</text></g>
+    <g class="node" data-id="ses"><rect class="shape card" x="482" y="1813" width="320" height="180" rx="8" fill="#f5f5f5" stroke="#333333" stroke-width="1"/><text x="642" y="1886" font-size="14" font-weight="bold" text-anchor="middle" fill="#222222">Amazon Simple Email Service</text><text x="642" y="1901" font-size="11" text-anchor="middle" fill="#222222">[Software system]</text><text x="642" y="1916" font-size="12" text-anchor="middle" fill="#222222">Cloud e-mail delivery service the bank already</text><text x="642" y="1931" font-size="12" text-anchor="middle" fill="#222222">relies on.</text></g>
+  </g>
+  <g class="key">
+    <text class="key-title" x="20" y="2023" font-size="13" font-weight="bold" fill="#222222">Key</text>
+    <g class="key-row" data-key="component"><rect class="shape card" x="20" y="2039" width="60" height="26" rx="8" fill="#f5f5f5" stroke="#333333" stroke-width="1"/><text x="96" y="2056" font-size="12" fill="#222222">Component</text></g>
+    <g class="key-row" data-key="container"><rect class="shape card" x="20" y="2075" width="60" height="26" rx="8" fill="#f5f5f5" stroke="#333333" stroke-width="1"/><text x="96" y="2092" font-size="12" fill="#222222">Container</text></g>
+    <g class="key-row" data-key="container:boundary"><rect class="key-sample boundary" x="20" y="2111" width="60" height="26" rx="4" fill="none" stroke="#666666" stroke-width="1" stroke-dasharray="8 4"/><text x="96" y="2128" font-size="12" fill="#222222">Container boundary (dashed border)</text></g>
+    <g class="key-row" data-key="dataStore"><rect class="shape data-store" x="20" y="2147" width="60" height="26" fill="#f5f5f5" stroke="#333333" stroke-width="1"/><ellipse class="shape data-store-top" cx="50" cy="2147" rx="30" ry="4" fill="#f5f5f5" stroke="#333333" stroke-width="1"/><text x="96" y="2164" font-size="12" fill="#222222">Data store</text></g>
+    <g class="key-row" data-key="softwareSystem"><rect class="shape card" x="20" y="2183" width="60" height="26" rx="8" fill="#f5f5f5" stroke="#333333" stroke-width="1"/><text x="96" y="2200" font-size="12" fill="#222222">Software system</text></g>
+    <g class="key-row" data-key="sync"><path class="key-sample sync" d="M20,2232 L80,2232" fill="none" stroke="#444444" stroke-width="1.5" marker-end="url(#arrow-apiComponents)"/><text x="96" y="2236" font-size="12" fill="#222222">Synchronous relationship (solid line)</text></g>
+  </g>
+</svg>

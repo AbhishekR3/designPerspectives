@@ -115,7 +115,7 @@ describe("SVG exporter", () => {
     const dashed = elementsWith(svg, "stroke-dasharray");
     expect(dashed.length).toBeGreaterThan(0);
     for (const t of dashed) expect(t).toMatch(/class="[^"]*\b(async|boundary)\b/);
-    const edges = elementsWith(svg, "points").filter((t) => t.includes('class="edge '));
+    const edges = elementsWith(svg, "d").filter((t) => t.includes('class="edge '));
     expect(edges).toHaveLength(3);
     expect(edges.filter((t) => t.includes("stroke-dasharray"))).toHaveLength(1);
     expect(edges.find((t) => t.includes("stroke-dasharray"))).toContain('class="edge async"');
@@ -151,5 +151,13 @@ describe("SVG helpers", () => {
   it("finds the midpoint of a polyline", () => {
     expect(midpoint([[0, 0], [10, 0], [10, 10]])).toEqual([10, 0]);
     expect(midpoint([[0, 0], [0, 20]])).toEqual([0, 10]);
+  });
+});
+
+describe("edge geometry", () => {
+  it("draws Graphviz splines (1 + 3k points) as cubic curves and other point lists as lines", async () => {
+    const { edgePathData } = await import("./shapes.js");
+    expect(edgePathData([[0, 0], [1, 1], [2, 2], [3, 3]])).toBe("M0,0 C1,1 2,2 3,3");
+    expect(edgePathData([[0, 0], [5, 5]])).toBe("M0,0 L5,5");
   });
 });

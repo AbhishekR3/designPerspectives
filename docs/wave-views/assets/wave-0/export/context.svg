@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="826" height="1125" viewBox="0 0 826 1125" role="img" aria-label="System Context View: Internet Banking System" font-family="Helvetica, Arial, sans-serif">
+  <title>System Context View: Internet Banking System</title>
+  <defs><marker id="arrow-context" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#444444"/></marker></defs>
+  <rect class="background" x="0" y="0" width="826" height="1125" fill="#ffffff"/>
+  <text class="view-title" x="20" y="38" font-size="18" font-weight="bold" fill="#222222">System Context View: Internet Banking System</text>
+  <g class="boundaries">
+  </g>
+  <g class="edges">
+    <path class="edge sync" d="M422,268 C422,309 422,358 422,401" fill="none" stroke="#444444" stroke-width="1.5" marker-end="url(#arrow-context)"/>
+    <rect class="edge-label-bg" x="328" y="320" width="188" height="30" fill="#ffffff" fill-opacity="0.85"/>
+    <text class="edge-label" x="422" y="332" font-size="11" text-anchor="middle" fill="#222222">Checks balances and pays bills</text>
+    <text class="edge-label" x="422" y="345" font-size="11" text-anchor="middle" fill="#222222">with</text>
+    <path class="edge sync" d="M327,591 C310,609 293,630 280,651 C258,685 241,725 228,761" fill="none" stroke="#444444" stroke-width="1.5" marker-end="url(#arrow-context)"/>
+    <rect class="edge-label-bg" x="186" y="655" width="164" height="30" fill="#ffffff" fill-opacity="0.85"/>
+    <text class="edge-label" x="268" y="667" font-size="11" text-anchor="middle" fill="#222222">Retrieves account data and</text>
+    <text class="edge-label" x="268" y="680" font-size="11" text-anchor="middle" fill="#222222">submits payments via</text>
+    <path class="edge sync" d="M490,591 C504,610 519,631 532,651 C554,686 577,726 596,762" fill="none" stroke="#444444" stroke-width="1.5" marker-end="url(#arrow-context)"/>
+    <rect class="edge-label-bg" x="453" y="666" width="188" height="17" fill="#ffffff" fill-opacity="0.85"/>
+    <text class="edge-label" x="547" y="678" font-size="11" text-anchor="middle" fill="#222222">Sends notification e-mails via</text>
+  </g>
+  <g class="nodes">
+    <g class="node" data-id="corebanking"><rect class="shape card" x="20" y="771" width="355" height="180" rx="8" fill="#f5f5f5" stroke="#333333" stroke-width="1"/><text x="198" y="844" font-size="14" font-weight="bold" text-anchor="middle" fill="#222222">Core Banking System</text><text x="198" y="859" font-size="11" text-anchor="middle" fill="#222222">[Software system]</text><text x="198" y="874" font-size="12" text-anchor="middle" fill="#222222">Packaged system of record for customer accounts and</text><text x="198" y="889" font-size="12" text-anchor="middle" fill="#222222">transactions, exposed through an API.</text></g>
+    <g class="node" data-id="customer"><rect class="shape person" x="262" y="88" width="320" height="180" rx="12" fill="#ececec" stroke="#333333" stroke-width="1"/><circle class="shape person-head" cx="422" cy="81" r="14" fill="#ececec" stroke="#333333" stroke-width="1"/><text x="422" y="161" font-size="14" font-weight="bold" text-anchor="middle" fill="#222222">Personal Banking Customer</text><text x="422" y="176" font-size="11" text-anchor="middle" fill="#222222">[Person]</text><text x="422" y="191" font-size="12" text-anchor="middle" fill="#222222">A bank customer who holds one or more personal</text><text x="422" y="206" font-size="12" text-anchor="middle" fill="#222222">accounts.</text></g>
+    <g class="node" data-id="ibs"><rect class="shape card" x="262" y="411" width="320" height="180" rx="8" fill="#f5f5f5" stroke="#333333" stroke-width="1"/><text x="422" y="484" font-size="14" font-weight="bold" text-anchor="middle" fill="#222222">Internet Banking System</text><text x="422" y="499" font-size="11" text-anchor="middle" fill="#222222">[Software system]</text><text x="422" y="514" font-size="12" text-anchor="middle" fill="#222222">Gives customers online access to their</text><text x="422" y="529" font-size="12" text-anchor="middle" fill="#222222">accounts, statements and payments.</text></g>
+    <g class="node" data-id="ses"><rect class="shape card" x="486" y="771" width="320" height="180" rx="8" fill="#f5f5f5" stroke="#333333" stroke-width="1"/><text x="646" y="844" font-size="14" font-weight="bold" text-anchor="middle" fill="#222222">Amazon Simple Email Service</text><text x="646" y="859" font-size="11" text-anchor="middle" fill="#222222">[Software system]</text><text x="646" y="874" font-size="12" text-anchor="middle" fill="#222222">Cloud e-mail delivery service the bank already</text><text x="646" y="889" font-size="12" text-anchor="middle" fill="#222222">relies on.</text></g>
+  </g>
+  <g class="key">
+    <text class="key-title" x="20" y="981" font-size="13" font-weight="bold" fill="#222222">Key</text>
+    <g class="key-row" data-key="person"><rect class="shape person" x="20" y="997" width="60" height="26" rx="12" fill="#ececec" stroke="#333333" stroke-width="1"/><circle class="shape person-head" cx="50" cy="994" r="6" fill="#ececec" stroke="#333333" stroke-width="1"/><text x="96" y="1014" font-size="12" fill="#222222">Person</text></g>
+    <g class="key-row" data-key="softwareSystem"><rect class="shape card" x="20" y="1033" width="60" height="26" rx="8" fill="#f5f5f5" stroke="#333333" stroke-width="1"/><text x="96" y="1050" font-size="12" fill="#222222">Software system</text></g>
+    <g class="key-row" data-key="sync"><path class="key-sample sync" d="M20,1082 L80,1082" fill="none" stroke="#444444" stroke-width="1.5" marker-end="url(#arrow-context)"/><text x="96" y="1086" font-size="12" fill="#222222">Synchronous relationship (solid line)</text></g>
+  </g>
+</svg>

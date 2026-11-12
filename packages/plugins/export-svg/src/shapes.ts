@@ -56,10 +56,25 @@ export function boundaryShape(b: Box, cls = "boundary"): string {
   return el("rect", { class: cls, x: b.x, y: b.y, width: b.width, height: b.height, rx: 4, fill: "none", stroke: PALETTE.boundary, "stroke-width": 1, "stroke-dasharray": BOUNDARY_DASH });
 }
 
+/**
+ * Edge geometry. Layouts from Graphviz (via LikeC4) are cubic Bézier splines given as 1 + 3k points
+ * (start, then control, control, end per segment); those are drawn as `C` curves. Any other count is a polyline.
+ */
+export function edgePathData(points: ReadonlyArray<readonly [number, number]>): string {
+  const [first, ...rest] = points;
+  if (!first) return "";
+  const start = `M${r(first[0])},${r(first[1])}`;
+  const isSpline = rest.length >= 3 && rest.length % 3 === 0;
+  if (!isSpline) return [start, ...rest.map(([x, y]) => `L${r(x)},${r(y)}`)].join(" ");
+  const segments: string[] = [];
+  for (let i = 0; i < rest.length; i += 3) segments.push(`C${rest.slice(i, i + 3).map(([x, y]) => `${r(x)},${r(y)}`).join(" ")}`);
+  return [start, ...segments].join(" ");
+}
+
 export function edgeLine(points: ReadonlyArray<readonly [number, number]>, isAsync: boolean, markerId: string, cls: string): string {
-  return el("polyline", {
+  return el("path", {
     class: `${cls} ${isAsync ? "async" : "sync"}`,
-    points: points.map(([x, y]) => `${r(x)},${r(y)}`).join(" "),
+    d: edgePathData(points),
     fill: "none",
     stroke: PALETTE.edge,
     "stroke-width": "1.5",

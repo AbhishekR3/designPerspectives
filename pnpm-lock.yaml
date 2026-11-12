@@ -38,6 +38,12 @@ importers:
       '@designperspectives/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@designperspectives/plugin-export-mermaid':
+        specifier: workspace:*
+        version: link:../../packages/plugins/export-mermaid
+      '@designperspectives/plugin-export-svg':
+        specifier: workspace:*
+        version: link:../../packages/plugins/export-svg
       '@designperspectives/plugin-model-likec4':
         specifier: workspace:*
         version: link:../../packages/plugins/model-likec4

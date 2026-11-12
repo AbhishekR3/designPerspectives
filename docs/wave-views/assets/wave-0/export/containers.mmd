@@ -1,0 +1,23 @@
+---
+title: "Container View: Internet Banking System"
+---
+%% Container View: Internet Banking System
+flowchart LR
+  corebanking["Core Banking System<br/>[Software system]<br/>Packaged system of record for customer accounts and transactions, exposed through an API."]
+  customer("Personal Banking Customer<br/>[Person]<br/>A bank customer who holds one or more personal accounts.")
+  ses["Amazon Simple Email Service<br/>[Software system]<br/>Cloud e-mail delivery service the bank already relies on."]
+  subgraph ibs["Internet Banking System [Software system]"]
+    ibs_api["API Application<br/>[Container: Java and Spring Boot]<br/>Server-side banking logic offered to the front end as a JSON API."]
+    ibs_db[("Database<br/>[Data store: MySQL database schema]<br/>Keeps customer login credentials and related security data.")]
+    ibs_spa["Single-Page Application<br/>[Container: JavaScript and Angular]<br/>Browser-based user interface for all online banking features."]
+    ibs_statementStore[("Statement Store<br/>[Data store: Amazon S3 bucket]<br/>Cache of previously generated PDF account statements.")]
+    ibs_staticContent[("Static Content<br/>[Data store: Directory of static HTML, CSS and JavaScript files]<br/>Holds the built files that make up the single-page application.")]
+  end
+  customer -->|"Checks balances and pays bills with"| ibs_spa
+  ibs_api -->|"Retrieves account data and submits payments via [XML/HTTPS]"| corebanking
+  ibs_api -->|"Reads from and writes to [SQL/TCP]"| ibs_db
+  ibs_api -->|"Reads from and writes to [S3 API/HTTPS]"| ibs_statementStore
+  ibs_api -->|"Sends notification e-mails via [HTTPS]"| ses
+  ibs_spa -->|"Makes API calls to [JSON/HTTPS]"| ibs_api
+  ibs_spa -->|"Loads its application files from [HTTPS]"| ibs_staticContent
+  ses -.->|"Delivers e-mails to"| customer

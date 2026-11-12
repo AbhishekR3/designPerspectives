@@ -1,6 +1,30 @@
 {
   "extends": "../../tsconfig.base.json",
-  "compilerOptions": { "rootDir": "src", "outDir": "dist", "customConditions": ["source"] },
-  "include": ["src"],
-  "references": [{ "path": "../../packages/contracts" }, { "path": "../../packages/core" }, { "path": "../../packages/plugins/model-likec4" }]
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "customConditions": [
+      "source"
+    ]
+  },
+  "include": [
+    "src"
+  ],
+  "references": [
+    {
+      "path": "../../packages/contracts"
+    },
+    {
+      "path": "../../packages/core"
+    },
+    {
+      "path": "../../packages/plugins/model-likec4"
+    },
+    {
+      "path": "../../packages/plugins/export-mermaid"
+    },
+    {
+      "path": "../../packages/plugins/export-svg"
+    }
+  ]
 }

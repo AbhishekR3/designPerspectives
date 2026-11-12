@@ -4,14 +4,24 @@
   "description": "designPerspectives CLI (`dp`): validate, export and maintain C4 architecture models stored in architecture/.",
   "license": "MIT",
   "type": "module",
-  "bin": { "dp": "./dist/bin.js" },
-  "exports": {
-    ".": { "source": "./src/index.ts", "types": "./dist/index.d.ts", "default": "./dist/index.js" }
+  "bin": {
+    "dp": "./dist/bin.js"
   },
-  "files": ["dist"],
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
   "dependencies": {
     "@designperspectives/contracts": "workspace:*",
     "@designperspectives/core": "workspace:*",
-    "@designperspectives/plugin-model-likec4": "workspace:*"
+    "@designperspectives/plugin-model-likec4": "workspace:*",
+    "@designperspectives/plugin-export-mermaid": "workspace:*",
+    "@designperspectives/plugin-export-svg": "workspace:*"
   }
 }
