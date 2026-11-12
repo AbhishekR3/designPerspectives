@@ -1,0 +1,12 @@
+{
+  "name": "@designperspectives/examples",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "dependencies": {
+    "@designperspectives/contracts": "workspace:*",
+    "@designperspectives/core": "workspace:*",
+    "yaml": "^2.9.0"
+  }
+}

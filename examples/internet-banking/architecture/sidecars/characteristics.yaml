@@ -1,0 +1,46 @@
+composites: {}
+driving:
+  - id: security
+    explicit: true
+    measures:
+      - Every API request except sign-in carries a valid, unexpired access token
+      - No credentials or tokens appear in application logs
+    scope:
+      - ibs
+    structural: false
+    trigger: Customers reach their money and personal data over the public internet
+  - id: availability
+    explicit: true
+    measures:
+      - Online banking reachable 99.9% of each calendar month
+    scope:
+      - ibs.api
+      - ibs.spa
+    structural: false
+    trigger: Customers expect to check balances and pay at any hour
+  - id: interoperability
+    explicit: true
+    measures:
+      - All core banking access goes through the adapter component
+    scope:
+      - ibs.api
+    structural: true
+    trigger: Account data lives in an off-the-shelf core banking product with its own API
+  - id: responsiveness
+    explicit: false
+    measures:
+      - 95% of statement downloads complete within 2 seconds
+    scope:
+      - ibs.api
+      - ibs.statementStore
+    structural: false
+    trigger: Generating statements from historical transactions is slow on the core system
+implicitConsidered:
+  - maintainability
+othersConsidered:
+  - scalability
+  - elasticity
+top3:
+  - security
+  - availability
+  - interoperability

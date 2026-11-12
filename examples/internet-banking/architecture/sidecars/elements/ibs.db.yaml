@@ -1,0 +1,10 @@
+id: ibs.db
+dataClassification:
+  - confidential
+  - credentials
+owners:
+  - team:online-banking
+provenance:
+  - at: 2026-11-11T00:00:00Z
+    source: manual
+status: accepted

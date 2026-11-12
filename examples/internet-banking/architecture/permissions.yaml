@@ -1,0 +1,51 @@
+decisionRights: []
+profiles:
+  architect:
+    capabilities:
+      - view
+      - comment
+      - propose
+      - approve
+      - edit
+      - export
+      - admin
+    levels:
+      - landscape
+      - context
+      - container
+      - component
+      - code
+      - deployment
+      - dynamic
+    members: []
+    perspectives: []
+    title: Architect
+  business:
+    capabilities:
+      - view
+      - comment
+      - export
+    homeView: context
+    levels:
+      - landscape
+      - context
+    members: []
+    perspectives: []
+    title: Business stakeholder
+  engineer:
+    capabilities:
+      - view
+      - comment
+      - propose
+      - export
+    homeView: containers
+    levels:
+      - context
+      - container
+      - component
+      - code
+      - deployment
+      - dynamic
+    members: []
+    perspectives: []
+    title: Engineer
