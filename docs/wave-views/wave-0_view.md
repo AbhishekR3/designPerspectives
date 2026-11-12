@@ -100,7 +100,7 @@ Checked by an independent reviewer agent that did not build the code, then re-ch
 | — | No import cycles | `.dependency-cruiser.cjs` | Pass |
 | FF5, FF7, FF9, FF10 | Determinism of ingestion, performance, core churn, LLM provenance | — | Not in Wave 0 scope (FF10's schema rule exists: `llm` provenance requires `confirmedBy`) |
 
-CI (`.github/workflows/ci.yml`): build, lint, test, ff, demo and schema freshness, desktop build on macOS/Node 22, Linux/Node 22 and Linux/Node 24; a separate job runs the desktop smoke test under xvfb and uploads the screenshots. **The workflow has not run yet**: it runs on the first push.
+CI (`.github/workflows/ci.yml`): build, lint, test, ff, demo and schema freshness, desktop build on macOS/Node 22, Linux/Node 22 and Linux/Node 24; a separate job runs the desktop smoke test under xvfb and uploads the screenshots. **The workflow has not run**: GitHub refused to start the jobs because of an account billing lock (§9).
 
 ## 6. Decisions made under delegated authority
 
@@ -165,7 +165,7 @@ Facts are from the spike reports; each report gives commands and evidence.
 ## 9. Not verified
 
 - **Nothing ran on macOS.** All runs were on Linux x64.
-- **GitHub Actions has not run.** The CI smoke job also depends on a sysctl to allow Chromium's sandbox on Ubuntu 24.04, which I could not test.
+- **GitHub Actions has not run.** On the first push (run 43176177325) GitHub did not start the jobs. Its annotation says: "The job was not started because your account is locked due to a billing issue." No code ran there. A second annotation says `ubuntu-latest` moves to Ubuntu 26 from 2026-10-19, so the sysctl the smoke job uses to allow Chromium's sandbox (written for Ubuntu 24.04) is unverified too.
 - **Electron's OS-level sandbox.** Local runs needed `--no-sandbox` because the sandbox user was root. The smoke test adds it only when running as root.
 - **Whether the CSP response header applies to `file://` pages.** The CSP meta tag is in force, and the smoke test confirms inline scripts are blocked.
 - **Dashed (async) edges in the desktop app.** The demo's Container View has no async edge.
