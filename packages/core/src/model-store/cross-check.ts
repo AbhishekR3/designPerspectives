@@ -7,17 +7,22 @@ function missing(code: string, file: string, subject: string, what: string): Dia
   return { severity: "warning", code, file, subject, message: `${what} "${subject}" does not exist in the model.` };
 }
 
+type Check = (ctx: { elements: Set<string>; rels: Set<string>; views: Set<string> }, s: SidecarSet) => Diagnostic[];
+
+const CHECKS: Check[] = [
+  (c, s) => Object.keys(s.elements).filter((id) => !c.elements.has(id)).map((id) => missing("sidecar/unknown-element", `sidecars/elements/${id}.yaml`, id, "Element")),
+  (c, s) => s.relationships.filter((r) => !c.rels.has(r.id)).map((r) => missing("sidecar/unknown-relationship", "sidecars/relationships.yaml", r.id, "Relationship")),
+  (c, s) => Object.keys(s.layouts).filter((v) => !c.views.has(v)).map((v) => missing("sidecar/unknown-view", `sidecars/layout/${v}.yaml`, v, "View")),
+  (c, s) => (s.codemapping?.rules ?? []).filter((r) => !c.elements.has(r.element)).map((r) => missing("sidecar/unknown-element", "sidecars/codemapping.yaml", r.element, "Element")),
+  (c, s) =>
+    Object.values(s.adrs).flatMap((adr) => adr.frontMatter.elements.filter((e) => !c.elements.has(e)).map((e) => missing("sidecar/unknown-element", adr.path, e, "Element"))),
+];
+
 export function crossCheck(model: Model, s: SidecarSet): Diagnostic[] {
-  const elements = new Set(model.elements.map((e) => e.id));
-  const rels = new Set(model.relationships.map(relationshipIdOf));
-  const views = new Set(model.views.map((v) => v.id));
-  const out: Diagnostic[] = [];
-  for (const id of Object.keys(s.elements)) if (!elements.has(id)) out.push(missing("sidecar/unknown-element", `sidecars/elements/${id}.yaml`, id, "Element"));
-  for (const r of s.relationships) if (!rels.has(r.id)) out.push(missing("sidecar/unknown-relationship", "sidecars/relationships.yaml", r.id, "Relationship"));
-  for (const v of Object.keys(s.layouts)) if (!views.has(v)) out.push(missing("sidecar/unknown-view", `sidecars/layout/${v}.yaml`, v, "View"));
-  for (const rule of s.codemapping?.rules ?? []) if (!elements.has(rule.element)) out.push(missing("sidecar/unknown-element", "sidecars/codemapping.yaml", rule.element, "Element"));
-  for (const adr of Object.values(s.adrs)) {
-    for (const e of adr.frontMatter.elements) if (!elements.has(e)) out.push(missing("sidecar/unknown-element", adr.path, e, "Element"));
-  }
-  return out;
+  const ctx = {
+    elements: new Set(model.elements.map((e) => e.id)),
+    rels: new Set(model.relationships.map(relationshipIdOf)),
+    views: new Set(model.views.map((v) => v.id)),
+  };
+  return CHECKS.flatMap((check) => check(ctx, s));
 }

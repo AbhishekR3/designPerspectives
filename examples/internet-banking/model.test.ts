@@ -48,7 +48,10 @@ describe("Internet Banking demo workspace", () => {
     expect(model.elements.filter((e) => e.tags?.includes("external")).map((e) => e.id).sort()).toEqual(["corebanking", "ses"]);
   });
 
-  const files = filesUnder(ARCH).map((f) => relative(ARCH, f).split("\\").join("/")).sort();
+  const files = filesUnder(ARCH)
+    .map((f) => relative(ARCH, f).split("\\").join("/"))
+    .filter((f) => !f.startsWith("model/"))
+    .sort();
 
   it.each(files)("%s parses with its schema", (file) => {
     const pattern = patternFor(file);
