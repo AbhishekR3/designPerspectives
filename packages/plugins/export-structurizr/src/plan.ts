@@ -10,84 +10,10 @@
  */
 import type { DeploymentInstance, DeploymentNode, Element, Model, Relationship, ViewDef } from "@designperspectives/contracts";
 import { ASYNC_RELATIONSHIP_KINDS, parentIdOf, relationshipIdOf, sortModel } from "@designperspectives/contracts";
-import { planViews, type PlanView } from "./plan-views.js";
+import { planViews } from "./plan-views.js";
 
-export type SzKind = "person" | "softwareSystem" | "container" | "component";
-
-export interface PlanElement {
-  el: Element;
-  szKind: SzKind;
-  /** Structurizr name (title, made unique among siblings). */
-  name: string;
-  /** Exported structural parent (element id), absent for top-level elements. */
-  parent?: string;
-  /** Enclosing group ids, outermost first (only groups below the structural parent). */
-  groupIds: string[];
-  /** Convention tag first (Database, Queue, ...), then the element's own tags. */
-  tags: string[];
-}
-
-export interface PlanGroup {
-  id: string;
-  title: string;
-  /** Structural parent element id ("" for model level). */
-  parent: string;
-  /** Enclosing group id, if nested. */
-  outer?: string;
-}
-
-export interface PlanRelationship {
-  rel: Relationship;
-  /** designPerspectives relationship id. */
-  id: string;
-  description: string;
-  async: boolean;
-  tags: string[];
-}
-
-export interface PlanEnvironment {
-  id: string;
-  name: string;
-}
-
-export interface PlanNode {
-  node: DeploymentNode;
-  env: string;
-  name: string;
-  /** Exported parent deployment node id; absent at environment level. */
-  parent?: string;
-  tags: string[];
-}
-
-export interface PlanInstance {
-  inst: DeploymentInstance;
-  node: string;
-  env: string;
-  szKind: "softwareSystem" | "container";
-  /** 1-based number of this instance among instances of the same element in the same environment. */
-  instanceId: number;
-}
-
-export interface NotExported {
-  kind: string;
-  id: string;
-  title?: string;
-  reason: string;
-}
-
-export interface Plan {
-  /** Exported elements, canonical order (sorted by id). */
-  elements: Map<string, PlanElement>;
-  groups: Map<string, PlanGroup>;
-  relationships: PlanRelationship[];
-  environments: PlanEnvironment[];
-  nodes: Map<string, PlanNode>;
-  instances: PlanInstance[];
-  views: PlanView[];
-  notExported: NotExported[];
-  /** True when a group is nested in another group (needs `structurizr.groupSeparator`). */
-  nestedGroups: boolean;
-}
+export type { NotExported, Plan, PlanElement, PlanEnvironment, PlanGroup, PlanInstance, PlanNode, PlanRelationship, SzKind } from "./plan-types.js";
+import type { Plan, PlanInstance, PlanNode, SzKind } from "./plan-types.js";
 
 /** Separator for nested group names (model property `structurizr.groupSeparator`). */
 export const GROUP_SEPARATOR = "/";

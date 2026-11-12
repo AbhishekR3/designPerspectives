@@ -2,25 +2,10 @@
  * Which views are exported, their Structurizr type and scope, and the relationships behind dynamic steps.
  */
 import type { DynamicStep, ViewDef, ViewType } from "@designperspectives/contracts";
-import type { Plan, PlanEnvironment, PlanRelationship, SzKind } from "./plan.js";
+import type { Plan, PlanEnvironment, PlanRelationship, PlanStep, PlanView, SzKind, SzViewType } from "./plan-types.js";
 
-export type SzViewType = "systemLandscape" | "systemContext" | "container" | "component" | "dynamic" | "deployment";
+export type { PlanStep, PlanView, SzViewType } from "./plan-types.js";
 
-export interface PlanStep {
-  step: DynamicStep;
-  rel: PlanRelationship;
-  /** 1-based order among exported steps. */
-  order: number;
-}
-
-export interface PlanView {
-  view: ViewDef;
-  szType: SzViewType;
-  /** Exported scope element id (software system or container), when the view has one. */
-  scope?: string;
-  env?: PlanEnvironment;
-  steps: PlanStep[];
-}
 
 interface ViewRule {
   szType: SzViewType;
