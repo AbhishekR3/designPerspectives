@@ -1,0 +1,16 @@
+node_modules/
+dist/
+out/
+coverage/
+*.tsbuildinfo
+.DS_Store
+fixtures/repos/
+spikes/**/node_modules/
+.vite/
+*.log
+# third-party clones made by spikes (never vendored)
+spikes/**/repos/
+spikes/**/_docs/
+spikes/**/_src/
+spikes/**/out/
+spikes/**/*.tgz

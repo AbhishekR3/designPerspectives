@@ -1,0 +1,15 @@
+{
+  "name": "@designperspectives/contracts",
+  "version": "0.1.0",
+  "description": "Ports, domain types and on-disk schemas shared by the designPerspectives core and plug-ins.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": { "source": "./src/index.ts", "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+    "./testing": { "source": "./src/testing/index.ts", "types": "./dist/testing/index.d.ts", "default": "./dist/testing/index.js" }
+  },
+  "files": ["dist"],
+  "dependencies": { "zod": "^4.6.0" },
+  "peerDependencies": { "vitest": "^5.1.0" },
+  "peerDependenciesMeta": { "vitest": { "optional": true } }
+}

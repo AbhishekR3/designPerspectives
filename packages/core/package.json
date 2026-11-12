@@ -1,0 +1,16 @@
+{
+  "name": "@designperspectives/core",
+  "version": "0.1.0",
+  "description": "Headless designPerspectives core (domain-partitioned modular monolith), shared by the CLI and the desktop host.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": { "source": "./src/index.ts", "types": "./dist/index.d.ts", "default": "./dist/index.js" }
+  },
+  "files": ["dist"],
+  "dependencies": {
+    "@designperspectives/contracts": "workspace:*",
+    "yaml": "^2.9.0",
+    "zod": "^4.6.0"
+  }
+}

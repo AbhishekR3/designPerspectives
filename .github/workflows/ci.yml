@@ -1,0 +1,29 @@
+name: ci
+on:
+  push:
+    branches: [main, "wave-*"]
+  pull_request:
+
+jobs:
+  check:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build (TypeScript project references)
+        run: pnpm build
+      - name: Lint (includes FF11 warning level)
+        run: pnpm lint
+      - name: Unit, contract and round-trip tests (FF3, FF4, FF6 run inside the suite)
+        run: pnpm test
+      - name: Fitness functions (FF1, FF2, FF8, FF11 hard limit, FF12)
+        run: pnpm ff
