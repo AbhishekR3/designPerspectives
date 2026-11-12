@@ -41,6 +41,9 @@ importers:
       '@designperspectives/plugin-export-mermaid':
         specifier: workspace:*
         version: link:../../packages/plugins/export-mermaid
+      '@designperspectives/plugin-export-structurizr':
+        specifier: workspace:*
+        version: link:../../packages/plugins/export-structurizr
       '@designperspectives/plugin-export-svg':
         specifier: workspace:*
         version: link:../../packages/plugins/export-svg
@@ -122,6 +125,12 @@ importers:
         version: 4.6.7
 
   packages/plugins/export-mermaid:
+    dependencies:
+      '@designperspectives/contracts':
+        specifier: workspace:*
+        version: link:../../contracts
+
+  packages/plugins/export-structurizr:
     dependencies:
       '@designperspectives/contracts':
         specifier: workspace:*

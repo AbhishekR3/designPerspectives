@@ -6,6 +6,7 @@
     { "path": "packages/plugins/model-likec4" },
     { "path": "packages/plugins/export-mermaid" },
     { "path": "packages/plugins/export-svg" },
+    { "path": "packages/plugins/export-structurizr" },
     { "path": "apps/cli" }
   ]
 }

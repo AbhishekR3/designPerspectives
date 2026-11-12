@@ -1,0 +1,20 @@
+{
+  "name": "@designperspectives/plugin-export-structurizr",
+  "version": "0.1.0",
+  "description": "Exporters to Structurizr DSL (workspace.dsl) and Structurizr JSON (workspace.json).",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@designperspectives/contracts": "workspace:*"
+  }
+}

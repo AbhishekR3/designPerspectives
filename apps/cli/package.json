@@ -22,6 +22,7 @@
     "@designperspectives/core": "workspace:*",
     "@designperspectives/plugin-model-likec4": "workspace:*",
     "@designperspectives/plugin-export-mermaid": "workspace:*",
-    "@designperspectives/plugin-export-svg": "workspace:*"
+    "@designperspectives/plugin-export-svg": "workspace:*",
+    "@designperspectives/plugin-export-structurizr": "workspace:*"
   }
 }

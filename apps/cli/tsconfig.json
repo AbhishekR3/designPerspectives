@@ -25,6 +25,9 @@
     },
     {
       "path": "../../packages/plugins/export-svg"
+    },
+    {
+      "path": "../../packages/plugins/export-structurizr"
     }
   ]
 }
