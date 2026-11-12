@@ -1,0 +1,11 @@
+{
+  "name": "spike-likec4-min",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@likec4/language-services": "^1.60.0"
+  },
+  "overrides": {
+    "remeda": "2.51.0"
+  }
+}

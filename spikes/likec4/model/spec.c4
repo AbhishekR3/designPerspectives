@@ -1,0 +1,27 @@
+specification {
+  element person { style { shape person } }
+  element softwareSystem
+  element hardwareSystem
+  element container
+  element dataStore { style { shape storage } }
+  element queue { style { shape queue } }
+  element topic
+  element component
+  element codeElement
+  element group
+
+  relationship calls
+  relationship sendsTo
+  relationship publishesTo
+  relationship subscribesTo
+  relationship readsFrom
+  relationship writesTo
+  relationship requestReply
+  relationship deploysTo
+
+  deploymentNode environment
+  deploymentNode node
+
+  tag external
+  tag pii
+}

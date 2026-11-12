@@ -1,0 +1,528 @@
+{
+ "runtime": {
+  "node": "22.23.4",
+  "electron": null,
+  "type": "node",
+  "platform": "linux",
+  "arch": "x64"
+ },
+ "langs": {
+  "typescript": {
+   "sampleLines": 36,
+   "synthLines": 5001,
+   "synthBytes": 200645,
+   "wasm": {
+    "own": {
+     "abi": 14,
+     "loadMs": 14.5,
+     "sampleHasError": false,
+     "sexpHash": "f004a7b175ef0cd9",
+     "capsHash": "aa541b81133368e8",
+     "imports": 4,
+     "decls": [
+      "Element",
+      "ElementMap",
+      "Level",
+      "DEFAULT_LEVEL",
+      "counter",
+      "nextId",
+      "Workspace",
+      "load"
+     ],
+     "sameAcrossTwoParsers": true,
+     "bigFirstMs": 125.3,
+     "bigMedianMs": 59.1,
+     "bigHasError": false,
+     "bigNodes": 100015,
+     "bigQueryMs": 40.5,
+     "bigCaptures": 1501,
+     "bigSexpHash": "c564b7cb897b4373"
+    },
+    "tree-sitter-wasms": {
+     "error": "Error"
+    },
+    "@vscode/tree-sitter-wasm": {
+     "abi": 14,
+     "loadMs": 5,
+     "sampleHasError": false,
+     "sexpHash": "f004a7b175ef0cd9",
+     "capsHash": "aa541b81133368e8",
+     "imports": 4,
+     "decls": [
+      "Element",
+      "ElementMap",
+      "Level",
+      "DEFAULT_LEVEL",
+      "counter",
+      "nextId",
+      "Workspace",
+      "load"
+     ],
+     "sameAcrossTwoParsers": true,
+     "bigFirstMs": 86.3,
+     "bigMedianMs": 88,
+     "bigHasError": false,
+     "bigNodes": 100015,
+     "bigQueryMs": 39.1,
+     "bigCaptures": 1501,
+     "bigSexpHash": "c564b7cb897b4373"
+    }
+   },
+   "native": {
+    "sampleHasError": false,
+    "sexpHash": "f004a7b175ef0cd9",
+    "capsHash": "aa541b81133368e8",
+    "imports": 4,
+    "declCount": 8,
+    "bigFirstMs": 52.4,
+    "bigMedianMs": 52.6,
+    "bigHasError": false,
+    "bigNodes": 100015,
+    "bigQueryMs": 34.4,
+    "bigCaptures": 1501,
+    "bigSexpHash": "c564b7cb897b4373"
+   }
+  },
+  "tsx": {
+   "sampleLines": 37,
+   "synthLines": 5005,
+   "synthBytes": 170169,
+   "wasm": {
+    "own": {
+     "abi": 14,
+     "loadMs": 70.8,
+     "sampleHasError": false,
+     "sexpHash": "64857c3dc6ca40bc",
+     "capsHash": "b0c05113527f4a3b",
+     "imports": 3,
+     "decls": [
+      "PanelProps",
+      "Tone",
+      "TONES",
+      "Panel",
+      "Legend",
+      "App"
+     ],
+     "sameAcrossTwoParsers": true,
+     "bigFirstMs": 57.7,
+     "bigMedianMs": 48.5,
+     "bigHasError": false,
+     "bigNodes": 90639,
+     "bigQueryMs": 29.8,
+     "bigCaptures": 1113,
+     "bigSexpHash": "09cf8e30cc39fb6f"
+    },
+    "tree-sitter-wasms": {
+     "error": "Error"
+    },
+    "@vscode/tree-sitter-wasm": {
+     "abi": 14,
+     "loadMs": 2.7,
+     "sampleHasError": false,
+     "sexpHash": "64857c3dc6ca40bc",
+     "capsHash": "b0c05113527f4a3b",
+     "imports": 3,
+     "decls": [
+      "PanelProps",
+      "Tone",
+      "TONES",
+      "Panel",
+      "Legend",
+      "App"
+     ],
+     "sameAcrossTwoParsers": true,
+     "bigFirstMs": 52.8,
+     "bigMedianMs": 47.9,
+     "bigHasError": false,
+     "bigNodes": 90639,
+     "bigQueryMs": 34,
+     "bigCaptures": 1113,
+     "bigSexpHash": "09cf8e30cc39fb6f"
+    }
+   },
+   "native": {
+    "sampleHasError": false,
+    "sexpHash": "64857c3dc6ca40bc",
+    "capsHash": "b0c05113527f4a3b",
+    "imports": 3,
+    "declCount": 6,
+    "bigFirstMs": 42.5,
+    "bigMedianMs": 40.6,
+    "bigHasError": false,
+    "bigNodes": 90639,
+    "bigQueryMs": 23.4,
+    "bigCaptures": 1113,
+    "bigSexpHash": "09cf8e30cc39fb6f"
+   }
+  },
+  "javascript": {
+   "sampleLines": 36,
+   "synthLines": 5005,
+   "synthBytes": 164720,
+   "wasm": {
+    "own": {
+     "abi": 15,
+     "loadMs": 74.5,
+     "sampleHasError": false,
+     "sexpHash": "8e3b6a4d1bba3f37",
+     "capsHash": "e4cdc8b2594c6d73",
+     "imports": 3,
+     "decls": [
+      "legacy",
+      "VERSION",
+      "cache",
+      "debug",
+      "readJson",
+      "walk",
+      "Scanner",
+      "main"
+     ],
+     "sameAcrossTwoParsers": true,
+     "bigFirstMs": 47,
+     "bigMedianMs": 39.1,
+     "bigHasError": false,
+     "bigNodes": 88975,
+     "bigQueryMs": 17.6,
+     "bigCaptures": 1113,
+     "bigSexpHash": "51fa784dc858c901"
+    },
+    "tree-sitter-wasms": {
+     "error": "Error"
+    },
+    "@vscode/tree-sitter-wasm": {
+     "abi": 15,
+     "loadMs": 1.9,
+     "sampleHasError": false,
+     "sexpHash": "8e3b6a4d1bba3f37",
+     "capsHash": "e4cdc8b2594c6d73",
+     "imports": 3,
+     "decls": [
+      "legacy",
+      "VERSION",
+      "cache",
+      "debug",
+      "readJson",
+      "walk",
+      "Scanner",
+      "main"
+     ],
+     "sameAcrossTwoParsers": true,
+     "bigFirstMs": 42.8,
+     "bigMedianMs": 38.9,
+     "bigHasError": false,
+     "bigNodes": 88975,
+     "bigQueryMs": 18.3,
+     "bigCaptures": 1113,
+     "bigSexpHash": "51fa784dc858c901"
+    }
+   },
+   "native": {
+    "sampleHasError": false,
+    "sexpHash": "8e3b6a4d1bba3f37",
+    "capsHash": "e4cdc8b2594c6d73",
+    "imports": 3,
+    "declCount": 8,
+    "bigFirstMs": 33.5,
+    "bigMedianMs": 42,
+    "bigHasError": false,
+    "bigNodes": 88975,
+    "bigQueryMs": 25,
+    "bigCaptures": 1113,
+    "bigSexpHash": "51fa784dc858c901"
+   }
+  },
+  "python": {
+   "sampleLines": 38,
+   "synthLines": 5009,
+   "synthBytes": 104518,
+   "wasm": {
+    "own": {
+     "abi": 15,
+     "loadMs": 62.2,
+     "sampleHasError": false,
+     "sexpHash": "f0bbcaa81e73e998",
+     "capsHash": "8922d516ad77de6f",
+     "imports": 7,
+     "decls": [
+      "DEFAULT_DEPTH",
+      "_cache",
+      "Element",
+      "Workspace",
+      "count",
+      "main"
+     ],
+     "sameAcrossTwoParsers": true,
+     "bigFirstMs": 33.1,
+     "bigMedianMs": 29.2,
+     "bigHasError": false,
+     "bigNodes": 46642,
+     "bigQueryMs": 9,
+     "bigCaptures": 627,
+     "bigSexpHash": "dba50d392c0e8f0e"
+    },
+    "tree-sitter-wasms": {
+     "error": "Error"
+    },
+    "@vscode/tree-sitter-wasm": {
+     "abi": 15,
+     "loadMs": 1.4,
+     "sampleHasError": false,
+     "sexpHash": "f0bbcaa81e73e998",
+     "capsHash": "8922d516ad77de6f",
+     "imports": 7,
+     "decls": [
+      "DEFAULT_DEPTH",
+      "_cache",
+      "Element",
+      "Workspace",
+      "count",
+      "main"
+     ],
+     "sameAcrossTwoParsers": true,
+     "bigFirstMs": 29.9,
+     "bigMedianMs": 29.6,
+     "bigHasError": false,
+     "bigNodes": 46642,
+     "bigQueryMs": 9.5,
+     "bigCaptures": 627,
+     "bigSexpHash": "dba50d392c0e8f0e"
+    }
+   },
+   "native": {
+    "sampleHasError": false,
+    "sexpHash": "f0bbcaa81e73e998",
+    "capsHash": "8922d516ad77de6f",
+    "imports": 7,
+    "declCount": 6,
+    "bigFirstMs": 46.8,
+    "bigMedianMs": 19.3,
+    "bigHasError": false,
+    "bigNodes": 46642,
+    "bigQueryMs": 10.9,
+    "bigCaptures": 627,
+    "bigSexpHash": "dba50d392c0e8f0e"
+   }
+  },
+  "java": {
+   "sampleLines": 35,
+   "synthLines": 5007,
+   "synthBytes": 170109,
+   "wasm": {
+    "own": {
+     "abi": 14,
+     "loadMs": 34.9,
+     "sampleHasError": false,
+     "sexpHash": "f007222494925082",
+     "capsHash": "156189559b814f08",
+     "imports": 5,
+     "decls": [
+      "Sample",
+      "Describable",
+      "Level",
+      "Element",
+      "Marker"
+     ],
+     "sameAcrossTwoParsers": true,
+     "bigFirstMs": 40.6,
+     "bigMedianMs": 39.5,
+     "bigHasError": false,
+     "bigNodes": 76455,
+     "bigQueryMs": 14.9,
+     "bigCaptures": 456,
+     "bigSexpHash": "bdbe3283e4a16ed5"
+    },
+    "tree-sitter-wasms": {
+     "error": "Error"
+    },
+    "@vscode/tree-sitter-wasm": {
+     "abi": 14,
+     "loadMs": 2.1,
+     "sampleHasError": false,
+     "sexpHash": "f007222494925082",
+     "capsHash": "156189559b814f08",
+     "imports": 5,
+     "decls": [
+      "Sample",
+      "Describable",
+      "Level",
+      "Element",
+      "Marker"
+     ],
+     "sameAcrossTwoParsers": true,
+     "bigFirstMs": 44.4,
+     "bigMedianMs": 39.9,
+     "bigHasError": false,
+     "bigNodes": 76455,
+     "bigQueryMs": 12.7,
+     "bigCaptures": 456,
+     "bigSexpHash": "bdbe3283e4a16ed5"
+    }
+   },
+   "native": {
+    "sampleHasError": false,
+    "sexpHash": "f007222494925082",
+    "capsHash": "156189559b814f08",
+    "imports": 5,
+    "declCount": 5,
+    "bigFirstMs": 37.3,
+    "bigMedianMs": 30.4,
+    "bigHasError": false,
+    "bigNodes": 76455,
+    "bigQueryMs": 14.6,
+    "bigCaptures": 456,
+    "bigSexpHash": "bdbe3283e4a16ed5"
+   }
+  },
+  "go": {
+   "sampleLines": 40,
+   "synthLines": 5004,
+   "synthBytes": 72775,
+   "wasm": {
+    "own": {
+     "abi": 15,
+     "loadMs": 62,
+     "sampleHasError": false,
+     "sexpHash": "66b7f924943ba455",
+     "capsHash": "9bc2ac766f98ba0b",
+     "imports": 4,
+     "decls": [
+      "DefaultDepth",
+      "cache",
+      "Level",
+      "Element",
+      "Describer",
+      "Describe",
+      "CountFiles"
+     ],
+     "sameAcrossTwoParsers": true,
+     "bigFirstMs": 20.8,
+     "bigMedianMs": 14.2,
+     "bigHasError": false,
+     "bigNodes": 36771,
+     "bigQueryMs": 5.7,
+     "bigCaptures": 884,
+     "bigSexpHash": "06e0b9d441ce2dc1"
+    },
+    "tree-sitter-wasms": {
+     "error": "Error"
+    },
+    "@vscode/tree-sitter-wasm": {
+     "abi": 15,
+     "loadMs": 0.9,
+     "sampleHasError": false,
+     "sexpHash": "66b7f924943ba455",
+     "capsHash": "9bc2ac766f98ba0b",
+     "imports": 4,
+     "decls": [
+      "DefaultDepth",
+      "cache",
+      "Level",
+      "Element",
+      "Describer",
+      "Describe",
+      "CountFiles"
+     ],
+     "sameAcrossTwoParsers": true,
+     "bigFirstMs": 20,
+     "bigMedianMs": 17.3,
+     "bigHasError": false,
+     "bigNodes": 36771,
+     "bigQueryMs": 7.1,
+     "bigCaptures": 884,
+     "bigSexpHash": "06e0b9d441ce2dc1"
+    }
+   },
+   "native": {
+    "sampleHasError": false,
+    "sexpHash": "66b7f924943ba455",
+    "capsHash": "9bc2ac766f98ba0b",
+    "imports": 4,
+    "declCount": 7,
+    "bigFirstMs": 17.4,
+    "bigMedianMs": 17.2,
+    "bigHasError": false,
+    "bigNodes": 36771,
+    "bigQueryMs": 8.3,
+    "bigCaptures": 884,
+    "bigSexpHash": "06e0b9d441ce2dc1"
+   }
+  },
+  "csharp": {
+   "sampleLines": 36,
+   "synthLines": 5009,
+   "synthBytes": 163110,
+   "wasm": {
+    "own": {
+     "abi": 15,
+     "loadMs": 42.9,
+     "sampleHasError": false,
+     "sexpHash": "bf6d8e5a22d00ee6",
+     "capsHash": "78de81118b1d2780",
+     "imports": 5,
+     "decls": [
+      "Example.Sample",
+      "Level",
+      "IDescribable",
+      "Element",
+      "Point",
+      "Workspace",
+      "Changed"
+     ],
+     "sameAcrossTwoParsers": true,
+     "bigFirstMs": 108.1,
+     "bigMedianMs": 39,
+     "bigHasError": false,
+     "bigNodes": 64309,
+     "bigQueryMs": 30.1,
+     "bigCaptures": 387,
+     "bigSexpHash": "f148b1bcdc8d14ff"
+    },
+    "tree-sitter-wasms": {
+     "error": "Error"
+    },
+    "@vscode/tree-sitter-wasm": {
+     "abi": 15,
+     "loadMs": 5.8,
+     "sampleHasError": false,
+     "sexpHash": "bf6d8e5a22d00ee6",
+     "capsHash": "78de81118b1d2780",
+     "imports": 5,
+     "decls": [
+      "Example.Sample",
+      "Level",
+      "IDescribable",
+      "Element",
+      "Point",
+      "Workspace",
+      "Changed"
+     ],
+     "sameAcrossTwoParsers": true,
+     "bigFirstMs": 66.1,
+     "bigMedianMs": 50.7,
+     "bigHasError": false,
+     "bigNodes": 64309,
+     "bigQueryMs": 11.9,
+     "bigCaptures": 387,
+     "bigSexpHash": "f148b1bcdc8d14ff"
+    }
+   },
+   "nativeLoadedVia": "import() after require() failed: ERR_REQUIRE_ASYNC_MODULE",
+   "native": {
+    "sampleHasError": false,
+    "sexpHash": "bf6d8e5a22d00ee6",
+    "capsHash": "78de81118b1d2780",
+    "imports": 5,
+    "declCount": 7,
+    "bigFirstMs": 33.1,
+    "bigMedianMs": 35.2,
+    "bigHasError": false,
+    "bigNodes": 64309,
+    "bigQueryMs": 13.6,
+    "bigCaptures": 387,
+    "bigSexpHash": "f148b1bcdc8d14ff"
+   }
+  }
+ },
+ "nativeCore": "loaded",
+ "deterministicDigest": "bbd0d49cb9721117"
+}

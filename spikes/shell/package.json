@@ -1,0 +1,1 @@
+{"name":"spike-shell","private":true,"version":"0.0.0","main":"main.js","dependencies":{"@electron/rebuild":"^4.2.1","better-sqlite3":"^13.1.1","electron":"^45.3.0","playwright":"^1.65.0"}}

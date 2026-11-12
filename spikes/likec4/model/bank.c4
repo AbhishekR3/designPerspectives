@@ -1,0 +1,140 @@
+// Fictional internet banking system (spike fixture)
+model {
+  customer = person "Personal Banking Customer" {
+    description "A customer of the bank, with personal bank accounts."
+  }
+
+  ibs = softwareSystem "Internet Banking System" {
+    description "Lets customers view accounts and make payments."
+    link https://example.com/ibs "Docs"
+
+    spa = container "Single-Page Application" {
+      technology "TypeScript, React"
+      description "Provides banking functionality in the browser."
+    }
+
+    backend = container "API Application" {
+      technology "Node.js"
+      description """
+        Provides banking functionality via a JSON/HTTPS API.
+        Second line with "quotes" and a back\slash.
+      """
+      metadata {
+        owner "team-payments"
+        tier "1"
+        regions ["eu", "us"]
+      }
+
+      signin = component "Sign In Controller" {
+        technology "Controller"
+      }
+      accounts = component "Accounts Summary Controller" {
+        technology "Controller"
+      }
+      security = component "Security Component" {
+        description 'Sign-in and password "handling".'
+      }
+      facade = component "Core Banking Facade"
+      mailer = component "Email Component"
+
+      signin -[calls]-> security "Uses"
+      accounts -[calls]-> facade "Uses"
+    }
+
+    db = dataStore "Database" {
+      #pii
+      technology "PostgreSQL"
+      description "Stores user registration, hashed credentials, access logs."
+    }
+
+    events = topic "Account Events"
+    jobs = queue "Mail Jobs"
+
+    spa -[calls]-> backend.signin "Signs in" {
+      technology "JSON/HTTPS"
+    }
+    spa -[calls]-> backend.accounts "Fetches accounts" {
+      technology "JSON/HTTPS"
+    }
+    backend.security -[readsFrom]-> db "Reads credentials" {
+      technology "SQL/TCP"
+    }
+    backend.security -[writesTo]-> db "Writes access log" {
+      technology "SQL/TCP"
+      description "Append only."
+      metadata { retention "90d" }
+    }
+    backend.accounts -[publishesTo]-> events "Publishes AccountViewed"
+    backend.mailer -[subscribesTo]-> events "Consumes events"
+    backend.mailer -[sendsTo]-> jobs "Enqueues mail"
+  }
+
+  corebanking = softwareSystem "Mainframe Banking System" {
+    #external
+    description "Stores core banking information."
+  }
+  email = softwareSystem "E-mail System" {
+    #external
+  }
+  hsm = hardwareSystem "HSM"
+  nested = group "Odd nesting" {
+    p2 = person "Person inside a group" {
+      c2 = softwareSystem "System inside a person"
+    }
+  }
+
+  customer -[calls]-> ibs.spa "Views balances and makes payments"
+  ibs.backend.facade -[requestReply]-> corebanking "Gets account data" {
+    technology "XML/HTTPS"
+  }
+  ibs.backend.mailer -[sendsTo]-> email "Sends e-mail" {
+    technology "SMTP"
+  }
+  email -[sendsTo]-> customer "Sends e-mails to"
+  customer -> hsm
+}
+
+deployment {
+  environment prod "Production" {
+    web = node "Web Server" {
+      instanceOf ibs.spa
+    }
+    app = node "App Server" {
+      api1 = instanceOf ibs.backend
+      api2 = instanceOf ibs.backend
+    }
+    dbnode = node "DB Server" {
+      instanceOf ibs.db
+    }
+  }
+}
+
+views {
+  view context of ibs {
+    title "System Context"
+    include *
+  }
+  view containers of ibs {
+    title "Containers"
+    include *
+    include customer, corebanking, email
+    style ibs.db { color green }
+  }
+  view components of ibs.backend {
+    title "Components"
+    include *
+    exclude ibs.events
+  }
+  dynamic view signin {
+    title "Sign in"
+    customer -> ibs.spa "Enters credentials"
+    ibs.spa -> ibs.backend.signin "POST /signin"
+    ibs.backend.signin -> ibs.backend.security "Validate"
+    ibs.backend.security -> ibs.db "select"
+    ibs.spa <- ibs.backend.signin "token"
+  }
+  deployment view prod {
+    title "Production"
+    include prod.**
+  }
+}

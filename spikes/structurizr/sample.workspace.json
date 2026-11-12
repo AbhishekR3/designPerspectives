@@ -1,0 +1,449 @@
+{
+  "id": 0,
+  "name": "Internet Banking (sample)",
+  "description": "Minimal designPerspectives export sample.",
+  "lastModifiedAgent": "designPerspectives/spike",
+  "model": {
+    "properties": {
+      "designperspectives.schema": "0.2"
+    },
+    "people": [
+      {
+        "id": "1",
+        "name": "Personal Banking Customer",
+        "description": "A customer of the bank, with personal bank accounts.",
+        "tags": "Element,Person,Customer",
+        "location": "Unspecified",
+        "properties": {
+          "structurizr.dsl.identifier": "customer"
+        },
+        "relationships": [
+          {
+            "id": "11",
+            "sourceId": "1",
+            "destinationId": "2",
+            "description": "Views account balances and makes payments using",
+            "tags": "Relationship"
+          },
+          {
+            "id": "15",
+            "sourceId": "1",
+            "destinationId": "3",
+            "description": "Views account balances using",
+            "technology": "HTTPS",
+            "tags": "Relationship"
+          }
+        ]
+      }
+    ],
+    "softwareSystems": [
+      {
+        "id": "2",
+        "name": "Internet Banking System",
+        "description": "Allows customers to view information about their bank accounts and make payments.",
+        "tags": "Element,Software System",
+        "location": "Unspecified",
+        "group": "Big Bank plc",
+        "properties": {
+          "structurizr.dsl.identifier": "ibs",
+          "dp.owner": "team-digital-banking"
+        },
+        "perspectives": [
+          {
+            "name": "Ownership",
+            "description": "Owned by the Digital Banking team",
+            "value": "team-digital-banking"
+          }
+        ],
+        "relationships": [
+          {
+            "id": "12",
+            "sourceId": "2",
+            "destinationId": "9",
+            "description": "Gets account information from, and makes payments using",
+            "tags": "Relationship"
+          },
+          {
+            "id": "13",
+            "sourceId": "2",
+            "destinationId": "10",
+            "description": "Sends e-mail using",
+            "tags": "Relationship"
+          }
+        ],
+        "containers": [
+          {
+            "id": "3",
+            "name": "Web Application",
+            "description": "Delivers the single-page banking UI to the customer's browser.",
+            "technology": "TypeScript and React",
+            "tags": "Element,Container,Web Browser",
+            "properties": {
+              "structurizr.dsl.identifier": "ibs.web"
+            },
+            "relationships": [
+              {
+                "id": "16",
+                "sourceId": "3",
+                "destinationId": "4",
+                "description": "Makes API calls to",
+                "technology": "JSON/HTTPS",
+                "tags": "Relationship"
+              },
+              {
+                "id": "20",
+                "sourceId": "3",
+                "destinationId": "5",
+                "description": "Makes API calls to",
+                "technology": "JSON/HTTPS",
+                "tags": "Relationship"
+              },
+              {
+                "id": "21",
+                "sourceId": "3",
+                "destinationId": "6",
+                "description": "Makes API calls to",
+                "technology": "JSON/HTTPS",
+                "tags": "Relationship"
+              }
+            ]
+          },
+          {
+            "id": "4",
+            "name": "API Application",
+            "description": "Provides internet banking functionality via a JSON/HTTPS API.",
+            "technology": "Java and Spring MVC",
+            "tags": "Element,Container",
+            "properties": {
+              "structurizr.dsl.identifier": "ibs.api"
+            },
+            "relationships": [
+              {
+                "id": "17",
+                "sourceId": "4",
+                "destinationId": "8",
+                "description": "Reads from and writes to",
+                "technology": "SQL/TCP",
+                "tags": "Relationship"
+              },
+              {
+                "id": "18",
+                "sourceId": "4",
+                "destinationId": "9",
+                "description": "Makes API calls to",
+                "technology": "XML/HTTPS",
+                "tags": "Relationship"
+              },
+              {
+                "id": "19",
+                "sourceId": "4",
+                "destinationId": "10",
+                "description": "Sends e-mail using",
+                "technology": "SMTP",
+                "interactionStyle": "Asynchronous",
+                "tags": "Relationship,Asynchronous"
+              }
+            ],
+            "components": [
+              {
+                "id": "5",
+                "name": "Sign In Controller",
+                "description": "Allows users to sign in to the Internet Banking System.",
+                "technology": "Spring MVC Rest Controller",
+                "tags": "Element,Component",
+                "properties": {
+                  "structurizr.dsl.identifier": "ibs.api.signin"
+                },
+                "relationships": [
+                  {
+                    "id": "22",
+                    "sourceId": "5",
+                    "destinationId": "8",
+                    "description": "Reads from and writes to",
+                    "technology": "SQL/TCP",
+                    "tags": "Relationship"
+                  }
+                ]
+              },
+              {
+                "id": "6",
+                "name": "Accounts Summary Controller",
+                "description": "Provides customers with a summary of their bank accounts.",
+                "technology": "Spring MVC Rest Controller",
+                "tags": "Element,Component",
+                "properties": {
+                  "structurizr.dsl.identifier": "ibs.api.accounts"
+                },
+                "relationships": [
+                  {
+                    "id": "23",
+                    "sourceId": "6",
+                    "destinationId": "7",
+                    "description": "Uses",
+                    "tags": "Relationship"
+                  }
+                ]
+              },
+              {
+                "id": "7",
+                "name": "Mainframe Banking System Facade",
+                "description": "A facade onto the mainframe banking system.",
+                "technology": "Spring Bean",
+                "tags": "Element,Component",
+                "properties": {
+                  "structurizr.dsl.identifier": "ibs.api.mainframefacade"
+                },
+                "relationships": [
+                  {
+                    "id": "24",
+                    "sourceId": "7",
+                    "destinationId": "9",
+                    "description": "Makes API calls to",
+                    "technology": "XML/HTTPS",
+                    "tags": "Relationship"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "8",
+            "name": "Database",
+            "description": "Stores user registration information, hashed credentials and access logs.",
+            "technology": "PostgreSQL",
+            "tags": "Element,Container,Database",
+            "properties": {
+              "structurizr.dsl.identifier": "ibs.db"
+            }
+          }
+        ]
+      },
+      {
+        "id": "9",
+        "name": "Mainframe Banking System",
+        "description": "Stores all of the core banking information about customers, accounts and transactions.",
+        "tags": "Element,Software System,Existing System",
+        "location": "Unspecified",
+        "group": "Big Bank plc",
+        "properties": {
+          "structurizr.dsl.identifier": "mainframe"
+        }
+      },
+      {
+        "id": "10",
+        "name": "E-mail System",
+        "description": "The internal e-mail system.",
+        "tags": "Element,Software System,Existing System",
+        "location": "Unspecified",
+        "group": "Big Bank plc",
+        "properties": {
+          "structurizr.dsl.identifier": "email"
+        },
+        "relationships": [
+          {
+            "id": "14",
+            "sourceId": "10",
+            "destinationId": "1",
+            "description": "Sends e-mails to",
+            "tags": "Relationship"
+          }
+        ]
+      }
+    ]
+  },
+  "views": {
+    "systemContextViews": [
+      {
+        "key": "SystemContext",
+        "order": 1,
+        "title": "Internet Banking System - System Context",
+        "description": "System context for the Internet Banking System.",
+        "softwareSystemId": "2",
+        "elements": [
+          {
+            "id": "1",
+            "x": 800,
+            "y": 100
+          },
+          {
+            "id": "2",
+            "x": 800,
+            "y": 700
+          },
+          {
+            "id": "9",
+            "x": 800,
+            "y": 1300
+          },
+          {
+            "id": "10",
+            "x": 1600,
+            "y": 700
+          }
+        ],
+        "relationships": [
+          {
+            "id": "11"
+          },
+          {
+            "id": "12"
+          },
+          {
+            "id": "13"
+          },
+          {
+            "id": "14"
+          }
+        ]
+      }
+    ],
+    "containerViews": [
+      {
+        "key": "Containers",
+        "order": 2,
+        "title": "Internet Banking System - Containers",
+        "description": "Containers of the Internet Banking System.",
+        "softwareSystemId": "2",
+        "externalSoftwareSystemBoundariesVisible": false,
+        "elements": [
+          {
+            "id": "1",
+            "x": 800,
+            "y": 100
+          },
+          {
+            "id": "3",
+            "x": 800,
+            "y": 700
+          },
+          {
+            "id": "4",
+            "x": 800,
+            "y": 1300
+          },
+          {
+            "id": "8",
+            "x": 100,
+            "y": 1900
+          },
+          {
+            "id": "9",
+            "x": 800,
+            "y": 1900
+          },
+          {
+            "id": "10",
+            "x": 1600,
+            "y": 1300
+          }
+        ],
+        "relationships": [
+          {
+            "id": "14"
+          },
+          {
+            "id": "15"
+          },
+          {
+            "id": "16"
+          },
+          {
+            "id": "17"
+          },
+          {
+            "id": "18"
+          },
+          {
+            "id": "19"
+          }
+        ]
+      }
+    ],
+    "componentViews": [
+      {
+        "key": "Components",
+        "order": 3,
+        "title": "API Application - Components",
+        "description": "Components of the API Application.",
+        "containerId": "4",
+        "externalContainerBoundariesVisible": false,
+        "elements": [
+          {
+            "id": "3",
+            "x": 800,
+            "y": 100
+          },
+          {
+            "id": "5",
+            "x": 300,
+            "y": 700
+          },
+          {
+            "id": "6",
+            "x": 1300,
+            "y": 700
+          },
+          {
+            "id": "7",
+            "x": 1300,
+            "y": 1300
+          },
+          {
+            "id": "8",
+            "x": 300,
+            "y": 1300
+          },
+          {
+            "id": "9",
+            "x": 1300,
+            "y": 1900
+          }
+        ],
+        "relationships": [
+          {
+            "id": "20"
+          },
+          {
+            "id": "21"
+          },
+          {
+            "id": "22"
+          },
+          {
+            "id": "23"
+          },
+          {
+            "id": "24"
+          }
+        ]
+      }
+    ],
+    "configuration": {
+      "styles": {
+        "elements": [
+          {
+            "tag": "Database",
+            "shape": "Cylinder"
+          },
+          {
+            "tag": "Person",
+            "shape": "Person"
+          }
+        ]
+      }
+    }
+  },
+  "documentation": {
+    "decisions": [
+      {
+        "id": "1",
+        "date": "2026-11-12T00:00:00Z",
+        "status": "Accepted",
+        "title": "Use PostgreSQL for the banking database",
+        "format": "Markdown",
+        "content": "# 1. Use PostgreSQL for the banking database\n\nDate: 2026-11-12\n\n## Status\n\nAccepted\n\n## Context\n\nSample ADR.\n\n## Decision\n\nUse PostgreSQL.\n\n## Consequences\n\nNone recorded.\n",
+        "elementId": "8"
+      }
+    ]
+  }
+}
