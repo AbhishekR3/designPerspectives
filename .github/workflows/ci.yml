@@ -9,21 +9,30 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, ubuntu-latest]
+        include:
+          # Owner's machine is macOS arm64 (plan Q1/Q10); Linux keeps portability visible.
+          - { os: macos-latest, node: 22 }
+          - { os: ubuntu-latest, node: 22 }
+          # Electron bundles Node 24, so the shared core is also tested on 24 (ADR-0003 condition C3.1).
+          - { os: ubuntu-latest, node: 24 }
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: ${{ matrix.node }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
       - name: Build (TypeScript project references)
         run: pnpm build
-      - name: Lint (includes FF11 warning level)
+      - name: Lint (FF11 warning level)
         run: pnpm lint
-      - name: Unit, contract and round-trip tests (FF3, FF4, FF6 run inside the suite)
+      - name: Unit, contract, round-trip and config tests (FF3, FF4, FF6)
         run: pnpm test
       - name: Fitness functions (FF1, FF2, FF8, FF11 hard limit, FF12)
         run: pnpm ff
+      - name: Demo workspace files are up to date with their model definitions
+        run: pnpm examples:check
