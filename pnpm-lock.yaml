@@ -51,6 +51,18 @@ importers:
         specifier: ^4.6.0
         version: 4.6.7
 
+  packages/plugins/export-mermaid:
+    dependencies:
+      '@designperspectives/contracts':
+        specifier: workspace:*
+        version: link:../../contracts
+
+  packages/plugins/export-svg:
+    dependencies:
+      '@designperspectives/contracts':
+        specifier: workspace:*
+        version: link:../../contracts
+
   packages/plugins/model-likec4:
     dependencies:
       '@designperspectives/contracts':

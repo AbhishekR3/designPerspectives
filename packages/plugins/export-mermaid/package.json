@@ -1,0 +1,20 @@
+{
+  "name": "@designperspectives/plugin-export-mermaid",
+  "version": "0.1.0",
+  "description": "Exporter plug-in: one Mermaid flowchart (.mmd) per view, computed from the model without layout.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@designperspectives/contracts": "workspace:*"
+  }
+}
