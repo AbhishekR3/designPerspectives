@@ -8,9 +8,15 @@ import { ELEMENT_KINDS, GROUP_TYPES, RELATIONSHIP_KINDS } from "./model.js";
 
 const isoDateTime = z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/, "ISO-8601 date-time expected");
 const elementId = z.string().regex(/^[a-z][a-zA-Z0-9-]*(\.[a-z][a-zA-Z0-9-]*)*$/, "element id: dot-separated slugs");
+const SEG = "[a-z][a-zA-Z0-9-]*";
 const relationshipId = z
   .string()
-  .regex(/^[a-z][\w.-]*->[a-z][\w.-]*#[a-zA-Z]+(:[a-z0-9-]+)?$/, "relationship id: <source>-><target>#<kind>[:<key>]");
+  .regex(
+    new RegExp(`^${SEG}(\\.${SEG})*->${SEG}(\\.${SEG})*#(${RELATIONSHIP_KINDS.join("|")})(:[a-z0-9-]+)?$`),
+    "relationship id: <source>-><target>#<kind>[:<key>]",
+  );
+/** Ids that become file names (layout views, notes, risk sessions): no path separators. */
+const fileId = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]*$/, "file-safe id: letters, digits, '.', '_' or '-'");
 
 // ---- designperspectives.yaml ---------------------------------------------------------------
 export const WorkspaceSettingsSchema = z
@@ -153,7 +159,7 @@ export type CodeMapping = z.infer<typeof CodeMappingSchema>;
 // ---- sidecars/layout/<view-id>.yaml --------------------------------------------------------
 export const LayoutSchema = z
   .object({
-    view: z.string().min(1),
+    view: fileId,
     nodes: z.record(z.string(), z.object({ x: z.number(), y: z.number() }).strict()),
   })
   .strict();
@@ -162,7 +168,7 @@ export type Layout = z.infer<typeof LayoutSchema>;
 // ---- sidecars/notes/<id>.md front matter (file 04 §4.5) ------------------------------------
 export const NoteFrontMatterSchema = z
   .object({
-    id: z.string().min(1),
+    id: fileId,
     anchor: z.string().min(1),
     type: z.enum(["comment", "question", "risk", "todo", "change-request"]),
     author: z.string().min(1),
@@ -176,7 +182,7 @@ export type NoteFrontMatter = z.infer<typeof NoteFrontMatterSchema>;
 // ---- sidecars/risk/<session-id>.yaml (file 03 §Risk) ---------------------------------------
 export const RiskSessionSchema = z
   .object({
-    id: z.string().min(1),
+    id: fileId,
     criterion: z.string().min(1),
     view: z.string().optional(),
     status: z.enum(["scoring", "revealed", "consensus", "closed"]),
