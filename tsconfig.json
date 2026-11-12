@@ -1,17 +1,11 @@
 {
   "files": [],
   "references": [
-    {
-      "path": "packages/contracts"
-    },
-    {
-      "path": "packages/core"
-    },
-    {
-      "path": "packages/plugins/model-likec4"
-    },
-    {
-      "path": "apps/cli"
-    }
+    { "path": "packages/contracts" },
+    { "path": "packages/core" },
+    { "path": "packages/plugins/model-likec4" },
+    { "path": "packages/plugins/export-mermaid" },
+    { "path": "packages/plugins/export-svg" },
+    { "path": "apps/cli" }
   ]
 }

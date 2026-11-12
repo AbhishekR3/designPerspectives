@@ -1,0 +1,20 @@
+{
+  "name": "@designperspectives/plugin-export-svg",
+  "version": "0.1.0",
+  "description": "Exporter plug-in: one SVG image per laid-out view, drawn from the ComputedView only, with an auto-generated key.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@designperspectives/contracts": "workspace:*"
+  }
+}
