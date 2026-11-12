@@ -223,20 +223,21 @@ export interface KeyEntry {
   label: string;
 }
 
+function nodeKeyEntry(n: ViewNode): [string, KeyEntry] {
+  const id = n.isBoundary ? `${n.kind}:boundary` : n.kind;
+  const label = n.isBoundary ? `${kindLabel(n.kind)} boundary (dashed border)` : kindLabel(n.kind);
+  return [`e:${id}`, { category: "element", id, label }];
+}
+
+const LINE_KEYS: Record<"sync" | "async", KeyEntry> = {
+  sync: { category: "relationship", id: "sync", label: "Synchronous relationship (solid line)" },
+  async: { category: "relationship", id: "async", label: "Asynchronous relationship (dashed line)" },
+};
+
 /** Key derived only from what a view actually shows. */
 export function keyForView(view: ComputedView): KeyEntry[] {
-  const entries = new Map<string, KeyEntry>();
-  for (const n of view.nodes) {
-    const id = n.isBoundary ? `${n.kind}:boundary` : n.kind;
-    const label = n.isBoundary ? `${kindLabel(n.kind)} boundary (dashed border)` : kindLabel(n.kind);
-    entries.set(`e:${id}`, { category: "element", id, label });
-  }
-  if (view.edges.some((e) => !e.async)) {
-    entries.set("r:sync", { category: "relationship", id: "sync", label: "Synchronous relationship (solid line)" });
-  }
-  if (view.edges.some((e) => e.async)) {
-    entries.set("r:async", { category: "relationship", id: "async", label: "Asynchronous relationship (dashed line)" });
-  }
+  const entries = new Map<string, KeyEntry>(view.nodes.map(nodeKeyEntry));
+  for (const e of view.edges) entries.set(`r:${e.async ? "async" : "sync"}`, LINE_KEYS[e.async ? "async" : "sync"]);
   return [...entries.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([, v]) => v);
 }
 

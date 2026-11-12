@@ -16,15 +16,24 @@ function caretUpper(b: V): V {
   return [0, 0, b[2] + 1];
 }
 
+const UPPER: Record<string, (b: V) => V | undefined> = {
+  "^": caretUpper,
+  "~": (b) => [b[0], b[1] + 1, 0],
+  ">=": () => undefined,
+};
+
+function operatorOf(r: string): string {
+  if (r.startsWith(">=")) return ">=";
+  return r[0] === "^" || r[0] === "~" ? r[0] : "=";
+}
+
 export function satisfies(version: string, range: string): boolean {
   const v = parse(version);
-  if (!v) return false;
   const r = range.trim();
-  const op = r.startsWith(">=") ? ">=" : r[0] === "^" || r[0] === "~" ? r[0] : "=";
+  const op = operatorOf(r);
   const base = parse(r.slice(op === "=" ? 0 : op.length));
-  if (!base) return false;
+  if (!v || !base) return false;
   if (op === "=") return cmp(v, base) === 0;
-  if (op === ">=") return cmp(v, base) >= 0;
-  const upper: V = op === "^" ? caretUpper(base) : [base[0], base[1] + 1, 0];
-  return cmp(v, base) >= 0 && cmp(v, upper) < 0;
+  const upper = UPPER[op]!(base);
+  return cmp(v, base) >= 0 && (upper === undefined || cmp(v, upper) < 0);
 }

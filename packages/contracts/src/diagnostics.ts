@@ -35,15 +35,16 @@ function cmp(a: string | number | undefined, b: string | number | undefined): nu
   return x < y ? -1 : x > y ? 1 : 0;
 }
 
-/** Deterministic ordering: file, line, column, code, subject. */
+const SORT_KEYS: ReadonlyArray<(d: Diagnostic) => string | number | undefined> = [
+  (d) => d.file,
+  (d) => d.line ?? 0,
+  (d) => d.column ?? 0,
+  (d) => d.code,
+  (d) => d.subject,
+  (d) => d.message,
+];
+
+/** Deterministic ordering: file, line, column, code, subject, message. */
 export function sortDiagnostics(diagnostics: readonly Diagnostic[]): Diagnostic[] {
-  return [...diagnostics].sort(
-    (a, b) =>
-      cmp(a.file, b.file) ||
-      cmp(a.line ?? 0, b.line ?? 0) ||
-      cmp(a.column ?? 0, b.column ?? 0) ||
-      cmp(a.code, b.code) ||
-      cmp(a.subject, b.subject) ||
-      cmp(a.message, b.message),
-  );
+  return [...diagnostics].sort((a, b) => SORT_KEYS.reduce((r, k) => r || cmp(k(a), k(b)), 0));
 }

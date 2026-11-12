@@ -4,7 +4,7 @@ export default defineConfig({
   resolve: { conditions: ["source"] },
   ssr: { resolve: { conditions: ["source"] } },
   test: {
-    include: ["packages/**/*.test.ts", "apps/**/*.test.ts", "tools/**/*.test.ts"],
+    include: ["packages/**/src/**/*.test.ts", "apps/**/*.test.ts", "tools/**/*.test.ts"],
     exclude: ["**/node_modules/**", "**/dist/**", "spikes/**"],
     // FF4: every test runs with outbound sockets blocked (see tools/ff/block-network.ts).
     setupFiles: ["./tools/ff/block-network.ts"],

@@ -1,0 +1,23 @@
+{
+  "name": "@designperspectives/plugin-model-likec4",
+  "version": "0.1.0",
+  "description": "ModelPort adapter for LikeC4 (ADR-0004). The only package allowed to import LikeC4 (FF1).",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@designperspectives/contracts": "workspace:*",
+    "@likec4/language-services": "1.60.0",
+    "bundle-require": "5.1.0",
+    "esbuild": "0.28.2"
+  }
+}

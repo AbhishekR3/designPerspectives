@@ -1,6 +1,20 @@
 {
   "extends": "../../tsconfig.base.json",
-  "compilerOptions": { "rootDir": "src", "outDir": "dist", "customConditions": ["source"] },
-  "include": ["src"],
-  "references": [{ "path": "../contracts" }]
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "customConditions": [
+      "source"
+    ],
+    "allowJs": true,
+    "checkJs": false
+  },
+  "include": [
+    "src"
+  ],
+  "references": [
+    {
+      "path": "../contracts"
+    }
+  ]
 }
