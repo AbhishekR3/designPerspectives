@@ -22,7 +22,7 @@ The ADR texts live in the spec bundle (`designPerspectives-spec-v0.2-bundle.md`,
 ## Conditions
 
 **ADR-0003 (Electron)**
-- C3.1 Electron bundles Node 24 while the CLI targets Node 22: CI tests the core on both majors (Node 24 job to add in Wave 1).
+- C3.1 Electron bundles Node 24 while the CLI targets Node 22: CI tests the core on both majors (Node 24 job added in Wave 0, `.github/workflows/ci.yml`).
 - C3.2 Not verified on macOS: run the hardened shell on the owner's Mac **without** `--no-sandbox` (the Linux sandbox evidence needed it because the agent ran as root).
 - C3.3 Packaging/signing/notarisation is unverified; one packaged build before Wave 1 ends.
 
