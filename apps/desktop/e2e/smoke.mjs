@@ -1,14 +1,19 @@
 // Desktop smoke test (Playwright `_electron`, no browser download needed). Run after `pnpm build`:
 //   xvfb-run -a node apps/desktop/e2e/smoke.mjs
 // Checks: no Node globals in the page, Container View title + key + cards, element list, demo job start/cancel.
-// Saves screenshots to docs/wave-views/assets/wave-0/.
+// Saves screenshots to $DP_SCREENSHOT_DIR (default: a temp folder). Pass --update-screenshots to refresh the
+// committed copies in docs/wave-views/assets/wave-0/.
+import { tmpdir } from "node:os";
 import { _electron } from "playwright-core";
 import { mkdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const appDir = join(dirname(fileURLToPath(import.meta.url)), "..");
-const shots = join(appDir, "../../docs/wave-views/assets/wave-0");
+const shots = process.argv.includes("--update-screenshots")
+  ? join(appDir, "../../docs/wave-views/assets/wave-0")
+  : (process.env.DP_SCREENSHOT_DIR ?? join(tmpdir(), "dp-smoke-screenshots"));
+console.log(`smoke: screenshots -> ${shots}`);
 await mkdir(shots, { recursive: true });
 
 const args = [appDir];

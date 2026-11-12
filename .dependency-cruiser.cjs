@@ -57,7 +57,7 @@ module.exports = {
   ],
   options: {
     doNotFollow: { path: "node_modules" },
-    exclude: { path: "(^|/)(dist|out|renderer-dist|node_modules)/|\\.test\\.ts$|(^|/)spikes/" },
+    exclude: { path: "(^|/)(dist|out|renderer-dist|node_modules)/|(^|/)spikes/" },
     tsPreCompilationDeps: true,
     tsConfig: { fileName: "tsconfig.base.json" },
     enhancedResolveOptions: {

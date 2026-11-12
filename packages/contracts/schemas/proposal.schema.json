@@ -1,0 +1,222 @@
+{
+  "$id": "urn:designperspectives:schema:proposal",
+  "title": "proposal",
+  "description": "Generated from Zod.",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "manual",
+        "parser-tier1",
+        "parser-tier2",
+        "iac",
+        "cloud",
+        "trace",
+        "llm",
+        "import"
+      ]
+    },
+    "stage": {
+      "type": "string"
+    },
+    "rationale": {
+      "type": "string"
+    },
+    "operations": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "op": {
+                "type": "string",
+                "const": "addElement"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "person",
+                  "softwareSystem",
+                  "hardwareSystem",
+                  "container",
+                  "dataStore",
+                  "queue",
+                  "topic",
+                  "component",
+                  "codeElement",
+                  "group"
+                ]
+              },
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][a-zA-Z0-9-]*(\\.[a-z][a-zA-Z0-9-]*)*$"
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": {
+                "type": "string"
+              },
+              "technology": {
+                "type": "string"
+              },
+              "groupType": {
+                "type": "string",
+                "enum": [
+                  "layer",
+                  "boundedContext",
+                  "module",
+                  "team",
+                  "microservice",
+                  "orgUnit"
+                ]
+              }
+            },
+            "required": [
+              "op",
+              "kind",
+              "id",
+              "title"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "op": {
+                "type": "string",
+                "const": "addRelationship"
+              },
+              "from": {
+                "type": "string",
+                "pattern": "^[a-z][a-zA-Z0-9-]*(\\.[a-z][a-zA-Z0-9-]*)*$"
+              },
+              "to": {
+                "type": "string",
+                "pattern": "^[a-z][a-zA-Z0-9-]*(\\.[a-z][a-zA-Z0-9-]*)*$"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "calls",
+                  "sendsTo",
+                  "publishesTo",
+                  "subscribesTo",
+                  "readsFrom",
+                  "writesTo",
+                  "requestReply",
+                  "deploysTo"
+                ]
+              },
+              "label": {
+                "type": "string",
+                "minLength": 1
+              },
+              "technology": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "op",
+              "from",
+              "to",
+              "kind",
+              "label"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "op": {
+                "type": "string",
+                "const": "setSidecar"
+              },
+              "target": {
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              },
+              "value": {}
+            },
+            "required": [
+              "op",
+              "target",
+              "path",
+              "value"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "op": {
+                "type": "string",
+                "enum": [
+                  "removeElement",
+                  "removeRelationship"
+                ]
+              },
+              "id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "op",
+              "id"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "op": {
+                "type": "string",
+                "const": "proposeDecision"
+              },
+              "title": {
+                "type": "string"
+              },
+              "options": {
+                "minItems": 1,
+                "type": "array",
+                "items": {}
+              }
+            },
+            "required": [
+              "op",
+              "title",
+              "options"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      }
+    },
+    "tradeOffs": {
+      "default": [],
+      "type": "array",
+      "items": {}
+    },
+    "lintResults": {
+      "default": [],
+      "type": "array",
+      "items": {}
+    }
+  },
+  "required": [
+    "id",
+    "source",
+    "operations"
+  ],
+  "additionalProperties": false
+}

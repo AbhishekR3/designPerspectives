@@ -27,13 +27,16 @@ function operatorOf(r: string): string {
   return r[0] === "^" || r[0] === "~" ? r[0] : "=";
 }
 
-export function satisfies(version: string, range: string): boolean {
-  const v = parse(version);
-  const r = range.trim();
-  const op = operatorOf(r);
-  const base = parse(r.slice(op === "=" ? 0 : op.length));
-  if (!v || !base) return false;
+function inRange(v: V, base: V, op: string): boolean {
   if (op === "=") return cmp(v, base) === 0;
   const upper = UPPER[op]!(base);
   return cmp(v, base) >= 0 && (upper === undefined || cmp(v, upper) < 0);
+}
+
+export function satisfies(version: string, range: string): boolean {
+  const r = range.trim();
+  const op = operatorOf(r);
+  const v = parse(version);
+  const base = parse(r.slice(op === "=" ? 0 : op.length));
+  return !!v && !!base && inRange(v, base, op);
 }

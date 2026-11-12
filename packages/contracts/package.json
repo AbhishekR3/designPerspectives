@@ -5,11 +5,31 @@
   "license": "MIT",
   "type": "module",
   "exports": {
-    ".": { "source": "./src/index.ts", "types": "./dist/index.d.ts", "default": "./dist/index.js" },
-    "./testing": { "source": "./src/testing/index.ts", "types": "./dist/testing/index.d.ts", "default": "./dist/testing/index.js" }
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./testing": {
+      "source": "./src/testing/index.ts",
+      "types": "./dist/testing/index.d.ts",
+      "default": "./dist/testing/index.js"
+    },
+    "./schemas/*": "./schemas/*"
   },
-  "files": ["dist"],
-  "dependencies": { "zod": "^4.6.0" },
-  "peerDependencies": { "vitest": "^5.1.0" },
-  "peerDependenciesMeta": { "vitest": { "optional": true } }
+  "files": [
+    "dist",
+    "schemas"
+  ],
+  "dependencies": {
+    "zod": "^4.6.0"
+  },
+  "peerDependencies": {
+    "vitest": "^5.1.0"
+  },
+  "peerDependenciesMeta": {
+    "vitest": {
+      "optional": true
+    }
+  }
 }

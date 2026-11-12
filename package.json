@@ -17,8 +17,11 @@
     "dp": "node apps/cli/dist/bin.js",
     "desktop": "pnpm --filter @designperspectives/desktop start",
     "fixtures": "node fixtures/clone-fixtures.mjs",
-    "check": "pnpm build && pnpm lint && pnpm test && pnpm ff && pnpm examples:check",
-    "examples:check": "pnpm --filter @designperspectives/examples check"
+    "check": "pnpm build && pnpm lint && pnpm test && pnpm ff && pnpm examples:check && pnpm schemas --check && pnpm desktop:build",
+    "examples:check": "pnpm --filter @designperspectives/examples check",
+    "desktop:build": "pnpm --filter @designperspectives/desktop build",
+    "desktop:smoke": "pnpm --filter @designperspectives/desktop e2e",
+    "schemas": "node tools/gen-json-schema.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.13.0",
@@ -26,7 +29,9 @@
     "eslint": "^10.14.0",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.72.0",
-    "vitest": "^5.1.0"
+    "vitest": "^5.1.0",
+    "zod": "^4.6.0",
+    "@designperspectives/contracts": "workspace:*"
   },
   "pnpm": {
     "overrides": {

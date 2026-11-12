@@ -37,8 +37,11 @@ export class ModelStore {
     const modelFiles = files.filter((f) => isModelFile(f.path, this.port));
     const loaded = await this.port.load(modelFiles);
     const side = loadSidecars(files);
-    const validation = hasErrors(loaded.diagnostics) ? [] : validateModel(loaded.model);
-    const located = locateSubjects([...validation, ...crossCheck(loaded.model, side.sidecars)], this.port.print(loaded.model));
+    // When the model does not parse, rule checks and sidecar cross-checks would only produce noise.
+    const parsed = !hasErrors(loaded.diagnostics);
+    const checks = parsed ? [...validateModel(loaded.model), ...crossCheck(loaded.model, side.sidecars)] : [];
+    // Locate against the files as they are on disk (hand edits included), not a re-printed copy.
+    const located = locateSubjects(checks, modelFiles);
     return {
       model: loaded.model,
       sidecars: side.sidecars,

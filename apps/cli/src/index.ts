@@ -18,7 +18,10 @@ const consoleIo: Io = { out: (l) => console.log(l), err: (l) => console.error(l)
 
 export async function main(argv: string[], io: Io = consoleIo): Promise<number> {
   const [command, ...rest] = argv;
-  const { values, positionals } = parseArgs({
+  if (rest.includes("--help") || rest.includes("-h")) return usage(io);
+  let parsed;
+  try {
+    parsed = parseArgs({
     args: rest,
     allowPositionals: true,
     options: {
@@ -30,6 +33,10 @@ export async function main(argv: string[], io: Io = consoleIo): Promise<number> 
       view: { type: "string", multiple: true },
     },
   });
+  } catch (err) {
+    return usage(io, err instanceof Error ? err.message : String(err));
+  }
+  const { values, positionals } = parsed;
   const dir = positionals[0] ?? ".";
   switch (command) {
     case "init":

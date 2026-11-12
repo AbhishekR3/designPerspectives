@@ -1,4 +1,7 @@
-/** Maps validation diagnostics (which carry a subject id) to file:line in the canonical model files. */
+/**
+ * Maps validation diagnostics (which carry a subject id) to file:line in the model files as they are on disk.
+ * Uses a brace-depth scanner rather than indentation, so hand-edited (non-canonical) files are located correctly.
+ */
 import type { Diagnostic, SourceFile } from "@designperspectives/contracts";
 
 interface Position {
@@ -6,33 +9,64 @@ interface Position {
   line: number;
 }
 
+const DECL = /^([a-zA-Z][\w-]*)\s*=\s*[a-zA-Z]/;
+const REL = /^([a-z][\w.-]*)\s+-\[(\w+)\]->\s+([a-z][\w.-]*)\s/;
+const VIEW = /^(?:dynamic |deployment )?view\s+([\w-]+)/;
+
+/** Removes string literals so braces inside titles or descriptions are not counted. */
+const stripStrings = (s: string): string => s.replace(/"(?:[^"\\]|\\.)*"/g, '""').replace(/\/\/.*$/, "");
+
+/** Brace delta of a line: `{` opens, `}` closes. */
+function braceDelta(code: string): number {
+  return (code.match(/\{/g)?.length ?? 0) - (code.match(/\}/g)?.length ?? 0);
+}
+
+interface ScanState {
+  /** Declared name at each open brace depth (undefined for anonymous blocks such as `model {`). */
+  names: Array<string | undefined>;
+}
+
+function recordLine(code: string, state: ScanState, put: (key: string) => void): void {
+  const decl = DECL.exec(code);
+  const rel = REL.exec(code);
+  const view = VIEW.exec(code);
+  if (decl) put(fullId(state, decl[1]!));
+  if (rel) put(`${rel[1]}->${rel[3]}#${rel[2]}`);
+  if (view) put(`view:${view[1]}`);
+  updateStack(code, state, decl?.[1]);
+}
+
+function fullId(state: ScanState, name: string): string {
+  return [...state.names.filter((n): n is string => !!n), name].join(".");
+}
+
+function updateStack(code: string, state: ScanState, declared: string | undefined): void {
+  const delta = braceDelta(code);
+  for (let i = 0; i < delta; i++) state.names.push(i === 0 ? declared : undefined);
+  for (let i = 0; i > delta; i--) state.names.pop();
+}
+
 function indexDeclarations(files: readonly SourceFile[]): Map<string, Position> {
   const index = new Map<string, Position>();
   for (const f of files) {
-    const stack: string[] = [];
+    const state: ScanState = { names: [] };
     f.content.split("\n").forEach((text, i) => {
-      const trimmed = text.trim();
-      const decl = /^([a-zA-Z][\w-]*) = /.exec(trimmed);
-      const rel = /^([a-z][\w.-]*) -\[(\w+)\]-> ([a-z][\w.-]*) /.exec(trimmed);
-      const view = /^(?:dynamic |deployment )?view ([\w-]+)/.exec(trimmed);
-      const depth = (text.length - text.trimStart().length) / 2 - 1;
-      stack.length = Math.max(depth, 0);
-      if (decl) {
-        stack[depth] = decl[1]!;
-        index.set(stack.slice(0, depth + 1).join("."), { file: f.path, line: i + 1 });
-      }
-      if (rel) index.set(`${rel[1]}->${rel[3]}#${rel[2]}`, { file: f.path, line: i + 1 });
-      if (view) index.set(`view:${view[1]}`, { file: f.path, line: i + 1 });
+      recordLine(stripStrings(text.trim()), state, (key) => {
+        if (!index.has(key)) index.set(key, { file: f.path, line: i + 1 });
+      });
     });
   }
   return index;
 }
 
+function lookup(index: Map<string, Position>, subject: string): Position | undefined {
+  return index.get(subject) ?? index.get(`view:${subject}`) ?? index.get(subject.replace(/:[^:]+$/, ""));
+}
+
 export function locateSubjects(diagnostics: readonly Diagnostic[], files: readonly SourceFile[]): Diagnostic[] {
   const index = indexDeclarations(files);
   return diagnostics.map((d) => {
-    if (d.file || !d.subject) return d;
-    const pos = index.get(d.subject) ?? index.get(`view:${d.subject}`) ?? index.get(d.subject.replace(/:[^:]+$/, ""));
+    const pos = !d.file && d.subject ? lookup(index, d.subject) : undefined;
     return pos ? { ...d, file: pos.file, line: pos.line } : d;
   });
 }

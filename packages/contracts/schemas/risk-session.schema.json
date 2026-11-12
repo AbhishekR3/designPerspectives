@@ -1,0 +1,99 @@
+{
+  "$id": "urn:designperspectives:schema:risk-session",
+  "title": "risk-session",
+  "description": "Generated from Zod. Applies to architecture/sidecars/risk/*.yaml",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+    },
+    "criterion": {
+      "type": "string",
+      "minLength": 1
+    },
+    "view": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "scoring",
+        "revealed",
+        "consensus",
+        "closed"
+      ]
+    },
+    "participants": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "scores": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "participant": {
+            "type": "string"
+          },
+          "element": {
+            "type": "string",
+            "pattern": "^[a-z][a-zA-Z0-9-]*(\\.[a-z][a-zA-Z0-9-]*)*$"
+          },
+          "impact": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 3
+          },
+          "likelihood": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 3
+          }
+        },
+        "required": [
+          "participant",
+          "element",
+          "impact",
+          "likelihood"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "mitigations": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "element": {
+            "type": "string",
+            "pattern": "^[a-z][a-zA-Z0-9-]*(\\.[a-z][a-zA-Z0-9-]*)*$"
+          },
+          "proposal": {
+            "type": "string"
+          },
+          "costEstimate": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "element",
+          "proposal"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "id",
+    "criterion",
+    "status",
+    "participants",
+    "scores"
+  ],
+  "additionalProperties": false
+}

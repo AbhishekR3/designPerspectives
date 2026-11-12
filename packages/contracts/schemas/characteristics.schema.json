@@ -1,0 +1,92 @@
+{
+  "$id": "urn:designperspectives:schema:characteristics",
+  "title": "characteristics",
+  "description": "Generated from Zod. Applies to architecture/sidecars/characteristics.yaml",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "driving": {
+      "maxItems": 7,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "explicit": {
+            "type": "boolean"
+          },
+          "trigger": {
+            "type": "string"
+          },
+          "structural": {
+            "type": "boolean"
+          },
+          "measures": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "scope": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "explicit"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "top3": {
+      "maxItems": 3,
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "implicitConsidered": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "othersConsidered": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "composites": {
+      "default": {},
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "leastImportant": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "driving",
+    "top3"
+  ],
+  "additionalProperties": false
+}

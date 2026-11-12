@@ -1,0 +1,122 @@
+{
+  "$id": "urn:designperspectives:schema:adr-front-matter",
+  "title": "adr-front-matter",
+  "description": "Generated from Zod. Applies to architecture/decisions/**/ADR-*.md",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^ADR-\\d{4}$"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "rfc",
+        "proposed",
+        "accepted",
+        "superseded",
+        "deferred"
+      ]
+    },
+    "rfcDeadline": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "supersedes": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "supersededBy": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "elements": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-zA-Z0-9-]*(\\.[a-z][a-zA-Z0-9-]*)*$"
+      }
+    },
+    "characteristics": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "category": {
+      "type": "string"
+    },
+    "architecturallySignificant": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "structure",
+          "nonfunctional",
+          "dependencies",
+          "interfaces",
+          "construction"
+        ]
+      }
+    },
+    "contextSnapshot": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {}
+    },
+    "costEstimate": {
+      "type": "object",
+      "properties": {
+        "hours": {
+          "type": "number"
+        },
+        "fteRate": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "hours",
+        "fteRate"
+      ],
+      "additionalProperties": false
+    },
+    "fitnessFunctions": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "approvals": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "id",
+    "title",
+    "status"
+  ],
+  "additionalProperties": false
+}

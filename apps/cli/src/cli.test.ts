@@ -42,6 +42,38 @@ describe("dp CLI", () => {
     expect(io.errors.some((l) => /^model\/views\.c4:\d+:\d+ error likec4\/syntax/.test(l))).toBe(true);
   });
 
+  it("reports model-rule errors at the line in the hand-edited file, not in a re-printed copy", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "dp-line-"));
+    await cp(join(DEMO, "architecture"), join(dir, "architecture"), { recursive: true });
+    const file = join(dir, "architecture/model/model.c4");
+    const lines = (await readFile(file, "utf8")).split("\n");
+    // Insert just before the first nested element of `ibs` (LikeC4 wants an element's own properties first).
+    const at = lines.findIndex((l) => /^\s*api = container/.test(l)) - 1;
+    // A component directly under a software system violates the allowed-parent rule; insert it inside `ibs`
+    // with odd spacing so the file is no longer canonical.
+    lines.splice(at + 1, 0, '      rogue   =   component "Rogue {not a brace}" {', '        technology "x"', '        description "Misplaced { brace } in text."', "      }");
+    await writeFile(file, lines.join("\n"));
+    const io = capture();
+    expect(await main(["validate", dir], io)).toBe(1);
+    const err = io.errors.find((l) => l.includes("model/allowed-parent"));
+    expect(err).toContain(`model/model.c4:${at + 2} `);
+  });
+
+  it("a .c4 parse error is not followed by misleading sidecar warnings", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "dp-parse-"));
+    await cp(join(DEMO, "architecture"), join(dir, "architecture"), { recursive: true });
+    const file = join(dir, "architecture/model/model.c4");
+    await writeFile(file, (await readFile(file, "utf8")) + "\nmodel {{\n");
+    const io = capture();
+    expect(await main(["validate", dir], io)).toBe(1);
+    expect([...io.lines, ...io.errors].some((l) => l.includes("sidecar/unknown-element"))).toBe(false);
+  });
+
+  it("--help and unknown options print usage instead of crashing", async () => {
+    expect(await main(["export", "--help"], capture())).toBe(0);
+    expect(await main(["validate", "--bogus"], capture())).toBe(2);
+  });
+
   it("dp validate --json prints machine-readable diagnostics", async () => {
     const io = capture();
     expect(await main(["validate", DEMO, "--json"], io)).toBe(0);

@@ -17,24 +17,34 @@ const PROVIDED: Partial<Record<PortName, (m: PluginModule) => unknown[] | undefi
   Job: (m) => m.jobs,
 };
 
+function problemsForPort(m: PluginModule, p: PortName): string[] {
+  if (!(PORT_NAMES as readonly string[]).includes(p)) return [`unknown port "${p}"`];
+  const getter = PROVIDED[p];
+  const missing = getter !== undefined && (getter(m) ?? []).length === 0;
+  return missing ? [`declares ${p} but exports none`] : [];
+}
+
 function portProblems(m: PluginModule): string[] {
   const problems: string[] = [];
-  for (const p of m.manifest.provides) {
-    if (!(PORT_NAMES as readonly string[]).includes(p)) problems.push(`unknown port "${p}"`);
-    const getter = PROVIDED[p];
-    if (getter && !getter(m)?.length) problems.push(`declares ${p} but exports none`);
-  }
+  for (const p of m.manifest.provides) problems.push(...problemsForPort(m, p));
   return problems;
 }
 
+type ManifestCheck = (man: PluginManifest) => string | undefined;
+
+const MANIFEST_CHECKS: ManifestCheck[] = [
+  (man) => (satisfies(CONTRACTS_VERSION, man.contracts) ? undefined : `implements contracts ${man.contracts}, host provides ${CONTRACTS_VERSION}`),
+  (man) =>
+    man.isolation === "worker" && man.provides.some((p) => p !== "Job") ? `isolation "worker" is only supported for Job plug-ins in this version` : undefined,
+];
+
 function manifestProblems(m: PluginModule): string[] {
-  const man = m.manifest;
-  if (!man?.id) return ["manifest.id is missing"];
-  const problems = portProblems(m);
-  if (!satisfies(CONTRACTS_VERSION, man.contracts)) problems.push(`implements contracts ${man.contracts}, host provides ${CONTRACTS_VERSION}`);
-  if (man.isolation === "worker" && man.provides.some((p) => p !== "Job")) problems.push(`isolation "worker" is only supported for Job plug-ins in this version`);
-  return problems;
+  if (!m.manifest?.id) return ["manifest.id is missing"];
+  const checks = MANIFEST_CHECKS.map((c) => c(m.manifest)).filter((x): x is string => x !== undefined);
+  return [...portProblems(m), ...checks];
 }
+
+const idOf = (m: PluginModule): string => m.manifest?.id ?? "(unknown)";
 
 export class PluginHost {
   private readonly plugins = new Map<string, RegisteredPlugin>();
@@ -45,17 +55,22 @@ export class PluginHost {
 
   /** Registers a plug-in. Returns false (and records a diagnostic) when the manifest or contract version is rejected. */
   register(module: PluginModule, modulePath?: string): boolean {
-    const problems = manifestProblems(module);
-    const id = module.manifest?.id ?? "(unknown)";
-    if (this.plugins.has(id)) problems.push("already registered");
-    if (problems.length) {
-      this.diags.push(...problems.map((message) => ({ severity: "error" as const, code: "plugin/rejected", subject: id, message: `Plug-in ${id}: ${message}` })));
-      return false;
-    }
+    const id = idOf(module);
+    const problems = [...manifestProblems(module), ...this.duplicateProblems(id)];
+    if (problems.length) return this.reject(id, problems);
     const reg: RegisteredPlugin = { manifest: module.manifest, ...(modulePath ? { modulePath } : {}) };
     this.plugins.set(id, reg);
     this.addAll(module, reg);
     return true;
+  }
+
+  private duplicateProblems(id: string): string[] {
+    return this.plugins.has(id) ? ["already registered"] : [];
+  }
+
+  private reject(id: string, problems: string[]): false {
+    this.diags.push(...problems.map((message) => ({ severity: "error" as const, code: "plugin/rejected", subject: id, message: `Plug-in ${id}: ${message}` })));
+    return false;
   }
 
   /** Loads a plug-in module by specifier (package name or absolute path) and registers its default export. */
@@ -71,12 +86,12 @@ export class PluginHost {
   }
 
   private addAll(m: PluginModule, reg: RegisteredPlugin): void {
-    for (const p of m.modelPorts ?? []) this.addUnique(this.modelPorts, p.id, p, "ModelPort", reg);
-    for (const e of m.exporters ?? []) this.addUnique(this.exporters, e.format, e, "Exporter", reg);
-    for (const j of m.jobs ?? []) {
-      if (this.jobs.has(j.type)) this.conflict("Job", j.type, reg);
-      else this.jobs.set(j.type, { handler: j, plugin: reg });
-    }
+    const ports = m.modelPorts ?? [];
+    const exporters = m.exporters ?? [];
+    const jobs = m.jobs ?? [];
+    ports.forEach((p) => this.addUnique(this.modelPorts, p.id, p, "ModelPort", reg));
+    exporters.forEach((e) => this.addUnique(this.exporters, e.format, e, "Exporter", reg));
+    jobs.forEach((j) => this.addUnique(this.jobs, j.type, { handler: j, plugin: reg }, "Job", reg));
   }
 
   private addUnique<T>(map: Map<string, T>, key: string, value: T, port: string, reg: RegisteredPlugin): void {

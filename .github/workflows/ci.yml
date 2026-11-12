@@ -24,8 +24,6 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-        env:
-          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
       - name: Build (TypeScript project references)
         run: pnpm build
       - name: Lint (FF11 warning level)
@@ -34,5 +32,33 @@ jobs:
         run: pnpm test
       - name: Fitness functions (FF1, FF2, FF8, FF11 hard limit, FF12)
         run: pnpm ff
-      - name: Demo workspace files are up to date with their model definitions
-        run: pnpm examples:check
+      - name: Demo workspace and JSON Schemas are up to date
+        run: pnpm examples:check && pnpm schemas --check
+      - name: Desktop app builds (typecheck + bundle)
+        run: pnpm desktop:build
+
+  desktop-smoke:
+    # Launches the built Electron app and drives it with Playwright (hardening, CSP, Container View, demo job).
+    runs-on: ubuntu-latest
+    needs: check
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm desktop:build
+      - name: Allow Chromium's sandbox (Ubuntu 24.04 restricts unprivileged user namespaces)
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+      - name: Smoke test under a virtual display
+        run: xvfb-run -a pnpm desktop:smoke
+        env:
+          DP_SCREENSHOT_DIR: ${{ runner.temp }}/screenshots
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: desktop-screenshots
+          path: ${{ runner.temp }}/screenshots

@@ -1,0 +1,116 @@
+{
+  "$id": "urn:designperspectives:schema:permissions",
+  "title": "permissions",
+  "description": "Generated from Zod. Applies to architecture/permissions.yaml",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "profiles": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "capabilities": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "view",
+                "comment",
+                "propose",
+                "approve",
+                "edit",
+                "export",
+                "admin"
+              ]
+            }
+          },
+          "homeView": {
+            "type": "string"
+          },
+          "levels": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "landscape",
+                "context",
+                "container",
+                "component",
+                "code",
+                "deployment",
+                "dynamic"
+              ]
+            }
+          },
+          "perspectives": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "members": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "title",
+          "capabilities"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "decisionRights": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "category": {
+            "type": "string"
+          },
+          "decides": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "recommends": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "approves": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "category"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "profiles"
+  ],
+  "additionalProperties": false
+}
