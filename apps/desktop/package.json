@@ -9,9 +9,10 @@
   "scripts": {
     "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.renderer.json",
     "build": "pnpm run typecheck && node build.mjs",
-    "start": "pnpm run build && electron .",
+    "start": "pnpm run ensure-electron && pnpm run build && electron .",
     "test": "vitest run --root ../.. apps/desktop",
-    "e2e": "node e2e/smoke.mjs"
+    "e2e": "pnpm run ensure-electron && node e2e/smoke.mjs",
+    "ensure-electron": "node -e \"require.resolve('electron')\" && node -e \"try{require('electron')}catch(e){process.exit(1)}\" 2>/dev/null || node node_modules/electron/install.js"
   },
   "dependencies": {
     "@designperspectives/contracts": "workspace:*",
