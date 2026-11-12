@@ -1,0 +1,31 @@
+{
+  "name": "@designperspectives/desktop",
+  "version": "0.1.0",
+  "description": "designPerspectives desktop host: hardened Electron shell over the headless core.",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "main": "out/main/main.js",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.renderer.json",
+    "build": "pnpm run typecheck && node build.mjs",
+    "start": "pnpm run build && electron .",
+    "test": "vitest run --root ../.. apps/desktop",
+    "e2e": "node e2e/smoke.mjs"
+  },
+  "dependencies": {
+    "@designperspectives/contracts": "workspace:*",
+    "@designperspectives/core": "workspace:*",
+    "@designperspectives/plugin-model-likec4": "workspace:*",
+    "@xyflow/react": "12.12.1",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "electron": "45.3.0",
+    "esbuild": "0.28.2",
+    "playwright-core": "1.65.0"
+  }
+}
