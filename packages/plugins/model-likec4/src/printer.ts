@@ -37,14 +37,15 @@ class Out {
   line(s: string): void {
     this.lines.push("  ".repeat(this.depth) + s);
   }
-  block(head: string, body: () => void): void {
+  /** Empty blocks collapse to `head` (element declarations) or `head {}` when `keepBraces` (top-level sections). */
+  block(head: string, body: () => void, keepBraces = false): void {
     const at = this.lines.length;
     this.line(`${head} {`);
     this.depth++;
     body();
     this.depth--;
-    if (this.lines.length === at + 1) this.lines[at] = this.lines[at]!.slice(0, -2);
-    else this.line("}");
+    if (this.lines.length > at + 1) this.line("}");
+    else this.lines[at] = keepBraces ? `${this.lines[at]}}` : this.lines[at]!.slice(0, -2);
   }
   toString(): string {
     return [HEADER, ...this.lines].join("\n") + "\n";
@@ -120,7 +121,7 @@ function printModelFile(model: Model): string {
     if (orphans.length) throw new Error(`printer: missing parent element(s) ${orphans.map((k) => k!.slice(8)).join(", ")}`);
     printElements(o, index, undefined);
     for (const r of model.relationships) printRelationship(o, r);
-  });
+  }, true);
   return o.toString();
 }
 
@@ -145,7 +146,7 @@ function printDeploymentFile(model: Model): string {
     ...model.deploymentNodes,
     ...model.deploymentInstances.map((i) => ({ ...i, kind: "instance" as const })),
   ].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-  o.block("deployment", () => printDeploymentItems(o, childrenIndex(items), undefined));
+  o.block("deployment", () => printDeploymentItems(o, childrenIndex(items), undefined), true);
   return o.toString();
 }
 
@@ -177,7 +178,7 @@ function printView(o: Out, v: ViewDef, model: Model): void {
 
 function printViewsFile(model: Model): string {
   const o = new Out();
-  o.block("views", () => model.views.forEach((v) => printView(o, v, model)));
+  o.block("views", () => model.views.forEach((v) => printView(o, v, model)), true);
   return o.toString();
 }
 

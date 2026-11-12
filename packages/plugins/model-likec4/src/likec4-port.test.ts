@@ -65,3 +65,11 @@ describe("LikeC4ModelPort specifics", () => {
     expect(diagnostics[0]?.line).toBe(3);
   });
 });
+
+describe("empty model", () => {
+  it("prints and re-loads an empty model without errors", async () => {
+    const port = new LikeC4ModelPort();
+    const { diagnostics } = await port.load(port.print({ elements: [], relationships: [], deploymentNodes: [], deploymentInstances: [], views: [] }));
+    expect(diagnostics).toEqual([]);
+  });
+});
