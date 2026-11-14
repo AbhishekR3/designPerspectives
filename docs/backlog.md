@@ -31,8 +31,6 @@ Stage A (model, diagrams, overlays, flows, lenses, demo) is built and extended i
 
 Rules for Stage D [Notes]: the LLM gets the model as structured text, not images; output is always a proposal or draft that a person accepts; it never writes the model directly. The useful LLM role is outlining and challenging trade-offs, drafting ADR text and generating options, not making the decision.
 
-Tests proposed for B: scan this repository and one public repository twice each; proposals identical across runs; accept some, rescan, accepted objects unchanged.
-
 ## 3. Proposed additions to the stages (integrations)
 
 Principle [Proposal]: because the tool is local, single-user and has no cloud accounts or LLM during development, integrations read **standard report files** and **map file paths to model objects** (using the code mapping), show results as **tag-group or overlay colours**, and run `dp` in CI instead of building hosted apps. Trade-off: no live status or webhooks (data is as fresh as the last report file); no tokens, accounts or vendor lock-in; any tool that writes the standard format works.
@@ -44,8 +42,6 @@ Principle [Proposal]: because the tool is local, single-user and has no cloud ac
 | B5 | SARIF import → findings overlay | `dp import sarif <file>`; SARIF 2.1.0 is an OASIS standard written by Semgrep, CodeQL, Trivy and others [Training]; findings mapped to objects by file path; counts by severity as a "Security findings" overlay | Small–medium |
 | B6 | Coverage overlay | Cobertura XML (e.g. from coverage.py [Training]) → % per object in High/Medium/Low bands | Small |
 | C3 | `dp check` and `dp diff` | `dp check`: validate the workspace (schema, dangling relationships, unmapped code) with a CI exit code. `dp diff --base <ref>`: reuse C2 branch compare, write a Markdown summary for a PR comment. Sample GitHub Actions and GitLab CI files; posting the comment uses the host's own CLI/token | Medium |
-
-Test proposal for B5/B6: run Semgrep (SARIF) and a coverage report on this repository itself, import both, check that overlays show on the mapped components and that re-import is idempotent.
 
 Open questions for the owner [Proposal]:
 1. Accept B4–B6 and C3 into the plan, or keep all integrations in the backlog until Stage A feedback?

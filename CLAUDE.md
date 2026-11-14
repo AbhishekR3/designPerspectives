@@ -56,5 +56,15 @@ No linter is configured. CI ([.github/workflows/ci.yml](.github/workflows/ci.yml
 
 ## Repo notes
 
-- `docs/reviews/` holds per-stage review notes (`rewrite-ts_review.md` covers the move to TypeScript).
+- `docs/README.md` indexes the docs. `docs/decisions.md` is the running list of decisions and their rationale: read it before changing a design choice, and add an entry (at the bottom) when a new decision is made. `docs/backlog.md` lists planned and unbuilt work. `docs/notes/` holds chapter notes on the two reference books (C4 model; Fundamentals of Software Architecture) with `→ designPerspectives` implications.
+- `docs/reviews/` holds per-stage review notes (`rewrite-ts_review.md` covers the move to TypeScript). Each stage ends with a review file: what was built, how it was checked, limits, questions, and an empty owner-feedback section.
 - The demo model's source is credited in `NOTICE`.
+
+## Working rules
+
+- Everything is TypeScript. Do not add Python or other-language code.
+- State trade-offs for design decisions. Separate sourced facts from interpretation, and say which is which.
+- Do not name or compare other commercial architecture tools in repository files, commit messages or pull requests.
+- Do not add `Co-Authored-By` lines or session links to commit messages or pull request descriptions.
+- Do not commit the reference books (PDFs) or superseded plans.
+- Branch from `main` for changes; do not commit directly to `main`.
