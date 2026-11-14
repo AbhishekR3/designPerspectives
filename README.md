@@ -135,6 +135,9 @@ Stage C1 additions (planned change):
 - **Apply or discard**: Apply merges the draft into the main model as one undoable step. Changes made
   to the main model since the draft was made are kept; if both changed the same object, Apply is
   refused and lists the conflicts. Discard deletes the draft.
+- **Compare with git** (C2): when the project is in a git repository, pick a branch, tag or commit
+  under Drafts → Git and press **Compare** to see what changed since then, with the same overlay;
+  **Open** shows that version read-only. Needs the `git` command.
 
 ## Develop
 

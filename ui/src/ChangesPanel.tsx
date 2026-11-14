@@ -9,8 +9,27 @@ import { Icon } from "./icons";
 import { CHANGE_COLORS, CHANGE_LABEL } from "./overlays";
 import { KIND_LABEL, type AppState, type ApplyPreview, type ChangeSet, type Conflict, type DiagramEdge, type DiagramNode, type FieldChange, type ObjectChange } from "./types";
 
-/** Sidebar section: the main model and each draft (a planned change); open one, or start a new draft. */
-export function DraftList({ state, onSwitch, onNewDraft }: { state: AppState; onSwitch(ref: string): void; onNewDraft(): void }) {
+const OTHER_REF = "__other";
+
+/** Sidebar section: the main model and each draft (a planned change); open one, or start a new
+ *  draft. With git: compare with, or open (read-only), a branch, tag or commit. */
+export function DraftList({
+  state,
+  onSwitch,
+  onNewDraft,
+  onCompareRef,
+}: {
+  state: AppState;
+  onSwitch(ref: string): void;
+  onNewDraft(): void;
+  onCompareRef(ref: string): void;
+}) {
+  const [gitRef, setGitRef] = useState(state.git?.branch ?? "HEAD");
+  const pickRef = (): string | null => {
+    if (gitRef !== OTHER_REF) return gitRef;
+    const typed = window.prompt("Branch, tag or commit (e.g. main, v1.0, HEAD~3, a1b2c3d)");
+    return typed?.trim() || null;
+  };
   const items = [{ ref: "main", label: "Main model", sub: "" }, ...state.drafts.map((d) => ({ ref: `draft:${d.id}`, label: d.title, sub: d.created }))];
   return (
     <section data-testid="draft-list">
@@ -34,37 +53,84 @@ export function DraftList({ state, onSwitch, onNewDraft }: { state: AppState; on
           + New draft
         </button>
       )}
+      {state.git && (
+        <div className="git-row" title="Compare with the model in a git branch, tag or commit, or open that version read-only">
+          <span className="muted small">Git</span>
+          <select value={gitRef} onChange={(e) => setGitRef(e.target.value)} data-testid="git-ref" aria-label="Git branch, tag or commit">
+            {state.git.refs.map((r) => (
+              <option key={r} value={r}>
+                {r}
+              </option>
+            ))}
+            <option value={OTHER_REF}>Other…</option>
+          </select>
+          <button
+            className="small"
+            onClick={() => {
+              const r = pickRef();
+              if (r) onCompareRef(r);
+            }}
+            data-testid="git-compare"
+          >
+            Compare
+          </button>
+          <button
+            className="small ghost"
+            onClick={() => {
+              const r = pickRef();
+              if (r) onSwitch(`ref:${r}`);
+            }}
+            data-testid="git-open"
+          >
+            Open
+          </button>
+        </div>
+      )}
     </section>
   );
 }
 
-/** A strip above the canvas while a draft is open: what it is, its changes, and Apply / Discard. */
-export function DraftBanner({
+/** A strip above the canvas whenever something other than the plain main model is shown: a
+ *  draft (with Apply / Discard), a git version (read-only), or a comparison. */
+export function VersionStrip({
   state,
+  isDraft,
   showChanges,
   setShowChanges,
   onApply,
   onDiscard,
+  onStopCompare,
   onExit,
 }: {
   state: AppState;
+  isDraft: boolean;
   showChanges: boolean;
   setShowChanges(v: boolean): void;
   onApply(): void;
   onDiscard(): void;
+  onStopCompare(): void;
   onExit(): void;
 }) {
   const s = state.compare?.summary;
+  const comparingOther = state.compare && state.compare.against !== "base";
   return (
-    <div className="draft-strip" data-testid="draft-banner">
+    <div className="draft-strip" data-testid={isDraft ? "draft-banner" : "version-strip"}>
       <Icon name="layers" size={14} />
       <strong title={state.model.title}>{state.model.title}</strong>
-      <label className="check small" title="Colour what this draft adds, changes and removes">
-        <input type="checkbox" checked={showChanges} onChange={(e) => setShowChanges(e.target.checked)} data-testid="show-changes" />
-        Show changes
-      </label>
+      {state.model.ref.startsWith("ref:") && <span className="muted small">read-only</span>}
+      {comparingOther && (
+        <span className="small" data-testid="compare-title">
+          compared with <strong>{state.compare!.title}</strong>
+        </span>
+      )}
+      {isDraft && !comparingOther && (
+        <label className="check small" title="Colour what this draft adds, changes and removes">
+          <input type="checkbox" checked={showChanges} onChange={(e) => setShowChanges(e.target.checked)} data-testid="show-changes" />
+          Show changes
+        </label>
+      )}
       {s && <SummaryChips s={s} compact />}
-      {!state.readOnly && (
+      {isDraft && !state.readOnly && (
         <>
           <button className="primary small" onClick={onApply} data-testid="draft-apply">
             Apply…
@@ -75,9 +141,16 @@ export function DraftBanner({
         </>
       )}
       <span className="spacer" />
-      <button className="ghost small" onClick={onExit} data-testid="draft-exit">
-        Back to main
-      </button>
+      {comparingOther && (
+        <button className="ghost small" onClick={onStopCompare} data-testid="stop-compare">
+          Stop comparing
+        </button>
+      )}
+      {state.model.ref !== "main" && (
+        <button className="ghost small" onClick={onExit} data-testid="draft-exit">
+          Back to main
+        </button>
+      )}
     </div>
   );
 }

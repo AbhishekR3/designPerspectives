@@ -9,6 +9,7 @@ import { compareDiagram, diagramOf } from "../core/compare.js";
 import * as diagrams from "../core/diagrams.js";
 import { diffModels } from "../core/diff.js";
 import { ApplyConflict, Drafts } from "../core/drafts.js";
+import { currentBranch, GitError, GitModels, listRefs } from "../core/git.js";
 import * as flows from "../core/flows.js";
 import { isObj, str, type Obj } from "../core/json.js";
 import * as ops from "../core/ops.js";
@@ -48,7 +49,7 @@ export interface Selection {
   cmpTitle: string | null;
 }
 
-export function state(project: Project, readOnly = false, sel?: Selection, drafts?: Drafts): AppState {
+export function state(project: Project, readOnly = false, sel?: Selection, drafts?: Drafts, gitModels?: GitModels): AppState {
   const src = sel?.src ?? project;
   const ws = src.workspace;
   const sc = src.sidecar;
@@ -76,6 +77,10 @@ export function state(project: Project, readOnly = false, sel?: Selection, draft
     readOnly: readOnly || src.readOnly,
     model: { ref: sel?.ref ?? "main", title: sel?.title ?? "Main model" },
     drafts: drafts?.list() ?? [],
+    git: (() => {
+      const repo = gitModels?.get();
+      return repo ? { branch: currentBranch(repo), refs: listRefs(repo) } : null;
+    })(),
     compare:
       sel?.cmp && sel.cmpRef
         ? { against: sel.cmpRef, title: sel.cmpTitle ?? sel.cmpRef, summary: diffModels(sel.cmp, src, sel.cmpRef).summary }
@@ -158,6 +163,7 @@ export function createApp(root: string, opts: AppOptions = {}): Hono {
   const readOnly = opts.readOnly ?? false;
   const project = new Project(root, opts.codeRoot);
   const drafts = new Drafts(project);
+  const gitModels = new GitModels(project.dir);
   const app = new Hono();
   const ok = (c: Context) => c.json({ ok: true });
 
@@ -180,6 +186,11 @@ export function createApp(root: string, opts: AppOptions = {}): Hono {
       const id = draftId(ref);
       return [drafts.get(id), `Draft: ${drafts.info(id).title}`];
     }
+    if (ref.startsWith("ref:")) {
+      const name = ref.slice("ref:".length);
+      const snap = gitModels.at(name);
+      return [snap, `Git: ${name} (${snap.sha.slice(0, 7)})${snap.present ? "" : ", no model"}`];
+    }
     throw new HttpError(422, `Unknown model version "${ref}".`);
   };
   const resolveCompare = (ref: string, against: string): [ModelSource, string] => {
@@ -191,6 +202,7 @@ export function createApp(root: string, opts: AppOptions = {}): Hono {
   };
 
   app.onError((err, c) => {
+    if (err instanceof GitError) return c.json({ detail: err.message }, 422);
     if (err instanceof ApplyConflict) return c.json({ detail: err.message, conflicts: err.conflicts }, 409);
     if (err instanceof NotFound) return c.json({ detail: err.message }, 404);
     if (err instanceof ModelError) return c.json({ detail: err.message }, 422);
@@ -227,7 +239,7 @@ export function createApp(root: string, opts: AppOptions = {}): Hono {
   /** For process monitors: the server is up and the model files load. */
   app.get("/api/health", (c) => c.json({ ok: true, version: version(), loadErrors: project.loadErrors.length }));
 
-  app.get("/api/state", (c) => c.json(state(project, readOnly, sel(), drafts)));
+  app.get("/api/state", (c) => c.json(state(project, readOnly, sel(), drafts, gitModels)));
 
   /** The changes between the shown model and the one it is compared with. */
   const changes = (): ChangeSet => {

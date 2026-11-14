@@ -1,7 +1,7 @@
 import { ReactFlowProvider } from "@xyflow/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError, setContext } from "./api";
-import { ApplyDialog, ChangeDetails, ChangeList, DraftBanner, DraftList, GhostPanel } from "./ChangesPanel";
+import { ApplyDialog, ChangeDetails, ChangeList, DraftList, GhostPanel, VersionStrip } from "./ChangesPanel";
 import { Canvas, type CanvasHandle, type NodeDecor } from "./Canvas";
 import { Dock } from "./Dock";
 import { CharacteristicsEditor, CostSettingsEditor, LensEditor, TagGroupEditor } from "./editors";
@@ -532,7 +532,7 @@ export default function App() {
   };
 
   const savePositions = (p: Record<string, Pt>, auto = false) => {
-    if (!key || !Object.keys(p).length) return;
+    if (!key || !Object.keys(p).length || state.readOnly) return;
     if (diagram?.level === "connector" || diagram?.level === "code") mutate(() => api.layout(key, { positions: p }));
     else mutate(() => api.positions(key, p, auto));
   };
@@ -626,7 +626,14 @@ export default function App() {
           }}
           onEditCharacteristics={() => setModal({ type: "chars" })}
           onEditCost={() => setModal({ type: "cost" })}
-          draftsSection={<DraftList state={state} onSwitch={(ref) => switchVersion(ref, ref === "main" ? null : "base")} onNewDraft={newDraft} />}
+          draftsSection={
+            <DraftList
+              state={state}
+              onSwitch={(ref) => switchVersion(ref, ref.startsWith("draft:") ? "base" : null)}
+              onNewDraft={newDraft}
+              onCompareRef={(r) => switchVersion(version.model.startsWith("ref:") ? "main" : version.model, `ref:${r}`)}
+            />
+          }
           onRenameWorkspace={() => {
             const name = window.prompt("Workspace name", state.workspace.name);
             if (name && name !== state.workspace.name) mutate(() => api.workspace({ name }));
@@ -641,13 +648,15 @@ export default function App() {
         <div />
       )}
       <main className="main">
-        {draftId && (
-          <DraftBanner
+        {(version.model !== "main" || version.compare) && (
+          <VersionStrip
             state={state}
+            isDraft={!!draftId}
             showChanges={!!version.compare}
             setShowChanges={(v) => switchVersion(version.model, v ? "base" : null)}
-            onApply={() => setModal({ type: "apply", draftId, title: state.model.title.replace(/^Draft: /, "") })}
+            onApply={() => draftId && setModal({ type: "apply", draftId, title: state.model.title.replace(/^Draft: /, "") })}
             onDiscard={discardDraft}
+            onStopCompare={() => switchVersion(version.model, null)}
             onExit={() => switchVersion("main", null)}
           />
         )}
@@ -671,7 +680,7 @@ export default function App() {
                 onDrill={open}
                 onConnect={connect}
                 onPositions={savePositions}
-                onLayout={(patch) => key && mutate(() => api.layout(key, patch))}
+                onLayout={(patch) => key && !state.readOnly && mutate(() => api.layout(key, patch))}
                 onOpenFile={setOpenFile}
                 handleRef={canvasRef}
               />
@@ -762,7 +771,7 @@ export default function App() {
 
           {(error || state.readOnly) && (
             <div className="hud top-center">
-              {state.readOnly && (
+              {state.readOnly && !version.model.startsWith("ref:") && (
                 <div className="float toast info" data-testid="readonly-banner">
                   Viewer role: this server is read-only. Changes are refused.
                 </div>

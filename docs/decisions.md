@@ -110,3 +110,10 @@ Entry format: **ID — title** · date · status · who decided · what was deci
 - Why: the server holds no "current draft", so two browser tabs can show different versions, links keep the version, and tests stay stateless.
 - Options rejected: a server-side "active draft" (tabs would interfere); separate URL prefixes per version (every route and client call would change).
 - Trade-off: the header is invisible in the browser's network URL list; clients other than the UI must send it to work on a draft.
+
+## DEC-018 — Git versions are read with the git command line
+- Date: 2026-11-14 · Status: Accepted · Decided by: assistant (Proposal)
+- Decision: Stage C2 compares the **stored model** at a git ref (branch, tag, commit, `HEAD~n`) with the working model, or two refs with each other, using the same diff and overlay as drafts. The model files are read with `git show <commit>:<path>`; refs are resolved with `git rev-parse --verify`, listed with `git for-each-ref`. Commands run without a shell; refs that start with `-` or contain `:`, spaces, `..` and other characters git forbids are refused. A version at a ref is read-only (`X-DP-Model: ref:<ref>`, `X-DP-Compare: ref:<ref>`).
+- Why: no new dependency, works with any repository git can read, and a commit's model can be cached by its hash.
+- Interpretation: the backlog says C2 "scans" two refs. Code scanning (Stage B) is not built, so this compares the models stored at the refs; scan results can use the same diff later.
+- Trade-off: needs `git` on the PATH (the feature is hidden without it). A commit without the model files shows as an empty model. A repository created after the server started is found on the next request; one that disappears needs a restart.

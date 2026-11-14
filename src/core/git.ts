@@ -1,0 +1,154 @@
+/**
+ * Read the model as it is in a git commit, so it can be shown or compared (Stage C2).
+ *
+ * Uses the `git` command line (no library): `rev-parse` to find the repository and resolve a
+ * ref to a commit, `for-each-ref` to list branches and tags, `show <commit>:<path>` to read the
+ * two model files. Commands run without a shell, and refs are checked before use, so a ref
+ * cannot become an option or a path. A commit never changes, so its model is cached by hash.
+ */
+
+import { execFileSync } from "node:child_process";
+import path from "node:path";
+import { emptySidecar, parseSidecar, type Sidecar } from "./sidecar.js";
+import { NotFound, SIDECAR_FILE, WORKSPACE_FILE, type ModelSource } from "./store.js";
+import { errors } from "./validate.js";
+import { emptyWorkspace, parseWorkspace, type Workspace } from "./workspace.js";
+
+export class GitError extends Error {}
+
+export interface Repo {
+  /** The model folder relative to the repository root, with "/" and a trailing slash ("" at the root). */
+  prefix: string;
+  cwd: string;
+}
+
+function git(cwd: string, args: string[]): string {
+  return execFileSync("git", args, {
+    cwd,
+    encoding: "utf-8",
+    stdio: ["ignore", "pipe", "pipe"],
+    maxBuffer: 128 * 1024 * 1024,
+    timeout: 20_000,
+  });
+}
+
+/** The repository holding `modelDir`, or null (not a repository, or git is not installed). */
+export function findRepo(modelDir: string): Repo | null {
+  try {
+    const prefix = git(modelDir, ["rev-parse", "--show-prefix"]).trim();
+    return { prefix, cwd: modelDir };
+  } catch {
+    return null;
+  }
+}
+
+/** Reject anything that is not a plain ref name or commit hash (see git-check-ref-format). */
+export function checkRef(ref: string): string {
+  const r = ref.trim();
+  if (!r || r.startsWith("-") || r.length > 200 || /[\s:\\^?*[\]~]|\.\.|@\{|[\x00-\x1f\x7f]/.test(r.replace(/(\^|~\d*)+$/, ""))) {
+    throw new GitError(`"${ref}" is not a valid git ref.`);
+  }
+  return r;
+}
+
+/** The commit hash a ref points to. */
+export function resolveRef(repo: Repo, ref: string): string {
+  const r = checkRef(ref);
+  try {
+    return git(repo.cwd, ["rev-parse", "--verify", "--quiet", "--end-of-options", `${r}^{commit}`]).trim();
+  } catch {
+    throw new NotFound(`No git commit "${ref}".`);
+  }
+}
+
+/** Branches and tags, most recently changed first (HEAD first). */
+export function listRefs(repo: Repo, limit = 60): string[] {
+  try {
+    const out = git(repo.cwd, ["for-each-ref", "--sort=-committerdate", "--format=%(refname:short)", "refs/heads", "refs/tags", "refs/remotes"]);
+    const refs = out.split("\n").map((s) => s.trim()).filter((s) => s && !s.endsWith("/HEAD") && s !== "HEAD");
+    return ["HEAD", ...refs].slice(0, limit);
+  } catch {
+    return [];
+  }
+}
+
+/** The current branch name, or null when HEAD is detached or there is no commit yet. */
+export function currentBranch(repo: Repo): string | null {
+  try {
+    const b = git(repo.cwd, ["symbolic-ref", "--quiet", "--short", "HEAD"]).trim();
+    return b || null;
+  } catch {
+    return null;
+  }
+}
+
+function readAt(repo: Repo, sha: string, file: string): string | null {
+  try {
+    return git(repo.cwd, ["show", `${sha}:${repo.prefix}${file}`]);
+  } catch {
+    return null; // the file is not in that commit
+  }
+}
+
+/** The model in one commit (read-only). A commit without the model shows an empty model. */
+export class GitSnapshot implements ModelSource {
+  readonly readOnly = true;
+  readonly workspace: Workspace;
+  readonly sidecar: Sidecar;
+  readonly loadErrors: string[];
+  /** False when the commit has no model files (everything then shows as added). */
+  readonly present: boolean;
+
+  constructor(
+    repo: Repo,
+    readonly sha: string,
+  ) {
+    const ws = readAt(repo, sha, WORKSPACE_FILE);
+    const sc = readAt(repo, sha, SIDECAR_FILE);
+    this.present = ws !== null;
+    try {
+      this.workspace = ws === null ? emptyWorkspace("(no model in this commit)") : parseWorkspace(ws);
+      this.sidecar = sc === null ? emptySidecar() : parseSidecar(sc);
+    } catch (e) {
+      throw new GitError(`The model in commit ${sha.slice(0, 7)} cannot be read: ${(e as Error).message}`);
+    }
+    this.loadErrors = errors(this.workspace, this.sidecar);
+  }
+
+  reloadIfChanged(): boolean {
+    return false;
+  }
+}
+
+/** Snapshots by commit hash (commits never change). */
+export class GitModels {
+  private cache = new Map<string, GitSnapshot>();
+  private repo: Repo | null = null;
+
+  constructor(readonly modelDir: string) {}
+
+  /** The repository. Found once; while there is none, looked for again on each call (so
+   *  `git init` after starting the server works). */
+  get(): Repo | null {
+    if (!this.repo) this.repo = findRepo(this.modelDir);
+    return this.repo;
+  }
+
+  need(): Repo {
+    const r = this.get();
+    if (!r) throw new GitError(`${path.basename(this.modelDir)}/ is not in a git repository (or git is not installed).`);
+    return r;
+  }
+
+  at(ref: string): GitSnapshot {
+    const repo = this.need();
+    const sha = resolveRef(repo, ref);
+    let s = this.cache.get(sha);
+    if (!s) {
+      s = new GitSnapshot(repo, sha);
+      this.cache.set(sha, s);
+      if (this.cache.size > 20) this.cache.delete(this.cache.keys().next().value!);
+    }
+    return s;
+  }
+}

@@ -319,11 +319,13 @@ export interface AppState {
   canUndo: boolean;
   canRedo: boolean;
   readOnly: boolean;
-  /** The model shown: "main" or "draft:<id>". */
+  /** The model shown: "main", "draft:<id>" or "ref:<git ref>" (read-only). */
   model: { ref: string; title: string };
   drafts: DraftInfo[];
   /** Set when the model is compared with another version (overlay "Changes"). */
   compare: { against: string; title: string; summary: ChangeSummary } | null;
+  /** Null when the model folder is not in a git repository. */
+  git: { branch: string | null; refs: string[] } | null;
 }
 
 // ------------------------------------------------------------------ planned change (Stage C)
