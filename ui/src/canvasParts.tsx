@@ -3,6 +3,7 @@ import {
   EdgeLabelRenderer,
   Handle,
   NodeResizer,
+  NodeToolbar,
   Position,
   useInternalNode,
   useReactFlow,
@@ -11,22 +12,27 @@ import {
   type Node,
   type NodeProps,
 } from "@xyflow/react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { NODE_H, NODE_W } from "./layout";
+import { Icon, iconFor } from "./icons";
 import { Shape, shapeInset } from "./shapes";
 import { KIND_LABEL, type DiagramNode, type EdgeLayout, type Pt, type Section, type Style } from "./types";
 
-// C4 colours (as used in the C4 model examples).
+// Accent colour per C4 kind (icon colour on the dark cards).
 export const KIND_COLOR: Record<string, string> = {
-  person: "#08427b",
-  softwareSystem: "#1168bd",
-  container: "#438dd5",
-  component: "#85bbf0",
-  stage: "#6b4fa0",
-  file: "#4f7f6a",
+  person: "#cbd5e1",
+  softwareSystem: "#60a5fa",
+  container: "#38bdf8",
+  component: "#7dd3fc",
+  stage: "#c4b5fd",
+  file: "#86efac",
 };
-const EXTERNAL_COLOR = "#8a8a8a";
+export const CARD_FILL = "#1c1f24";
+export const CARD_STROKE = "#3a3f47";
+const EXTERNAL_FILL = "#17191d";
 const FREQ_ORDER = ["rarely", "monthly", "weekly", "daily", "hourly", "continuous"];
+/** Symbols drawn as their own outline; every other type is a card with an icon. */
+const OUTLINE_SHAPES = new Set(["database", "cache", "storage", "queue", "cloud", "document", "pipeline"]);
 
 export function textColorFor(bg: string): string {
   const m = /^#?([0-9a-f]{6})$/i.exec(bg.trim());
@@ -48,17 +54,74 @@ export function darken(hex: string, amount = 0.25): string {
   return `#${[f((n >> 16) & 255), f((n >> 8) & 255), f(n & 255)].map((v) => v.toString(16).padStart(2, "0")).join("")}`;
 }
 
+/** Mix `hex` into `base` (both #rrggbb); `t` is the share of `hex`. */
+export function mix(hex: string, base: string, t: number): string {
+  const p = (h: string) => {
+    const m = /^#?([0-9a-f]{6})$/i.exec(h.trim());
+    const n = m ? parseInt(m[1], 16) : 0;
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  };
+  const a = p(hex);
+  const b = p(base);
+  return `#${a.map((v, i) => Math.round(v * t + b[i] * (1 - t)).toString(16).padStart(2, "0")).join("")}`;
+}
+
 export function dashFor(s?: Style["strokeStyle"]): string | undefined {
-  return s === "dashed" ? "8 5" : s === "dotted" ? "2 4" : undefined;
+  return { dashed: "8 5", dotted: "2 4", "dash-dot": "10 4 2 4", "long-dash": "16 6", solid: undefined }[s ?? "solid"];
+}
+
+/** Which way a line leaves a box at an anchor (fractions of the box), for smooth curves. */
+function outward(a: Pt | undefined, from: Pt, to: Pt): Pt {
+  if (a) {
+    if (a.x <= 0.001) return { x: -1, y: 0 };
+    if (a.x >= 0.999) return { x: 1, y: 0 };
+    if (a.y <= 0.001) return { x: 0, y: -1 };
+    if (a.y >= 0.999) return { x: 0, y: 1 };
+  }
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  return Math.abs(dx) >= Math.abs(dy) ? { x: Math.sign(dx) || 1, y: 0 } : { x: 0, y: Math.sign(dy) || 1 };
+}
+
+/** Polyline with rounded corners (radius r, never more than half a segment). */
+function roundedPath(pts: Pt[], r = 14): string {
+  let d = `M ${pts[0].x} ${pts[0].y}`;
+  for (let i = 1; i < pts.length - 1; i++) {
+    const [a, b, c] = [pts[i - 1], pts[i], pts[i + 1]];
+    const l1 = Math.hypot(b.x - a.x, b.y - a.y);
+    const l2 = Math.hypot(c.x - b.x, c.y - b.y);
+    const k = Math.min(r, l1 / 2, l2 / 2);
+    if (k < 0.5) {
+      d += ` L ${b.x} ${b.y}`;
+      continue;
+    }
+    const p1 = { x: b.x + ((a.x - b.x) / l1) * k, y: b.y + ((a.y - b.y) / l1) * k };
+    const p2 = { x: b.x + ((c.x - b.x) / l2) * k, y: b.y + ((c.y - b.y) / l2) * k };
+    d += ` L ${p1.x} ${p1.y} Q ${b.x} ${b.y} ${p2.x} ${p2.y}`;
+  }
+  const z = pts[pts.length - 1];
+  return `${d} L ${z.x} ${z.y}`;
 }
 
 export interface OverlayInfo {
   group: string;
-  value: string | null;
+  value: string | null; // null: no value
+  chip: string;
   color: string | null;
 }
 
 export type Rect4 = { x: number; y: number; width: number; height: number };
+
+/** Edits offered on the canvas itself, next to the selected box. */
+export interface NodeActions {
+  rename(id: string, name: string): void;
+  setArchType(id: string, archType: string): void;
+  duplicate(id: string): void;
+  remove(id: string): void;
+  open(key: string): void;
+}
+
+const MODEL_KINDS = new Set(["person", "softwareSystem", "container", "component"]);
 
 export type C4NodeData = {
   el: DiagramNode;
@@ -70,62 +133,190 @@ export type C4NodeData = {
   sections: Section[];
   flowActive: boolean; // element takes part in the current flow step
   dimmed: boolean;
+  focused: boolean; // matches an active Focus filter
   editable: boolean;
+  costLabel: string | null;
+  actions: NodeActions | null;
+  archTypes: { id: string; label: string }[];
+  renameNow: boolean; // start inline rename (new box, or F2)
+  onRenameStarted(): void;
   onResize(id: string, r: Rect4): void;
   onResizeEnd(id: string, r: Rect4): void;
 };
 export type C4NodeType = Node<C4NodeData, "c4">;
 
+function typeLabel(el: DiagramNode): string {
+  if (el.kind === "person") return el.external ? "External person" : "Person";
+  if (el.kind === "softwareSystem") return el.external ? "External system" : el.inScope ? "System" : "System (other context)";
+  return KIND_LABEL[el.kind];
+}
+
+function InlineName({ value, fontSize, onDone }: { value: string; fontSize: number; onDone(v: string | null): void }) {
+  const [v, setV] = useState(value);
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    ref.current?.focus();
+    ref.current?.select();
+  }, []);
+  return (
+    <input
+      ref={ref}
+      className="inline-name nodrag nopan"
+      style={{ fontSize }}
+      value={v}
+      onChange={(e) => setV(e.target.value)}
+      onKeyDown={(e) => {
+        e.stopPropagation();
+        if (e.key === "Enter") onDone(v.trim() && v.trim() !== value ? v.trim() : null);
+        if (e.key === "Escape") onDone(null);
+      }}
+      onBlur={() => onDone(v.trim() && v.trim() !== value ? v.trim() : null)}
+      onDoubleClick={(e) => e.stopPropagation()}
+      aria-label="Name"
+      data-testid="inline-name"
+    />
+  );
+}
+
 export function C4Node({ data, selected }: NodeProps<C4NodeType>) {
   const { el, overlay, w, h } = data;
-  const st = el.style ?? {};
-  let bg = st.fill ?? (el.external || !el.inScope ? EXTERNAL_COLOR : KIND_COLOR[el.kind]);
-  if (!st.fill && el.external && el.kind === "person") bg = "#686868";
-  let stroke = st.stroke ?? darken(bg);
-  let dash = dashFor(st.strokeStyle);
-  if (overlay) {
-    if (overlay.color) {
-      bg = overlay.color;
-      stroke = st.stroke ?? darken(bg);
-    } else {
-      bg = "#eceff3";
-      stroke = "#9aa3ad";
-      dash = "6 4";
+  const [renaming, setRenaming] = useState(false);
+  const renameTimer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(renameTimer.current), []);
+  const isModel = MODEL_KINDS.has(el.kind);
+  const act = isModel && data.editable ? data.actions : null;
+  // Start renaming once when asked (a new box, or F2); later re-renders must not reopen it.
+  const canRename = !!act;
+  useEffect(() => {
+    if (data.renameNow && canRename) {
+      setRenaming(true);
+      data.onRenameStarted();
     }
-  }
-  const fg = overlay ? textColorFor(bg) : st.text ?? textColorFor(bg);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.renameNow]);
+  const st = el.style ?? {};
   const type = el.kind === "person" ? "person" : el.archType || "box";
-  const inset = shapeInset(type, w, h);
-  const techs = el.technologies?.length ? el.technologies.join(", ") : "";
-  const tech = techs ? `${KIND_LABEL[el.kind]}: ${techs}` : KIND_LABEL[el.kind];
-  const fs = st.fontSize ?? 15;
+  const outline = OUTLINE_SHAPES.has(type);
+  let bg = st.fill ?? (el.external ? EXTERNAL_FILL : CARD_FILL);
+  let stroke = st.stroke ?? CARD_STROKE;
+  let dash = dashFor(st.strokeStyle) ?? (el.external && !st.stroke ? "6 4" : undefined);
+  let sw = st.strokeWidth ?? 1.2;
+  if (overlay?.color) {
+    bg = mix(overlay.color, st.fill ?? CARD_FILL, 0.2);
+    stroke = overlay.color;
+    sw = Math.max(sw, 1.6);
+  }
+  const fg = st.text ?? (st.fill && !overlay?.color ? textColorFor(bg) : "#e8eaed");
+  const inset = outline ? shapeInset(type, w, h) : { top: 10, bottom: 10, left: 12, right: 12 };
+  const fs = st.fontSize ?? 14;
   const has = (s: Section) => data.sections.includes(s);
   const freq = el.usage.length ? el.usage.map((u) => u.frequency).sort((a, b) => FREQ_ORDER.indexOf(b) - FREQ_ORDER.indexOf(a))[0] : null;
+  const techs = data.showTechnology && el.technologies?.length ? el.technologies.join(", ") : "";
+  const driving = (el.characteristics ?? []).filter((c) => c.driving).map((c) => c.name);
+  const workOpen = (el.work ?? []).filter((w) => w.status !== "done");
+  const secOpen = workOpen.filter((w) => w.type === "security").length;
+  const cls = [
+    "c4-node",
+    `kind-${el.kind}`,
+    outline ? "outline" : "card",
+    selected ? "selected" : "",
+    data.flowActive ? "flow-active" : "",
+    data.dimmed ? "dimmed" : "",
+    data.focused ? "focused" : "",
+    overlay && !overlay.color ? "no-value" : "",
+    el.external ? "external" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
   return (
     <div
-      className={`c4-node kind-${el.kind}${selected ? " selected" : ""}${data.flowActive ? " flow-active" : ""}${data.dimmed ? " dimmed" : ""}`}
+      className={cls}
       style={{ color: fg, width: w, height: h }}
       data-testid={`node-${el.id}`}
       data-shape={type}
       title={el.drillKey ? "Double-click to open the next level" : undefined}
     >
-      <Shape type={type} w={w} h={h} s={{ fill: bg, stroke, strokeWidth: st.strokeWidth ?? 1.5, dash }} />
-      <div className="c4-content" style={{ paddingTop: inset.top, paddingBottom: inset.bottom, paddingLeft: inset.left, paddingRight: inset.right }}>
-        <div className="c4-name" style={{ fontSize: fs }}>
-          {el.name}
+      {outline ? (
+        <Shape type={type} w={w} h={h} s={{ fill: bg, stroke, strokeWidth: sw, dash }} />
+      ) : (
+        <div className="card-bg" style={{ background: bg, borderColor: stroke, borderWidth: sw, borderStyle: dash ? "dashed" : "solid" }} />
+      )}
+      {el.kind === "person" && (
+        <div className="person-badge" style={{ borderColor: stroke }}>
+          <Icon name="person" size={14} />
         </div>
-        {data.showTechnology && <div className="c4-tech" style={{ fontSize: Math.max(10, fs - 4) }}>[{tech}]</div>}
-        {data.showDescriptions && el.description && <div className="c4-desc" style={{ fontSize: Math.max(10, fs - 3) }}>{el.description}</div>}
-        {el.kind === "stage" && el.linkedElementName && <div className="c4-tech">→ {el.linkedElementName}</div>}
-        {el.kind === "file" && el.lineCount != null && <div className="c4-tech">{el.lineCount} lines</div>}
-        <div className="c4-badges">
-          {overlay && (
-            <span className="badge" data-testid={`badge-${el.id}`}>
-              {overlay.group}: {overlay.value ?? "no value"}
+      )}
+      {el.drillKey && el.childCount > 0 && (
+        <div className="drill-mark" title={`${el.childCount} inside; double-click to open`}>
+          <Icon name="search" size={11} /> {el.childCount}
+        </div>
+      )}
+      {overlay && (
+        <div className={`ov-chip${overlay.color ? "" : " none"}`} data-testid={`badge-${el.id}`} title={`${overlay.group}: ${overlay.value ?? "no value"}`}>
+          {overlay.color && <span className="dot" style={{ background: overlay.color }} />}
+          {overlay.chip}
+        </div>
+      )}
+      <div className="c4-content" style={{ paddingTop: inset.top, paddingBottom: inset.bottom, paddingLeft: inset.left, paddingRight: inset.right }}>
+        <div className="c4-title">
+          {el.kind !== "person" && (
+            <span className="c4-icon" style={{ color: KIND_COLOR[el.kind] }}>
+              <Icon name={iconFor(el.kind, el.archType)} size={Math.round(fs + 2)} />
             </span>
           )}
-          {el.drillKey && el.childCount > 0 && <span className="badge subtle">{el.childCount} inside</span>}
-          {el.external && <span className="badge subtle">external</span>}
+          {renaming && act ? (
+            <InlineName
+              value={el.name}
+              fontSize={fs}
+              onDone={(v) => {
+                setRenaming(false);
+                if (v) act.rename(el.id, v);
+              }}
+            />
+          ) : (
+            <span
+              className="c4-name"
+              style={{ fontSize: fs }}
+              onClick={() => {
+                // Clicking the name of a box that is already selected renames it, unless the click
+                // turns out to be the first half of a double-click (which opens the box).
+                if (!act || !selected) return;
+                window.clearTimeout(renameTimer.current);
+                renameTimer.current = window.setTimeout(() => setRenaming(true), 350);
+              }}
+              onDoubleClick={(e) => {
+                window.clearTimeout(renameTimer.current);
+                // Double-click opens a box that has a diagram inside; otherwise it renames.
+                if (!act || el.drillKey) return;
+                e.stopPropagation();
+                setRenaming(true);
+              }}
+              title={act ? (selected ? "Click to rename" : el.drillKey ? "Double-click to open; select, then click the name to rename" : "Double-click to rename") : undefined}
+            >
+              {el.name}
+            </span>
+          )}
+        </div>
+        {data.showDescriptions && el.description && <div className="c4-desc" style={{ fontSize: Math.max(10, fs - 4) }}>{el.description}</div>}
+        {el.kind === "stage" && el.linkedElementName && <div className="c4-type">→ {el.linkedElementName}</div>}
+        {el.kind === "file" && el.lineCount != null && <div className="c4-type">{el.lineCount} lines</div>}
+        <div className="c4-type" style={{ fontSize: Math.max(9, fs - 5) }}>
+          {typeLabel(el)}
+          {techs && <span className="c4-tech"> · {techs}</span>}
+        </div>
+        <div className="c4-badges">
+          {has("cost") && data.costLabel && !overlay && <span className="badge cost">{data.costLabel}</span>}
+          {has("characteristics") && driving.length > 0 && (
+            <span className="badge subtle" title={`Driving characteristics: ${driving.join(", ")}`}>
+              ★ {driving.length > 2 ? `${driving.slice(0, 2).join(", ")} +${driving.length - 2}` : driving.join(", ")}
+            </span>
+          )}
+          {has("work") && workOpen.length > 0 && (
+            <span className={`badge work${secOpen ? " sec" : ""}`} title={workOpen.map((w) => `${w.type}: ${w.title} (${w.status})`).join("\n")} data-testid={`work-${el.id}`}>
+              {secOpen ? `⚠ ${secOpen} security` : `${workOpen.length} open`}
+              {secOpen && workOpen.length > secOpen ? ` · ${workOpen.length - secOpen} other` : ""}
+            </span>
+          )}
           {has("sensitive") && el.sensitivityLevel && (
             <span className={`badge sens-${el.sensitivityLevel}`} data-testid={`sensitive-${el.id}`}>
               Sensitive: {el.sensitivityLevel}
@@ -137,10 +328,37 @@ export function C4Node({ data, selected }: NodeProps<C4NodeType>) {
           {has("code") && el.codePaths.length > 0 && el.kind !== "file" && <span className="badge subtle">Code</span>}
         </div>
       </div>
+      {act && (
+        <NodeToolbar isVisible={selected && !renaming} position={Position.Top} offset={14} className="quick-bar nodrag nopan" align="center">
+          <button className="ghost icon" onClick={() => setRenaming(true)} title="Rename (or double-click the name)" aria-label="Rename" data-testid="qb-rename">
+            ✎
+          </button>
+          {el.kind !== "person" && (
+            <select value={el.archType || "box"} onChange={(e) => act.setArchType(el.id, e.target.value)} title="Symbol" aria-label="Symbol" data-testid="qb-symbol">
+              {data.archTypes.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.label}
+                </option>
+              ))}
+            </select>
+          )}
+          {el.drillKey && (
+            <button className="ghost" onClick={() => act.open(el.drillKey!)} title="Open what is inside" data-testid="qb-open">
+              <Icon name="search" size={13} /> Open
+            </button>
+          )}
+          <button className="ghost icon" onClick={() => act.duplicate(el.id)} title="Duplicate (Ctrl/Cmd+D)" aria-label="Duplicate" data-testid="qb-duplicate">
+            ⧉
+          </button>
+          <button className="ghost icon danger-text" onClick={() => act.remove(el.id)} title="Delete" aria-label="Delete" data-testid="qb-delete">
+            <Icon name="close" size={14} />
+          </button>
+        </NodeToolbar>
+      )}
       <NodeResizer
         isVisible={selected && data.editable}
         minWidth={120}
-        minHeight={70}
+        minHeight={60}
         lineClassName="resize-line"
         handleClassName="resize-handle"
         onResize={(_, p) => data.onResize(el.id, p)}
@@ -160,14 +378,18 @@ export function C4Node({ data, selected }: NodeProps<C4NodeType>) {
   );
 }
 
-export type BoundaryData = { name: string; kind: string; width: number; height: number };
+export type BoundaryData = { name: string; kind: string; description: string; width: number; height: number };
 export type BoundaryNodeType = Node<BoundaryData, "boundary">;
 
 export function BoundaryNode({ data }: NodeProps<BoundaryNodeType>) {
   return (
     <div className="boundary" style={{ width: data.width, height: data.height }} data-testid="boundary">
       <div className="boundary-label">
-        {data.name} <span>[{KIND_LABEL[data.kind as keyof typeof KIND_LABEL]}]</span>
+        <Icon name={data.kind === "container" ? "container" : "system"} size={12} /> {data.name}
+      </div>
+      <div className="boundary-foot">
+        {data.description && <div>{data.description}</div>}
+        <div>{KIND_LABEL[data.kind as keyof typeof KIND_LABEL]}</div>
       </div>
     </div>
   );
@@ -271,6 +493,7 @@ export type C4EdgeData = {
   sensitivityLevel: string | null;
   hasNotes: boolean;
   stageCount: number;
+  openWork: number;
   hasDetail: boolean;
   editable: boolean;
   onGeom(id: string, layout: EdgeLayout): void;
@@ -278,8 +501,11 @@ export type C4EdgeData = {
   onOpen(id: string): void;
 };
 
+export const FLOW_CURRENT = "#5ee1f5";
+const FLOW_PAST = "#2a7f8f";
+
 export function edgeColor(d: { derived: boolean; style: Style }): string {
-  return d.style.stroke ?? (d.derived ? "#8a94a0" : "#4b5563");
+  return d.style.stroke ?? (d.derived ? "#4f565f" : "#6b727c");
 }
 
 // Inline (not only CSS) so SVG/PNG export keeps the lines.
@@ -287,10 +513,10 @@ function edgeStyle(d: C4EdgeData, selected: boolean): React.CSSProperties {
   let stroke = edgeColor(d);
   let strokeWidth = d.style.strokeWidth ?? 1.6;
   let strokeDasharray: string | undefined = dashFor(d.style.strokeStyle) ?? (d.derived ? "6 5" : undefined);
-  if (d.highlight === "past") [stroke, strokeWidth] = ["#9a3412", 2];
-  if (d.highlight === "current") [stroke, strokeWidth, strokeDasharray] = ["#c2410c", 3.5, "10 6"];
+  if (d.highlight === "past") [stroke, strokeWidth] = [FLOW_PAST, 2];
+  if (d.highlight === "current") [stroke, strokeWidth, strokeDasharray] = [FLOW_CURRENT, 2.6, undefined];
   if (selected) [stroke, strokeWidth] = ["#f59e0b", Math.max(3, strokeWidth)];
-  return { stroke, strokeWidth, strokeDasharray, fill: "none", opacity: d.dimmed ? 0.3 : 1 };
+  return { stroke, strokeWidth, strokeDasharray, fill: "none", opacity: d.dimmed ? 0.2 : 1 };
 }
 
 type Drag = { kind: "source" | "target" | "bend" | "label"; value: Pt | { t: number; offset: number } };
@@ -307,11 +533,7 @@ export function C4Edge({ id, source, target, data, selected, markerEnd, markerSt
   if (drag?.kind === "source") L.sourceAnchor = drag.value as Pt;
   if (drag?.kind === "target") L.targetAnchor = drag.value as Pt;
   if (drag?.kind === "bend") L.control = drag.value as Pt;
-  if (drag?.kind === "label") {
-    const v = drag.value as { t: number; offset: number };
-    L.labelT = v.t;
-    L.labelOffset = v.offset;
-  }
+  if (drag?.kind === "label") L.labelT = (drag.value as { t: number }).t;
 
   const rs = rectOf(s);
   const rt = rectOf(t);
@@ -329,7 +551,7 @@ export function C4Edge({ id, source, target, data, selected, markerEnd, markerSt
 
   let pts: Poly;
   let path: string;
-  if (routing === "orthogonal") {
+  if (routing === "orthogonal" || routing === "rounded") {
     const horizontal = Math.abs(p2.x - p1.x) >= Math.abs(p2.y - p1.y);
     if (horizontal) {
       const mx = L.control?.x ?? (p1.x + p2.x) / 2;
@@ -338,7 +560,23 @@ export function C4Edge({ id, source, target, data, selected, markerEnd, markerSt
       const my = L.control?.y ?? (p1.y + p2.y) / 2;
       pts = [p1, { x: p1.x, y: my }, { x: p2.x, y: my }, p2];
     }
-    path = `M ${pts.map((p) => `${p.x} ${p.y}`).join(" L ")}`;
+    path = routing === "rounded" ? roundedPath(pts) : `M ${pts.map((p) => `${p.x} ${p.y}`).join(" L ")}`;
+  } else if (routing === "smooth") {
+    // S-curve that leaves and enters the boxes square to their sides (cubic Bezier).
+    const o1 = outward(L.sourceAnchor, p1, p2);
+    const o2 = outward(L.targetAnchor, p2, p1);
+    const k = Math.max(40, Math.hypot(p2.x - p1.x, p2.y - p1.y) * 0.4);
+    const c1 = { x: p1.x + o1.x * k, y: p1.y + o1.y * k };
+    const c2 = { x: p2.x + o2.x * k, y: p2.y + o2.y * k };
+    pts = Array.from({ length: 33 }, (_, i) => {
+      const u = i / 32;
+      const m = 1 - u;
+      return {
+        x: m ** 3 * p1.x + 3 * m * m * u * c1.x + 3 * m * u * u * c2.x + u ** 3 * p2.x,
+        y: m ** 3 * p1.y + 3 * m * m * u * c1.y + 3 * m * u * u * c2.y + u ** 3 * p2.y,
+      };
+    });
+    path = `M ${p1.x} ${p1.y} C ${c1.x} ${c1.y} ${c2.x} ${c2.y} ${p2.x} ${p2.y}`;
   } else if (routing === "curved") {
     const c = { x: 2 * aim.x - (p1.x + p2.x) / 2, y: 2 * aim.y - (p1.y + p2.y) / 2 };
     pts = Array.from({ length: 25 }, (_, i) => {
@@ -351,11 +589,11 @@ export function C4Edge({ id, source, target, data, selected, markerEnd, markerSt
     path = `M ${p1.x} ${p1.y} L ${p2.x} ${p2.y}`;
   }
 
-  const lt = L.labelT ?? 0.5;
-  const lo = L.labelOffset ?? 0;
+  // A label slides along its line only; it never leaves it (labelOffset saved by older versions is ignored).
+  const lt = Math.min(0.95, Math.max(0.05, L.labelT ?? 0.5));
   const at = pointAlong(pts, lt);
-  const lx = at.p.x + at.nx * lo;
-  const ly = at.p.y + at.ny * lo;
+  const lx = at.p.x;
+  const ly = at.p.y;
   const bend = pointAlong(pts, 0.5).p;
 
   const cls = ["c4-edge", data.derived ? "derived" : "", selected ? "selected" : "", data.highlight ?? "", data.dimmed ? "dimmed" : ""].filter(Boolean).join(" ");
@@ -366,7 +604,7 @@ export function C4Edge({ id, source, target, data, selected, markerEnd, markerSt
     e.stopPropagation();
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     data.onSelect(id);
-    dragRef.current = { kind, value: kind === "bend" ? bend : kind === "label" ? { t: lt, offset: lo } : { x: 0, y: 0 } };
+    dragRef.current = { kind, value: kind === "bend" ? bend : kind === "label" ? { t: lt, offset: 0 } : { x: 0, y: 0 } };
   };
   const move = (e: React.PointerEvent) => {
     const cur = dragRef.current;
@@ -378,7 +616,7 @@ export function C4Edge({ id, source, target, data, selected, markerEnd, markerSt
     else if (cur.kind === "bend") value = p;
     else {
       const pr = project(pts, p);
-      value = { t: Math.round(pr.t * 100) / 100, offset: Math.abs(pr.dist) < 8 ? 0 : Math.round(pr.dist) };
+      value = { t: Math.min(0.95, Math.max(0.05, Math.round(pr.t * 100) / 100)), offset: 0 };
     }
     dragRef.current = { kind: cur.kind, value };
     setDrag({ kind: cur.kind, value });
@@ -393,9 +631,8 @@ export function C4Edge({ id, source, target, data, selected, markerEnd, markerSt
     if (cur.kind === "target") next.targetAnchor = cur.value as Pt;
     if (cur.kind === "bend") next.control = cur.value as Pt;
     if (cur.kind === "label") {
-      const v = cur.value as { t: number; offset: number };
-      next.labelT = v.t;
-      next.labelOffset = v.offset;
+      next.labelT = (cur.value as { t: number }).t;
+      delete next.labelOffset;
     }
     if (JSON.stringify(next) !== JSON.stringify(data.layout)) data.onGeom(id, next);
   };
@@ -405,7 +642,7 @@ export function C4Edge({ id, source, target, data, selected, markerEnd, markerSt
     data.onGeom(id, next);
   };
 
-  const techs = data.technologies.length ? `[${data.technologies.join(", ")}]` : "";
+  const techs = data.technologies.length ? data.technologies.join(", ") : "";
   const handleStyle = (p: Pt): React.CSSProperties => ({ transform: `translate(-50%, -50%) translate(${p.x}px, ${p.y}px)` });
   const grab = { onPointerMove: move, onPointerUp: end, onPointerCancel: end };
 
@@ -421,16 +658,21 @@ export function C4Edge({ id, source, target, data, selected, markerEnd, markerSt
           onClick={() => data.onSelect(id)}
           onDoubleClick={() => data.onOpen(id)}
           {...grab}
-          title={data.hasDetail ? "Double-click to open the connector detail" : data.editable ? "Drag to move the label along the line" : undefined}
+          title={data.hasDetail ? "Double-click to open the connector detail" : data.editable ? "Drag to slide the label along the line" : undefined}
         >
           <div>{data.label}</div>
-          {techs && <div className="edge-tech">{techs}</div>}
-          {(data.kind || data.sensitivityLevel || data.hasNotes || data.stageCount > 0) && (
+          {techs && (
+            <div className="edge-tech">
+              <Icon name="code" size={10} /> {techs}
+            </div>
+          )}
+          {(data.kind || data.sensitivityLevel || data.hasNotes || data.stageCount > 0 || data.openWork > 0) && (
             <div className="edge-badges">
               {data.kind && <span className="badge subtle">{data.kind.replace(/-/g, " ")}</span>}
               {data.stageCount > 0 && <span className="badge subtle">{data.stageCount} stages</span>}
               {data.sensitivityLevel && <span className={`badge sens-${data.sensitivityLevel}`}>Sensitive: {data.sensitivityLevel}</span>}
               {data.hasNotes && <span className="badge subtle">Notes</span>}
+              {data.openWork > 0 && <span className="badge work">{data.openWork} open</span>}
             </div>
           )}
         </div>
@@ -448,3 +690,27 @@ export function C4Edge({ id, source, target, data, selected, markerEnd, markerSt
 
 export const nodeTypes = { c4: C4Node, boundary: BoundaryNode };
 export const edgeTypes = { c4: C4Edge };
+
+/** Arrowheads beyond the two built into the canvas library. They take the colour of their line. */
+export const CUSTOM_HEADS = ["diamond", "diamond-open", "circle", "bar"] as const;
+export function MarkerDefs() {
+  const common = { viewBox: "0 0 20 20", markerWidth: 14, markerHeight: 14, orient: "auto-start-reverse", markerUnits: "userSpaceOnUse" } as const;
+  return (
+    <svg className="marker-defs" width="0" height="0" aria-hidden="true">
+      <defs>
+        <marker id="dp-head-diamond" refX="19" refY="10" {...common}>
+          <path d="M1 10 L10 4 L19 10 L10 16 Z" style={{ fill: "context-stroke", stroke: "context-stroke" }} />
+        </marker>
+        <marker id="dp-head-diamond-open" refX="19" refY="10" {...common}>
+          <path d="M1 10 L10 4 L19 10 L10 16 Z" style={{ fill: "#121417", stroke: "context-stroke", strokeWidth: 1.5 }} />
+        </marker>
+        <marker id="dp-head-circle" refX="17" refY="10" {...common}>
+          <circle cx="10" cy="10" r="6" style={{ fill: "context-stroke", stroke: "context-stroke" }} />
+        </marker>
+        <marker id="dp-head-bar" refX="17" refY="10" {...common}>
+          <path d="M17 3 L17 17" style={{ fill: "none", stroke: "context-stroke", strokeWidth: 2.5 }} />
+        </marker>
+      </defs>
+    </svg>
+  );
+}

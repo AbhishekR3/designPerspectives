@@ -1,16 +1,21 @@
 import { ReactFlowProvider } from "@xyflow/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "./api";
-import { Canvas, type CanvasHandle } from "./Canvas";
-import { LensEditor, Legend, TagGroupEditor } from "./editors";
+import { Canvas, type CanvasHandle, type NodeDecor } from "./Canvas";
+import { Dock } from "./Dock";
+import { CharacteristicsEditor, CostSettingsEditor, LensEditor, TagGroupEditor } from "./editors";
+import { FlowCard } from "./FlowCard";
 import { FlowPanel } from "./FlowPanel";
+import { Icon, iconFor } from "./icons";
+import { Palette, type PaletteItem } from "./Palette";
+import type { NodeActions } from "./canvasParts";
+import { decodeSpec, formatMoney, matchesFilter, overlayOf, overlayable, specExists, specLabel, techColors, type Filter, type OverlaySpec } from "./overlays";
 import { FileEditor } from "./CodeParts";
 import { CodeDiagramPanel, ConnectorPanel, EdgePanel, FilePanel, ObjectPanel, StagePanel, homeDiagramOf } from "./ObjectPanel";
 import { defaultSize } from "./layout";
 import { Sidebar } from "./Sidebar";
-import { KIND_LABEL, LEVEL_LABEL, type AppState, type Diagram, type DiagramLevel, type Level, type Lens, type Pt, type Selection, type TagGroup } from "./types";
+import { KIND_LABEL, LEVEL_LABEL, type AppState, type Diagram, type DiagramLevel, type DiagramNode, type Level, type Lens, type Pt, type Selection, type TagGroup } from "./types";
 
-const ADD_LABEL: Record<string, string> = { ...KIND_LABEL, stage: "Stage" };
 const inLens = (lens: Lens, level: DiagramLevel) => level === "flow" || level === "connector" || lens.visibleLevels.includes(level as Level);
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
@@ -18,6 +23,7 @@ const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v
 const LENS_KEY = "dp.lens";
 const LEFT_KEY = "dp.leftWidth";
 const RIGHT_KEY = "dp.rightWidth";
+const LEFT_OPEN_KEY = "dp.leftOpen";
 const storage = {
   get(k: string) {
     try {
@@ -40,7 +46,14 @@ function keyFromHash(): string | null {
   return m ? decodeURIComponent(m[1]) : null;
 }
 
-type ModalState = { type: "tag"; group: TagGroup | null } | { type: "lens"; lens: Lens | null } | null;
+type ModalState = { type: "tag"; group: TagGroup | null } | { type: "lens"; lens: Lens | null } | { type: "chars" } | { type: "cost" } | null;
+
+/** The overlay a lens turns on by default, if it still exists. */
+function lensOverlay(l: Lens, s: AppState): OverlaySpec | null {
+  const spec = decodeSpec(l.defaultOverlay);
+  const groups = s.tagGroups.filter((g) => !l.hiddenTagGroups.includes(g.name));
+  return spec && specExists(spec, s, groups) ? spec : null;
+}
 
 export default function App() {
   const [state, setState] = useState<AppState | null>(null);
@@ -49,7 +62,13 @@ export default function App() {
   const [selection, setSelection] = useState<Selection>(null);
   const [focusName, setFocusName] = useState(false);
   const [lensId, setLensId] = useState<string>(storage.get(LENS_KEY) ?? "engineer");
-  const [overlayName, setOverlayName] = useState<string | null>(null);
+  const [overlay, setOverlay] = useState<OverlaySpec | null>(null);
+  const [filters, setFilters] = useState<Filter[]>([]);
+  const [leftOpen, setLeftOpen] = useState(storage.get(LEFT_OPEN_KEY) !== "0");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [renameId, setRenameId] = useState<string | null>(null);
+  const clearRename = useCallback(() => setRenameId(null), []);
   const [showAllLevels, setShowAllLevels] = useState(false);
   const navStarted = useRef(false);
   const clipboard = useRef<string | null>(null);
@@ -108,7 +127,7 @@ export default function App() {
       .then((s) => {
         setState(s);
         const l = s.lenses.find((x) => x.id === lensId) ?? s.lenses[0];
-        if (l.defaultOverlay && s.tagGroups.some((g) => g.name === l.defaultOverlay)) setOverlayName(l.defaultOverlay);
+        setOverlay(lensOverlay(l, s));
         if (!keyRef.current) {
           const first = s.diagrams.find((d) => inLens(l, d.level)) ?? s.diagrams[0];
           setKey(first?.key ?? "landscape");
@@ -136,7 +155,10 @@ export default function App() {
   useEffect(() => {
     const onHash = () => {
       const k = keyFromHash();
-      if (k && k !== keyRef.current) setKey(k);
+      if (k && k !== keyRef.current) {
+        setSelection(null);
+        setKey(k);
+      }
     };
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
@@ -148,8 +170,8 @@ export default function App() {
     if (!playing || !flow) return;
     const t = window.setTimeout(() => {
       if (flowStep === null) setFlowStep(0);
-      else if (flowStep < flow.steps.length - 1) setFlowStep(flowStep + 1);
-      else setPlaying(false);
+      else if (flowStep < flow.steps.length) setFlowStep(flowStep + 1);
+      if (flowStep !== null && flowStep >= flow.steps.length - 1) setPlaying(false);
     }, flowStep === null ? 0 : 1600);
     return () => window.clearTimeout(t);
   }, [playing, flowStep, flow]);
@@ -180,8 +202,7 @@ export default function App() {
     if (!l) return;
     setLensId(id);
     storage.set(LENS_KEY, id);
-    const ov = l.defaultOverlay && state.tagGroups.some((g) => g.name === l.defaultOverlay) ? l.defaultOverlay : null;
-    setOverlayName(ov);
+    setOverlay(lensOverlay(l, state));
     if (diagram && !inLens(l, diagram.level)) {
       const first = state.diagrams.find((d) => inLens(l, d.level));
       if (first) open(first.key);
@@ -256,6 +277,9 @@ export default function App() {
         const step = e.shiftKey ? 40 : 10;
         const d = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[e.key] as number[];
         canvasRef.current?.nudge(nodeId, d[0], d[1]);
+      } else if (e.key === "F2" && nodeId) {
+        // Rename on the canvas.
+        setRenameId(nodeId);
       } else if (e.key === "F2" && selection) setFocusName(true);
       else return;
       e.preventDefault();
@@ -284,31 +308,124 @@ export default function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, [selection, state, diagram, mutate]);
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  // Overlay colour, Focus/Hide filters and cost label of each element on the canvas.
+  const techs = useMemo(() => (diagram ? techColors(diagram) : new Map<string, string>()), [diagram]);
+  const activeOverlay = useMemo(() => {
+    if (!state || !lens || !overlay) return null;
+    const groups = state.tagGroups.filter((g) => !lens.hiddenTagGroups.includes(g.name));
+    return specExists(overlay, state, groups) ? overlay : null;
+  }, [state, lens, overlay]);
+  const decorate = useCallback(
+    (n: DiagramNode): NodeDecor => {
+      const isEl = n.kind !== "stage" && n.kind !== "file";
+      if (!state || !isEl) return { overlay: null, hidden: false, focused: false, outOfFocus: false, costLabel: null };
+      let ov: NodeDecor["overlay"] = null;
+      if (activeOverlay) {
+        const o = overlayOf(activeOverlay, n, state, techs);
+        ov = { group: specLabel(activeOverlay), value: o.key, chip: o.chip, color: o.color };
+      }
+      const focusFs = filters.filter((f) => f.mode === "focus");
+      const focused = focusFs.some((f) => matchesFilter(f, n, state, techs));
+      return {
+        overlay: ov,
+        hidden: filters.some((f) => f.mode === "hide" && matchesFilter(f, n, state, techs)),
+        focused,
+        outOfFocus: focusFs.length > 0 && !focused,
+        costLabel: n.cost?.length || n.costRollup > 0 ? `${formatMoney(n.costRollup, state.costSettings.currency)}/mo` : null,
+      };
+    },
+    [state, activeOverlay, filters, techs],
+  );
+
+  const nodeActions = useMemo<NodeActions | null>(
+    () =>
+      state?.readOnly
+        ? null
+        : {
+            rename: (id, name) => void mutate(() => api.updateElement(id, { name })),
+            setArchType: (id, archType) => void mutate(() => api.updateElement(id, { archType })),
+            duplicate: (id) => void pasteFrom(id),
+            remove: (id) => {
+              const el = state?.elements.find((x) => x.id === id);
+              if (el && window.confirm(`Delete "${el.name}"${el.childCount ? ` and the ${el.childCount} element(s) inside it` : ""}? Its connections are deleted too.`))
+                mutate(() => api.deleteElement(id)).then((ok) => ok && setSelection(null));
+            },
+            open: (k) => open(k),
+          },
+    [state, mutate, pasteFrom, open],
+  );
+
   if (!state || !lens) {
     return <div className="loading">{error ? `Could not load: ${error}` : "Loading…"}</div>;
   }
 
   const visibleGroups = state.tagGroups.filter((g) => !lens.hiddenTagGroups.includes(g.name));
-  const overlay = visibleGroups.find((g) => g.name === overlayName) ?? null;
+  const toggleLeft = () => {
+    storage.set(LEFT_OPEN_KEY, leftOpen ? "0" : "1");
+    setLeftOpen(!leftOpen);
+  };
+  const newFlow = async () => {
+    const title = window.prompt("Name of the new flow");
+    if (!title) return;
+    let k = "";
+    if (await mutate(async () => (k = (await api.createFlow({ title })).key))) open(k);
+  };
 
-  const addElement = async (kind: string) => {
+  /** Add an object from the palette: at `at` (dropped there) or in the nearest free spot. */
+  const addItem = async (item: PaletteItem, at?: Pt) => {
     if (!diagram || !key) return;
-    if (kind === "stage") {
+    if (item.kind === "stage") {
       const rel = state.relationships.find((r) => r.id === diagram.scope);
       const name = window.prompt("Name of the new stage (a step inside this connector)");
       if (rel && name) await mutate(() => api.updateRelationship(rel.id, { stages: [...rel.stages, { id: "", name }] }));
       return;
     }
-    const parentId = (kind === "container" && diagram.level === "container") || (kind === "component" && diagram.level === "component") ? diagram.scope : null;
-    const position = canvasRef.current?.freeSpot(defaultSize(kind)) ?? { x: 0, y: 0 };
+    const parentId = (item.kind === "container" && diagram.level === "container") || (item.kind === "component" && diagram.level === "component") ? diagram.scope : null;
+    const position = at ?? canvasRef.current?.freeSpot(defaultSize(item.kind)) ?? { x: 0, y: 0 };
     let newId = "";
     const ok = await mutate(async () => {
-      newId = (await api.createElement({ kind, parentId, diagramKey: key, position })).id;
+      newId = (
+        await api.createElement({ kind: item.kind, name: item.name, archType: item.archType, external: !!item.external, uniqueName: true, parentId, diagramKey: key, position })
+      ).id;
     });
-    if (ok) {
-      setSelection({ type: "node", id: newId });
-      setFocusName(true);
-    }
+    if (ok) startRename(newId);
+    return ok ? newId : null;
+  };
+
+  /** Select a new object and let the user type its name straight on the canvas. */
+  function startRename(id: string) {
+    setFocusName(false);
+    setSelection({ type: "node", id });
+    setRenameId(id); // consumed by the box when it opens its name field
+  }
+
+  /** A line dragged from a box onto empty canvas: add a box of the usual kind there and connect it. */
+  const connectToEmpty = async (sourceId: string, at: Pt, sourceAnchor?: Pt) => {
+    if (!diagram || !key) return;
+    const src = diagram.nodes.find((n) => n.id === sourceId);
+    const kind = diagram.level === "container" ? "container" : diagram.level === "component" ? "component" : "softwareSystem";
+    if (!diagram.addable.includes(kind)) return;
+    const sz = defaultSize(kind);
+    const item: PaletteItem = { kind, label: "", name: kind === "softwareSystem" ? "New system" : `New ${kind}`, testId: "" };
+    let newId = "";
+    const ok = await mutate(async () => {
+      const parentId = kind === "softwareSystem" ? null : diagram.scope;
+      newId = (await api.createElement({ kind, name: item.name, uniqueName: true, parentId, diagramKey: key, position: { x: Math.round(at.x - sz.w / 2), y: Math.round(at.y - sz.h / 2) } })).id;
+      const rel = (await api.createRelationship({ sourceId, destinationId: newId })).id;
+      if (sourceAnchor) await api.layout(key, { edges: { [rel]: { sourceAnchor } } });
+    });
+    if (ok && src) startRename(newId);
   };
 
   const connect = async (source: string, target: string, anchors: { sourceAnchor?: Pt; targetAnchor?: Pt }) => {
@@ -358,167 +475,91 @@ export default function App() {
     window.addEventListener("pointerup", up);
   };
 
-  return (
-    <div className="app" style={{ gridTemplateColumns: `${leftW}px 5px minmax(0, 1fr) 5px ${rightW}px` }}>
-      <Sidebar
-        state={state}
-        lens={lens}
-        currentKey={key}
-        showAllLevels={showAllLevels}
-        setShowAllLevels={setShowAllLevels}
-        onOpen={open}
-        onLens={chooseLens}
-        onEditLens={(l) => setModal({ type: "lens", lens: l })}
-        onNewLens={() => setModal({ type: "lens", lens: null })}
-        onNewFlow={async () => {
-          const title = window.prompt("Name of the new flow");
-          if (!title) return;
-          let k = "";
-          if (await mutate(async () => (k = (await api.createFlow({ title })).key))) open(k);
-        }}
-        onEditTagGroup={(g) => setModal({ type: "tag", group: g })}
-        onNewTagGroup={() => setModal({ type: "tag", group: null })}
-        onDeleteTagGroup={(g) => {
-          if (window.confirm(`Delete the tag group "${g.name}"? Its values are removed from every object.`))
-            mutate(() => api.deleteTagGroup(g.name)).then((ok) => ok && overlayName === g.name && setOverlayName(null));
-        }}
-        onRenameWorkspace={() => {
-          const name = window.prompt("Workspace name", state.workspace.name);
-          if (name && name !== state.workspace.name) mutate(() => api.workspace({ name }));
-        }}
-      />
+  const diagramCost = diagram ? overlayable(diagram).reduce((sum, n) => sum + (n.costRollup ?? 0), 0) : 0;
+  const tools = (
+    <div className="float bar tools">
+      <button className="ghost icon" onClick={() => doHistory("undo")} disabled={!state.canUndo} title="Undo (Ctrl/Cmd+Z)" aria-label="Undo" data-testid="undo">
+        <Icon name="undo" />
+      </button>
+      <button className="ghost icon" onClick={() => doHistory("redo")} disabled={!state.canRedo} title="Redo (Ctrl/Cmd+Shift+Z)" aria-label="Redo" data-testid="redo">
+        <Icon name="redo" />
+      </button>
+      <button className="ghost icon" onClick={() => canvasRef.current?.relayout()} title="Auto-layout: lay the diagram out again" aria-label="Auto-layout" data-testid="auto-layout">
+        <Icon name="layout" />
+      </button>
+      <span className="export-wrap" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setExportOpen(false)}>
+        <button className="ghost icon" onClick={() => setExportOpen(!exportOpen)} aria-haspopup="menu" aria-expanded={exportOpen} title="Download the diagram" aria-label="Download" data-testid="export">
+          <Icon name="download" />
+        </button>
+        {exportOpen && (
+          <div className="pop-menu right" role="menu">
+            {(["png", "svg"] as const).map((f) => (
+              <button
+                key={f}
+                role="menuitem"
+                data-testid={`export-${f}`}
+                onClick={() => {
+                  setExportOpen(false);
+                  canvasRef.current?.exportImage(f);
+                }}
+              >
+                {f.toUpperCase()}
+              </button>
+            ))}
+          </div>
+        )}
+      </span>
+    </div>
+  );
 
-      <div className="resizer" onPointerDown={startDrag("left")} onDoubleClick={() => { setLeftW(250); storage.set(LEFT_KEY, "250"); }} role="separator" aria-orientation="vertical" title="Drag to resize the sidebar (double-click: reset)" data-testid="resize-left" />
+  return (
+    <div className={`app${leftOpen ? "" : " left-closed"}`} style={{ gridTemplateColumns: `${leftOpen ? `${leftW}px 5px` : "0 0"} minmax(0, 1fr) 5px ${rightW}px` }}>
+      {leftOpen ? (
+        <Sidebar
+          state={state}
+          lens={lens}
+          currentKey={key}
+          showAllLevels={showAllLevels}
+          setShowAllLevels={setShowAllLevels}
+          onOpen={open}
+          onClose={toggleLeft}
+          onEditLens={(l) => setModal({ type: "lens", lens: l })}
+          onNewLens={() => setModal({ type: "lens", lens: null })}
+          onEditTagGroup={(g) => setModal({ type: "tag", group: g })}
+          onNewTagGroup={() => setModal({ type: "tag", group: null })}
+          onDeleteTagGroup={(g) => {
+            if (window.confirm(`Delete the tag group "${g.name}"? Its values are removed from every object.`))
+              mutate(() => api.deleteTagGroup(g.name)).then((ok) => ok && overlay?.kind === "tag" && overlay.name === g.name && setOverlay(null));
+          }}
+          onEditCharacteristics={() => setModal({ type: "chars" })}
+          onEditCost={() => setModal({ type: "cost" })}
+          onRenameWorkspace={() => {
+            const name = window.prompt("Workspace name", state.workspace.name);
+            if (name && name !== state.workspace.name) mutate(() => api.workspace({ name }));
+          }}
+        />
+      ) : (
+        <div />
+      )}
+      {leftOpen ? (
+        <div className="resizer" onPointerDown={startDrag("left")} onDoubleClick={() => { setLeftW(250); storage.set(LEFT_KEY, "250"); }} role="separator" aria-orientation="vertical" title="Drag to resize the sidebar (double-click: reset)" data-testid="resize-left" />
+      ) : (
+        <div />
+      )}
       <main className="main">
-        <header className="topbar">
-          <nav className="breadcrumb" data-testid="breadcrumb">
-            {diagram?.breadcrumb.map((c, i) => (
-              <span key={c.key}>
-                {i > 0 && <span className="sep">›</span>}
-                <button className={`link ${c.key === key ? "active" : ""}`} onClick={() => open(c.key)} data-testid={`crumb-${c.key}`}>
-                  {c.c4 && <span className="level-tag">{c.c4}</span>} {c.label}
-                </button>
-              </span>
-            ))}
-            {diagram && !inLens(lens, diagram.level) && (
-              <span className="muted small"> (this level is not in the {lens.name} lens)</span>
-            )}
-          </nav>
-          <div className="toolbar">
-            {diagram?.addable.map((k) => (
-              <button key={k} onClick={() => addElement(k)} data-testid={`add-${k}`}>
-                + {ADD_LABEL[k] ?? k}
-              </button>
-            ))}
-            <button onClick={() => window.history.back()} title="Back to the previous diagram (Alt+Left)" data-testid="nav-back">
-              ◀ Back
-            </button>
-            <button onClick={() => window.history.forward()} title="Forward (Alt+Right)" data-testid="nav-forward">
-              Forward ▶
-            </button>
-            <button onClick={() => doHistory("undo")} disabled={!state.canUndo} title="Undo (Ctrl/Cmd+Z)" data-testid="undo">
-              Undo
-            </button>
-            <button onClick={() => doHistory("redo")} disabled={!state.canRedo} title="Redo (Ctrl/Cmd+Shift+Z)" data-testid="redo">
-              Redo
-            </button>
-            <label className="overlay-select">
-              Overlay
-              <select value={overlay?.name ?? ""} onChange={(e) => setOverlayName(e.target.value || null)} data-testid="overlay-select">
-                <option value="">None</option>
-                {visibleGroups.map((g) => (
-                  <option key={g.name} value={g.name}>
-                    {g.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button onClick={() => canvasRef.current?.relayout()} title="Lay the diagram out again" data-testid="auto-layout">
-              Auto-layout
-            </button>
-            <span className="export-wrap" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setExportOpen(false)}>
-              <button onClick={() => setExportOpen(!exportOpen)} aria-haspopup="menu" aria-expanded={exportOpen} data-testid="export">
-                Download ▾
-              </button>
-              {exportOpen && (
-                <div className="menu" role="menu">
-                  {(["png", "svg"] as const).map((f) => (
-                    <button
-                      key={f}
-                      role="menuitem"
-                      data-testid={`export-${f}`}
-                      onClick={() => {
-                        setExportOpen(false);
-                        canvasRef.current?.exportImage(f);
-                      }}
-                    >
-                      {f.toUpperCase()}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </span>
-          </div>
-        </header>
-        {state.readOnly && (
-          <div className="readonly-banner" data-testid="readonly-banner">
-            Viewer role: this server is read-only. Changes are refused.
-          </div>
-        )}
-        {error && (
-          <div className="error" role="alert" data-testid="error">
-            {error}
-            <button className="icon" onClick={() => setError(null)} aria-label="Dismiss">
-              ×
-            </button>
-          </div>
-        )}
-        {flow && (
-          <div className="player" data-testid="player">
-            <button onClick={() => setFlowStep(flowStep === null || flowStep === 0 ? 0 : flowStep - 1)} disabled={!flow.steps.length} data-testid="step-prev">
-              ◀ Prev
-            </button>
-            <span data-testid="step-counter">
-              {flowStep === null ? `${flow.steps.length} steps` : `Step ${flowStep + 1} of ${flow.steps.length}`}
-            </span>
-            <button
-              onClick={() => setFlowStep(flowStep === null ? 0 : Math.min(flow.steps.length - 1, flowStep + 1))}
-              disabled={!flow.steps.length}
-              data-testid="step-next"
-            >
-              Next ▶
-            </button>
-            <button
-              onClick={() => {
-                if (!playing && (flowStep === null || flowStep >= flow.steps.length - 1)) setFlowStep(null);
-                setPlaying(!playing);
-              }}
-              disabled={!flow.steps.length}
-              data-testid="play"
-            >
-              {playing ? "Pause" : "Play"}
-            </button>
-            <button
-              onClick={() => {
-                setPlaying(false);
-                setFlowStep(null);
-              }}
-              disabled={flowStep === null}
-            >
-              Stop
-            </button>
-            {flowStep !== null && flow.steps[flowStep] && (
-              <span className="step-text">{flow.steps[flowStep].description}</span>
-            )}
-          </div>
-        )}
         <div className="canvas-wrap">
           {diagram && (
             <ReactFlowProvider key={diagram.key}>
               <Canvas
                 diagram={diagram}
                 lens={lens}
-                overlay={overlay}
+                decorate={decorate}
+                actions={nodeActions}
+                archTypes={state.enums.archTypes}
+                renameId={renameId}
+                onRenameStarted={clearRename}
+                onDropItem={(item, at) => addItem(item, at)}
+                onConnectToEmpty={connectToEmpty}
                 flowStep={flowStep}
                 selection={selection}
                 onSelect={select}
@@ -531,14 +572,132 @@ export default function App() {
               />
             </ReactFlowProvider>
           )}
-          {diagram && overlay && <Legend group={overlay} diagram={diagram} />}
+
+          <div className="hud top-left">
+            <div className="float bar nav">
+              <button className="ghost icon" onClick={() => open("landscape")} title="System landscape" aria-label="Home" data-testid="nav-home">
+                <Icon name="home" />
+              </button>
+              <button className="ghost icon" onClick={() => window.history.back()} title="Back to the previous diagram (Alt+Left)" aria-label="Back" data-testid="nav-back">
+                <Icon name="back" />
+              </button>
+              <button className="ghost icon" onClick={() => window.history.forward()} title="Forward (Alt+Right)" aria-label="Forward" data-testid="nav-forward">
+                <Icon name="forward" />
+              </button>
+              <span className="divider" />
+              <button className={`ghost${leftOpen ? " on" : ""}`} onClick={toggleLeft} title="Show or hide the diagram list" data-testid="toggle-diagrams">
+                Diagrams
+              </button>
+              <span className="divider" />
+              <nav className="breadcrumb" data-testid="breadcrumb">
+                <Icon name="layers" size={14} className="muted" />
+                {diagram?.breadcrumb.map((c, i) => (
+                  <span key={c.key} className="crumb">
+                    {i > 0 && <span className="sep">/</span>}
+                    <button className={`link ${c.key === key ? "active" : ""}`} onClick={() => open(c.key)} data-testid={`crumb-${c.key}`}>
+                      {c.c4 && <span className={`level-tag c4-${c.c4}`}>{c.c4}</span>} {c.label}
+                    </button>
+                  </span>
+                ))}
+              </nav>
+            </div>
+            {diagram && !inLens(lens, diagram.level) && <div className="float note small">This level is not in the {lens.name} lens.</div>}
+            <FlowCard
+              state={state}
+              diagram={diagram}
+              flow={flow}
+              flowStep={flowStep}
+              setFlowStep={setFlowStep}
+              playing={playing}
+              setPlaying={setPlaying}
+              onOpen={open}
+              onNewFlow={newFlow}
+            />
+          </div>
+
+          <div className="hud top-right">
+            <div className="float bar">
+              <button className="ghost search-btn" onClick={() => setSearchOpen(true)} title="Find an object (Ctrl/Cmd+K)" data-testid="search">
+                <Icon name="search" /> <span className="kbd">⌘K</span>
+              </button>
+              <span className="divider" />
+              <label className="lens-pick" title="Lens: what this audience sees by default">
+                <Icon name="eye" size={14} />
+                <select value={lens.id} onChange={(e) => chooseLens(e.target.value)} data-testid="lens-select" aria-label="Lens">
+                  {state.lenses.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <span className="divider" />
+              <button className={`ghost icon${helpOpen ? " on" : ""}`} onClick={() => setHelpOpen(!helpOpen)} aria-label="Help" title="Help" data-testid="help">
+                <Icon name="help" />
+              </button>
+            </div>
+            {tools}
+            {helpOpen && (
+              <div className="float help-card small" data-testid="help-card">
+                <ul className="hints">
+                  <li>Click a box or line to see and edit it in the panel on the right.</li>
+                  <li>Double-click a system or container to open the next level.</li>
+                  <li>Add: drag a database, queue, pipeline, service and more from the palette on the left onto the diagram, or click it.</li>
+                  <li>Drag from a dot on any side of a box to another box to connect them, or to empty space to add a connected box.</li>
+                  <li>Rename on the canvas: select a box, then click its name (or press F2). The bar above a selected box also changes its symbol, opens it, duplicates or deletes it.</li>
+                  <li>Select a box to resize it; select a line to drag its ends, bend it, or slide its label along it.</li>
+                  <li>Double-click a line to open the connector behind it.</li>
+                  <li>Dashed lines are derived from relationships between elements inside the boxes.</li>
+                  <li>Bottom left: colour boxes by a tag group, technology, characteristic or cost; click a value to focus on or hide those boxes.</li>
+                  <li>Ctrl/Cmd+K: find an object. Delete: remove the selection. F2: rename.</li>
+                </ul>
+              </div>
+            )}
+          </div>
+
+          {(error || state.readOnly) && (
+            <div className="hud top-center">
+              {state.readOnly && (
+                <div className="float toast info" data-testid="readonly-banner">
+                  Viewer role: this server is read-only. Changes are refused.
+                </div>
+              )}
+              {error && (
+                <div className="float toast error" role="alert" data-testid="error">
+                  {error}
+                  <button className="ghost icon" onClick={() => setError(null)} aria-label="Dismiss">
+                    <Icon name="close" size={13} />
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {diagram && diagram.level !== "code" && diagram.level !== "connector" && (
+            <Dock
+              state={state}
+              diagram={diagram}
+              groups={visibleGroups}
+              overlay={activeOverlay}
+              setOverlay={setOverlay}
+              filters={filters}
+              setFilters={setFilters}
+              onEditTagGroup={(g) => setModal({ type: "tag", group: g })}
+              onNewTagGroup={() => setModal({ type: "tag", group: null })}
+              onEditCharacteristics={() => setModal({ type: "chars" })}
+              onEditCost={() => setModal({ type: "cost" })}
+            />
+          )}
+
+          {diagram && !state.readOnly && diagram.level !== "flow" && diagram.level !== "code" && <Palette diagram={diagram} onAdd={(it) => addItem(it)} />}
+
           {diagram && diagram.nodes.length === 0 && (
             <div className="empty-hint">
               {diagram.level === "flow"
                 ? "This flow has no steps yet. Add steps in the panel on the right."
                 : diagram.level === "code"
                   ? "No files yet. Add code paths in the panel on the right."
-                  : `Nothing here yet. Use the + buttons above to add ${diagram.addable.map((k) => (ADD_LABEL[k] ?? k).toLowerCase()).join(", ")}.`}
+                  : "Nothing here yet. Drag something from the Add palette on the left onto the diagram."}
             </div>
           )}
         </div>
@@ -566,23 +725,50 @@ export default function App() {
           <div className="panel-body">
             <div className="panel-kind">{diagram.c4 && `${diagram.c4} · `}{LEVEL_LABEL[diagram.level]} diagram</div>
             <h2 className="panel-title">{diagram.title}</h2>
-            <ul className="hints muted small">
-              <li>Click a box or line to see and edit it.</li>
-              <li>Double-click a system or container to open the next level.</li>
-              <li>Drag from a dot on any side of a box to any side of another box to connect them.</li>
-              <li>Select a box to resize it; select a line to drag its ends, bend it or slide its label.</li>
-              <li>Double-click a line to open the connector behind it (pipeline stages, protocol, code).</li>
-              <li>Dashed lines are derived from relationships between elements inside the boxes.</li>
-              <li>Select something and press Delete to remove it.</li>
-            </ul>
+            <dl className="facts">
+              <dt>Objects</dt>
+              <dd>{overlayable(diagram).length}</dd>
+              <dt>Connections</dt>
+              <dd>{diagram.edges.length}</dd>
+              {diagramCost > 0 && (
+                <>
+                  <dt>Monthly cost</dt>
+                  <dd>{formatMoney(diagramCost, state.costSettings.currency)}</dd>
+                </>
+              )}
+            </dl>
+            <p className="muted small">Click an object or connection to see its details here. Press ? at the top right for help.</p>
           </div>
         )}
       </aside>
 
       {openFile && <FileEditor path={openFile} onClose={() => setOpenFile(null)} />}
+      {searchOpen && (
+        <SearchBox
+          state={state}
+          onClose={() => setSearchOpen(false)}
+          onPick={(id) => {
+            setSearchOpen(false);
+            reveal(id);
+          }}
+          onOpen={(k) => {
+            setSearchOpen(false);
+            open(k);
+          }}
+        />
+      )}
       {modal?.type === "tag" && <TagGroupEditor group={modal.group} onClose={() => setModal(null)} mutate={mutate} />}
+      {modal?.type === "chars" && <CharacteristicsEditor items={state.characteristics} onClose={() => setModal(null)} mutate={mutate} />}
+      {modal?.type === "cost" && <CostSettingsEditor settings={state.costSettings} onClose={() => setModal(null)} mutate={mutate} />}
       {modal?.type === "lens" && (
-        <LensEditor lens={modal.lens} tagGroups={state.tagGroups} onClose={() => setModal(null)} mutate={mutate} onSaved={(id) => chooseLensAfterSave(id)} />
+        <LensEditor
+          lens={modal.lens}
+          tagGroups={state.tagGroups}
+          characteristics={state.characteristics}
+          onClose={() => setModal(null)}
+          mutate={mutate}
+          onSaved={(id) => chooseLensAfterSave(id)}
+        />
       )}
     </div>
   );
@@ -596,8 +782,69 @@ export default function App() {
         if (!l) return;
         setLensId(id);
         storage.set(LENS_KEY, id);
-        setOverlayName(l.defaultOverlay && s.tagGroups.some((g) => g.name === l.defaultOverlay) ? l.defaultOverlay : null);
+        setOverlay(lensOverlay(l, s));
       });
     }, 0);
   }
+}
+
+/** Ctrl/Cmd+K: find an object or a diagram by name, description or technology. */
+function SearchBox({ state, onClose, onPick, onOpen }: { state: AppState; onClose(): void; onPick(id: string): void; onOpen(key: string): void }) {
+  const [q, setQ] = useState("");
+  const [cur, setCur] = useState(0);
+  const t = q.trim().toLowerCase();
+  const els = state.elements
+    .filter((e) => !t || e.name.toLowerCase().includes(t) || e.description.toLowerCase().includes(t) || e.technologies.some((x) => x.toLowerCase().includes(t)))
+    .slice(0, 10)
+    .map((e) => ({ type: "el" as const, id: e.id, label: e.name, sub: `${KIND_LABEL[e.kind]}${e.technologies.length ? ` · ${e.technologies.join(", ")}` : ""}`, icon: iconFor(e.kind, e.archType) }));
+  const ds = state.diagrams
+    .filter((d) => t && (d.title.toLowerCase().includes(t) || d.label.toLowerCase().includes(t)))
+    .slice(0, 5)
+    .map((d) => ({ type: "d" as const, id: d.key, label: d.title, sub: `${d.c4 ? `${d.c4} · ` : ""}${LEVEL_LABEL[d.level]} diagram`, icon: "layers" }));
+  const items = [...els, ...ds];
+  const pick = (i: number) => {
+    const it = items[i];
+    if (!it) return;
+    if (it.type === "el") onPick(it.id);
+    else onOpen(it.id);
+  };
+  return (
+    <div className="modal-backdrop top" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="search-box" role="dialog" aria-label="Search">
+        <div className="search-input">
+          <Icon name="search" />
+          <input
+            autoFocus
+            value={q}
+            placeholder="Find an object or diagram…"
+            onChange={(e) => {
+              setQ(e.target.value);
+              setCur(0);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") onClose();
+              else if (e.key === "ArrowDown") setCur(Math.min(items.length - 1, cur + 1));
+              else if (e.key === "ArrowUp") setCur(Math.max(0, cur - 1));
+              else if (e.key === "Enter") pick(cur);
+              else return;
+              e.preventDefault();
+            }}
+            data-testid="search-input"
+          />
+        </div>
+        <ul className="search-results">
+          {items.map((it, i) => (
+            <li key={`${it.type}-${it.id}`}>
+              <button className={i === cur ? "on" : ""} onMouseEnter={() => setCur(i)} onClick={() => pick(i)} data-testid={`result-${it.id}`}>
+                <Icon name={it.icon} size={15} />
+                <span>{it.label}</span>
+                <span className="muted small">{it.sub}</span>
+              </button>
+            </li>
+          ))}
+          {items.length === 0 && <li className="muted small pad">Nothing found.</li>}
+        </ul>
+      </div>
+    </div>
+  );
 }

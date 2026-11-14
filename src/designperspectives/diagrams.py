@@ -174,6 +174,7 @@ def compute(idx: Index, ref: DiagramRef) -> tuple[list[str], list[dict]]:
                     "sensitivityLevel": summ["sensitivityLevel"],
                     "hasNotes": bool(summ["notes"]),
                     "stageCount": len(summ["stages"]),
+                    "openWork": sum(1 for w in summ["work"] if w.get("status") != "done"),
                     "derived": False,
                     "relationshipIds": [r.id],
                 }
@@ -204,6 +205,7 @@ def compute(idx: Index, ref: DiagramRef) -> tuple[list[str], list[dict]]:
                 "sensitivityLevel": None,
                 "hasNotes": False,
                 "stageCount": 0,
+                "openWork": 0,
                 "derived": True,
                 "relationshipIds": sorted(rel_ids),
             }

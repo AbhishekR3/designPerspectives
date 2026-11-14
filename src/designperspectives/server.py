@@ -7,13 +7,27 @@ from pathlib import Path
 from fastapi import Body, FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, ValidationError
 from pydantic.alias_generators import to_camel
 
+from . import __version__
 from . import code as codemod
 from . import diagrams, flows, ops
 from .ops import ModelError, build_index, element_summary, relationship_summary, slugify, unique
-from .sidecar import BUILTIN_LENSES, SECTIONS, DiagramLayout, EdgeLayout, Lens, Point, Size, Sidecar, TagGroup, TagValue
+from .sidecar import (
+    BUILTIN_LENSES,
+    SECTIONS,
+    Characteristic,
+    CostSettings,
+    DiagramLayout,
+    EdgeLayout,
+    Lens,
+    Point,
+    Sidecar,
+    Size,
+    TagGroup,
+    TagValue,
+)
 from .store import Project, static_dir
 from .workspace import Workspace
 
@@ -35,6 +49,7 @@ class NewElement(_In):
     technology: str | list[str] | None = None
     external: bool = False
     arch_type: str | None = None
+    unique_name: bool = False
     diagram_key: str | None = None
     position: Position | None = None
 
@@ -68,6 +83,12 @@ class LensIn(_In):
     visible_sections: list[str] = list(SECTIONS)
 
 
+class CharacteristicIn(_In):
+    name: str
+    description: str = ""
+    previous_name: str | None = None
+
+
 class NewFlow(_In):
     title: str
     description: str | None = None
@@ -84,6 +105,8 @@ def state(project: Project, read_only: bool = False) -> dict:
         "relationships": [relationship_summary(r) for r in idx.relationships.values()],
         "diagrams": diagrams.diagram_list(ws),
         "tagGroups": [g.model_dump(by_alias=True) for g in sc.tag_groups],
+        "characteristics": [c.model_dump(by_alias=True) for c in sc.characteristics],
+        "costSettings": sc.cost.model_dump(by_alias=True),
         "lenses": lenses,
         "flows": flows.list_flows(ws),
         "loadErrors": project.load_errors,
@@ -100,7 +123,7 @@ def state(project: Project, read_only: bool = False) -> dict:
 
 def create_app(root: Path, code_root: Path | None = None, read_only: bool = False) -> FastAPI:
     project = Project(root, code_root)
-    app = FastAPI(title="designPerspectives", docs_url="/api/docs", openapi_url="/api/openapi.json")
+    app = FastAPI(title="designPerspectives", version=__version__, docs_url="/api/docs", openapi_url="/api/openapi.json")
     app.state.project = project
 
     @app.middleware("http")
@@ -118,6 +141,11 @@ def create_app(root: Path, code_root: Path | None = None, read_only: bool = Fals
         return project.edit(fn)
 
     # ------------------------------------------------------------ read
+
+    @app.get("/api/health")
+    def health():
+        """For process monitors: the server is up and the model files load."""
+        return {"ok": True, "version": __version__, "loadErrors": len(project.load_errors)}
 
     @app.get("/api/state")
     def get_state():
@@ -168,7 +196,15 @@ def create_app(root: Path, code_root: Path | None = None, read_only: bool = Fals
     def post_element(body: NewElement):
         def fn(ws: Workspace, _: Sidecar):
             new_id = ops.create_element(
-                ws, body.kind, body.name, body.parent_id, body.description, body.technology, body.external, body.arch_type
+                ws,
+                body.kind,
+                body.name,
+                body.parent_id,
+                body.description,
+                body.technology,
+                body.external,
+                body.arch_type,
+                unique_name=body.unique_name,
             )
             if body.diagram_key and body.position:
                 diagrams.set_positions(ws, body.diagram_key, {new_id: body.position.model_dump()})
@@ -258,6 +294,56 @@ def create_app(root: Path, code_root: Path | None = None, read_only: bool = Fals
                 raise ModelError(f'No tag group named "{name}".')
             ops.remove_tag_group_everywhere(ws, sc, name)
             sc.tag_groups = [g for g in sc.tag_groups if g.name != name]
+
+        edit(fn)
+        return {"ok": True}
+
+    # ------------------------------------------------------------ characteristics and cost settings
+
+    @app.put("/api/characteristics")
+    def put_characteristics(body: list[CharacteristicIn] = Body(...)):
+        """Replace the list of characteristics. Renames and removals are applied to every rating."""
+
+        def fn(ws: Workspace, sc: Sidecar):
+            out: list[Characteristic] = []
+            for c in body:
+                name = c.name.strip()
+                if not name:
+                    continue
+                if any(o.name == name for o in out):
+                    raise ModelError(f'The characteristic "{name}" is listed twice.')
+                out.append(Characteristic(name=name, description=c.description.strip()))
+            renames = {
+                c.previous_name: c.name.strip()
+                for c in body
+                if c.previous_name and c.name.strip() and c.previous_name != c.name.strip()
+            }
+            ops.rewrite_characteristics(ws, renames, {c.name for c in out})
+            sc.characteristics = out
+
+        edit(fn)
+        return {"ok": True}
+
+    @app.put("/api/cost-settings")
+    def put_cost_settings(body: dict = Body(...)):
+        def fn(_: Workspace, sc: Sidecar):
+            try:
+                settings = CostSettings.model_validate(body)
+            except ValidationError as e:
+                raise ModelError(f"Cost settings are not valid: {e.errors()[0]['msg']}") from None
+            settings.currency = settings.currency.strip() or "USD"
+            if not settings.bands:
+                raise ModelError("Cost settings need at least one band.")
+            limits = [b.max for b in settings.bands]
+            if any(x is None for x in limits[:-1]) or limits[-1] is not None:
+                raise ModelError("Only the last cost band can be open-ended, and it must be.")
+            if limits[:-1] != sorted(limits[:-1]) or len(set(limits[:-1])) != len(limits[:-1]):
+                raise ModelError("Cost band limits must increase from band to band.")
+            for b in settings.bands:
+                b.name = b.name.strip()
+                if not b.name:
+                    raise ModelError("Every cost band needs a name.")
+            sc.cost = settings
 
         edit(fn)
         return {"ok": True}
@@ -413,7 +499,9 @@ def create_app(root: Path, code_root: Path | None = None, read_only: bool = Fals
             f = (ui / path).resolve()
             if path and f.is_file() and ui.resolve() in f.parents:
                 return FileResponse(f)
-            return FileResponse(ui / "index.html")
+            # The page must not be cached: after an upgrade it names new asset files, and a cached
+            # copy would keep loading the old UI. (Asset names contain a content hash.)
+            return FileResponse(ui / "index.html", headers={"Cache-Control": "no-cache"})
     else:
 
         @app.get("/", include_in_schema=False)

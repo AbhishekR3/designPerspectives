@@ -11,8 +11,11 @@ File read/write is restricted to the code root: paths are resolved and must stay
 from __future__ import annotations
 
 import ast
+import os
 import posixpath
 import re
+import shutil
+import tempfile
 from pathlib import Path
 
 from .diagrams import DiagramRef, scope_name, title_of
@@ -275,5 +278,15 @@ def write_file(code_root: Path | None, rel: str, content: str, expected_mtime: f
         raise ModelError("No such file. New files cannot be created from here.")
     if expected_mtime is not None and abs(target.stat().st_mtime - expected_mtime) > 0.001:
         raise ModelError("The file changed on disk since you opened it. Reopen it to see the new version.")
-    target.write_text(content, encoding="utf-8")
+    # Write to a temporary file next to it, keep the file's permissions, then swap it in, so a
+    # crash or a full disk never leaves a half-written source file.
+    fd, tmp = tempfile.mkstemp(dir=target.parent, prefix=f".{target.name}.", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="") as f:
+            f.write(content)
+        shutil.copymode(target, tmp)
+        os.replace(tmp, target)
+    except BaseException:
+        Path(tmp).unlink(missing_ok=True)
+        raise
     return {"path": rel, "mtime": target.stat().st_mtime}

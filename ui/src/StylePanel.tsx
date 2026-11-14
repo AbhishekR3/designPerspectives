@@ -56,6 +56,8 @@ export function StylePanel({
             <option value="solid">Solid</option>
             <option value="dashed">Dashed</option>
             <option value="dotted">Dotted</option>
+            <option value="dash-dot">Dash-dot</option>
+            <option value="long-dash">Long dash</option>
           </select>
         </label>
         <label className="field inline">
@@ -75,6 +77,19 @@ export function StylePanel({
             <option value="start">At the start</option>
             <option value="both">Both ends</option>
             <option value="none">None</option>
+          </select>
+        </label>
+      )}
+      {edge && (
+        <label className="field inline">
+          <span>Arrowhead</span>
+          <select value={style.arrowHead ?? "filled"} onChange={(e) => save({ arrowHead: e.target.value as Style["arrowHead"] })} data-testid="style-arrow-head">
+            <option value="filled">Filled arrow</option>
+            <option value="open">Open arrow</option>
+            <option value="diamond">Diamond</option>
+            <option value="diamond-open">Open diamond</option>
+            <option value="circle">Circle</option>
+            <option value="bar">Bar</option>
           </select>
         </label>
       )}

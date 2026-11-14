@@ -58,3 +58,17 @@ def page(server):
         yield pg
         browser.close()
         assert not errors, errors
+
+
+def wait_until(check, timeout: float = 5.0, interval: float = 0.1):
+    """Poll `check()` until it returns a truthy value (saves are asynchronous); return that value."""
+    end = time.monotonic() + timeout
+    while True:
+        try:
+            value = check()
+        except (StopIteration, KeyError, IndexError, AssertionError):
+            value = None
+        if value or time.monotonic() > end:
+            assert value, "condition not met in time"
+            return value
+        time.sleep(interval)

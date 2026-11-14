@@ -4,10 +4,13 @@ export type Level = "landscape" | "context" | "container" | "component" | "code"
 export const LEVELS: Level[] = ["landscape", "context", "container", "component", "code"];
 export type DiagramLevel = Level | "connector" | "flow";
 
-export const SECTIONS = ["technology", "details", "notes", "tradeoffs", "usage", "sensitive", "code"] as const;
+export const SECTIONS = ["technology", "characteristics", "cost", "work", "details", "notes", "tradeoffs", "usage", "sensitive", "code"] as const;
 export type Section = (typeof SECTIONS)[number];
 export const SECTION_LABEL: Record<Section, string> = {
   technology: "Technology",
+  characteristics: "Characteristics",
+  cost: "Cost",
+  work: "Linked work",
   details: "Details",
   notes: "Notes",
   tradeoffs: "Tradeoffs",
@@ -38,6 +41,39 @@ export interface SensitiveItem {
   item: string;
   level: string;
 }
+export interface Rating {
+  name: string;
+  rating?: number;
+  driving?: boolean;
+  note?: string;
+}
+export interface WorkItem {
+  type: string; // security | pr | issue | backlog | update
+  title: string;
+  url?: string;
+  status: string; // open | in-progress | blocked | done
+  severity?: string; // critical | high | medium | low
+  note?: string;
+}
+export interface CostItem {
+  item: string;
+  monthly: number;
+  note?: string;
+}
+export interface CharacteristicDef {
+  name: string;
+  description: string;
+}
+export interface CostBand {
+  name: string;
+  max: number | null;
+  color: string;
+}
+export interface CostSettings {
+  currency: string;
+  bands: CostBand[];
+}
+
 export interface Stage {
   id: string;
   name: string;
@@ -51,10 +87,11 @@ export interface Style {
   fill?: string;
   text?: string;
   stroke?: string;
-  strokeStyle?: "solid" | "dashed" | "dotted";
+  strokeStyle?: "solid" | "dashed" | "dotted" | "dash-dot" | "long-dash";
   strokeWidth?: number;
   fontSize?: number;
   arrow?: "end" | "start" | "both" | "none";
+  arrowHead?: "filled" | "open" | "diamond" | "diamond-open" | "circle" | "bar";
 }
 
 export interface Pt {
@@ -67,7 +104,7 @@ export interface EdgeLayout {
   control?: Pt;
   labelT?: number;
   labelOffset?: number;
-  routing?: "straight" | "curved" | "orthogonal";
+  routing?: "straight" | "curved" | "smooth" | "orthogonal" | "rounded";
 }
 
 export interface ElementSummary {
@@ -89,6 +126,11 @@ export interface ElementSummary {
   sensitive: SensitiveItem[];
   sensitivityLevel: string | null;
   codePaths: string[];
+  characteristics: Rating[];
+  cost: CostItem[];
+  work: WorkItem[];
+  costTotal: number;
+  costRollup: number;
   parentId: string | null;
   external: boolean;
   location?: string | null;
@@ -127,6 +169,7 @@ export interface DiagramEdge {
   sensitivityLevel: string | null;
   hasNotes: boolean;
   stageCount: number;
+  openWork?: number;
   derived: boolean;
   relationshipIds: string[];
   detailKey: string | null;
@@ -198,6 +241,7 @@ export interface Relationship {
   sensitivityLevel: string | null;
   stages: Stage[];
   codePaths: string[];
+  work: WorkItem[];
 }
 
 export interface DiagramInfo {
@@ -238,6 +282,9 @@ export interface Enums {
   frequencies: string[];
   tradeoffKinds: string[];
   connectorKinds: { id: string; label: string }[];
+  workTypes: { id: string; label: string }[];
+  workStatuses: string[];
+  severities: string[];
 }
 
 export interface AppState {
@@ -248,6 +295,8 @@ export interface AppState {
   relationships: Relationship[];
   diagrams: DiagramInfo[];
   tagGroups: TagGroup[];
+  characteristics: CharacteristicDef[];
+  costSettings: CostSettings;
   lenses: Lens[];
   flows: Flow[];
   loadErrors: string[];

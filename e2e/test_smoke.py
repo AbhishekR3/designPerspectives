@@ -12,7 +12,8 @@ def node(page: Page, element_id: str):
 
 
 def rename_selected(page: Page, name: str):
-    field = page.get_by_test_id("field-name")
+    """A new box opens with its name ready to type, on the canvas."""
+    field = page.get_by_test_id("inline-name")
     expect(field).to_be_focused()
     field.fill(name)
     field.press("Enter")
@@ -34,7 +35,8 @@ def test_checklist_steps_1_to_4(page: Page, server):
     for name in ("Loan UI", "Loan API", "Loan DB"):
         page.get_by_test_id("add-container").click()
         rename_selected(page, name)
-        page.get_by_test_id("canvas").click(position={"x": 30, "y": 30})  # deselect
+        box = page.get_by_test_id("canvas").bounding_box()  # deselect: empty canvas at the right edge
+        page.get_by_test_id("canvas").click(position={"x": box["width"] - 15, "y": box["height"] / 2})
     expect(page.locator(".react-flow__node-c4")).to_have_count(3)
     page.get_by_test_id("auto-layout").click()
     page.wait_for_timeout(500)

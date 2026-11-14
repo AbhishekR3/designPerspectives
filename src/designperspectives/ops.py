@@ -18,6 +18,10 @@ designPerspectives data stored on elements (and relationships) as Structurizr pr
   dp.tradeoffs     JSON [{"kind","text"}]                      elements
   dp.usage         JSON [{"users","frequency","volume"}]       elements
   dp.sensitive     JSON [{"item","level"}]                     elements, relationships
+  dp.characteristics JSON [{"name","rating","driving","note"}] elements; rating 1-5 per characteristic
+  dp.cost          JSON [{"item","monthly","note"}]            elements; monthly cost line items
+  dp.work          JSON [{"type","title","url","status","severity","note"}]  elements, relationships;
+                   linked work: security issues, pull requests, issues, backlog items, required updates
   dp.code.paths    JSON ["path/relative/to/code/root", ...]    elements, relationships
   dp.kind          connector kind (data-pipeline, ...)         relationships
   dp.stages        JSON [{"id","name","technologies",...}]     relationships
@@ -54,6 +58,18 @@ CODE_KEY = "dp.code.paths"
 KIND_KEY = "dp.kind"
 STAGES_KEY = "dp.stages"
 DETAILS_KEY = "dp.details"
+CHARS_KEY = "dp.characteristics"
+WORK_KEY = "dp.work"
+WORK_TYPES = [
+    ("security", "Security issue"),
+    ("pr", "Pull request"),
+    ("issue", "Issue / bug"),
+    ("backlog", "Backlog item"),
+    ("update", "Required update"),
+]
+WORK_STATUSES = ["open", "in-progress", "blocked", "done"]
+SEVERITIES = ["critical", "high", "medium", "low"]
+COST_KEY = "dp.cost"
 
 ARCH_TYPES = [
     ("box", "Box (generic)"),
@@ -88,6 +104,9 @@ ENUMS = {
     "frequencies": FREQUENCIES,
     "tradeoffKinds": TRADEOFF_KINDS,
     "connectorKinds": [{"id": i, "label": label} for i, label in CONNECTOR_KINDS],
+    "workTypes": [{"id": i, "label": label} for i, label in WORK_TYPES],
+    "workStatuses": WORK_STATUSES,
+    "severities": SEVERITIES,
 }
 
 SUGGESTED_TECH = [
@@ -305,6 +324,104 @@ def clean_usage(items: list) -> list[dict]:
     return out
 
 
+def clean_characteristics(items: list, allowed: set[str]) -> list[dict]:
+    """Ratings of architecture characteristics: 1 (weak) to 5 (strong), one row per characteristic."""
+    out: dict[str, dict] = {}
+    for x in items or []:
+        name = str(x.get("name", "")).strip()
+        if not name:
+            continue
+        if name not in allowed:
+            raise ModelError(f'"{name}" is not in the list of characteristics.')
+        rating = x.get("rating")
+        if rating in (None, ""):
+            rating = None
+        else:
+            try:
+                rating = int(rating)
+            except (TypeError, ValueError):
+                raise ModelError(f'Rating of "{name}" must be a whole number from 1 to 5.') from None
+            if not 1 <= rating <= 5:
+                raise ModelError(f'Rating of "{name}" must be from 1 to 5.')
+        row: dict = {"name": name}
+        if rating is not None:
+            row["rating"] = rating
+        if x.get("driving"):
+            row["driving"] = True
+        note = str(x.get("note", "") or "").strip()
+        if note:
+            row["note"] = note
+        if len(row) > 1:
+            out[name] = row
+    return list(out.values())
+
+
+def clean_cost(items: list) -> list[dict]:
+    """Monthly cost line items. Amounts are in the workspace currency (sidecar `cost.currency`)."""
+    out = []
+    for x in items or []:
+        item = str(x.get("item", "")).strip()
+        raw = x.get("monthly")
+        if not item and raw in (None, ""):
+            continue
+        if not item:
+            raise ModelError("Every cost line needs a name.")
+        try:
+            monthly = float(raw or 0)
+        except (TypeError, ValueError):
+            raise ModelError(f'Cost of "{item}" must be a number.') from None
+        if monthly < 0:
+            raise ModelError(f'Cost of "{item}" cannot be negative.')
+        row: dict = {"item": item, "monthly": round(monthly, 2)}
+        note = str(x.get("note", "") or "").strip()
+        if note:
+            row["note"] = note
+        out.append(row)
+    return out
+
+
+def clean_work(items: list) -> list[dict]:
+    """Work linked to an object: a title, a type, a status, optionally a link, a severity and a note."""
+    types = {t for t, _ in WORK_TYPES}
+    out = []
+    for x in items or []:
+        title = str(x.get("title", "") or "").strip()
+        url = str(x.get("url", "") or "").strip()
+        if not title and not url:
+            continue
+        kind = x.get("type") or "issue"
+        if kind not in types:
+            raise ModelError(f'Unknown work type "{kind}".')
+        status = x.get("status") or "open"
+        if status not in WORK_STATUSES:
+            raise ModelError(f'Unknown status "{status}".')
+        if url and not re.match(r"^https?://", url, re.I):
+            raise ModelError(f'Link "{url}" must start with http:// or https://.')
+        row: dict = {"type": kind, "title": title or url, "status": status}
+        if url:
+            row["url"] = url
+        sev = x.get("severity") or None
+        if sev:
+            if sev not in SEVERITIES:
+                raise ModelError(f'Unknown severity "{sev}".')
+            row["severity"] = sev
+        note = str(x.get("note", "") or "").strip()
+        if note:
+            row["note"] = note
+        out.append(row)
+    return out
+
+
+def cost_total(el: Element | Relationship) -> float:
+    return round(sum(float(x.get("monthly") or 0) for x in get_json(el, COST_KEY)), 2)
+
+
+def cost_rollup(idx: "Index", element_id: str) -> float:
+    """Own monthly cost plus the cost of everything inside the element."""
+    ids = [element_id, *idx.descendants(element_id)]
+    return round(sum(cost_total(idx.elements[i]) for i in ids if i in idx.elements), 2)
+
+
 def clean_sensitive(items: list) -> list[dict]:
     out = []
     for x in items or []:
@@ -398,6 +515,11 @@ def element_summary(idx: Index, element_id: str) -> dict:
         "sensitive": sensitive,
         "sensitivityLevel": max_sensitivity(sensitive),
         "codePaths": get_json(el, CODE_KEY),
+        "characteristics": get_json(el, CHARS_KEY),
+        "work": get_json(el, WORK_KEY),
+        "cost": get_json(el, COST_KEY),
+        "costTotal": cost_total(el),
+        "costRollup": cost_rollup(idx, el.id),
         "parentId": idx.parent[el.id],
         "external": idx.is_external(el.id),
         "location": getattr(el, "location", None),
@@ -420,6 +542,7 @@ def relationship_summary(r: Relationship) -> dict:
         "sensitive": sensitive,
         "sensitivityLevel": max_sensitivity(sensitive),
         "stages": get_json(r, STAGES_KEY),
+        "work": get_json(r, WORK_KEY),
         "codePaths": get_json(r, CODE_KEY),
     }
 
@@ -460,7 +583,9 @@ def create_element(
     technology: str | list[str] | None = None,
     external: bool = False,
     arch_type: str | None = None,
+    unique_name: bool = False,
 ) -> str:
+    """Add an element. With `unique_name`, a taken name gets a number ("Database 2") instead of an error."""
     idx = build_index(ws)
     if kind in ("person", "softwareSystem"):
         if parent_id:
@@ -479,7 +604,9 @@ def create_element(
     if not name:
         name = unique(DEFAULT_NAMES[kind], taken_names, sep=" ")
     elif name in taken_names:
-        raise ModelError(f'The name "{name}" is already used here.')
+        if not unique_name:
+            raise ModelError(f'The name "{name}" is already used here.')
+        name = unique(name, taken_names, sep=" ")
     new_id = unique(slugify(name), set(idx.elements) | set(idx.relationships))
     common = {
         "id": new_id,
@@ -563,6 +690,13 @@ def update_element(ws: Workspace, sidecar: Sidecar, element_id: str, patch: dict
         set_json(el, SENSITIVE_KEY, clean_sensitive(patch["sensitive"]))
     if "codePaths" in patch:
         set_json(el, CODE_KEY, clean_paths(patch["codePaths"]))
+    if "characteristics" in patch:
+        allowed = {c.name for c in sidecar.characteristics}
+        set_json(el, CHARS_KEY, clean_characteristics(patch["characteristics"], allowed))
+    if "cost" in patch:
+        set_json(el, COST_KEY, clean_cost(patch["cost"]))
+    if "work" in patch:
+        set_json(el, WORK_KEY, clean_work(patch["work"]))
     if "tags" in patch:
         groups = {g.name: g for g in sidecar.tag_groups}
         for group, value in (patch["tags"] or {}).items():
@@ -702,6 +836,8 @@ def update_relationship(ws: Workspace, rel_id: str, patch: dict) -> None:
         set_json(r, CODE_KEY, clean_paths(patch["codePaths"]))
     if "stages" in patch:
         set_json(r, STAGES_KEY, clean_stages(patch["stages"], idx))
+    if "work" in patch:
+        set_json(r, WORK_KEY, clean_work(patch["work"]))
 
 
 def delete_relationship(ws: Workspace, rel_id: str) -> None:
@@ -745,6 +881,10 @@ def _drop_from_views(ws: Workspace, element_ids: set[str], rel_ids: set[str]) ->
 _COLOR = re.compile(r"^#[0-9a-fA-F]{6}$")
 
 
+LINE_STYLES = ("solid", "dashed", "dotted", "dash-dot", "long-dash")
+ARROW_HEADS = ("filled", "open", "diamond", "diamond-open", "circle", "bar")
+
+
 def clean_style(patch: dict) -> Style:
     out: dict = {}
     for key in ("fill", "text", "stroke"):
@@ -754,8 +894,8 @@ def clean_style(patch: dict) -> Style:
                 raise ModelError(f'"{v}" is not a colour like #1168bd.')
             out[key] = v.lower()
     if patch.get("strokeStyle"):
-        if patch["strokeStyle"] not in ("solid", "dashed", "dotted"):
-            raise ModelError("Line style must be solid, dashed or dotted.")
+        if patch["strokeStyle"] not in LINE_STYLES:
+            raise ModelError(f"Line style must be one of: {', '.join(LINE_STYLES)}.")
         out["stroke_style"] = patch["strokeStyle"]
     if patch.get("strokeWidth") not in (None, ""):
         w = float(patch["strokeWidth"])
@@ -771,6 +911,10 @@ def clean_style(patch: dict) -> Style:
         if patch["arrow"] not in ("end", "start", "both", "none"):
             raise ModelError("Arrow must be end, start, both or none.")
         out["arrow"] = patch["arrow"]
+    if patch.get("arrowHead"):
+        if patch["arrowHead"] not in ARROW_HEADS:
+            raise ModelError(f"Arrowhead must be one of: {', '.join(ARROW_HEADS)}.")
+        out["arrow_head"] = patch["arrowHead"]
     return Style(**out)
 
 
@@ -825,6 +969,21 @@ def rewrite_tag_values(ws: Workspace, group: str, renames: dict[str, str], allow
             continue
         value = renames.get(value, value)
         set_prop(el, key, value if value in allowed else None)
+
+
+def rewrite_characteristics(ws: Workspace, renames: dict[str, str], allowed: set[str]) -> None:
+    """Apply renames of characteristics to every element's ratings and drop removed ones."""
+    for el in build_index(ws).elements.values():
+        rows = get_json(el, CHARS_KEY)
+        if not rows:
+            continue
+        new = []
+        for r in rows:
+            name = renames.get(r.get("name", ""), r.get("name", ""))
+            if name in allowed:
+                new.append({**r, "name": name})
+        if new != rows:
+            set_json(el, CHARS_KEY, new)
 
 
 def remove_tag_group_everywhere(ws: Workspace, sidecar: Sidecar, group: str) -> None:

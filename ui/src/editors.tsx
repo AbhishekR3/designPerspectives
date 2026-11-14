@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { api } from "./api";
 import { Modal } from "./fields";
-import { LEVELS, LEVEL_LABEL, SECTIONS, SECTION_LABEL, type Diagram, type Lens, type Level, type Section, type TagGroup } from "./types";
+import { bandRange } from "./overlays";
+import { LEVELS, LEVEL_LABEL, SECTIONS, SECTION_LABEL, type CharacteristicDef, type CostSettings, type Lens, type Level, type Section, type TagGroup } from "./types";
 
 // Palette chosen so neighbouring values differ in lightness as well as hue.
 const PALETTE = ["#d62728", "#ff7f0e", "#2ca02c", "#1f77b4", "#9467bd", "#8c564b", "#e377c2", "#17becf"];
@@ -56,12 +57,14 @@ export function TagGroupEditor({ group, onClose, mutate }: { group: TagGroup | n
 export function LensEditor({
   lens,
   tagGroups,
+  characteristics,
   onClose,
   mutate,
   onSaved,
 }: {
   lens: Lens | null;
   tagGroups: TagGroup[];
+  characteristics: CharacteristicDef[];
   onClose(): void;
   mutate: Mutate;
   onSaved(id: string): void;
@@ -121,11 +124,29 @@ export function LensEditor({
           data-testid="lens-overlay"
         >
           <option value="">None</option>
-          {tagGroups.map((g) => (
-            <option key={g.name} value={g.name}>
-              {g.name}
-            </option>
-          ))}
+          <optgroup label="Tag groups">
+            {tagGroups.map((g) => (
+              <option key={g.name} value={g.name}>
+                {g.name}
+              </option>
+            ))}
+          </optgroup>
+          <optgroup label="Characteristics">
+            {characteristics.map((c) => (
+              <option key={c.name} value={`@char:${c.name}`}>
+                {c.name}
+              </option>
+            ))}
+          </optgroup>
+          <optgroup label="Linked work">
+            <option value="@work:all">All open work</option>
+            <option value="@work:security">Security issues</option>
+            <option value="@work:pr">Pull requests</option>
+            <option value="@work:backlog">Backlog</option>
+            <option value="@work:update">Required updates</option>
+          </optgroup>
+          <option value="@cost">Cost</option>
+          <option value="@tech">Technology</option>
         </select>
       </label>
       {tagGroups.length > 0 && (
@@ -194,29 +215,111 @@ export function LensEditor({
   );
 }
 
-export function Legend({ group, diagram }: { group: TagGroup; diagram: Diagram }) {
-  const counts = new Map<string, number>();
-  let none = 0;
-  for (const n of diagram.nodes) {
-    const v = n.tags[group.name];
-    if (v) counts.set(v, (counts.get(v) ?? 0) + 1);
-    else none++;
-  }
+/** The list of architecture characteristics objects can be rated on. */
+export function CharacteristicsEditor({ items, onClose, mutate }: { items: CharacteristicDef[]; onClose(): void; mutate: Mutate }) {
+  const [rows, setRows] = useState(items.map((c) => ({ ...c, previousName: c.name as string | null })));
+  const set = (i: number, patch: object) => setRows(rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+  const save = async () => {
+    if (await mutate(() => api.setCharacteristics(rows.filter((r) => r.name.trim())))) onClose();
+  };
   return (
-    <div className="legend" data-testid="legend">
-      <div className="legend-title">{group.name}</div>
-      {group.values.map((v) => (
-        <div className="legend-row" key={v.name}>
-          <span className="swatch" style={{ background: v.color }} />
-          <span>{v.name}</span>
-          <span className="count">{counts.get(v.name) ?? 0}</span>
+    <Modal title="Architecture characteristics" onClose={onClose}>
+      <p className="muted small">
+        Objects are rated 1–5 on these (1: weak, 5: one of its strongest features), the scale Richards &amp; Ford use for architecture styles. Renaming keeps
+        existing ratings; removing one deletes its ratings.
+      </p>
+      {rows.map((r, i) => (
+        <div className="rowed" key={i}>
+          <div className="stack">
+            <input value={r.name} onChange={(e) => set(i, { name: e.target.value })} placeholder="Name, e.g. Observability" data-testid={`char-name-${i}`} />
+            <input value={r.description} onChange={(e) => set(i, { description: e.target.value })} placeholder="What it means here (optional)" className="small" />
+          </div>
+          <button className="icon" aria-label="Remove" onClick={() => setRows(rows.filter((_, j) => j !== i))}>
+            ×
+          </button>
         </div>
       ))}
-      <div className="legend-row">
-        <span className="swatch none" />
-        <span>No value</span>
-        <span className="count">{none}</span>
+      <button onClick={() => setRows([...rows, { name: "", description: "", previousName: null }])} data-testid="char-add">
+        Add characteristic
+      </button>
+      <div className="modal-actions">
+        <button onClick={onClose}>Cancel</button>
+        <button className="primary" onClick={save} data-testid="char-save">
+          Save
+        </button>
       </div>
-    </div>
+    </Modal>
+  );
+}
+
+/** Currency and the monthly-cost bands used to colour objects. */
+export function CostSettingsEditor({ settings, onClose, mutate }: { settings: CostSettings; onClose(): void; mutate: Mutate }) {
+  const [draft, setDraft] = useState<CostSettings>(structuredClone(settings));
+  const setBand = (i: number, patch: object) => setDraft({ ...draft, bands: draft.bands.map((b, j) => (j === i ? { ...b, ...patch } : b)) });
+  const save = async () => {
+    if (await mutate(() => api.setCostSettings(draft))) onClose();
+  };
+  return (
+    <Modal title="Cost settings" onClose={onClose}>
+      <label className="field">
+        <span>Currency (ISO code, e.g. USD, EUR, GBP)</span>
+        <input value={draft.currency} onChange={(e) => setDraft({ ...draft, currency: e.target.value.toUpperCase() })} maxLength={3} data-testid="cost-currency" />
+      </label>
+      <h4>Bands by monthly total</h4>
+      <p className="muted small">An object's total includes everything inside it. Each band's limit is its highest amount; the last band has no limit.</p>
+      {draft.bands.map((b, i) => (
+        <div className="row" key={i}>
+          <input type="color" value={b.color} onChange={(e) => setBand(i, { color: e.target.value })} aria-label="Colour" />
+          <input value={b.name} onChange={(e) => setBand(i, { name: e.target.value })} placeholder="Band name" />
+          {i < draft.bands.length - 1 ? (
+            <input
+              type="number"
+              min={0}
+              value={b.max ?? 0}
+              onChange={(e) => setBand(i, { max: Number(e.target.value) })}
+              aria-label="Up to (monthly)"
+              style={{ width: 100 }}
+            />
+          ) : (
+            <span className="muted small" style={{ width: 100 }}>
+              no limit
+            </span>
+          )}
+          <span className="muted small" style={{ width: 110 }}>
+            {bandRange(i, draft)}
+          </span>
+          <button
+            className="icon"
+            aria-label="Remove band"
+            disabled={draft.bands.length <= 1}
+            onClick={() => {
+              const bands = draft.bands.filter((_, j) => j !== i);
+              bands[bands.length - 1] = { ...bands[bands.length - 1], max: null };
+              setDraft({ ...draft, bands });
+            }}
+          >
+            ×
+          </button>
+        </div>
+      ))}
+      <button
+        onClick={() => {
+          const bands = [...draft.bands];
+          const last = bands[bands.length - 1];
+          const prevMax = bands.length > 1 ? (bands[bands.length - 2].max ?? 0) : 0;
+          bands[bands.length - 1] = { ...last, max: prevMax ? prevMax * 2 : 100 };
+          bands.push({ name: "New band", max: null, color: "#a855f7" });
+          setDraft({ ...draft, bands });
+        }}
+      >
+        Add band
+      </button>
+      <div className="modal-actions">
+        <button onClick={onClose}>Cancel</button>
+        <button className="primary" onClick={save} data-testid="cost-save">
+          Save
+        </button>
+      </div>
+    </Modal>
   );
 }

@@ -49,6 +49,8 @@
       "hiddenTagGroups": [],
       "visibleSections": [
         "technology",
+        "characteristics",
+        "work",
         "details",
         "notes",
         "sensitive",
@@ -70,6 +72,8 @@
         "Risk"
       ],
       "visibleSections": [
+        "cost",
+        "work",
         "notes",
         "usage"
       ],
@@ -79,7 +83,7 @@
   ],
   "styles": {
     "atm": {
-      "fill": "#8c8c8c",
+      "fill": "#33293f",
       "strokeStyle": "dashed"
     },
     "event-stream--data-warehouse": {

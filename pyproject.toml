@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "designperspectives"
-version = "0.1.0"
+version = "0.2.0"
 description = "Open-source, model-based C4 architecture tool with lenses for different audiences."
 readme = "README.md"
 license = "MIT"

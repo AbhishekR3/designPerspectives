@@ -29,11 +29,17 @@ def rects(page: Page):
     )
 
 
+def click_empty_canvas(page: Page):
+    """Click the canvas where no box is: the right edge, mid-height (floating bars and the palette cover the rest)."""
+    box = page.get_by_test_id("canvas").bounding_box()
+    page.get_by_test_id("canvas").click(position={"x": box["width"] - 15, "y": box["height"] / 2})
+
+
 def test_new_objects_do_not_overlap(page: Page):
     open_diagram(page, "landscape")
     for _ in range(4):
         page.get_by_test_id("add-person").click()
-        page.get_by_test_id("canvas").click(position={"x": 30, "y": 30})
+        click_empty_canvas(page)
     page.wait_for_timeout(500)
     rs = rects(page)
     assert len(rs) >= 12
@@ -173,7 +179,7 @@ def test_undo_redo(page: Page, server):
     page.get_by_test_id("add-person").click()
     page.wait_for_timeout(500)
     assert "New person" in names()
-    page.get_by_test_id("canvas").click(position={"x": 30, "y": 30})
+    click_empty_canvas(page)
     page.get_by_test_id("undo").click()
     page.wait_for_timeout(500)
     assert "New person" not in names()
