@@ -26,7 +26,7 @@ Stage A (model, diagrams, overlays, flows, lenses, demo) is built and extended i
 | Stage | Content | Status |
 |---|---|---|
 | B — Python codebase to model (deterministic) | `dp scan <path>` proposes containers (from `pyproject.toml`, `requirements*.txt`, Dockerfiles, docker-compose), components (Python packages) and connections (imports); proposals are accepted, edited or rejected one by one; accepted objects keep their source paths and a re-scan never changes them (new code appears as "unmapped") | Not confirmed as built. `src/core/code.ts` already maps components to files and scans Python/JS/TS imports |
-| C — Planned change | C1 drafts: a separately edited copy of the workspace with a diff overlay (added / changed / removed) and apply or discard. C2 branch compare: scan two git refs and show the same overlay | C1 built (DEC-016/017); C2 built as a compare of the stored models at two refs (DEC-018); C3 in progress. Stage review at the end of C3 |
+| C — Planned change | C1 drafts: a separately edited copy of the workspace with a diff overlay (added / changed / removed) and apply or discard. C2 branch compare: scan two git refs and show the same overlay | Built: C1 drafts (DEC-016/017), C2 compare of the stored models at git refs (DEC-018), C3 `dp check` / `dp diff`. See `reviews/stage-c_review.md` |
 | D — LLM assist (optional, off by default) | D-1 describe scan results; D-2 draft a model from a written description (planning a codebase); D-3 explain a diagram or object in the wording of the active lens | Not built |
 
 Rules for Stage D [Notes]: the LLM gets the model as structured text, not images; output is always a proposal or draft that a person accepts; it never writes the model directly. The useful LLM role is outlining and challenging trade-offs, drafting ADR text and generating options, not making the decision.
@@ -41,7 +41,7 @@ Principle [Proposal]: because the tool is local, single-user and has no cloud ac
 | B4 | CODEOWNERS → owner proposals | Read `CODEOWNERS` (used by GitHub, GitLab and Bitbucket [Training]); propose the `owner` property for mapped objects | Small |
 | B5 | SARIF import → findings overlay | `dp import sarif <file>`; SARIF 2.1.0 is an OASIS standard written by Semgrep, CodeQL, Trivy and others [Training]; findings mapped to objects by file path; counts by severity as a "Security findings" overlay | Small–medium |
 | B6 | Coverage overlay | Cobertura XML (e.g. from coverage.py [Training]) → % per object in High/Medium/Low bands | Small |
-| C3 | `dp check` and `dp diff` | `dp check`: validate the workspace (schema, dangling relationships, unmapped code) with a CI exit code. `dp diff --base <ref>`: reuse C2 branch compare, write a Markdown summary for a PR comment. Sample GitHub Actions and GitLab CI files; posting the comment uses the host's own CLI/token | Medium |
+| C3 | `dp check` and `dp diff` | Built (see `reviews/stage-c_review.md`). "Unmapped code" (code no object points to) waits for Stage B; `dp check` warns about mapped paths that do not exist instead | Medium |
 
 Open questions for the owner [Proposal]:
 1. Accept B4–B6 and C3 into the plan, or keep all integrations in the backlog until Stage A feedback?
@@ -49,6 +49,13 @@ Open questions for the owner [Proposal]:
 3. Is GitLab the primary host for CI/CD, or GitHub (current repo) with GitLab as a second template?
 
 ## 4. Backlog
+
+### Planned change (after Stage C) [Review, stage-c]
+- Rebase a draft onto the current main model (today conflicts are only reported at apply time), and a merge editor for conflicts.
+- Undoing an apply could restore the draft too.
+- A sample draft in the demo model.
+- Compare scan results (Stage B) with the model, using the same diff.
+- Compare against a draft from the main model ("what would this draft change now"), not only draft vs its base.
 
 ### Model and diagrams
 - Business and Security lens presets.

@@ -26,7 +26,11 @@ dp serve PATH       # serve a model in another folder (PATH/architecture/)
 dp serve --code-root SRC   # folder holding the source code components point to (default: the project folder)
 dp serve --read-only       # viewer role: nothing can be changed
 dp serve --port 9000 --no-open
-dp validate         # check the model files; exit code 1 on problems
+dp check            # check the model, its drafts and its code mapping; exit code 1 on problems
+dp check --strict   # also fail on warnings (mapped code paths that do not exist); `dp validate` = `dp check`
+dp diff --base main          # what changed in the model since a git branch/tag/commit, as Markdown
+dp diff --base v1 --head v2 --format json --out diff.json
+dp diff --base origin/main --exit-code   # exit code 1 when the model changed
 dp --version
 ```
 
@@ -138,6 +142,9 @@ Stage C1 additions (planned change):
 - **Compare with git** (C2): when the project is in a git repository, pick a branch, tag or commit
   under Drafts → Git and press **Compare** to see what changed since then, with the same overlay;
   **Open** shows that version read-only. Needs the `git` command.
+- **In CI** (C3): `dp check` fails the build on model problems; `dp diff --base <ref>` writes a
+  Markdown summary for a pull request comment. Sample workflows are in
+  [docs/examples/ci/](docs/examples/ci/).
 
 ## Develop
 

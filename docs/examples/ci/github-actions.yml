@@ -1,0 +1,38 @@
+# Sample GitHub Actions workflow: check the architecture model on every pull request and post
+# what changed as a comment. Copy to .github/workflows/architecture.yml in your repository.
+#
+# Assumes the model is in architecture/ at the repository root (pass a path to dp otherwise).
+# The comment is posted with the GitHub CLI (`gh`), which is installed on GitHub-hosted runners,
+# using the workflow's own token; no other secret is needed.
+name: architecture
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  model:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # dp diff reads the base branch's model from git history
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      # Pin a release tag or commit instead of the default branch for repeatable runs.
+      - run: npm install -g github:AbhishekR3/designPerspectives
+      - name: Check the model
+        run: dp check
+      - name: Describe the changes
+        run: dp diff --base "origin/${{ github.base_ref }}" --out dp-diff.md
+      - name: Comment on the pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Update the previous comment from this workflow if there is one, else add one.
+          gh pr comment "${{ github.event.pull_request.number }}" --body-file dp-diff.md --edit-last \
+            || gh pr comment "${{ github.event.pull_request.number }}" --body-file dp-diff.md
