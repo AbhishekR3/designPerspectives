@@ -4,10 +4,11 @@ export type Level = "landscape" | "context" | "container" | "component" | "code"
 export const LEVELS: Level[] = ["landscape", "context", "container", "component", "code"];
 export type DiagramLevel = Level | "connector" | "flow";
 
-export const SECTIONS = ["technology", "notes", "tradeoffs", "usage", "sensitive", "code"] as const;
+export const SECTIONS = ["technology", "details", "notes", "tradeoffs", "usage", "sensitive", "code"] as const;
 export type Section = (typeof SECTIONS)[number];
 export const SECTION_LABEL: Record<Section, string> = {
   technology: "Technology",
+  details: "Details",
   notes: "Notes",
   tradeoffs: "Tradeoffs",
   usage: "Usage",
@@ -18,6 +19,11 @@ export const SECTION_LABEL: Record<Section, string> = {
 export interface Link {
   label: string;
   url: string;
+}
+export interface DetailTable {
+  title: string;
+  columns: string[];
+  rows: string[][];
 }
 export interface Tradeoff {
   kind: "benefit" | "cost" | "risk";
@@ -77,6 +83,7 @@ export interface ElementSummary {
   tags: Record<string, string>;
   archType: string;
   notes: string;
+  details: DetailTable[];
   tradeoffs: Tradeoff[];
   usage: Usage[];
   sensitive: SensitiveItem[];
@@ -141,6 +148,8 @@ export interface FlowStep {
   description: string;
   response: boolean;
   order?: string | null;
+  example?: string;
+  format?: string;
 }
 
 export interface Flow {
@@ -247,6 +256,7 @@ export interface AppState {
   styles: Record<string, Style>;
   canUndo: boolean;
   canRedo: boolean;
+  readOnly: boolean;
 }
 
 export type Selection = { type: "node"; id: string } | { type: "edge"; id: string } | null;

@@ -19,7 +19,7 @@ from pydantic.alias_generators import to_camel
 
 Level = Literal["landscape", "context", "container", "component", "code"]
 LEVELS: tuple[str, ...] = ("landscape", "context", "container", "component", "code")
-SECTIONS: tuple[str, ...] = ("technology", "notes", "tradeoffs", "usage", "sensitive", "code")
+SECTIONS: tuple[str, ...] = ("technology", "details", "notes", "tradeoffs", "usage", "sensitive", "code")
 
 
 class _Base(BaseModel):

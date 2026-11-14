@@ -90,7 +90,7 @@ class Project:
 
     # ---------------------------------------------------------------- edit
 
-    def edit(self, fn: Callable[[Workspace, Sidecar], Any]) -> Any:
+    def edit(self, fn: Callable[[Workspace, Sidecar], Any], record: bool = True) -> Any:
         with self.lock:
             self.reload_if_changed()
             ws = self.workspace.model_copy(deep=True)
@@ -103,7 +103,8 @@ class Project:
             new = [e for e in errors(ws, sc) if e not in before]
             if new:
                 raise ModelError(" ".join(new))
-            self._push_undo()
+            if record:
+                self._push_undo()
             self.write(ws, sc)
             return result
 

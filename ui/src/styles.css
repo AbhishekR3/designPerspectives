@@ -852,3 +852,78 @@ textarea {
 .react-flow__resize-control {
   z-index: 8;
 }
+
+.detail-table {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px;
+  margin-bottom: 8px;
+  overflow-x: auto;
+}
+.detail-table table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 4px 0;
+}
+.detail-table th input {
+  font-weight: 600;
+}
+.detail-table td input,
+.detail-table th input {
+  width: 100%;
+  min-width: 70px;
+  padding: 2px 4px;
+}
+.detail-title {
+  flex: 1;
+  font-weight: 600;
+}
+.readonly-banner {
+  background: #eef2ff;
+  border-bottom: 1px solid #c7d2fe;
+  padding: 4px 12px;
+  font-size: 12px;
+}
+.export-wrap {
+  position: relative;
+  display: inline-block;
+}
+.menu {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  margin-top: 2px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  min-width: 110px;
+}
+.menu button {
+  border: none;
+  text-align: left;
+  border-radius: 0;
+}
+.step-data {
+  margin-top: 8px;
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+.example {
+  background: #0f172a;
+  color: #e2e8f0;
+  border-radius: 6px;
+  padding: 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 4px 0;
+}
+.example-input {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+}

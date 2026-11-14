@@ -180,3 +180,45 @@ def test_undo_redo(page: Page, server):
     page.get_by_test_id("redo").click()
     page.wait_for_timeout(500)
     assert "New person" in names()
+
+
+def test_back_forward_between_diagrams(page: Page):
+    open_diagram(page, "landscape")
+    page.get_by_test_id("breadcrumb").wait_for()
+    page.evaluate("window.location.hash = '#/d/containers-internet-banking-system'")
+    page.wait_for_timeout(1000)
+    assert "containers-internet-banking-system" in page.url
+    page.get_by_test_id("nav-back").click()
+    page.wait_for_timeout(1000)
+    assert page.url.endswith("landscape")
+    page.get_by_test_id("nav-forward").click()
+    page.wait_for_timeout(1000)
+    assert "containers-internet-banking-system" in page.url
+
+
+def test_shortcuts_copy_paste_and_export_menu(page: Page, server):
+    open_diagram(page, "landscape")
+    count = lambda: len(api(server, "/state")["elements"])  # noqa: E731
+    before = count()
+    node(page, "internet-banking-system").click()
+    page.keyboard.press("Control+c")
+    page.keyboard.press("Control+v")
+    page.wait_for_timeout(800)
+    assert count() == before + 1
+    page.keyboard.press("Control+d")
+    page.wait_for_timeout(800)
+    assert count() == before + 2
+    page.keyboard.press("Control+z")
+    page.wait_for_timeout(800)
+    assert count() == before + 1
+    page.get_by_test_id("export").click()
+    with page.expect_download() as d:
+        page.get_by_test_id("export-svg").click()
+    assert d.value.suggested_filename.endswith(".svg")
+
+
+def test_flow_side_panel_shows_step_data(page: Page):
+    open_diagram(page, "flow-sign-in")
+    page.get_by_test_id("step-next").click()
+    page.wait_for_timeout(400)
+    expect(page.get_by_test_id("step-example")).to_contain_text("alice")

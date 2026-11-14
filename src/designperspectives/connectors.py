@@ -55,6 +55,7 @@ def connector_diagram(idx: Index, ref: DiagramRef) -> dict:
                 "tags": {},
                 "archType": st.get("archType") or "pipeline",
                 "notes": "",
+                "details": [],
                 "tradeoffs": [],
                 "usage": [],
                 "sensitive": [],

@@ -176,3 +176,56 @@ def test_sidecar_dump_omits_empty(demo_ws):
     assert sc.dump() == {"version": 1, "tagGroups": [], "lenses": []}
     assert diagrams.parse_key("connector-x--y").level == "connector"
     assert build_index(demo_ws).kind["atm"] == "softwareSystem"
+
+
+def test_details_tables(client):
+    s = ok(client.get("/api/state"))
+    db = next(e for e in s["elements"] if e["id"] == "database")
+    assert [t["title"] for t in db["details"]] == ["Connection", "Table USERS"]
+    r = client.patch(
+        "/api/elements/database",
+        json={"details": [{"title": "T", "columns": ["a", "b"], "rows": [["1"], ["2", "3", "4"], ["", ""]]}]},
+    )
+    assert r.status_code == 200
+    db = next(e for e in ok(client.get("/api/state"))["elements"] if e["id"] == "database")
+    assert db["details"] == [{"title": "T", "columns": ["a", "b"], "rows": [["1", ""], ["2", "3"]]}]
+    bad = client.patch("/api/elements/database", json={"details": [{"title": "T", "columns": ["a", ""], "rows": []}]})
+    assert bad.status_code == 422
+    ok(client.patch("/api/elements/database", json={"details": []}))
+    db = next(e for e in ok(client.get("/api/state"))["elements"] if e["id"] == "database")
+    assert db["details"] == []
+
+
+def test_flow_step_examples_survive_edits(client):
+    s = ok(client.get("/api/state"))
+    f = next(f for f in s["flows"] if f["title"] == "Sign in")
+    assert any(st["example"] for st in f["steps"]) and any(st["format"] for st in f["steps"])
+    steps = [dict(st) for st in f["steps"]]
+    steps[0]["example"] = "changed"
+    ok(client.put(f"/api/flows/{f['key']}", json={"steps": steps}))
+    f2 = next(x for x in ok(client.get("/api/state"))["flows"] if x["key"] == f["key"])
+    assert f2["steps"][0]["example"] == "changed"
+    # Removing the first step's relationship renumbers and keeps the others' examples.
+    ok(client.put(f"/api/flows/{f['key']}", json={"steps": steps[1:]}))
+    f3 = next(x for x in ok(client.get("/api/state"))["flows"] if x["key"] == f["key"])
+    assert [st["example"] for st in f3["steps"]] == [st["example"] for st in steps[1:]]
+
+
+def test_read_only_server(demo_dir):
+    from designperspectives.server import create_app
+    from starlette.testclient import TestClient
+
+    c = TestClient(create_app(demo_dir, read_only=True))
+    assert c.get("/api/state").json()["readOnly"] is True
+    assert c.post("/api/elements", json={"kind": "person", "name": "X"}).status_code == 403
+    assert c.post("/api/undo").status_code == 403
+    assert c.get("/api/state").status_code == 200
+
+
+def test_automatic_positions_are_not_undo_steps(client):
+    ok(client.post("/api/elements", json={"kind": "person", "name": "Auditor"}))
+    n = len(ok(client.get("/api/state"))["elements"])
+    pos = {"positions": {"auditor": {"x": 5, "y": 5}}}
+    assert client.put("/api/diagrams/landscape/positions?auto=true", json=pos).status_code == 200
+    ok(client.post("/api/undo"))  # undoes the person, not the position
+    assert len(ok(client.get("/api/state"))["elements"]) == n - 1

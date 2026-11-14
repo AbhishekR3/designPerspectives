@@ -78,7 +78,8 @@ Stage A2 additions:
   choose which of these sections and badges show.
 - **Editing like draw.io / Lucidchart**: resize boxes, connect from any side, drag line ends to any
   point on a box, bend lines, straight/curved/right-angle lines, slide a line's label, colours,
-  line style/width, text size, arrows, duplicate, undo/redo (Ctrl/Cmd+Z), drag the sidebar edges.
+  line style/width, text size, arrows, duplicate, undo/redo (Ctrl/Cmd+Z), copy/paste (Ctrl/Cmd+C/V/D), arrow-key nudge, Back/Forward between diagrams, a Download menu (PNG/SVG), details tables on objects, example data per flow step, drag the sidebar edges.
+- `dp serve --read-only` gives a viewer role: nothing can be changed.
 
 ## Develop
 

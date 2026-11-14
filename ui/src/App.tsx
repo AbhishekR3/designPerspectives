@@ -51,6 +51,9 @@ export default function App() {
   const [lensId, setLensId] = useState<string>(storage.get(LENS_KEY) ?? "engineer");
   const [overlayName, setOverlayName] = useState<string | null>(null);
   const [showAllLevels, setShowAllLevels] = useState(false);
+  const navStarted = useRef(false);
+  const clipboard = useRef<string | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
   const [flowStep, setFlowStep] = useState<number | null>(null);
   const [playing, setPlaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -117,7 +120,14 @@ export default function App() {
 
   useEffect(() => {
     if (!key) return;
-    if (keyFromHash() !== key) window.history.replaceState(null, "", `#/d/${encodeURIComponent(key)}`);
+    if (keyFromHash() !== key) {
+      // A new diagram is a new history entry, so the browser Back/Forward buttons walk through diagrams.
+      const first = !navStarted.current;
+      const h = `#/d/${encodeURIComponent(key)}`;
+      if (first) window.history.replaceState(null, "", h);
+      else window.history.pushState(null, "", h);
+    }
+    navStarted.current = true;
     setFlowStep(null);
     setPlaying(false);
     loadDiagram(key);
@@ -205,6 +215,55 @@ export default function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, [doHistory]);
 
+  // Editor-style shortcuts: copy/cut/paste/duplicate, select-all is not offered; arrows nudge; zoom; escape.
+  const pasteFrom = useCallback(
+    async (id: string) => {
+      let newId = "";
+      const ok = await mutate(async () => {
+        newId = (await api.duplicate(id)).id;
+      });
+      if (ok) setSelection({ type: "node", id: newId });
+    },
+    [mutate],
+  );
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement;
+      if (t.closest("input, textarea, select, [contenteditable], .cm-editor")) return;
+      if (state?.readOnly) return;
+      const mod = e.metaKey || e.ctrlKey;
+      const k = e.key.toLowerCase();
+      const nodeId = selection?.type === "node" ? selection.id : null;
+      const isElement = nodeId ? state?.elements.some((x) => x.id === nodeId) : false;
+      if (mod && !e.altKey) {
+        if (k === "c" && isElement) clipboard.current = nodeId;
+        else if (k === "x" && isElement) {
+          clipboard.current = nodeId;
+          const el = state!.elements.find((x) => x.id === nodeId)!;
+          if (window.confirm(`Cut "${el.name}"? It is removed now; Paste adds a copy of it.`) )
+            mutate(() => api.deleteElement(el.id)).then((ok) => ok && setSelection(null));
+        } else if (k === "v" && clipboard.current && state?.elements.some((x) => x.id === clipboard.current)) pasteFrom(clipboard.current);
+        else if (k === "d" && isElement) pasteFrom(nodeId!);
+        else if (k === "0") canvasRef.current?.fit();
+        else if (k === "=" || k === "+") canvasRef.current?.zoom(1);
+        else if (k === "-") canvasRef.current?.zoom(-1);
+        else return;
+        e.preventDefault();
+        return;
+      }
+      if (e.key === "Escape") setSelection(null);
+      else if (e.key.startsWith("Arrow") && nodeId) {
+        const step = e.shiftKey ? 40 : 10;
+        const d = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[e.key] as number[];
+        canvasRef.current?.nudge(nodeId, d[0], d[1]);
+      } else if (e.key === "F2" && selection) setFocusName(true);
+      else return;
+      e.preventDefault();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selection, state, mutate, pasteFrom]);
+
   // Delete key removes the selection (not while typing).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -265,10 +324,10 @@ export default function App() {
     }
   };
 
-  const savePositions = (p: Record<string, Pt>) => {
+  const savePositions = (p: Record<string, Pt>, auto = false) => {
     if (!key || !Object.keys(p).length) return;
     if (diagram?.level === "connector" || diagram?.level === "code") mutate(() => api.layout(key, { positions: p }));
-    else mutate(() => api.positions(key, p));
+    else mutate(() => api.positions(key, p, auto));
   };
 
   const select = (s: Selection) => {
@@ -351,6 +410,12 @@ export default function App() {
                 + {ADD_LABEL[k] ?? k}
               </button>
             ))}
+            <button onClick={() => window.history.back()} title="Back to the previous diagram (Alt+Left)" data-testid="nav-back">
+              ◀ Back
+            </button>
+            <button onClick={() => window.history.forward()} title="Forward (Alt+Right)" data-testid="nav-forward">
+              Forward ▶
+            </button>
             <button onClick={() => doHistory("undo")} disabled={!state.canUndo} title="Undo (Ctrl/Cmd+Z)" data-testid="undo">
               Undo
             </button>
@@ -371,14 +436,35 @@ export default function App() {
             <button onClick={() => canvasRef.current?.relayout()} title="Lay the diagram out again" data-testid="auto-layout">
               Auto-layout
             </button>
-            <button onClick={() => canvasRef.current?.exportImage("svg")} data-testid="export-svg">
-              SVG
-            </button>
-            <button onClick={() => canvasRef.current?.exportImage("png")} data-testid="export-png">
-              PNG
-            </button>
+            <span className="export-wrap" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setExportOpen(false)}>
+              <button onClick={() => setExportOpen(!exportOpen)} aria-haspopup="menu" aria-expanded={exportOpen} data-testid="export">
+                Download ▾
+              </button>
+              {exportOpen && (
+                <div className="menu" role="menu">
+                  {(["png", "svg"] as const).map((f) => (
+                    <button
+                      key={f}
+                      role="menuitem"
+                      data-testid={`export-${f}`}
+                      onClick={() => {
+                        setExportOpen(false);
+                        canvasRef.current?.exportImage(f);
+                      }}
+                    >
+                      {f.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </span>
           </div>
         </header>
+        {state.readOnly && (
+          <div className="readonly-banner" data-testid="readonly-banner">
+            Viewer role: this server is read-only. Changes are refused.
+          </div>
+        )}
         {error && (
           <div className="error" role="alert" data-testid="error">
             {error}

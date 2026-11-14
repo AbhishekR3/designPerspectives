@@ -383,7 +383,8 @@
               "dp.tag.Lifecycle": "Live",
               "dp.notes": "Holds hashed credentials. Backups are encrypted.",
               "dp.tradeoffs": "[{\"kind\": \"cost\", \"text\": \"Oracle licensing cost grows with core count.\"}]",
-              "dp.sensitive": "[{\"item\": \"Hashed authentication credentials\", \"level\": \"restricted\"}, {\"item\": \"Access logs\", \"level\": \"internal\"}]"
+              "dp.sensitive": "[{\"item\": \"Hashed authentication credentials\", \"level\": \"restricted\"}, {\"item\": \"Access logs\", \"level\": \"internal\"}]",
+              "dp.details": "[{\"title\": \"Connection\", \"columns\": [\"Setting\", \"Value\"], \"rows\": [[\"Host\", \"ibdb.internal.bigbank.example\"], [\"Port\", \"1521\"], [\"Service name\", \"IBPROD\"], [\"Credentials\", \"Vault path secret/ib/db (never store passwords here)\"]]}, {\"title\": \"Table USERS\", \"columns\": [\"Column\", \"Type\", \"Nullable\", \"Notes\"], \"rows\": [[\"USER_ID\", \"NUMBER\", \"no\", \"Primary key\"], [\"USERNAME\", \"VARCHAR2(64)\", \"no\", \"Unique\"], [\"PASSWORD_HASH\", \"VARCHAR2(128)\", \"no\", \"Salted hash\"], [\"LAST_LOGIN\", \"TIMESTAMP\", \"yes\", \"\"]]}]"
             },
             "technology": "Oracle Database Schema"
           }
@@ -528,7 +529,8 @@
             "properties": {
               "dp.archType": "database",
               "dp.tag.Risk": "Medium",
-              "dp.tag.Lifecycle": "Planned"
+              "dp.tag.Lifecycle": "Planned",
+              "dp.details": "[{\"title\": \"Connection\", \"columns\": [\"Setting\", \"Value\"], \"rows\": [[\"Account\", \"bigbank-analytics\"], [\"Warehouse\", \"ANALYTICS_WH\"], [\"Schema\", \"USAGE_EVENTS\"]]}]"
             },
             "technology": "Snowflake"
           }
@@ -854,7 +856,8 @@
         "title": "Sign in",
         "description": "How signing in works in the single-page application.",
         "properties": {
-          "dp.flow": "true"
+          "dp.flow": "true",
+          "dp.stepData": "{\"1\": {\"example\": \"POST /api/sign-in\\n{\\\"username\\\": \\\"alice\\\", \\\"password\\\": \\\"<entered by user>\\\"}\", \"format\": \"JSON over HTTPS\"}, \"3\": {\"example\": \"select user_id, password_hash from users where username = 'alice'\", \"format\": \"SQL\"}, \"4\": {\"example\": \"USER_ID=1001, PASSWORD_HASH=5e884898da…\", \"format\": \"Row\"}, \"6\": {\"example\": \"200 OK\\n{\\\"ok\\\": true, \\\"token\\\": \\\"9f2c41d07a3b5e68\\\"}\", \"format\": \"JSON\"}}"
         },
         "elementId": "api-application",
         "elements": [

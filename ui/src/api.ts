@@ -25,8 +25,8 @@ const enc = encodeURIComponent;
 export const api = {
   state: () => request<AppState>("GET", "/state"),
   diagram: (key: string) => request<Diagram>("GET", `/diagrams/${enc(key)}`),
-  positions: (key: string, positions: Record<string, { x: number; y: number }>) =>
-    request("PUT", `/diagrams/${enc(key)}/positions`, { positions }),
+  positions: (key: string, positions: Record<string, { x: number; y: number }>, auto = false) =>
+    request("PUT", `/diagrams/${enc(key)}/positions${auto ? "?auto=true" : ""}`, { positions }),
   layout: (
     key: string,
     patch: {

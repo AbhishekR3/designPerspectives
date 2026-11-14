@@ -34,7 +34,7 @@ export function FlowPanel({
   const saveSteps = (steps: FlowStep[]) =>
     mutate(() =>
       api.updateFlow(flow.key, {
-        steps: steps.map((s) => ({ relationshipId: s.relationshipId, description: s.description, response: s.response })),
+        steps: steps.map((s) => ({ relationshipId: s.relationshipId, description: s.description, response: s.response, example: s.example ?? "", format: s.format ?? "" })),
       }),
     );
   const setStep = (i: number, patch: Partial<FlowStep>) => saveSteps(flow.steps.map((s, j) => (j === i ? { ...s, ...patch } : s)));
@@ -45,8 +45,34 @@ export function FlowPanel({
     return saveSteps(s);
   };
 
+  const cur = flowStep !== null ? flow.steps[flowStep] : null;
+  const curRel = cur ? state.relationships.find((r) => r.id === cur.relationshipId) : null;
   return (
     <div className="panel-body" data-testid="flow-panel">
+      {cur && curRel && (
+        <div className="step-data" data-testid="step-data">
+          <div className="panel-kind">
+            Step {flowStep! + 1} of {flow.steps.length} · {cur.response ? "response" : "request"}
+          </div>
+          <div>
+            <strong>{names.get(cur.response ? curRel.destinationId : curRel.sourceId)}</strong> → <strong>{names.get(cur.response ? curRel.sourceId : curRel.destinationId)}</strong>
+          </div>
+          <p>{cur.description || curRel.description}</p>
+          {(cur.format || curRel.technologies.length > 0) && (
+            <div className="muted small">
+              {cur.format && <>Format: {cur.format}. </>}
+              {curRel.technologies.length > 0 && <>Carried by: {curRel.technologies.join(", ")}.</>}
+            </div>
+          )}
+          {cur.example ? <pre className="example" data-testid="step-example">{cur.example}</pre> : <div className="muted small">No example data for this step. Add one under the step below.</div>}
+          {curRel.sensitive.length > 0 && (
+            <div className="small">
+              Sensitive: {curRel.sensitive.map((x) => `${x.item} (${x.level})`).join("; ")}
+            </div>
+          )}
+          {curRel.notes && <div className="muted small">{curRel.notes}</div>}
+        </div>
+      )}
       <div className="panel-kind">Flow</div>
       <TextField label="Name" value={flow.title} onCommit={(v) => mutate(() => api.updateFlow(flow.key, { title: v }))} />
       <TextField label="Description" value={flow.description} multiline onCommit={(v) => mutate(() => api.updateFlow(flow.key, { description: v }))} />
@@ -83,6 +109,8 @@ export function FlowPanel({
               </span>
             </div>
             <TextField label="Step text" value={s.description} placeholder="(uses the relationship's description)" onCommit={(v) => setStep(i, { description: v })} />
+            <TextField label="Data format" value={s.format ?? ""} placeholder="e.g. JSON, SQL, event" onCommit={(v) => setStep(i, { format: v })} />
+            <TextField label="Example data sent / returned" value={s.example ?? ""} multiline rows={4} placeholder='e.g. {"username": "alice"}' onCommit={(v) => setStep(i, { example: v })} testId={`step-example-${i}`} />
             <label className="check small">
               <input type="checkbox" checked={s.response} onChange={(e) => setStep(i, { response: e.target.checked })} /> Response (travels back)
             </label>

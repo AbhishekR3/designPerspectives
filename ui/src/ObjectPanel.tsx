@@ -10,6 +10,7 @@ import {
   type Diagram,
   type DiagramNode,
   type EdgeLayout,
+  type DetailTable,
   type ElementSummary,
   type Lens,
   type Relationship,
@@ -79,6 +80,84 @@ const sameKeys = <T,>(a: T[], b: T[]) => JSON.stringify(a) === JSON.stringify(b)
 
 function NotesEditor({ value, onSave }: { value: string; onSave(v: string): void }) {
   return <TextField label="" value={value} multiline rows={5} placeholder="Free-form notes about this object…" onCommit={onSave} testId="field-notes" />;
+}
+
+const DETAIL_TEMPLATES: Record<string, DetailTable> = {
+  "Connection details": { title: "Connection", columns: ["Setting", "Value"], rows: [["Host", ""], ["Port", ""], ["Database / service", ""], ["Credentials", "Where the secret is kept (do not type passwords)"]] },
+  "Columns": { title: "Table", columns: ["Column", "Type", "Nullable", "Notes"], rows: [["", "", "", ""]] },
+  "Blank table": { title: "Details", columns: ["Name", "Value"], rows: [["", ""]] },
+};
+
+/** Free tables of extra information: connection details, a database's columns, anything tabular. */
+function DetailsEditor({ tables, onSave }: { tables: DetailTable[]; onSave(t: DetailTable[]): void }) {
+  const [draft, setDraft] = useState<DetailTable[]>(tables);
+  useEffect(() => setDraft(tables), [tables]);
+  const set = (i: number, t: DetailTable) => setDraft(draft.map((x, j) => (j === i ? t : x)));
+  const commit = (next = draft) => !sameKeys(next, tables) && onSave(next);
+  return (
+    <div data-testid="details">
+      <p className="muted small">Do not store passwords or keys here; name where they are kept.</p>
+      {draft.map((t, i) => (
+        <div className="detail-table" key={i} data-testid={`detail-${i}`}>
+          <div className="row">
+            <input className="detail-title" value={t.title} onChange={(e) => set(i, { ...t, title: e.target.value })} onBlur={() => commit()} aria-label="Table title" />
+            <button className="icon" aria-label="Remove table" onClick={() => commit(draft.filter((_, j) => j !== i))}>
+              ×
+            </button>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                {t.columns.map((c, k) => (
+                  <th key={k}>
+                    <input value={c} onChange={(e) => set(i, { ...t, columns: t.columns.map((x, m) => (m === k ? e.target.value : x)) })} onBlur={() => commit()} aria-label="Column name" />
+                  </th>
+                ))}
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {t.rows.map((r, ri) => (
+                <tr key={ri}>
+                  {r.map((cell, k) => (
+                    <td key={k}>
+                      <input value={cell} onChange={(e) => set(i, { ...t, rows: t.rows.map((x, m) => (m === ri ? x.map((y, n) => (n === k ? e.target.value : y)) : x)) })} onBlur={() => commit()} />
+                    </td>
+                  ))}
+                  <td>
+                    <button className="icon" aria-label="Remove row" onClick={() => commit(draft.map((x, j) => (j === i ? { ...t, rows: t.rows.filter((_, m) => m !== ri) } : x)))}>
+                      ×
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="row">
+            <button onClick={() => set(i, { ...t, rows: [...t.rows, t.columns.map(() => "")] })} data-testid={`detail-${i}-add-row`}>
+              + Row
+            </button>
+            <button onClick={() => commit(draft.map((x, j) => (j === i ? { ...t, columns: [...t.columns, "New column"], rows: t.rows.map((r) => [...r, ""]) } : x)))}>+ Column</button>
+          </div>
+        </div>
+      ))}
+      <label className="field inline">
+        <span>Add</span>
+        <select
+          value=""
+          onChange={(e) => e.target.value && commit([...draft, structuredClone(DETAIL_TEMPLATES[e.target.value])])}
+          data-testid="detail-template"
+        >
+          <option value="">Table…</option>
+          {Object.keys(DETAIL_TEMPLATES).map((k) => (
+            <option key={k} value={k}>
+              {k}
+            </option>
+          ))}
+        </select>
+      </label>
+    </div>
+  );
 }
 
 function TradeoffsEditor({ rows, onSave }: { rows: Tradeoff[]; onSave(r: Tradeoff[]): void }) {
@@ -277,6 +356,11 @@ export function ObjectPanel({ element, ...p }: Common & { element: ElementSummar
         </div>
       )}
 
+      {has("details") && (
+        <Section title="Details" count={element.details.length} testId="sec-details">
+          <DetailsEditor tables={element.details} onSave={(t) => save({ details: t })} />
+        </Section>
+      )}
       {has("notes") && (
         <Section title="Notes" count={element.notes ? 1 : 0} testId="sec-notes">
           <NotesEditor value={element.notes} onSave={(v) => save({ notes: v })} />

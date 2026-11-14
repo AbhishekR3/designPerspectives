@@ -25,7 +25,7 @@ the built UI stays committed.
 
 ## Verification
 
-- `pytest`: 68 tests. `pytest e2e`: 8 browser tests covering no-overlap, connect from any side,
+- `pytest`: 72 tests. `pytest e2e`: 11 browser tests covering no-overlap, connect from any side,
   bending and resetting a line, resizing and styling a box, tags/notes/sensitive/symbol,
   connector detail to code to file edit, sidebar resizing and level indentation, undo/redo.
 - Not verified: Structurizr compatibility of the new `dp.*` properties and the `dp.level` view
@@ -33,7 +33,18 @@ the built UI stays committed.
 
 ## Limits to know about
 
-- Auto-saved positions after an automatic layout count as an undo step.
+- Positions placed automatically are no longer undo steps (fixed in round 3); a manual Auto-layout still is.
 - Line routing is drawn by the app; Structurizr ignores the sidecar `layouts`.
 - Import scanning handles Python and JS/TS relative imports only; other languages show files without lines.
 - Connector stages are not model elements, so they do not appear in Structurizr views.
+
+## Round 3 (follow-up request)
+
+| # | Request | What was done | Where |
+|---|---|---|---|
+| 1 | Back/forward | Each new diagram is a browser history entry; Back/Forward buttons plus the browser's own | `App.tsx` |
+| 2 | Extra info such as database connection or columns | New "Details" section: free tables (title, columns, rows) with templates Connection details / Columns / Blank; stored as `dp.details`. Warns not to store secrets | `ops.py`, `ObjectPanel.tsx` |
+| 3 | Role-based access | Minimal viewer role only: `dp serve --read-only` refuses every change (HTTP 403) and the UI shows a banner. Per-role views and redaction are not built | `server.py`, `cli.py` |
+| 4 | Editor shortcuts | Ctrl/Cmd+C, X, V, D, Z, Shift+Z/Y, 0 (fit), +/- (zoom); arrows nudge (Shift: larger), Esc deselect, F2 rename, Delete. Copy/paste copies one element, not its children or connections | `App.tsx`, `Canvas.tsx` |
+| 5 | One download button | "Download" menu with PNG and SVG | `App.tsx` |
+| 6 | Flow data | Each step has a format and example data (`dp.stepData` on the flow view); the flow panel shows the current step's example, format, technology, sensitive items and notes while stepping | `flows.py`, `FlowPanel.tsx` |

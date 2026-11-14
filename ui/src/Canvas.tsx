@@ -23,6 +23,9 @@ export interface CanvasHandle {
   freeSpot(size?: Size): Pt;
   relayout(): Promise<void>;
   exportImage(format: "svg" | "png"): Promise<void>;
+  nudge(id: string, dx: number, dy: number): void;
+  fit(): void;
+  zoom(dir: 1 | -1): void;
 }
 
 export interface LayoutPatch {
@@ -42,7 +45,7 @@ interface Props {
   onSelect(sel: Selection): void;
   onDrill(key: string): void;
   onConnect(source: string, target: string, anchors: { sourceAnchor?: Pt; targetAnchor?: Pt }): void;
-  onPositions(positions: Record<string, Pt>): void;
+  onPositions(positions: Record<string, Pt>, auto?: boolean): void;
   onLayout(patch: LayoutPatch): void;
   onOpenFile(path: string): void;
   handleRef: Ref<CanvasHandle>;
@@ -97,7 +100,7 @@ export function Canvas({ diagram, lens, overlay, flowStep, selection, onSelect, 
           : placeMissing({ ...saved }, baseSizes, missing, diagram.edges);
       if (cancelled) return;
       setPositions({ ...saved, ...add });
-      onPositions(add);
+      onPositions(add, true);
     })();
     return () => {
       cancelled = true;
@@ -297,6 +300,20 @@ export function Canvas({ diagram, lens, overlay, flowStep, selection, onSelect, 
         onPositions(pos);
         requestAnimationFrame(() => rf.fitView({ padding: 0.15, duration: 300 }));
       },
+      nudge(id, dx, dy) {
+        const n = nodes.find((x) => x.id === id);
+        if (!n || !editable) return;
+        const p = { x: Math.round(n.position.x + dx), y: Math.round(n.position.y + dy) };
+        setPositions((prev) => ({ ...prev, [id]: p }));
+        onPositions({ [id]: p });
+      },
+      fit() {
+        rf.fitView({ padding: 0.15, duration: 200 });
+      },
+      zoom(dir) {
+        if (dir > 0) rf.zoomIn({ duration: 150 });
+        else rf.zoomOut({ duration: 150 });
+      },
       async exportImage(format) {
         const viewport = wrapper.current?.querySelector<HTMLElement>(".react-flow__viewport");
         if (!viewport) return;
@@ -319,7 +336,7 @@ export function Canvas({ diagram, lens, overlay, flowStep, selection, onSelect, 
         a.click();
       },
     }),
-    [rf, diagram, nodes, onPositions, rects, sizeOf, direction],
+    [rf, diagram, nodes, onPositions, rects, sizeOf, direction, editable],
   );
 
   return (

@@ -73,7 +73,7 @@ class NewFlow(_In):
     description: str | None = None
 
 
-def state(project: Project) -> dict:
+def state(project: Project, read_only: bool = False) -> dict:
     ws, sc = project.workspace, project.sidecar
     idx = build_index(ws)
     lenses = [lens.model_dump(by_alias=True) for lens in [*BUILTIN_LENSES, *sc.lenses]]
@@ -94,13 +94,21 @@ def state(project: Project) -> dict:
         "canUndo": bool(project.undo_stack),
         "canRedo": bool(project.redo_stack),
         "codeRoot": str(project.code_root),
+        "readOnly": read_only,
     }
 
 
-def create_app(root: Path, code_root: Path | None = None) -> FastAPI:
+def create_app(root: Path, code_root: Path | None = None, read_only: bool = False) -> FastAPI:
     project = Project(root, code_root)
     app = FastAPI(title="designPerspectives", docs_url="/api/docs", openapi_url="/api/openapi.json")
     app.state.project = project
+
+    @app.middleware("http")
+    async def viewer_role(request: Request, call_next):
+        # Viewer role: the model can be read but not changed (and code files cannot be saved).
+        if read_only and request.method not in ("GET", "HEAD", "OPTIONS"):
+            return JSONResponse(status_code=403, content={"detail": "This server is read-only (viewer role)."})
+        return await call_next(request)
 
     @app.exception_handler(ModelError)
     async def model_error(_: Request, exc: ModelError):
@@ -114,7 +122,7 @@ def create_app(root: Path, code_root: Path | None = None) -> FastAPI:
     @app.get("/api/state")
     def get_state():
         project.reload_if_changed()
-        return state(project)
+        return state(project, read_only)
 
     @app.get("/api/diagrams/{key}")
     def get_diagram(key: str):
@@ -127,14 +135,15 @@ def create_app(root: Path, code_root: Path | None = None) -> FastAPI:
         return d
 
     @app.put("/api/diagrams/{key}/positions")
-    def put_positions(key: str, positions: dict[str, Position] = Body(..., embed=True)):
+    def put_positions(key: str, positions: dict[str, Position] = Body(..., embed=True), auto: bool = False):
         def fn(ws: Workspace, _: Sidecar):
             try:
                 diagrams.set_positions(ws, key, {k: v.model_dump() for k, v in positions.items()})
             except KeyError:
                 raise HTTPException(404, f"No diagram {key}")
 
-        edit(fn)
+        # auto=true: boxes placed by the automatic layout; these are not separate undo steps.
+        project.edit(fn, record=not auto)
         return {"ok": True}
 
     # ------------------------------------------------------------ workspace

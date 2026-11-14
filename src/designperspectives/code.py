@@ -178,6 +178,7 @@ def file_node(rel: str, root: Path | None) -> dict:
         "tags": {},
         "archType": "document",
         "notes": "",
+        "details": [],
         "tradeoffs": [],
         "usage": [],
         "sensitive": [],

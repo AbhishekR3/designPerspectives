@@ -14,6 +14,7 @@ designPerspectives data stored on elements (and relationships) as Structurizr pr
   dp.tag.<Group>   value in a tag group, e.g. dp.tag.Risk=High elements
   dp.archType      symbol/type (database, queue, ...)          elements
   dp.notes         free-form notes                             elements, relationships
+  dp.details       JSON [{"title","columns","rows"}] tables    elements (connection info, columns, ...)
   dp.tradeoffs     JSON [{"kind","text"}]                      elements
   dp.usage         JSON [{"users","frequency","volume"}]       elements
   dp.sensitive     JSON [{"item","level"}]                     elements, relationships
@@ -52,6 +53,7 @@ SENSITIVE_KEY = "dp.sensitive"
 CODE_KEY = "dp.code.paths"
 KIND_KEY = "dp.kind"
 STAGES_KEY = "dp.stages"
+DETAILS_KEY = "dp.details"
 
 ARCH_TYPES = [
     ("box", "Box (generic)"),
@@ -266,6 +268,26 @@ def clean_tradeoffs(items: list) -> list[dict]:
     return out
 
 
+def clean_details(items: list) -> list[dict]:
+    """Free tables of extra information, e.g. connection details or a database's columns."""
+    out = []
+    for x in items or []:
+        title = str(x.get("title", "")).strip()
+        columns = [str(c).strip() for c in x.get("columns") or []]
+        if not title and not columns:
+            continue
+        if not columns or any(not c for c in columns):
+            raise ModelError(f'Details table "{title}" needs a name for every column.')
+        rows = []
+        for r in x.get("rows") or []:
+            cells = [str(c) for c in list(r)[: len(columns)]]
+            cells += [""] * (len(columns) - len(cells))
+            if any(c.strip() for c in cells):
+                rows.append(cells)
+        out.append({"title": title or "Details", "columns": columns, "rows": rows})
+    return out
+
+
 def clean_usage(items: list) -> list[dict]:
     out = []
     for x in items or []:
@@ -370,6 +392,7 @@ def element_summary(idx: Index, element_id: str) -> dict:
         "tags": element_tags(el),
         "archType": props.get(ARCH_KEY, ""),
         "notes": props.get(NOTES_KEY, ""),
+        "details": get_json(el, DETAILS_KEY),
         "tradeoffs": get_json(el, TRADEOFFS_KEY),
         "usage": get_json(el, USAGE_KEY),
         "sensitive": sensitive,
@@ -530,6 +553,8 @@ def update_element(ws: Workspace, sidecar: Sidecar, element_id: str, patch: dict
         _set_arch(el, patch["archType"])
     if "notes" in patch:
         set_prop(el, NOTES_KEY, (patch["notes"] or "").strip("\n") or None)
+    if "details" in patch:
+        set_json(el, DETAILS_KEY, clean_details(patch["details"]))
     if "tradeoffs" in patch:
         set_json(el, TRADEOFFS_KEY, clean_tradeoffs(patch["tradeoffs"]))
     if "usage" in patch:

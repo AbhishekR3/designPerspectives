@@ -91,12 +91,12 @@ def build():
         key,
         {
             "steps": [
-                {"relationshipId": spa_signin, "description": "Submits credentials to"},
+                {"relationshipId": spa_signin, "description": "Submits credentials to", "format": "JSON over HTTPS", "example": 'POST /api/sign-in\n{"username": "alice", "password": "<entered by user>"}'},
                 {"relationshipId": signin_sec, "description": "Validates credentials using"},
-                {"relationshipId": sec_db, "description": "select * from users where username = ?"},
-                {"relationshipId": sec_db, "description": "Returns user data to", "response": True},
+                {"relationshipId": sec_db, "description": "select * from users where username = ?", "format": "SQL", "example": "select user_id, password_hash from users where username = 'alice'"},
+                {"relationshipId": sec_db, "description": "Returns user data to", "response": True, "format": "Row", "example": "USER_ID=1001, PASSWORD_HASH=5e884898da…"},
                 {"relationshipId": signin_sec, "description": "Returns true if the hashed password matches", "response": True},
-                {"relationshipId": spa_signin, "description": "Sends back an authentication token to", "response": True},
+                {"relationshipId": spa_signin, "description": "Sends back an authentication token to", "response": True, "format": "JSON", "example": '200 OK\n{"ok": true, "token": "9f2c41d07a3b5e68"}'},
             ]
         },
     )
@@ -165,6 +165,16 @@ def build():
         "sensitive": [{"item": "Hashed authentication credentials", "level": "restricted"}, {"item": "Access logs", "level": "internal"}],
         "tradeoffs": [{"kind": "cost", "text": "Oracle licensing cost grows with core count."}],
     })
+    ops.update_element(ws, sc, db, {"details": [
+        {"title": "Connection", "columns": ["Setting", "Value"], "rows": [
+            ["Host", "ibdb.internal.bigbank.example"], ["Port", "1521"], ["Service name", "IBPROD"],
+            ["Credentials", "Vault path secret/ib/db (never store passwords here)"]]},
+        {"title": "Table USERS", "columns": ["Column", "Type", "Nullable", "Notes"], "rows": [
+            ["USER_ID", "NUMBER", "no", "Primary key"], ["USERNAME", "VARCHAR2(64)", "no", "Unique"],
+            ["PASSWORD_HASH", "VARCHAR2(128)", "no", "Salted hash"], ["LAST_LOGIN", "TIMESTAMP", "yes", ""]]},
+    ]})
+    ops.update_element(ws, sc, warehouse, {"details": [
+        {"title": "Connection", "columns": ["Setting", "Value"], "rows": [["Account", "bigbank-analytics"], ["Warehouse", "ANALYTICS_WH"], ["Schema", "USAGE_EVENTS"]]}]})
     ops.update_element(ws, sc, mainframe, {
         "usage": [{"users": "Back office staff", "frequency": "continuous"}],
         "tradeoffs": [{"kind": "risk", "text": "Batch windows limit how fresh balances can be."}],
@@ -189,7 +199,7 @@ def build():
     # Lenses
     sc.lenses = [
         Lens(id="security-review", name="Security review", visible_levels=["context", "container", "component"], default_overlay="Risk",
-             visible_sections=["technology", "notes", "sensitive", "tradeoffs"]),
+             visible_sections=["technology", "details", "notes", "sensitive", "tradeoffs"]),
         Lens(id="product-owner", name="Product owner", visible_levels=["landscape", "context", "container"], default_overlay="Lifecycle",
              hidden_tag_groups=["Risk"], visible_sections=["notes", "usage"], show_technology=False),
     ]

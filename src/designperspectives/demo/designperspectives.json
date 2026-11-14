@@ -49,6 +49,7 @@
       "hiddenTagGroups": [],
       "visibleSections": [
         "technology",
+        "details",
         "notes",
         "sensitive",
         "tradeoffs"
