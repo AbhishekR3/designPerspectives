@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.3.0 — 2026-11-14
+
+### Changed
+- Rewritten in TypeScript: the server (Hono on Node.js), the `dp` command and the browser UI are one
+  language and share their API types (`src/shared/types.ts`). Install with npm; Python is no longer used.
+  The API the UI uses is unchanged (routes, responses, validation messages); model files written by 0.2
+  open as before.
+- The Python import scanner for the code level is now a small tokenizer instead of Python's `ast`:
+  it ignores imports in comments and strings, and a file with a syntax error still shows its imports.
+- Numbers in the model files are written without a trailing `.0` (`"monthly": 40`, not `40.0`).
+- Stage and file boxes carry empty cost, characteristics and work fields, so overlays never meet a
+  missing field.
+- Requests with a missing or malformed body get a 422 with a readable message.
+
+### Fixed
+- Typing in a row (cost, usage, links, …) right after the previous row was saved could lose the
+  typed value when the save's refresh arrived mid-edit.
+
+### Removed
+- The interactive API docs page (`/api/docs`), which FastAPI generated.
+
 ## 0.2.0 — 2026-11-14
 
 ### Added

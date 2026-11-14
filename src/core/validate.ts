@@ -1,0 +1,114 @@
+/**
+ * Checks run before every save and by `dp validate`.
+ *
+ * Structural rules mirror what structurizr-client WorkspaceUtils.loadWorkspaceFromJson rejects
+ * (see structurizr-client/src/test/java/com/structurizr/api/WorkspaceRulesValidationTests.java),
+ * so a file we write should load in Structurizr. Sidecar rules are ours.
+ */
+
+import { buildIndex, getProps, ModelError, TAG_PREFIX, type Index } from "./ops.js";
+import { LEVELS, type Sidecar } from "./sidecar.js";
+import { allViews, VIEW_LISTS, type Workspace } from "./workspace.js";
+
+function counts<T>(items: T[], key: (t: T) => string = String): Map<string, number> {
+  const m = new Map<string, number>();
+  for (const it of items) m.set(key(it), (m.get(key(it)) ?? 0) + 1);
+  return m;
+}
+
+export function errors(ws: Workspace, sidecar: Sidecar): string[] {
+  const out: string[] = [];
+  let idx: Index;
+  try {
+    idx = buildIndex(ws); // duplicate element / relationship IDs
+  } catch (e) {
+    if (e instanceof ModelError) return [e.message];
+    throw e;
+  }
+
+  // Names (Structurizr Model.hydrate)
+  for (const [n, c] of counts([...ws.model.people, ...ws.model.softwareSystems], (e) => e.name)) {
+    if (c > 1) out.push(`A person or software system named "${n}" already exists.`);
+  }
+  for (const s of ws.model.softwareSystems) {
+    for (const [n, c] of counts(s.containers ?? [], (x) => x.name)) {
+      if (c > 1) out.push(`A container named "${n}" already exists within "${s.name}".`);
+    }
+    for (const cont of s.containers ?? []) {
+      for (const [n, c] of counts(cont.components ?? [], (x) => x.name)) {
+        if (c > 1) out.push(`A component named "${n}" already exists within "${cont.name}".`);
+      }
+    }
+  }
+
+  // Relationships
+  const pairs = new Map<string, { a: string; b: string; d: string; n: number }>();
+  for (const r of idx.relationships.values()) {
+    for (const end of [r.sourceId, r.destinationId]) {
+      if (!idx.elements.has(end)) out.push(`Relationship "${r.id}" points to a missing element "${end}".`);
+    }
+    if (!idx.elements.has(r.sourceId) || !idx.elements.has(r.destinationId)) continue;
+    const d = r.description || "";
+    const k = `${r.sourceId}\u0000${r.destinationId}\u0000${d}`;
+    const p = pairs.get(k) ?? { a: r.sourceId, b: r.destinationId, d, n: 0 };
+    p.n++;
+    pairs.set(k, p);
+  }
+  for (const { a, b, d, n } of pairs.values()) {
+    if (n > 1) {
+      out.push(`A relationship with the description "${d}" already exists between "${idx.elements.get(a)!.name}" and "${idx.elements.get(b)!.name}".`);
+    }
+  }
+
+  // Views
+  for (const [k, c] of counts(allViews(ws), (v) => v.key)) if (c > 1) out.push(`A view with the key ${k} already exists.`);
+  // Element checks only for view types we model; deployment views hold deployment nodes.
+  for (const list of VIEW_LISTS) {
+    for (const v of ws.views[list]) {
+      const scope = v.softwareSystemId || v.containerId || v.elementId;
+      if (scope && !idx.elements.has(scope)) {
+        out.push(`The view with key "${v.key}" is associated with an element (id=${scope}), but that element does not exist in the model.`);
+      }
+      for (const e of v.elements) {
+        if (!idx.elements.has(e.id)) out.push(`The view with key "${v.key}" references an element (id=${e.id}), but that element does not exist in the model.`);
+      }
+      for (const r of v.relationships) {
+        if (!idx.relationships.has(r.id)) {
+          out.push(`The view with key "${v.key}" references a relationship (id=${r.id}), but that relationship does not exist in the model.`);
+        }
+      }
+    }
+  }
+
+  // Sidecar
+  const groups = new Map<string, Set<string>>();
+  for (const [n, c] of counts(sidecar.tagGroups, (g) => g.name)) if (c > 1) out.push(`Two tag groups are named "${n}".`);
+  for (const g of sidecar.tagGroups) {
+    if (!g.name.trim()) out.push("A tag group has an empty name.");
+    groups.set(g.name, new Set(g.values.map((v) => v.name)));
+    for (const [n, c] of counts(g.values, (v) => v.name)) if (c > 1) out.push(`Tag group "${g.name}" has the value "${n}" twice.`);
+  }
+  for (const el of idx.elements.values()) {
+    for (const [k, val] of Object.entries(getProps(el))) {
+      if (!k.startsWith(TAG_PREFIX)) continue;
+      const group = k.slice(TAG_PREFIX.length);
+      const allowed = groups.get(group);
+      if (!allowed) out.push(`"${el.name}" has a value for tag group "${group}", which is not defined.`);
+      else if (!allowed.has(val)) out.push(`"${el.name}" has "${val}" for tag group "${group}", which is not one of its values.`);
+    }
+  }
+  for (const [n, c] of counts(sidecar.lenses, (l) => l.id)) if (c > 1) out.push(`Two lenses have the ID "${n}".`);
+  const charNames = new Set(sidecar.characteristics.map((c) => c.name));
+  for (const lens of sidecar.lenses) {
+    if (lens.id === "engineer") out.push('The lens ID "engineer" is reserved for the built-in Engineer lens.');
+    const bad = lens.visibleLevels.filter((lv) => !(LEVELS as readonly string[]).includes(lv));
+    if (bad.length) out.push(`Lens "${lens.name}" has unknown levels: ${bad.join(", ")}.`);
+    // Default overlay: a tag group name, "@cost", "@tech", "@work:<type>" or "@char:<characteristic>".
+    const ov = lens.defaultOverlay;
+    if (!ov || ov === "@cost" || ov === "@tech" || ov.startsWith("@work:")) continue;
+    if (ov.startsWith("@char:")) {
+      if (!charNames.has(ov.slice(6))) out.push(`Lens "${lens.name}" uses characteristic "${ov.slice(6)}", which is not defined.`);
+    } else if (!groups.has(ov)) out.push(`Lens "${lens.name}" uses tag group "${ov}", which is not defined.`);
+  }
+  return out;
+}

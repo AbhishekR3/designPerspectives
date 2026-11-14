@@ -65,7 +65,12 @@ function Rows<T extends object>({
     latest.current = next;
     setDraftState(next);
   };
+  const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
+    // Do not replace rows while one of them is being edited: a refresh from the previous save can
+    // arrive between keystrokes and would undo what was just typed. The next save brings it back.
+    const active = document.activeElement;
+    if (active && box.current?.contains(active) && active.matches("input, textarea, select")) return;
     latest.current = rows;
     setDraftState(rows);
   }, [rows]);
@@ -75,7 +80,7 @@ function Rows<T extends object>({
     if (commit) onSave(next);
   };
   return (
-    <div data-testid={testId}>
+    <div data-testid={testId} ref={box}>
       {draft.map((r, i) => (
         <div className="rowed" key={i}>
           {render(r, (patch, commit) => update(i, patch, commit), () => onSave(latest.current))}

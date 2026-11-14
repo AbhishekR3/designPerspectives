@@ -1,0 +1,984 @@
+{
+  "name": "Big Bank plc",
+  "description": "Demo: the Internet Banking System example from the C4 model, extended to show every designPerspectives feature (tag groups, lenses, characteristic ratings, cost, linked work, notes, tradeoffs, usage, sensitive labels, symbols, a pipeline connector, and code mapped to components). Ratings, costs and work items are made-up examples.",
+  "model": {
+    "people": [
+      {
+        "id": "personal-banking-customer",
+        "name": "Personal Banking Customer",
+        "description": "A customer of the bank, with personal bank accounts.",
+        "tags": "Element,Person",
+        "relationships": [
+          {
+            "id": "personal-banking-customer--internet-banking-system",
+            "sourceId": "personal-banking-customer",
+            "destinationId": "internet-banking-system",
+            "description": "Views account balances, and makes payments using",
+            "tags": "Relationship"
+          },
+          {
+            "id": "personal-banking-customer--customer-service-staff",
+            "sourceId": "personal-banking-customer",
+            "destinationId": "customer-service-staff",
+            "description": "Asks questions to",
+            "technology": "Telephone",
+            "tags": "Relationship"
+          },
+          {
+            "id": "personal-banking-customer--atm",
+            "sourceId": "personal-banking-customer",
+            "destinationId": "atm",
+            "description": "Withdraws cash using",
+            "tags": "Relationship"
+          },
+          {
+            "id": "personal-banking-customer--web-application",
+            "sourceId": "personal-banking-customer",
+            "destinationId": "web-application",
+            "description": "Visits bigbank.com/ib using",
+            "technology": "HTTPS",
+            "tags": "Relationship"
+          },
+          {
+            "id": "personal-banking-customer--single-page-application",
+            "sourceId": "personal-banking-customer",
+            "destinationId": "single-page-application",
+            "description": "Views account balances, and makes payments using",
+            "tags": "Relationship"
+          },
+          {
+            "id": "personal-banking-customer--mobile-app",
+            "sourceId": "personal-banking-customer",
+            "destinationId": "mobile-app",
+            "description": "Views account balances, and makes payments using",
+            "tags": "Relationship"
+          }
+        ],
+        "location": "External"
+      },
+      {
+        "id": "customer-service-staff",
+        "name": "Customer Service Staff",
+        "description": "Customer service staff within the bank.",
+        "tags": "Element,Person",
+        "relationships": [
+          {
+            "id": "customer-service-staff--mainframe-banking-system",
+            "sourceId": "customer-service-staff",
+            "destinationId": "mainframe-banking-system",
+            "description": "Uses",
+            "tags": "Relationship"
+          }
+        ]
+      },
+      {
+        "id": "back-office-staff",
+        "name": "Back Office Staff",
+        "description": "Administration and support staff within the bank.",
+        "tags": "Element,Person",
+        "relationships": [
+          {
+            "id": "back-office-staff--mainframe-banking-system",
+            "sourceId": "back-office-staff",
+            "destinationId": "mainframe-banking-system",
+            "description": "Uses",
+            "tags": "Relationship"
+          }
+        ]
+      }
+    ],
+    "softwareSystems": [
+      {
+        "id": "internet-banking-system",
+        "name": "Internet Banking System",
+        "description": "Allows customers to view information about their bank accounts, and make payments.",
+        "tags": "Element,Software System",
+        "properties": {
+          "dp.tag.Risk": "Medium",
+          "dp.tag.Lifecycle": "Live"
+        },
+        "relationships": [
+          {
+            "id": "internet-banking-system--mainframe-banking-system",
+            "sourceId": "internet-banking-system",
+            "destinationId": "mainframe-banking-system",
+            "description": "Gets account information from, and makes payments using",
+            "tags": "Relationship"
+          },
+          {
+            "id": "internet-banking-system--e-mail-system",
+            "sourceId": "internet-banking-system",
+            "destinationId": "e-mail-system",
+            "description": "Sends e-mail using",
+            "tags": "Relationship"
+          }
+        ],
+        "containers": [
+          {
+            "id": "single-page-application",
+            "name": "Single-Page Application",
+            "description": "Provides all of the Internet banking functionality to customers via their web browser.",
+            "tags": "Element,Container",
+            "properties": {
+              "dp.archType": "web",
+              "dp.tag.Risk": "Low",
+              "dp.tag.Lifecycle": "Live",
+              "dp.characteristics": "[{\"name\": \"Scalability\", \"rating\": 5, \"driving\": true, \"note\": \"Static files served from a CDN\"}, {\"name\": \"Deployability\", \"rating\": 4}, {\"name\": \"Testability\", \"rating\": 3}]",
+              "dp.cost": "[{\"item\": \"CDN and static hosting\", \"monthly\": 40}]"
+            },
+            "relationships": [
+              {
+                "id": "single-page-application--sign-in-controller",
+                "sourceId": "single-page-application",
+                "destinationId": "sign-in-controller",
+                "description": "Makes API calls to",
+                "technology": "JSON/HTTPS",
+                "tags": "Relationship",
+                "properties": {
+                  "dp.notes": "Credentials are sent in the request body, never in the URL.",
+                  "dp.sensitive": "[{\"item\": \"User credentials in transit\", \"level\": \"restricted\"}]",
+                  "dp.work": "[{\"type\": \"update\", \"title\": \"Move to TLS 1.3 only\", \"status\": \"open\", \"severity\": \"medium\"}]"
+                }
+              },
+              {
+                "id": "single-page-application--accounts-summary-controller",
+                "sourceId": "single-page-application",
+                "destinationId": "accounts-summary-controller",
+                "description": "Makes API calls to",
+                "technology": "JSON/HTTPS",
+                "tags": "Relationship"
+              },
+              {
+                "id": "single-page-application--reset-password-controller",
+                "sourceId": "single-page-application",
+                "destinationId": "reset-password-controller",
+                "description": "Makes API calls to",
+                "technology": "JSON/HTTPS",
+                "tags": "Relationship"
+              }
+            ],
+            "technology": "JavaScript, Angular"
+          },
+          {
+            "id": "mobile-app",
+            "name": "Mobile App",
+            "description": "Provides a limited subset of the Internet banking functionality to customers via their mobile device.",
+            "tags": "Element,Container",
+            "properties": {
+              "dp.archType": "mobile",
+              "dp.tag.Risk": "Low",
+              "dp.tag.Lifecycle": "Planned",
+              "dp.characteristics": "[{\"name\": \"Deployability\", \"rating\": 2, \"note\": \"App-store review delays releases\"}, {\"name\": \"Testability\", \"rating\": 2}, {\"name\": \"Performance\", \"rating\": 4}]",
+              "dp.cost": "[{\"item\": \"App store accounts\", \"monthly\": 10}, {\"item\": \"Device test lab\", \"monthly\": 150}]",
+              "dp.work": "[{\"type\": \"update\", \"title\": \"Migrate off the current mobile framework\", \"status\": \"open\", \"severity\": \"medium\"}]"
+            },
+            "relationships": [
+              {
+                "id": "mobile-app--sign-in-controller",
+                "sourceId": "mobile-app",
+                "destinationId": "sign-in-controller",
+                "description": "Makes API calls to",
+                "technology": "JSON/HTTPS",
+                "tags": "Relationship"
+              },
+              {
+                "id": "mobile-app--accounts-summary-controller",
+                "sourceId": "mobile-app",
+                "destinationId": "accounts-summary-controller",
+                "description": "Makes API calls to",
+                "technology": "JSON/HTTPS",
+                "tags": "Relationship"
+              },
+              {
+                "id": "mobile-app--reset-password-controller",
+                "sourceId": "mobile-app",
+                "destinationId": "reset-password-controller",
+                "description": "Makes API calls to",
+                "technology": "JSON/HTTPS",
+                "tags": "Relationship"
+              }
+            ],
+            "technology": "Xamarin"
+          },
+          {
+            "id": "web-application",
+            "name": "Web Application",
+            "description": "Delivers the static content and the Internet banking single page application.",
+            "tags": "Element,Container",
+            "properties": {
+              "dp.archType": "web",
+              "dp.characteristics": "[{\"name\": \"Scalability\", \"rating\": 3}, {\"name\": \"Deployability\", \"rating\": 3}, {\"name\": \"Availability\", \"rating\": 4, \"driving\": true}]",
+              "dp.cost": "[{\"item\": \"Cloud Run, 2 instances\", \"monthly\": 180}]"
+            },
+            "relationships": [
+              {
+                "id": "web-application--single-page-application",
+                "sourceId": "web-application",
+                "destinationId": "single-page-application",
+                "description": "Delivers to the customer's web browser",
+                "tags": "Relationship"
+              }
+            ],
+            "technology": "Java, Spring MVC"
+          },
+          {
+            "id": "api-application",
+            "name": "API Application",
+            "description": "Provides Internet banking functionality via a JSON/HTTPS API.",
+            "tags": "Element,Container",
+            "properties": {
+              "dp.archType": "service",
+              "dp.tag.Risk": "High",
+              "dp.tag.Lifecycle": "Live",
+              "dp.owner": "Digital Channels team",
+              "dp.notes": "All customer traffic goes through this container.\nRate limiting is configured at the gateway, not here.",
+              "dp.tradeoffs": "[{\"kind\": \"benefit\", \"text\": \"One JSON API serves both the web and mobile clients.\"}, {\"kind\": \"cost\", \"text\": \"Every client release depends on API compatibility.\"}, {\"kind\": \"risk\", \"text\": \"Single point of failure for all digital channels.\"}]",
+              "dp.usage": "[{\"users\": \"Personal banking customers\", \"frequency\": \"daily\", \"volume\": \"about 40,000 active users\"}, {\"users\": \"Customer service staff\", \"frequency\": \"hourly\"}]",
+              "dp.sensitive": "[{\"item\": \"Account numbers and balances in responses\", \"level\": \"confidential\"}]",
+              "dp.characteristics": "[{\"name\": \"Scalability\", \"rating\": 3, \"driving\": true, \"note\": \"Stateless; scales horizontally behind the load balancer\"}, {\"name\": \"Performance\", \"rating\": 3, \"driving\": true, \"note\": \"Mainframe calls dominate latency\"}, {\"name\": \"Availability\", \"rating\": 4, \"driving\": true}, {\"name\": \"Deployability\", \"rating\": 3, \"note\": \"Single deployment unit\"}, {\"name\": \"Testability\", \"rating\": 4}, {\"name\": \"Security\", \"rating\": 4, \"driving\": true}]",
+              "dp.cost": "[{\"item\": \"Kubernetes nodes, 3 x n2-standard-4\", \"monthly\": 1150}, {\"item\": \"Load balancer\", \"monthly\": 60}]",
+              "dp.work": "[{\"type\": \"pr\", \"title\": \"Add rate limiting to the accounts API\", \"status\": \"open\", \"url\": \"https://example.com/pulls/42\"}, {\"type\": \"security\", \"title\": \"Upgrade the JSON library (known deserialisation issue)\", \"status\": \"open\", \"severity\": \"high\"}]"
+            },
+            "relationships": [
+              {
+                "id": "api-application--event-stream",
+                "sourceId": "api-application",
+                "destinationId": "event-stream",
+                "description": "Publishes usage events to",
+                "technology": "Kafka, JSON",
+                "tags": "Relationship",
+                "properties": {
+                  "dp.kind": "async-message"
+                }
+              }
+            ],
+            "technology": "Java, Spring MVC",
+            "components": [
+              {
+                "id": "sign-in-controller",
+                "name": "Sign In Controller",
+                "description": "Allows users to sign in to the Internet Banking System.",
+                "tags": "Element,Component",
+                "properties": {
+                  "dp.code.paths": "[\"sample_code/api/sign_in.py\", \"sample_code/api/security.py\", \"sample_code/api/store.py\"]",
+                  "dp.characteristics": "[{\"name\": \"Testability\", \"rating\": 4}]"
+                },
+                "relationships": [
+                  {
+                    "id": "sign-in-controller--security-component",
+                    "sourceId": "sign-in-controller",
+                    "destinationId": "security-component",
+                    "description": "Uses",
+                    "tags": "Relationship"
+                  }
+                ],
+                "technology": "Spring MVC Rest Controller"
+              },
+              {
+                "id": "accounts-summary-controller",
+                "name": "Accounts Summary Controller",
+                "description": "Provides customers with a summary of their bank accounts.",
+                "tags": "Element,Component",
+                "properties": {
+                  "dp.code.paths": "[\"sample_code/api/accounts.py\", \"sample_code/api/mainframe_facade.py\", \"sample_code/api/store.py\"]"
+                },
+                "relationships": [
+                  {
+                    "id": "accounts-summary-controller--mainframe-banking-system-facade",
+                    "sourceId": "accounts-summary-controller",
+                    "destinationId": "mainframe-banking-system-facade",
+                    "description": "Uses",
+                    "tags": "Relationship"
+                  }
+                ],
+                "technology": "Spring MVC Rest Controller"
+              },
+              {
+                "id": "reset-password-controller",
+                "name": "Reset Password Controller",
+                "description": "Allows users to reset their passwords with a single use URL.",
+                "tags": "Element,Component",
+                "properties": {
+                  "dp.code.paths": "[\"sample_code/api/reset_password.py\", \"sample_code/api/security.py\", \"sample_code/api/email_sender.py\", \"sample_code/api/store.py\"]"
+                },
+                "relationships": [
+                  {
+                    "id": "reset-password-controller--security-component",
+                    "sourceId": "reset-password-controller",
+                    "destinationId": "security-component",
+                    "description": "Uses",
+                    "tags": "Relationship"
+                  },
+                  {
+                    "id": "reset-password-controller--e-mail-component",
+                    "sourceId": "reset-password-controller",
+                    "destinationId": "e-mail-component",
+                    "description": "Uses",
+                    "tags": "Relationship"
+                  }
+                ],
+                "technology": "Spring MVC Rest Controller"
+              },
+              {
+                "id": "security-component",
+                "name": "Security Component",
+                "description": "Provides functionality related to signing in, changing passwords, etc.",
+                "tags": "Element,Component",
+                "properties": {
+                  "dp.tag.Risk": "High",
+                  "dp.tag.Lifecycle": "Live",
+                  "dp.code.paths": "[\"sample_code/api/security.py\", \"sample_code/api/store.py\"]",
+                  "dp.characteristics": "[{\"name\": \"Security\", \"rating\": 4, \"driving\": true}, {\"name\": \"Testability\", \"rating\": 3}]",
+                  "dp.work": "[{\"type\": \"security\", \"title\": \"Password hashing uses SHA-1; move to bcrypt\", \"status\": \"in-progress\", \"url\": \"https://example.com/security/101\", \"severity\": \"critical\"}]"
+                },
+                "relationships": [
+                  {
+                    "id": "security-component--database",
+                    "sourceId": "security-component",
+                    "destinationId": "database",
+                    "description": "Reads from and writes to",
+                    "technology": "SQL/TCP",
+                    "tags": "Relationship"
+                  }
+                ],
+                "technology": "Spring Bean"
+              },
+              {
+                "id": "mainframe-banking-system-facade",
+                "name": "Mainframe Banking System Facade",
+                "description": "A facade onto the mainframe banking system.",
+                "tags": "Element,Component",
+                "properties": {
+                  "dp.tag.Risk": "Medium",
+                  "dp.tag.Lifecycle": "Live",
+                  "dp.code.paths": "[\"sample_code/api/mainframe_facade.py\"]",
+                  "dp.characteristics": "[{\"name\": \"Testability\", \"rating\": 2, \"note\": \"Needs a mainframe test region\"}, {\"name\": \"Fault tolerance\", \"rating\": 2, \"note\": \"No circuit breaker yet\"}]",
+                  "dp.work": "[{\"type\": \"backlog\", \"title\": \"Add a circuit breaker around mainframe calls\", \"status\": \"open\", \"severity\": \"medium\"}]"
+                },
+                "relationships": [
+                  {
+                    "id": "mainframe-banking-system-facade--mainframe-banking-system",
+                    "sourceId": "mainframe-banking-system-facade",
+                    "destinationId": "mainframe-banking-system",
+                    "description": "Makes API calls to",
+                    "technology": "XML/HTTPS",
+                    "tags": "Relationship"
+                  }
+                ],
+                "technology": "Spring Bean"
+              },
+              {
+                "id": "e-mail-component",
+                "name": "E-mail Component",
+                "description": "Sends e-mails to users.",
+                "tags": "Element,Component",
+                "properties": {
+                  "dp.code.paths": "[\"sample_code/api/email_sender.py\"]"
+                },
+                "relationships": [
+                  {
+                    "id": "e-mail-component--e-mail-system",
+                    "sourceId": "e-mail-component",
+                    "destinationId": "e-mail-system",
+                    "description": "Sends e-mail using",
+                    "tags": "Relationship"
+                  }
+                ],
+                "technology": "Spring Bean"
+              }
+            ]
+          },
+          {
+            "id": "database",
+            "name": "Database",
+            "description": "Stores user registration information, hashed authentication credentials, access logs, etc.",
+            "tags": "Element,Container",
+            "properties": {
+              "dp.archType": "database",
+              "dp.tag.Risk": "High",
+              "dp.tag.Lifecycle": "Live",
+              "dp.notes": "Holds hashed credentials. Backups are encrypted.",
+              "dp.tradeoffs": "[{\"kind\": \"cost\", \"text\": \"Oracle licensing cost grows with core count.\"}]",
+              "dp.sensitive": "[{\"item\": \"Hashed authentication credentials\", \"level\": \"restricted\"}, {\"item\": \"Access logs\", \"level\": \"internal\"}]",
+              "dp.details": "[{\"title\": \"Connection\", \"columns\": [\"Setting\", \"Value\"], \"rows\": [[\"Host\", \"ibdb.internal.bigbank.example\"], [\"Port\", \"1521\"], [\"Service name\", \"IBPROD\"], [\"Credentials\", \"Vault path secret/ib/db (never store passwords here)\"]]}, {\"title\": \"Table USERS\", \"columns\": [\"Column\", \"Type\", \"Nullable\", \"Notes\"], \"rows\": [[\"USER_ID\", \"NUMBER\", \"no\", \"Primary key\"], [\"USERNAME\", \"VARCHAR2(64)\", \"no\", \"Unique\"], [\"PASSWORD_HASH\", \"VARCHAR2(128)\", \"no\", \"Salted hash\"], [\"LAST_LOGIN\", \"TIMESTAMP\", \"yes\", \"\"]]}]",
+              "dp.characteristics": "[{\"name\": \"Scalability\", \"rating\": 2, \"note\": \"Vertical scaling only\"}, {\"name\": \"Availability\", \"rating\": 4, \"driving\": true, \"note\": \"Data Guard standby\"}, {\"name\": \"Fault tolerance\", \"rating\": 3}]",
+              "dp.cost": "[{\"item\": \"Oracle licences\", \"monthly\": 4200, \"note\": \"Prorated per month\"}, {\"item\": \"Storage and backups\", \"monthly\": 380}]",
+              "dp.work": "[{\"type\": \"backlog\", \"title\": \"Partition the audit table\", \"status\": \"open\", \"severity\": \"low\"}]"
+            },
+            "technology": "Oracle Database Schema"
+          }
+        ]
+      },
+      {
+        "id": "mainframe-banking-system",
+        "name": "Mainframe Banking System",
+        "description": "Stores all of the core banking information about customers, accounts, transactions, etc.",
+        "tags": "Element,Software System",
+        "properties": {
+          "dp.archType": "service",
+          "dp.tag.Risk": "High",
+          "dp.tag.Lifecycle": "Live",
+          "dp.tradeoffs": "[{\"kind\": \"risk\", \"text\": \"Batch windows limit how fresh balances can be.\"}]",
+          "dp.usage": "[{\"users\": \"Back office staff\", \"frequency\": \"continuous\"}]",
+          "dp.characteristics": "[{\"name\": \"Scalability\", \"rating\": 1}, {\"name\": \"Deployability\", \"rating\": 1, \"note\": \"Quarterly release window\"}, {\"name\": \"Availability\", \"rating\": 5, \"driving\": true}, {\"name\": \"Evolvability\", \"rating\": 1}]",
+          "dp.cost": "[{\"item\": \"Mainframe MIPS share\", \"monthly\": 9500, \"note\": \"Internal chargeback\"}]"
+        }
+      },
+      {
+        "id": "e-mail-system",
+        "name": "E-mail System",
+        "description": "The internal Microsoft Exchange e-mail system.",
+        "tags": "Element,Software System",
+        "properties": {
+          "dp.archType": "cloud",
+          "dp.tag.Risk": "Low",
+          "dp.tag.Lifecycle": "Live",
+          "dp.characteristics": "[{\"name\": \"Availability\", \"rating\": 4}]",
+          "dp.cost": "[{\"item\": \"E-mail licences\", \"monthly\": 120}]"
+        },
+        "relationships": [
+          {
+            "id": "e-mail-system--personal-banking-customer",
+            "sourceId": "e-mail-system",
+            "destinationId": "personal-banking-customer",
+            "description": "Sends e-mails to",
+            "tags": "Relationship"
+          }
+        ]
+      },
+      {
+        "id": "atm",
+        "name": "ATM",
+        "description": "Allows customers to withdraw cash.",
+        "tags": "Element,Software System",
+        "properties": {
+          "dp.tag.Risk": "Medium",
+          "dp.tag.Lifecycle": "Deprecated"
+        },
+        "relationships": [
+          {
+            "id": "atm--mainframe-banking-system",
+            "sourceId": "atm",
+            "destinationId": "mainframe-banking-system",
+            "description": "Uses",
+            "tags": "Relationship"
+          }
+        ]
+      },
+      {
+        "id": "analytics-platform",
+        "name": "Analytics Platform",
+        "description": "Collects usage events and loads them, with personal data removed, into the data warehouse.",
+        "tags": "Element,Software System",
+        "properties": {
+          "dp.tag.Risk": "Medium",
+          "dp.tag.Lifecycle": "Planned"
+        },
+        "containers": [
+          {
+            "id": "event-stream",
+            "name": "Event Stream",
+            "description": "Carries usage events published by the banking applications.",
+            "tags": "Element,Container",
+            "properties": {
+              "dp.archType": "queue",
+              "dp.characteristics": "[{\"name\": \"Scalability\", \"rating\": 5, \"driving\": true}, {\"name\": \"Elasticity\", \"rating\": 4}, {\"name\": \"Fault tolerance\", \"rating\": 4, \"driving\": true, \"note\": \"Replication factor 3\"}]",
+              "dp.cost": "[{\"item\": \"Managed Kafka\", \"monthly\": 640}]"
+            },
+            "relationships": [
+              {
+                "id": "event-stream--data-warehouse",
+                "sourceId": "event-stream",
+                "destinationId": "data-warehouse",
+                "description": "Loads masked events into",
+                "technology": "Airflow",
+                "tags": "Relationship",
+                "properties": {
+                  "dp.kind": "data-pipeline",
+                  "dp.notes": "Runs nightly at 02:00 UTC. A failed run is retried twice, then pages the data team.",
+                  "dp.sensitive": "[{\"item\": \"User e-mail addresses (before masking)\", \"level\": \"restricted\"}]",
+                  "dp.code.paths": "[\"sample_code/pipeline\"]",
+                  "dp.stages": "[{\"id\": \"consume-events\", \"name\": \"Consume events\", \"technologies\": [\"Kafka\", \"Python\"], \"description\": \"Reads up to 500 events per batch.\", \"elementId\": \"event-consumer\", \"archType\": \"queue\"}, {\"id\": \"mask-pii\", \"name\": \"Mask PII\", \"technologies\": [\"Python\"], \"description\": \"Removes user and e-mail fields.\", \"elementId\": \"pii-masker\", \"archType\": \"pipeline\"}, {\"id\": \"load-to-warehouse\", \"name\": \"Load to warehouse\", \"technologies\": [\"Snowflake\", \"Airflow\"], \"elementId\": \"warehouse-loader\", \"archType\": \"database\"}]"
+                }
+              }
+            ],
+            "technology": "Kafka"
+          },
+          {
+            "id": "pipeline-worker",
+            "name": "Pipeline Worker",
+            "description": "Runs the nightly job that moves events from the stream into the warehouse.",
+            "tags": "Element,Container",
+            "properties": {
+              "dp.archType": "pipeline",
+              "dp.characteristics": "[{\"name\": \"Scalability\", \"rating\": 2, \"note\": \"Single scheduler\"}, {\"name\": \"Testability\", \"rating\": 3}, {\"name\": \"Deployability\", \"rating\": 4}]",
+              "dp.cost": "[{\"item\": \"Airflow workers\", \"monthly\": 320}]",
+              "dp.work": "[{\"type\": \"issue\", \"title\": \"Nightly job retries forever on bad events\", \"status\": \"blocked\", \"severity\": \"low\"}]"
+            },
+            "technology": "Python, Airflow",
+            "components": [
+              {
+                "id": "event-consumer",
+                "name": "Event Consumer",
+                "description": "Reads batches of events from the Kafka topic.",
+                "tags": "Element,Component",
+                "properties": {
+                  "dp.code.paths": "[\"sample_code/pipeline/consume.py\"]"
+                },
+                "technology": "Python"
+              },
+              {
+                "id": "pii-masker",
+                "name": "PII Masker",
+                "description": "Replaces personal fields with placeholders.",
+                "tags": "Element,Component",
+                "properties": {
+                  "dp.code.paths": "[\"sample_code/pipeline/mask_pii.py\"]",
+                  "dp.characteristics": "[{\"name\": \"Security\", \"rating\": 5, \"driving\": true}, {\"name\": \"Testability\", \"rating\": 4}]"
+                },
+                "technology": "Python"
+              },
+              {
+                "id": "warehouse-loader",
+                "name": "Warehouse Loader",
+                "description": "Writes masked events to Snowflake.",
+                "tags": "Element,Component",
+                "properties": {
+                  "dp.code.paths": "[\"sample_code/pipeline/load_warehouse.py\"]"
+                },
+                "technology": "Python"
+              }
+            ]
+          },
+          {
+            "id": "data-warehouse",
+            "name": "Data Warehouse",
+            "description": "Curated, masked usage events for reporting.",
+            "tags": "Element,Container",
+            "properties": {
+              "dp.archType": "database",
+              "dp.tag.Risk": "Medium",
+              "dp.tag.Lifecycle": "Planned",
+              "dp.details": "[{\"title\": \"Connection\", \"columns\": [\"Setting\", \"Value\"], \"rows\": [[\"Account\", \"bigbank-analytics\"], [\"Warehouse\", \"ANALYTICS_WH\"], [\"Schema\", \"USAGE_EVENTS\"]]}]",
+              "dp.characteristics": "[{\"name\": \"Scalability\", \"rating\": 5}, {\"name\": \"Performance\", \"rating\": 4}, {\"name\": \"Security\", \"rating\": 4, \"driving\": true, \"note\": \"PII masked before load\"}]",
+              "dp.cost": "[{\"item\": \"Warehouse credits\", \"monthly\": 2100}]"
+            },
+            "technology": "Snowflake"
+          }
+        ]
+      }
+    ]
+  },
+  "views": {
+    "systemLandscapeViews": [
+      {
+        "key": "landscape",
+        "order": 1,
+        "description": "System landscape",
+        "properties": {
+          "dp.level": "landscape"
+        },
+        "elements": [
+          {
+            "id": "personal-banking-customer"
+          },
+          {
+            "id": "customer-service-staff"
+          },
+          {
+            "id": "back-office-staff"
+          },
+          {
+            "id": "internet-banking-system"
+          },
+          {
+            "id": "mainframe-banking-system"
+          },
+          {
+            "id": "e-mail-system"
+          },
+          {
+            "id": "atm"
+          },
+          {
+            "id": "analytics-platform"
+          }
+        ],
+        "relationships": [
+          {
+            "id": "personal-banking-customer--internet-banking-system"
+          },
+          {
+            "id": "personal-banking-customer--customer-service-staff"
+          },
+          {
+            "id": "personal-banking-customer--atm"
+          },
+          {
+            "id": "customer-service-staff--mainframe-banking-system"
+          },
+          {
+            "id": "back-office-staff--mainframe-banking-system"
+          },
+          {
+            "id": "internet-banking-system--mainframe-banking-system"
+          },
+          {
+            "id": "internet-banking-system--e-mail-system"
+          },
+          {
+            "id": "e-mail-system--personal-banking-customer"
+          },
+          {
+            "id": "atm--mainframe-banking-system"
+          }
+        ]
+      }
+    ],
+    "systemContextViews": [
+      {
+        "key": "context-internet-banking-system",
+        "order": 2,
+        "description": "Internet Banking System — context",
+        "properties": {
+          "dp.level": "context"
+        },
+        "softwareSystemId": "internet-banking-system",
+        "elements": [
+          {
+            "id": "internet-banking-system"
+          },
+          {
+            "id": "personal-banking-customer"
+          },
+          {
+            "id": "mainframe-banking-system"
+          },
+          {
+            "id": "e-mail-system"
+          },
+          {
+            "id": "analytics-platform"
+          }
+        ],
+        "relationships": [
+          {
+            "id": "personal-banking-customer--internet-banking-system"
+          },
+          {
+            "id": "internet-banking-system--mainframe-banking-system"
+          },
+          {
+            "id": "internet-banking-system--e-mail-system"
+          }
+        ]
+      },
+      {
+        "key": "context-analytics-platform",
+        "order": 3,
+        "description": "Analytics Platform — context",
+        "properties": {
+          "dp.level": "context"
+        },
+        "softwareSystemId": "analytics-platform",
+        "elements": [
+          {
+            "id": "analytics-platform"
+          },
+          {
+            "id": "internet-banking-system"
+          }
+        ]
+      }
+    ],
+    "containerViews": [
+      {
+        "key": "containers-internet-banking-system",
+        "order": 4,
+        "description": "Internet Banking System — containers",
+        "properties": {
+          "dp.level": "container"
+        },
+        "softwareSystemId": "internet-banking-system",
+        "elements": [
+          {
+            "id": "single-page-application"
+          },
+          {
+            "id": "mobile-app"
+          },
+          {
+            "id": "web-application"
+          },
+          {
+            "id": "api-application"
+          },
+          {
+            "id": "database"
+          },
+          {
+            "id": "personal-banking-customer"
+          },
+          {
+            "id": "analytics-platform"
+          },
+          {
+            "id": "mainframe-banking-system"
+          },
+          {
+            "id": "e-mail-system"
+          }
+        ],
+        "relationships": [
+          {
+            "id": "personal-banking-customer--web-application"
+          },
+          {
+            "id": "personal-banking-customer--single-page-application"
+          },
+          {
+            "id": "personal-banking-customer--mobile-app"
+          },
+          {
+            "id": "web-application--single-page-application"
+          }
+        ]
+      },
+      {
+        "key": "containers-analytics-platform",
+        "order": 5,
+        "description": "Analytics Platform — containers",
+        "properties": {
+          "dp.level": "container"
+        },
+        "softwareSystemId": "analytics-platform",
+        "elements": [
+          {
+            "id": "event-stream"
+          },
+          {
+            "id": "pipeline-worker"
+          },
+          {
+            "id": "data-warehouse"
+          },
+          {
+            "id": "internet-banking-system"
+          }
+        ],
+        "relationships": [
+          {
+            "id": "event-stream--data-warehouse"
+          }
+        ]
+      }
+    ],
+    "componentViews": [
+      {
+        "key": "components-api-application",
+        "order": 6,
+        "description": "API Application — components",
+        "properties": {
+          "dp.level": "component"
+        },
+        "containerId": "api-application",
+        "elements": [
+          {
+            "id": "sign-in-controller"
+          },
+          {
+            "id": "accounts-summary-controller"
+          },
+          {
+            "id": "reset-password-controller"
+          },
+          {
+            "id": "security-component"
+          },
+          {
+            "id": "mainframe-banking-system-facade"
+          },
+          {
+            "id": "e-mail-component"
+          },
+          {
+            "id": "single-page-application"
+          },
+          {
+            "id": "mobile-app"
+          },
+          {
+            "id": "database"
+          },
+          {
+            "id": "mainframe-banking-system"
+          },
+          {
+            "id": "e-mail-system"
+          }
+        ],
+        "relationships": [
+          {
+            "id": "single-page-application--sign-in-controller"
+          },
+          {
+            "id": "single-page-application--accounts-summary-controller"
+          },
+          {
+            "id": "single-page-application--reset-password-controller"
+          },
+          {
+            "id": "mobile-app--sign-in-controller"
+          },
+          {
+            "id": "mobile-app--accounts-summary-controller"
+          },
+          {
+            "id": "mobile-app--reset-password-controller"
+          },
+          {
+            "id": "sign-in-controller--security-component"
+          },
+          {
+            "id": "accounts-summary-controller--mainframe-banking-system-facade"
+          },
+          {
+            "id": "reset-password-controller--security-component"
+          },
+          {
+            "id": "reset-password-controller--e-mail-component"
+          },
+          {
+            "id": "security-component--database"
+          },
+          {
+            "id": "mainframe-banking-system-facade--mainframe-banking-system"
+          },
+          {
+            "id": "e-mail-component--e-mail-system"
+          }
+        ]
+      },
+      {
+        "key": "components-pipeline-worker",
+        "order": 7,
+        "description": "Pipeline Worker — components",
+        "properties": {
+          "dp.level": "component"
+        },
+        "containerId": "pipeline-worker",
+        "elements": [
+          {
+            "id": "event-consumer"
+          },
+          {
+            "id": "pii-masker"
+          },
+          {
+            "id": "warehouse-loader"
+          }
+        ]
+      }
+    ],
+    "dynamicViews": [
+      {
+        "key": "flow-sign-in",
+        "order": 8,
+        "title": "Sign in",
+        "description": "How signing in works in the single-page application.",
+        "properties": {
+          "dp.flow": "true",
+          "dp.stepData": "{\"1\": {\"example\": \"POST /api/sign-in\\n{\\\"username\\\": \\\"alice\\\", \\\"password\\\": \\\"<entered by user>\\\"}\", \"format\": \"JSON over HTTPS\"}, \"3\": {\"example\": \"select user_id, password_hash from users where username = 'alice'\", \"format\": \"SQL\"}, \"4\": {\"example\": \"USER_ID=1001, PASSWORD_HASH=5e884898da…\", \"format\": \"Row\"}, \"6\": {\"example\": \"200 OK\\n{\\\"ok\\\": true, \\\"token\\\": \\\"9f2c41d07a3b5e68\\\"}\", \"format\": \"JSON\"}}"
+        },
+        "elementId": "api-application",
+        "elements": [
+          {
+            "id": "single-page-application"
+          },
+          {
+            "id": "sign-in-controller"
+          },
+          {
+            "id": "security-component"
+          },
+          {
+            "id": "database"
+          }
+        ],
+        "relationships": [
+          {
+            "id": "single-page-application--sign-in-controller",
+            "description": "Submits credentials to",
+            "order": "1",
+            "response": false
+          },
+          {
+            "id": "sign-in-controller--security-component",
+            "description": "Validates credentials using",
+            "order": "2",
+            "response": false
+          },
+          {
+            "id": "security-component--database",
+            "description": "select * from users where username = ?",
+            "order": "3",
+            "response": false
+          },
+          {
+            "id": "security-component--database",
+            "description": "Returns user data to",
+            "order": "4",
+            "response": true
+          },
+          {
+            "id": "sign-in-controller--security-component",
+            "description": "Returns true if the hashed password matches",
+            "order": "5",
+            "response": true
+          },
+          {
+            "id": "single-page-application--sign-in-controller",
+            "description": "Sends back an authentication token to",
+            "order": "6",
+            "response": true
+          }
+        ]
+      },
+      {
+        "key": "flow-publish-usage-event",
+        "order": 9,
+        "title": "Publish usage event",
+        "description": "How a usage event reaches the warehouse.",
+        "properties": {
+          "dp.flow": "true"
+        },
+        "elementId": "analytics-platform",
+        "elements": [
+          {
+            "id": "api-application"
+          },
+          {
+            "id": "event-stream"
+          },
+          {
+            "id": "data-warehouse"
+          }
+        ],
+        "relationships": [
+          {
+            "id": "api-application--event-stream",
+            "description": "Publishes event to",
+            "order": "1",
+            "response": false
+          },
+          {
+            "id": "event-stream--data-warehouse",
+            "description": "Nightly job loads masked events into",
+            "order": "2",
+            "response": false
+          }
+        ]
+      }
+    ]
+  }
+}

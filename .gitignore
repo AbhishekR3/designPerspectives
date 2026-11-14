@@ -1,9 +1,13 @@
+node_modules/
+ui/node_modules/
+dist/
+test-results/
+playwright-report/
+*.tsbuildinfo
+.DS_Store
+# left over from the Python version (0.2)
 .venv/
 __pycache__/
 *.pyc
 .pytest_cache/
-dist/
-build/
 *.egg-info/
-ui/node_modules/
-.DS_Store

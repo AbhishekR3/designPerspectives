@@ -4,15 +4,15 @@ An open-source (MIT), model-based architecture tool using the [C4 model](https:/
 Every diagram is a view of one model, so a change made once shows everywhere. **Lenses** show
 the same model differently for different audiences.
 
-Version **0.2.0**. Stage reviews are in `docs/reviews/`; changes per version are in `CHANGELOG.md`.
+Version **0.3.0**. Stage reviews are in `docs/reviews/`; changes per version are in `CHANGELOG.md`.
 
 ## Run it
 
-Requires Python 3.11+. Node is not needed to use it; the browser UI ships inside the package.
+Requires Node.js 20.11 or later. The browser UI ships inside the package; nothing else is needed.
 
 ```bash
-pipx install git+https://github.com/AbhishekR3/designPerspectives
-# or, from a clone:  pip install .
+npm install -g github:AbhishekR3/designPerspectives
+# or, from a clone:  npm ci && npm link
 
 mkdir my-architecture && cd my-architecture
 dp serve            # creates architecture/ with the demo model if none exists, opens the browser
@@ -24,10 +24,15 @@ Other commands:
 dp init --empty     # start an empty model instead of the demo
 dp serve PATH       # serve a model in another folder (PATH/architecture/)
 dp serve --code-root SRC   # folder holding the source code components point to (default: the project folder)
+dp serve --read-only       # viewer role: nothing can be changed
+dp serve --port 9000 --no-open
 dp validate         # check the model files; exit code 1 on problems
+dp --version
 ```
 
 The server listens on `127.0.0.1:8765` only. Stop it with Ctrl+C.
+
+Model files written by the earlier Python version (0.2) open unchanged.
 
 ## Files
 
@@ -120,21 +125,33 @@ Stage A3 additions:
 
 ## Develop
 
+Everything is TypeScript: the server, the CLI and the browser UI share one set of API types
+(`src/shared/types.ts`), so a change to a response shape is checked on both sides by the compiler.
+
 ```bash
-python -m venv .venv && . .venv/bin/activate
-pip install -e ".[dev]"
-pytest                          # model, validation, diagrams, flows, connectors, code, API
+npm ci                          # server, CLI and test tools (also builds dist/)
+npm test                        # unit and API tests (vitest): model, validation, diagrams, flows, connectors, code, API, CLI
+npm run typecheck
+npm run dp -- serve             # run the CLI from source (tsx), e.g. `npm run dp -- validate`
 
 cd ui && npm ci && npm run dev  # UI dev server on :5173, proxies /api to dp serve on :8765
-npm run build                   # writes the UI into src/designperspectives/static/
+npm run build                   # (in ui/) writes the UI into static/
 
-python -m playwright install chromium
-pytest e2e                      # browser smoke test (needs the built UI)
-python scripts/make_demo.py     # regenerate the bundled demo model
+npx playwright install chromium # or set DP_E2E_CHROME to a Chrome/Chromium binary
+npm run test:e2e                # browser tests (need the built UI)
+npm run make-demo               # regenerate the bundled demo model (demo/)
 ```
 
-Layout: `src/designperspectives/` (Python: `workspace.py` file format, `ops.py` edits and rules,
-`diagrams.py` what each level shows, `flows.py`, `validate.py`, `store.py` files, `server.py` API,
-`cli.py`), `ui/` (TypeScript/React with xyflow and elkjs), `tests/`, `e2e/`.
+Layout:
+
+| Path | What it holds |
+|---|---|
+| `src/shared/types.ts` | API types and constants used by both the server and the UI |
+| `src/core/` | `workspace.ts` file format, `sidecar.ts`, `ops.ts` edits and rules, `diagrams.ts` what each level shows, `connectors.ts`, `code.ts`, `flows.ts`, `validate.ts`, `store.ts` files and undo |
+| `src/server/app.ts` | HTTP API ([Hono](https://hono.dev)) and the static UI |
+| `src/cli.ts` | the `dp` command |
+| `ui/` | React UI with xyflow and elkjs; builds into `static/` |
+| `demo/` | the bundled demo model and its sample code |
+| `tests/`, `e2e/` | vitest and Playwright tests |
 
 See `NOTICE` for the demo model's source.
