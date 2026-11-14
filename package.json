@@ -1,0 +1,49 @@
+{
+  "name": "designperspectives",
+  "version": "0.3.0",
+  "description": "Open-source, model-based C4 architecture tool with lenses for different audiences.",
+  "license": "MIT",
+  "author": "Abhishek Ramesh",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AbhishekR3/designPerspectives.git"
+  },
+  "bin": {
+    "dp": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "static",
+    "demo",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "engines": {
+    "node": ">=20.11"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepare": "npm run build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "dp": "tsx src/cli.ts",
+    "make-demo": "tsx scripts/make-demo.ts",
+    "ui:install": "npm --prefix ui ci",
+    "ui:build": "npm --prefix ui run build"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.13.0",
+    "commander": "^12.1.0",
+    "hono": "^4.6.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0",
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}
