@@ -16,7 +16,7 @@ def ok(r):
 def test_state(client):
     s = ok(client.get("/api/state"))
     assert s["workspace"]["name"] == "Big Bank plc"
-    assert [l["id"] for l in s["lenses"]] == ["engineer"]
+    assert [l["id"] for l in s["lenses"]] == ["engineer", "security-review", "product-owner"]
     assert s["loadErrors"] == []
 
 
@@ -39,7 +39,7 @@ def test_step3_drill_and_breadcrumb(client):
     cont = ok(client.get(f"/api/diagrams/{ibs['drillKey']}"))
     api = next(n for n in cont["nodes"] if n["name"] == "API Application")
     comp = ok(client.get(f"/api/diagrams/{api['drillKey']}"))
-    assert [c["label"] for c in comp["breadcrumb"]] == ["Landscape", "Internet Banking System", "API Application"]
+    assert [c["label"] for c in comp["breadcrumb"]] == ["Landscape", "Internet Banking System", "Internet Banking System", "API Application"]
 
 
 def test_step4_rename_everywhere(client):
@@ -57,20 +57,20 @@ def test_step5_connections_in_state(client):
 
 
 def test_step6_tag_group_and_overlay_data(client):
-    ok(client.post("/api/tag-groups", json={"name": "Risk", "values": [
+    ok(client.post("/api/tag-groups", json={"name": "Priority", "values": [
         {"name": "High", "color": "#d62728"}, {"name": "Medium", "color": "#ff7f0e"}, {"name": "Low", "color": "#2ca02c"}]}))
     for e, v in [("api-application", "High"), ("database", "Medium"), ("mobile-app", "Low")]:
-        ok(client.patch(f"/api/elements/{e}", json={"tags": {"Risk": v}}))
+        ok(client.patch(f"/api/elements/{e}", json={"tags": {"Priority": v}}))
     d = ok(client.get("/api/diagrams/containers-internet-banking-system"))
-    tags = {n["id"]: n["tags"].get("Risk") for n in d["nodes"]}
+    tags = {n["id"]: n["tags"].get("Priority") for n in d["nodes"]}
     assert tags["api-application"] == "High" and tags["web-application"] is None
     # Rename a value: elements follow. Remove a value: elements lose it.
-    ok(client.put("/api/tag-groups/Risk", json={"name": "Risk level", "values": [
+    ok(client.put("/api/tag-groups/Priority", json={"name": "Priority level", "values": [
         {"name": "Severe", "color": "#d62728", "previousName": "High"}, {"name": "Low", "color": "#2ca02c", "previousName": "Low"}]}))
     els = {e["id"]: e["tags"] for e in ok(client.get("/api/state"))["elements"]}
-    assert els["api-application"] == {"Risk level": "Severe"}
-    assert els["database"] == {}
-    r = client.patch("/api/elements/database", json={"tags": {"Risk level": "Medium"}})
+    assert els["api-application"]["Priority level"] == "Severe"
+    assert "Priority level" not in els["database"]
+    r = client.patch("/api/elements/database", json={"tags": {"Priority level": "Medium"}})
     assert r.status_code == 422
 
 
@@ -89,7 +89,7 @@ def test_step7_five_step_flow(client):
 def test_step8_lenses(client):
     lid = ok(client.post("/api/lenses", json={"name": "Business", "visibleLevels": ["landscape", "context"], "showTechnology": False}))["id"]
     lenses = ok(client.get("/api/state"))["lenses"]
-    assert [l["id"] for l in lenses] == ["engineer", lid]
+    assert [l["id"] for l in lenses][0] == "engineer" and [l["id"] for l in lenses][-1] == lid
     assert client.put("/api/lenses/engineer", json={"name": "E"}).status_code == 403
     assert client.post("/api/lenses", json={"name": "Business"}).status_code == 422
 
@@ -127,8 +127,8 @@ def test_delete_element_and_relationship(client):
     ids = {e["id"] for e in s["elements"]}
     assert "api-application" not in ids and "sign-in-controller" not in ids
     assert client.get("/api/diagrams/components-api-application").status_code == 404
-    [flow] = s["flows"]
-    assert flow["steps"] == []
+    sign_in = next(f for f in s["flows"] if f["title"] == "Sign in")
+    assert sign_in["steps"] == []
 
 
 def test_cli_validate(demo_dir):

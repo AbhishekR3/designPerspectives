@@ -24,9 +24,13 @@ from designperspectives.workspace import dump_json, empty_workspace  # noqa: E40
 
 def build():
     ws = empty_workspace("Big Bank plc")
-    ws.description = "Demo: the Internet Banking System example from the C4 model."
+    ws.description = "Demo: the Internet Banking System example from the C4 model, extended to show every designPerspectives feature (tag groups, lenses, notes, tradeoffs, usage, sensitive labels, symbols, a pipeline connector, and code mapped to components)."
     sc = Sidecar()
-    E = lambda *a, **k: ops.create_element(ws, *a, **k)  # noqa: E731
+    def E(kind, name, parent=None, description=None, technology=None, **k):  # noqa: N802
+        if isinstance(technology, str):
+            technology = [t.strip() for t in technology.replace(" and ", ",").split(",")]
+        return ops.create_element(ws, kind, name, parent, description, technology, **k)
+
     R = lambda *a, **k: ops.create_relationship(ws, *a, **k)  # noqa: E731
 
     customer = E("person", "Personal Banking Customer", description="A customer of the bank, with personal bank accounts.", external=True)
@@ -87,15 +91,125 @@ def build():
         key,
         {
             "steps": [
-                {"relationshipId": spa_signin, "description": "Submits credentials to"},
+                {"relationshipId": spa_signin, "description": "Submits credentials to", "format": "JSON over HTTPS", "example": 'POST /api/sign-in\n{"username": "alice", "password": "<entered by user>"}'},
                 {"relationshipId": signin_sec, "description": "Validates credentials using"},
-                {"relationshipId": sec_db, "description": "select * from users where username = ?"},
-                {"relationshipId": sec_db, "description": "Returns user data to", "response": True},
+                {"relationshipId": sec_db, "description": "select * from users where username = ?", "format": "SQL", "example": "select user_id, password_hash from users where username = 'alice'"},
+                {"relationshipId": sec_db, "description": "Returns user data to", "response": True, "format": "Row", "example": "USER_ID=1001, PASSWORD_HASH=5e884898da…"},
                 {"relationshipId": signin_sec, "description": "Returns true if the hashed password matches", "response": True},
-                {"relationshipId": spa_signin, "description": "Sends back an authentication token to", "response": True},
+                {"relationshipId": spa_signin, "description": "Sends back an authentication token to", "response": True, "format": "JSON", "example": '200 OK\n{"ok": true, "token": "9f2c41d07a3b5e68"}'},
             ]
         },
     )
+    # ---------------------------------------------------------------- showcase additions
+    from designperspectives.sidecar import Lens, TagGroup, TagValue
+
+    analytics = E("softwareSystem", "Analytics Platform", description="Collects usage events and loads them, with personal data removed, into the data warehouse.")
+    stream = E("container", "Event Stream", analytics, "Carries usage events published by the banking applications.", "Kafka")
+    worker = E("container", "Pipeline Worker", analytics, "Runs the nightly job that moves events from the stream into the warehouse.", "Python, Airflow")
+    warehouse = E("container", "Data Warehouse", analytics, "Curated, masked usage events for reporting.", "Snowflake")
+    consume_c = E("component", "Event Consumer", worker, "Reads batches of events from the Kafka topic.", "Python")
+    mask_c = E("component", "PII Masker", worker, "Replaces personal fields with placeholders.", "Python")
+    load_c = E("component", "Warehouse Loader", worker, "Writes masked events to Snowflake.", "Python")
+    R(api, stream, "Publishes usage events to", "Kafka, JSON", kind="async-message")
+    pipe = R(stream, warehouse, "Loads masked events into", "Airflow", kind="data-pipeline")
+    ops.update_relationship(ws, pipe, {
+        "notes": "Runs nightly at 02:00 UTC. A failed run is retried twice, then pages the data team.",
+        "sensitive": [{"item": "User e-mail addresses (before masking)", "level": "restricted"}],
+        "codePaths": ["sample_code/pipeline"],
+        "stages": [
+            {"name": "Consume events", "technologies": ["Kafka", "Python"], "elementId": consume_c, "archType": "queue", "description": "Reads up to 500 events per batch."},
+            {"name": "Mask PII", "technologies": ["Python"], "elementId": mask_c, "archType": "pipeline", "description": "Removes user and e-mail fields."},
+            {"name": "Load to warehouse", "technologies": ["Snowflake", "Airflow"], "elementId": load_c, "archType": "database"},
+        ],
+    })
+
+    # Symbols (architecture types)
+    for el, arch in [(customer, None), (spa, "web"), (mobile, "mobile"), (web, "web"), (api, "service"), (db, "database"),
+                     (email, "cloud"), (stream, "queue"), (worker, "pipeline"), (warehouse, "database"), (mainframe, "service")]:
+        if arch:
+            ops.update_element(ws, sc, el, {"archType": arch})
+
+    # Tag groups and tags
+    sc.tag_groups = [
+        TagGroup(name="Risk", values=[TagValue(name="Low", color="#2ca02c"), TagValue(name="Medium", color="#ff7f0e"), TagValue(name="High", color="#d62728")]),
+        TagGroup(name="Lifecycle", values=[TagValue(name="Planned", color="#9467bd"), TagValue(name="Live", color="#1f77b4"), TagValue(name="Deprecated", color="#7f7f7f")]),
+    ]
+    tags = {
+        ibs: {"Risk": "Medium", "Lifecycle": "Live"}, mainframe: {"Risk": "High", "Lifecycle": "Live"},
+        email: {"Risk": "Low", "Lifecycle": "Live"}, atm: {"Risk": "Medium", "Lifecycle": "Deprecated"},
+        analytics: {"Risk": "Medium", "Lifecycle": "Planned"}, api: {"Risk": "High", "Lifecycle": "Live"},
+        db: {"Risk": "High", "Lifecycle": "Live"}, spa: {"Risk": "Low", "Lifecycle": "Live"},
+        mobile: {"Risk": "Low", "Lifecycle": "Planned"}, warehouse: {"Risk": "Medium", "Lifecycle": "Planned"},
+        security: {"Risk": "High", "Lifecycle": "Live"}, facade: {"Risk": "Medium", "Lifecycle": "Live"},
+    }
+    for el, t in tags.items():
+        ops.update_element(ws, sc, el, {"tags": t})
+
+    # Notes, tradeoffs, usage, sensitive information, owner
+    ops.update_element(ws, sc, api, {
+        "owner": "Digital Channels team",
+        "notes": "All customer traffic goes through this container.\nRate limiting is configured at the gateway, not here.",
+        "tradeoffs": [
+            {"kind": "benefit", "text": "One JSON API serves both the web and mobile clients."},
+            {"kind": "cost", "text": "Every client release depends on API compatibility."},
+            {"kind": "risk", "text": "Single point of failure for all digital channels."},
+        ],
+        "usage": [
+            {"users": "Personal banking customers", "frequency": "daily", "volume": "about 40,000 active users"},
+            {"users": "Customer service staff", "frequency": "hourly"},
+        ],
+        "sensitive": [{"item": "Account numbers and balances in responses", "level": "confidential"}],
+    })
+    ops.update_element(ws, sc, db, {
+        "notes": "Holds hashed credentials. Backups are encrypted.",
+        "sensitive": [{"item": "Hashed authentication credentials", "level": "restricted"}, {"item": "Access logs", "level": "internal"}],
+        "tradeoffs": [{"kind": "cost", "text": "Oracle licensing cost grows with core count."}],
+    })
+    ops.update_element(ws, sc, db, {"details": [
+        {"title": "Connection", "columns": ["Setting", "Value"], "rows": [
+            ["Host", "ibdb.internal.bigbank.example"], ["Port", "1521"], ["Service name", "IBPROD"],
+            ["Credentials", "Vault path secret/ib/db (never store passwords here)"]]},
+        {"title": "Table USERS", "columns": ["Column", "Type", "Nullable", "Notes"], "rows": [
+            ["USER_ID", "NUMBER", "no", "Primary key"], ["USERNAME", "VARCHAR2(64)", "no", "Unique"],
+            ["PASSWORD_HASH", "VARCHAR2(128)", "no", "Salted hash"], ["LAST_LOGIN", "TIMESTAMP", "yes", ""]]},
+    ]})
+    ops.update_element(ws, sc, warehouse, {"details": [
+        {"title": "Connection", "columns": ["Setting", "Value"], "rows": [["Account", "bigbank-analytics"], ["Warehouse", "ANALYTICS_WH"], ["Schema", "USAGE_EVENTS"]]}]})
+    ops.update_element(ws, sc, mainframe, {
+        "usage": [{"users": "Back office staff", "frequency": "continuous"}],
+        "tradeoffs": [{"kind": "risk", "text": "Batch windows limit how fresh balances can be."}],
+    })
+    ops.update_relationship(ws, spa_signin, {"notes": "Credentials are sent in the request body, never in the URL.", "sensitive": [{"item": "User credentials in transit", "level": "restricted"}]})
+
+    # Code mapped to components (C4 level)
+    for el, paths in [(signin, ["sample_code/api/sign_in.py", "sample_code/api/security.py", "sample_code/api/store.py"]),
+                      (accounts, ["sample_code/api/accounts.py", "sample_code/api/mainframe_facade.py", "sample_code/api/store.py"]),
+                      (reset, ["sample_code/api/reset_password.py", "sample_code/api/security.py", "sample_code/api/email_sender.py", "sample_code/api/store.py"]),
+                      (security, ["sample_code/api/security.py", "sample_code/api/store.py"]),
+                      (facade, ["sample_code/api/mainframe_facade.py"]),
+                      (email_c, ["sample_code/api/email_sender.py"]),
+                      (consume_c, ["sample_code/pipeline/consume.py"]), (mask_c, ["sample_code/pipeline/mask_pii.py"]),
+                      (load_c, ["sample_code/pipeline/load_warehouse.py"])]:
+        ops.update_element(ws, sc, el, {"codePaths": paths})
+
+    # Styling examples
+    ops.set_style(ws, sc, atm, {"fill": "#8c8c8c", "strokeStyle": "dashed"})
+    ops.set_style(ws, sc, pipe, {"stroke": "#9467bd", "strokeWidth": 3})
+
+    # Lenses
+    sc.lenses = [
+        Lens(id="security-review", name="Security review", visible_levels=["context", "container", "component"], default_overlay="Risk",
+             visible_sections=["technology", "details", "notes", "sensitive", "tradeoffs"]),
+        Lens(id="product-owner", name="Product owner", visible_levels=["landscape", "context", "container"], default_overlay="Lifecycle",
+             hidden_tag_groups=["Risk"], visible_sections=["notes", "usage"], show_technology=False),
+    ]
+
+    key2 = flows.create_flow(ws, "Publish usage event", "How a usage event reaches the warehouse.")
+    flows.update_flow(ws, key2, {"steps": [
+        {"relationshipId": ops.build_index(ws).elements[api].relationships[-1].id, "description": "Publishes event to"},
+        {"relationshipId": pipe, "description": "Nightly job loads masked events into"},
+    ]})
+
     sync_views(ws)
     flows.sync_flows(ws)
     problems = errors(ws, sc)

@@ -16,11 +16,33 @@ meet these rules; the flow still works here but may not open in Structurizr.
 
 from __future__ import annotations
 
-from .diagrams import positions_of
-from .ops import Index, ModelError, build_index, element_summary, slugify, unique
+import json
+
+from .diagrams import decorate, positions_of
+from .ops import Index, ModelError, build_index, element_summary, relationship_summary, slugify, unique
+from .sidecar import Sidecar
 from .workspace import ElementView, RelationshipView, View, Workspace
 
 FLOW_PROPERTY = "dp.flow"
+STEP_DATA_PROPERTY = "dp.stepData"  # JSON {"<order>": {"example": str, "format": str}} on the flow's view
+
+
+def _step_data(view: View) -> dict[str, dict]:
+    try:
+        data = json.loads((view.properties or {}).get(STEP_DATA_PROPERTY, "{}"))
+    except ValueError:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _set_step_data(view: View, data: dict[str, dict]) -> None:
+    props = dict(view.properties or {})
+    data = {k: v for k, v in data.items() if v.get("example") or v.get("format")}
+    if data:
+        props[STEP_DATA_PROPERTY] = json.dumps(data, ensure_ascii=False)
+    else:
+        props.pop(STEP_DATA_PROPERTY, None)
+    view.properties = props or None
 
 
 def _flow_view(ws: Workspace, key: str) -> View:
@@ -88,6 +110,7 @@ def list_flows(ws: Workspace) -> list[dict]:
     out = []
     for v in ws.views.dynamic_views:
         scope, warnings = infer_scope(idx, _endpoints(idx, v))
+        data = _step_data(v)
         out.append(
             {
                 "key": v.key,
@@ -101,6 +124,8 @@ def list_flows(ws: Workspace) -> list[dict]:
                         "description": rv.description or "",
                         "response": bool(rv.response),
                         "order": rv.order,
+                        "example": data.get(rv.order or "", {}).get("example", ""),
+                        "format": data.get(rv.order or "", {}).get("format", ""),
                     }
                     for rv in _steps(v)
                 ],
@@ -133,10 +158,12 @@ def update_flow(ws: Workspace, key: str, patch: dict) -> None:
         view.description = patch["description"] or None
     if "steps" in patch:
         steps = []
+        data: dict[str, dict] = {}
         for i, s in enumerate(patch["steps"] or [], start=1):
             rid = s.get("relationshipId")
             if rid not in idx.relationships:
                 raise ModelError(f'Step {i}: no relationship with ID "{rid}".')
+            data[str(i)] = {"example": (s.get("example") or "").strip("\n"), "format": (s.get("format") or "").strip()}
             steps.append(
                 RelationshipView(
                     id=rid,
@@ -146,6 +173,7 @@ def update_flow(ws: Workspace, key: str, patch: dict) -> None:
                 )
             )
         view.relationships = steps
+        _set_step_data(view, data)
     sync_flow(idx, view)
 
 
@@ -156,7 +184,23 @@ def delete_flow(ws: Workspace, key: str) -> None:
 
 def sync_flow(idx: Index, view: View) -> None:
     """Element list = endpoints of the steps (positions kept); scope re-inferred for our flows."""
-    view.relationships = [rv for rv in view.relationships if rv.id in idx.relationships]
+    if (view.properties or {}).get(FLOW_PROPERTY) == "true":
+        # Drop steps whose relationship is gone and renumber, keeping each step's example data.
+        old = _step_data(view)
+        kept: list[RelationshipView] = []
+        data: dict[str, dict] = {}
+        for rv in _steps(view):
+            if rv.id not in idx.relationships:
+                continue
+            n = str(len(kept) + 1)
+            if rv.order in old:
+                data[n] = old[rv.order]
+            rv.order = n
+            kept.append(rv)
+        view.relationships = kept
+        _set_step_data(view, data)
+    else:
+        view.relationships = [rv for rv in view.relationships if rv.id in idx.relationships]
     ids = _endpoints(idx, view)
     old = {e.id: e for e in view.elements}
     view.elements = [old.get(i) or ElementView(id=i) for i in ids]
@@ -171,7 +215,7 @@ def sync_flows(ws: Workspace) -> None:
         sync_flow(idx, v)
 
 
-def flow_diagram(ws: Workspace, key: str) -> dict | None:
+def flow_diagram(ws: Workspace, key: str, sidecar: Sidecar | None = None) -> dict | None:
     idx = build_index(ws)
     try:
         view = _flow_view(ws, key)
@@ -189,6 +233,7 @@ def flow_diagram(ws: Workspace, key: str) -> dict | None:
     edges: dict[str, dict] = {}
     for n, rv in enumerate(steps, start=1):
         r = idx.relationships[rv.id]
+        summ = relationship_summary(r)
         edge = edges.setdefault(
             r.id,
             {
@@ -196,17 +241,25 @@ def flow_diagram(ws: Workspace, key: str) -> dict | None:
                 "source": r.source_id,
                 "target": r.destination_id,
                 "description": r.description or "",
-                "technology": r.technology or "",
+                "technology": summ["technology"],
+                "technologies": summ["technologies"],
+                "kind": summ["kind"],
+                "sensitivityLevel": summ["sensitivityLevel"],
+                "hasNotes": bool(summ["notes"]),
+                "stageCount": len(summ["stages"]),
                 "derived": False,
                 "relationshipIds": [r.id],
+                "detailKey": None,
+                "drillTargets": [],
                 "steps": [],
             },
         )
         edge["steps"].append(n)
     flows = {f["key"]: f for f in list_flows(ws)}
-    return {
+    d = {
         "key": key,
         "level": "flow",
+        "c4": "",
         "scope": view.element_id,
         "title": view.title or key,
         "breadcrumb": [{"key": "landscape", "label": "Landscape", "level": "landscape"},
@@ -217,3 +270,5 @@ def flow_diagram(ws: Workspace, key: str) -> dict | None:
         "addable": [],
         "flow": flows[key],
     }
+    decorate(d, sidecar)
+    return d

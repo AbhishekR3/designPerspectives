@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { api } from "./api";
 import { Modal } from "./fields";
-import { LEVELS, LEVEL_LABEL, type Diagram, type Lens, type Level, type TagGroup } from "./types";
+import { LEVELS, LEVEL_LABEL, SECTIONS, SECTION_LABEL, type Diagram, type Lens, type Level, type Section, type TagGroup } from "./types";
 
 // Palette chosen so neighbouring values differ in lightness as well as hue.
 const PALETTE = ["#d62728", "#ff7f0e", "#2ca02c", "#1f77b4", "#9467bd", "#8c564b", "#e377c2", "#17becf"];
@@ -75,6 +75,7 @@ export function LensEditor({
           visibleLevels: [...LEVELS],
           defaultOverlay: null,
           hiddenTagGroups: [],
+          visibleSections: [...SECTIONS],
           showTechnology: true,
           showDescriptions: true,
         },
@@ -98,7 +99,7 @@ export function LensEditor({
         <span>Lens name</span>
         <input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} data-testid="lens-name" autoFocus />
       </label>
-      <h4>Levels shown in the diagram list</h4>
+      <h4>Levels shown in the diagram list (C1 landscape/context, C2 container, C3 component, C4 code)</h4>
       <div className="row wrap">
         {LEVELS.map((l: Level) => (
           <label className="check" key={l}>
@@ -144,6 +145,21 @@ export function LensEditor({
           </div>
         </>
       )}
+      <h4>Sections shown for each object</h4>
+      <div className="row wrap">
+        {SECTIONS.map((sec: Section) => (
+          <label className="check" key={sec}>
+            <input
+              type="checkbox"
+              checked={draft.visibleSections.includes(sec)}
+              onChange={() => setDraft({ ...draft, visibleSections: SECTIONS.filter((x) => toggle(draft.visibleSections, sec).includes(x)) })}
+              data-testid={`lens-section-${sec}`}
+            />
+            {SECTION_LABEL[sec]}
+          </label>
+        ))}
+      </div>
+      <p className="muted small">Also controls which badges (notes, tradeoffs, usage, sensitive, code) appear on boxes.</p>
       <h4>On each box</h4>
       <label className="check">
         <input type="checkbox" checked={draft.showTechnology} onChange={(e) => setDraft({ ...draft, showTechnology: e.target.checked })} />

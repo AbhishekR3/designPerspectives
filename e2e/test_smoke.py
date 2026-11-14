@@ -42,7 +42,7 @@ def test_checklist_steps_1_to_4(page: Page, server):
     def connect(a: str, b: str):
         src = node(page, a)
         src.hover()
-        src.locator(".connect-handle").drag_to(node(page, b))
+        src.locator(".connect-handle.h-r").drag_to(node(page, b))
 
     connect("new-container", "new-container-2")
     expect(page.get_by_test_id("edge-panel")).to_be_visible()

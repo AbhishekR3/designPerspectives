@@ -4,11 +4,20 @@ import { api } from "./api";
 import { Canvas, type CanvasHandle } from "./Canvas";
 import { LensEditor, Legend, TagGroupEditor } from "./editors";
 import { FlowPanel } from "./FlowPanel";
-import { EdgePanel, ObjectPanel, homeDiagramOf } from "./ObjectPanel";
+import { FileEditor } from "./CodeParts";
+import { CodeDiagramPanel, ConnectorPanel, EdgePanel, FilePanel, ObjectPanel, StagePanel, homeDiagramOf } from "./ObjectPanel";
+import { defaultSize } from "./layout";
 import { Sidebar } from "./Sidebar";
-import { KIND_LABEL, LEVEL_LABEL, type AppState, type Diagram, type Kind, type Lens, type Selection, type TagGroup } from "./types";
+import { KIND_LABEL, LEVEL_LABEL, type AppState, type Diagram, type DiagramLevel, type Level, type Lens, type Pt, type Selection, type TagGroup } from "./types";
+
+const ADD_LABEL: Record<string, string> = { ...KIND_LABEL, stage: "Stage" };
+const inLens = (lens: Lens, level: DiagramLevel) => level === "flow" || level === "connector" || lens.visibleLevels.includes(level as Level);
+
+const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
 const LENS_KEY = "dp.lens";
+const LEFT_KEY = "dp.leftWidth";
+const RIGHT_KEY = "dp.rightWidth";
 const storage = {
   get(k: string) {
     try {
@@ -42,10 +51,16 @@ export default function App() {
   const [lensId, setLensId] = useState<string>(storage.get(LENS_KEY) ?? "engineer");
   const [overlayName, setOverlayName] = useState<string | null>(null);
   const [showAllLevels, setShowAllLevels] = useState(false);
+  const navStarted = useRef(false);
+  const clipboard = useRef<string | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
   const [flowStep, setFlowStep] = useState<number | null>(null);
   const [playing, setPlaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [modal, setModal] = useState<ModalState>(null);
+  const [openFile, setOpenFile] = useState<string | null>(null);
+  const [leftW, setLeftW] = useState(() => clamp(Number(storage.get(LEFT_KEY)) || 250, 180, 560));
+  const [rightW, setRightW] = useState(() => clamp(Number(storage.get(RIGHT_KEY)) || 320, 240, 720));
   const canvasRef = useRef<CanvasHandle>(null);
   const keyRef = useRef(key);
   keyRef.current = key;
@@ -95,7 +110,7 @@ export default function App() {
         const l = s.lenses.find((x) => x.id === lensId) ?? s.lenses[0];
         if (l.defaultOverlay && s.tagGroups.some((g) => g.name === l.defaultOverlay)) setOverlayName(l.defaultOverlay);
         if (!keyRef.current) {
-          const first = s.diagrams.find((d) => l.visibleLevels.includes(d.level)) ?? s.diagrams[0];
+          const first = s.diagrams.find((d) => inLens(l, d.level)) ?? s.diagrams[0];
           setKey(first?.key ?? "landscape");
         }
       })
@@ -105,7 +120,14 @@ export default function App() {
 
   useEffect(() => {
     if (!key) return;
-    if (keyFromHash() !== key) window.history.replaceState(null, "", `#/d/${encodeURIComponent(key)}`);
+    if (keyFromHash() !== key) {
+      // A new diagram is a new history entry, so the browser Back/Forward buttons walk through diagrams.
+      const first = !navStarted.current;
+      const h = `#/d/${encodeURIComponent(key)}`;
+      if (first) window.history.replaceState(null, "", h);
+      else window.history.pushState(null, "", h);
+    }
+    navStarted.current = true;
     setFlowStep(null);
     setPlaying(false);
     loadDiagram(key);
@@ -160,11 +182,87 @@ export default function App() {
     storage.set(LENS_KEY, id);
     const ov = l.defaultOverlay && state.tagGroups.some((g) => g.name === l.defaultOverlay) ? l.defaultOverlay : null;
     setOverlayName(ov);
-    if (diagram && diagram.level !== "flow" && !l.visibleLevels.includes(diagram.level)) {
-      const first = state.diagrams.find((d) => l.visibleLevels.includes(d.level));
+    if (diagram && !inLens(l, diagram.level)) {
+      const first = state.diagrams.find((d) => inLens(l, d.level));
       if (first) open(first.key);
     }
   };
+
+  const doHistory = useCallback(
+    async (dir: "undo" | "redo") => {
+      try {
+        await (dir === "undo" ? api.undo() : api.redo());
+        setError(null);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+      }
+      await refresh().catch(() => undefined);
+    },
+    [refresh],
+  );
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
+      const t = e.target as HTMLElement;
+      if (t.closest("input, textarea, select, [contenteditable]")) return;
+      const k = e.key.toLowerCase();
+      if (k === "z" && !e.shiftKey) doHistory("undo");
+      else if ((k === "z" && e.shiftKey) || k === "y") doHistory("redo");
+      else return;
+      e.preventDefault();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [doHistory]);
+
+  // Editor-style shortcuts: copy/cut/paste/duplicate, select-all is not offered; arrows nudge; zoom; escape.
+  const pasteFrom = useCallback(
+    async (id: string) => {
+      let newId = "";
+      const ok = await mutate(async () => {
+        newId = (await api.duplicate(id)).id;
+      });
+      if (ok) setSelection({ type: "node", id: newId });
+    },
+    [mutate],
+  );
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement;
+      if (t.closest("input, textarea, select, [contenteditable], .cm-editor")) return;
+      if (state?.readOnly) return;
+      const mod = e.metaKey || e.ctrlKey;
+      const k = e.key.toLowerCase();
+      const nodeId = selection?.type === "node" ? selection.id : null;
+      const isElement = nodeId ? state?.elements.some((x) => x.id === nodeId) : false;
+      if (mod && !e.altKey) {
+        if (k === "c" && isElement) clipboard.current = nodeId;
+        else if (k === "x" && isElement) {
+          clipboard.current = nodeId;
+          const el = state!.elements.find((x) => x.id === nodeId)!;
+          if (window.confirm(`Cut "${el.name}"? It is removed now; Paste adds a copy of it.`) )
+            mutate(() => api.deleteElement(el.id)).then((ok) => ok && setSelection(null));
+        } else if (k === "v" && clipboard.current && state?.elements.some((x) => x.id === clipboard.current)) pasteFrom(clipboard.current);
+        else if (k === "d" && isElement) pasteFrom(nodeId!);
+        else if (k === "0") canvasRef.current?.fit();
+        else if (k === "=" || k === "+") canvasRef.current?.zoom(1);
+        else if (k === "-") canvasRef.current?.zoom(-1);
+        else return;
+        e.preventDefault();
+        return;
+      }
+      if (e.key === "Escape") setSelection(null);
+      else if (e.key.startsWith("Arrow") && nodeId) {
+        const step = e.shiftKey ? 40 : 10;
+        const d = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[e.key] as number[];
+        canvasRef.current?.nudge(nodeId, d[0], d[1]);
+      } else if (e.key === "F2" && selection) setFocusName(true);
+      else return;
+      e.preventDefault();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selection, state, mutate, pasteFrom]);
 
   // Delete key removes the selection (not while typing).
   useEffect(() => {
@@ -193,10 +291,16 @@ export default function App() {
   const visibleGroups = state.tagGroups.filter((g) => !lens.hiddenTagGroups.includes(g.name));
   const overlay = visibleGroups.find((g) => g.name === overlayName) ?? null;
 
-  const addElement = async (kind: Kind) => {
+  const addElement = async (kind: string) => {
     if (!diagram || !key) return;
+    if (kind === "stage") {
+      const rel = state.relationships.find((r) => r.id === diagram.scope);
+      const name = window.prompt("Name of the new stage (a step inside this connector)");
+      if (rel && name) await mutate(() => api.updateRelationship(rel.id, { stages: [...rel.stages, { id: "", name }] }));
+      return;
+    }
     const parentId = (kind === "container" && diagram.level === "container") || (kind === "component" && diagram.level === "component") ? diagram.scope : null;
-    const position = canvasRef.current?.center() ?? { x: 0, y: 0 };
+    const position = canvasRef.current?.freeSpot(defaultSize(kind)) ?? { x: 0, y: 0 };
     let newId = "";
     const ok = await mutate(async () => {
       newId = (await api.createElement({ kind, parentId, diagramKey: key, position })).id;
@@ -207,10 +311,12 @@ export default function App() {
     }
   };
 
-  const connect = async (source: string, target: string) => {
+  const connect = async (source: string, target: string, anchors: { sourceAnchor?: Pt; targetAnchor?: Pt }) => {
     let newId = "";
     const ok = await mutate(async () => {
       newId = (await api.createRelationship({ sourceId: source, destinationId: target })).id;
+      // Remember which sides of the two boxes the line was drawn between.
+      if (key && (anchors.sourceAnchor || anchors.targetAnchor)) await api.layout(key, { edges: { [newId]: anchors } });
     });
     if (ok) {
       setSelection({ type: "edge", id: newId });
@@ -218,16 +324,42 @@ export default function App() {
     }
   };
 
+  const savePositions = (p: Record<string, Pt>, auto = false) => {
+    if (!key || !Object.keys(p).length) return;
+    if (diagram?.level === "connector" || diagram?.level === "code") mutate(() => api.layout(key, { positions: p }));
+    else mutate(() => api.positions(key, p, auto));
+  };
+
   const select = (s: Selection) => {
     setFocusName(false);
     setSelection(s);
   };
 
+  const selectedNode = selection?.type === "node" ? diagram?.nodes.find((n) => n.id === selection.id) : undefined;
   const selectedElement = selection?.type === "node" ? state.elements.find((e) => e.id === selection.id) : undefined;
-  const panelProps = { state, diagram: diagram!, lens, mutate, onSelect: select, onOpen: open, onReveal: reveal, focusName };
+  const panelProps = { state, diagram: diagram!, lens, mutate, onSelect: select, onOpen: open, onReveal: reveal, onOpenFile: setOpenFile, focusName };
+  const startDrag = (side: "left" | "right") => (e: React.PointerEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const start = side === "left" ? leftW : rightW;
+    const set = side === "left" ? setLeftW : setRightW;
+    const [lo, hi, k] = side === "left" ? [180, 560, LEFT_KEY] : [240, 720, RIGHT_KEY];
+    let last = start;
+    const move = (ev: PointerEvent) => {
+      last = clamp(start + (side === "left" ? ev.clientX - startX : startX - ev.clientX), lo, hi);
+      set(last);
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      storage.set(k, String(Math.round(last)));
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
 
   return (
-    <div className="app">
+    <div className="app" style={{ gridTemplateColumns: `${leftW}px 5px minmax(0, 1fr) 5px ${rightW}px` }}>
       <Sidebar
         state={state}
         lens={lens}
@@ -256,6 +388,7 @@ export default function App() {
         }}
       />
 
+      <div className="resizer" onPointerDown={startDrag("left")} onDoubleClick={() => { setLeftW(250); storage.set(LEFT_KEY, "250"); }} role="separator" aria-orientation="vertical" title="Drag to resize the sidebar (double-click: reset)" data-testid="resize-left" />
       <main className="main">
         <header className="topbar">
           <nav className="breadcrumb" data-testid="breadcrumb">
@@ -263,20 +396,32 @@ export default function App() {
               <span key={c.key}>
                 {i > 0 && <span className="sep">›</span>}
                 <button className={`link ${c.key === key ? "active" : ""}`} onClick={() => open(c.key)} data-testid={`crumb-${c.key}`}>
-                  {c.label}
+                  {c.c4 && <span className="level-tag">{c.c4}</span>} {c.label}
                 </button>
               </span>
             ))}
-            {diagram && diagram.level !== "flow" && !lens.visibleLevels.includes(diagram.level) && (
+            {diagram && !inLens(lens, diagram.level) && (
               <span className="muted small"> (this level is not in the {lens.name} lens)</span>
             )}
           </nav>
           <div className="toolbar">
             {diagram?.addable.map((k) => (
               <button key={k} onClick={() => addElement(k)} data-testid={`add-${k}`}>
-                + {KIND_LABEL[k]}
+                + {ADD_LABEL[k] ?? k}
               </button>
             ))}
+            <button onClick={() => window.history.back()} title="Back to the previous diagram (Alt+Left)" data-testid="nav-back">
+              ◀ Back
+            </button>
+            <button onClick={() => window.history.forward()} title="Forward (Alt+Right)" data-testid="nav-forward">
+              Forward ▶
+            </button>
+            <button onClick={() => doHistory("undo")} disabled={!state.canUndo} title="Undo (Ctrl/Cmd+Z)" data-testid="undo">
+              Undo
+            </button>
+            <button onClick={() => doHistory("redo")} disabled={!state.canRedo} title="Redo (Ctrl/Cmd+Shift+Z)" data-testid="redo">
+              Redo
+            </button>
             <label className="overlay-select">
               Overlay
               <select value={overlay?.name ?? ""} onChange={(e) => setOverlayName(e.target.value || null)} data-testid="overlay-select">
@@ -291,14 +436,35 @@ export default function App() {
             <button onClick={() => canvasRef.current?.relayout()} title="Lay the diagram out again" data-testid="auto-layout">
               Auto-layout
             </button>
-            <button onClick={() => canvasRef.current?.exportImage("svg")} data-testid="export-svg">
-              SVG
-            </button>
-            <button onClick={() => canvasRef.current?.exportImage("png")} data-testid="export-png">
-              PNG
-            </button>
+            <span className="export-wrap" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setExportOpen(false)}>
+              <button onClick={() => setExportOpen(!exportOpen)} aria-haspopup="menu" aria-expanded={exportOpen} data-testid="export">
+                Download ▾
+              </button>
+              {exportOpen && (
+                <div className="menu" role="menu">
+                  {(["png", "svg"] as const).map((f) => (
+                    <button
+                      key={f}
+                      role="menuitem"
+                      data-testid={`export-${f}`}
+                      onClick={() => {
+                        setExportOpen(false);
+                        canvasRef.current?.exportImage(f);
+                      }}
+                    >
+                      {f.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </span>
           </div>
         </header>
+        {state.readOnly && (
+          <div className="readonly-banner" data-testid="readonly-banner">
+            Viewer role: this server is read-only. Changes are refused.
+          </div>
+        )}
         {error && (
           <div className="error" role="alert" data-testid="error">
             {error}
@@ -358,9 +524,9 @@ export default function App() {
                 onSelect={select}
                 onDrill={open}
                 onConnect={connect}
-                onPositions={(p) => {
-                  if (key && Object.keys(p).length) mutate(() => api.positions(key, p));
-                }}
+                onPositions={savePositions}
+                onLayout={(patch) => key && mutate(() => api.layout(key, patch))}
+                onOpenFile={setOpenFile}
                 handleRef={canvasRef}
               />
             </ReactFlowProvider>
@@ -370,14 +536,19 @@ export default function App() {
             <div className="empty-hint">
               {diagram.level === "flow"
                 ? "This flow has no steps yet. Add steps in the panel on the right."
-                : `Nothing here yet. Use the + buttons above to add ${diagram.addable.map((k) => KIND_LABEL[k].toLowerCase()).join(", ")}.`}
+                : diagram.level === "code"
+                  ? "No files yet. Add code paths in the panel on the right."
+                  : `Nothing here yet. Use the + buttons above to add ${diagram.addable.map((k) => (ADD_LABEL[k] ?? k).toLowerCase()).join(", ")}.`}
             </div>
           )}
         </div>
       </main>
 
+      <div className="resizer" onPointerDown={startDrag("right")} onDoubleClick={() => { setRightW(320); storage.set(RIGHT_KEY, "320"); }} role="separator" aria-orientation="vertical" title="Drag to resize the panel (double-click: reset)" data-testid="resize-right" />
       <aside className="panel">
         {selectedElement && diagram && <ObjectPanel key={selectedElement.id} element={selectedElement} {...panelProps} />}
+        {!selectedElement && selectedNode?.kind === "stage" && diagram && <StagePanel key={selectedNode.id} node={selectedNode} {...panelProps} />}
+        {!selectedElement && selectedNode?.kind === "file" && diagram && <FilePanel key={selectedNode.id} node={selectedNode} {...panelProps} />}
         {selection?.type === "edge" && diagram && <EdgePanel key={selection.id} edgeId={selection.id} {...panelProps} />}
         {!selection && flow && (
           <FlowPanel
@@ -389,14 +560,18 @@ export default function App() {
             setFlowStep={setFlowStep}
           />
         )}
-        {!selection && diagram && !flow && (
+        {!selection && diagram?.level === "connector" && <ConnectorPanel {...panelProps} />}
+        {!selection && diagram?.level === "code" && <CodeDiagramPanel {...panelProps} />}
+        {!selection && diagram && !flow && diagram.level !== "connector" && diagram.level !== "code" && (
           <div className="panel-body">
-            <div className="panel-kind">{diagram.level === "flow" ? "Flow" : `${LEVEL_LABEL[diagram.level]} diagram`}</div>
+            <div className="panel-kind">{diagram.c4 && `${diagram.c4} · `}{LEVEL_LABEL[diagram.level]} diagram</div>
             <h2 className="panel-title">{diagram.title}</h2>
             <ul className="hints muted small">
               <li>Click a box or line to see and edit it.</li>
               <li>Double-click a system or container to open the next level.</li>
-              <li>Drag from the dot on a box's right edge to another box to connect them.</li>
+              <li>Drag from a dot on any side of a box to any side of another box to connect them.</li>
+              <li>Select a box to resize it; select a line to drag its ends, bend it or slide its label.</li>
+              <li>Double-click a line to open the connector behind it (pipeline stages, protocol, code).</li>
               <li>Dashed lines are derived from relationships between elements inside the boxes.</li>
               <li>Select something and press Delete to remove it.</li>
             </ul>
@@ -404,6 +579,7 @@ export default function App() {
         )}
       </aside>
 
+      {openFile && <FileEditor path={openFile} onClose={() => setOpenFile(null)} />}
       {modal?.type === "tag" && <TagGroupEditor group={modal.group} onClose={() => setModal(null)} mutate={mutate} />}
       {modal?.type === "lens" && (
         <LensEditor lens={modal.lens} tagGroups={state.tagGroups} onClose={() => setModal(null)} mutate={mutate} onSaved={(id) => chooseLensAfterSave(id)} />

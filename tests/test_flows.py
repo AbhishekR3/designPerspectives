@@ -7,8 +7,7 @@ from designperspectives.ops import ModelError, build_index
 
 
 def test_demo_flow(demo_ws):
-    [f] = flows.list_flows(demo_ws)
-    assert f["title"] == "Sign in"
+    f = next(f for f in flows.list_flows(demo_ws) if f["title"] == "Sign in")
     assert len(f["steps"]) == 6
     assert [s["order"] for s in f["steps"]] == ["1", "2", "3", "4", "5", "6"]
     assert f["steps"][3]["response"] is True
@@ -46,7 +45,7 @@ def test_scope_warning_for_components_of_two_containers(demo_ws):
 def test_deleting_relationship_removes_its_steps(demo_ws):
     ops.delete_relationship(demo_ws, "security-component--database")
     flows.sync_flows(demo_ws)
-    [f] = flows.list_flows(demo_ws)
+    f = next(f for f in flows.list_flows(demo_ws) if f["title"] == "Sign in")
     assert len(f["steps"]) == 4
 
 

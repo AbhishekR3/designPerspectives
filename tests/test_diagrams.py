@@ -10,13 +10,13 @@ def names(d):
 
 def test_landscape_shows_people_and_systems(demo_ws):
     d = diagrams.diagram(demo_ws, "landscape")
-    assert len(d["nodes"]) == 7
+    assert len(d["nodes"]) == 8
     assert all(n["kind"] in ("person", "softwareSystem") for n in d["nodes"])
 
 
 def test_context_shows_system_and_neighbours(demo_ws):
     d = diagrams.diagram(demo_ws, "context-internet-banking-system")
-    assert names(d) == ["E-mail System", "Internet Banking System", "Mainframe Banking System", "Personal Banking Customer"]
+    assert names(d) == ["Analytics Platform", "E-mail System", "Internet Banking System", "Mainframe Banking System", "Personal Banking Customer"]
 
 
 def test_container_view_includes_derived_edges(demo_ws):
@@ -55,7 +55,7 @@ def test_rename_shows_in_every_diagram(demo_ws):
 
 def test_breadcrumb(demo_ws):
     d = diagrams.diagram(demo_ws, "components-api-application")
-    assert [c["key"] for c in d["breadcrumb"]] == ["landscape", "containers-internet-banking-system", "components-api-application"]
+    assert [c["key"] for c in d["breadcrumb"]] == ["landscape", "context-internet-banking-system", "containers-internet-banking-system", "components-api-application"]
 
 
 def test_drill_keys(demo_ws):

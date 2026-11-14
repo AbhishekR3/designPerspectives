@@ -58,8 +58,9 @@ def test_demo_round_trip_is_byte_identical(demo_dir):
     assert dump_json(read_workspace(path)) == text
 
 
-def test_demo_is_valid(demo_ws):
-    assert errors(demo_ws, Sidecar()) == []
+def test_demo_is_valid(demo_ws, demo_dir):
+    sidecar = Sidecar.model_validate_json((demo_dir / "architecture" / "designperspectives.json").read_text())
+    assert errors(demo_ws, sidecar) == []
 
 
 def test_empty_project(tmp_path):

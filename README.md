@@ -4,7 +4,7 @@ An open-source (MIT), model-based architecture tool using the [C4 model](https:/
 Every diagram is a view of one model, so a change made once shows everywhere. **Lenses** show
 the same model differently for different audiences.
 
-Status: **Stage A Proof of Concept** (see `docs/reviews/stage-a_review.md`).
+Status: **Stage A Proof of Concept**, plus the Stage A2 feature round (see `docs/reviews/stage-a_review.md` and `docs/reviews/stage-a2_review.md`).
 
 ## Run it
 
@@ -23,6 +23,7 @@ Other commands:
 ```bash
 dp init --empty     # start an empty model instead of the demo
 dp serve PATH       # serve a model in another folder (PATH/architecture/)
+dp serve --code-root SRC   # folder holding the source code components point to (default: the project folder)
 dp validate         # check the model files; exit code 1 on problems
 ```
 
@@ -36,9 +37,15 @@ The server listens on `127.0.0.1:8765` only. Stop it with Ctrl+C.
 | `architecture/designperspectives.json` | Tag groups and lenses (data Structurizr has no place for). |
 
 designPerspectives data stored inside the workspace as Structurizr element properties:
-`dp.owner`, `dp.links`, and `dp.tag.<Group>` (e.g. `dp.tag.Risk = High`).
+`dp.owner`, `dp.links`, `dp.tag.<Group>` (e.g. `dp.tag.Risk = High`), `dp.archType` (symbol),
+`dp.notes`, `dp.tradeoffs`, `dp.usage`, `dp.sensitive`, `dp.code.paths`, and on relationships
+`dp.kind` and `dp.stages` (the steps inside a pipeline or protocol).
 
-## What you can do (Stage A)
+The sidecar also holds per-object `styles` (colours, line style, text size) and per-diagram
+`layouts` (box sizes, line anchors/bends/label positions; box positions for connector and code
+diagrams).
+
+## What you can do
 
 - Model people, software systems, containers, components and relationships.
 - Landscape, context, container and component diagrams; double-click to go down a level,
@@ -53,12 +60,33 @@ designPerspectives data stored inside the workspace as Structurizr element prope
   hidden tag groups, what each box shows).
 - Export a diagram as SVG or PNG.
 
+Stage A2 additions:
+
+- **No overlap**: auto-layout is layered (ELK) with room for labels; new boxes are placed in the
+  nearest free spot; a box dropped onto another moves to the nearest free spot.
+- **Levels in the sidebar**: C1 (landscape, context), C2 (containers), C3 (components, connector
+  detail), C4 (code), each indented under its parent. The breadcrumb shows the same tags.
+- **Connectors have an inside**: double-click a line to open its connector detail: the stages of a
+  pipeline or protocol (e.g. consume, mask, load), each optionally linked to the component that
+  implements it. A line drawn between higher-level boxes opens where its relationship is drawn.
+- **Code level**: map a component or connector to files or folders; the C4 code diagram shows the
+  files as boxes and the imports between them (Python and JS/TS scanned). Double-click a file to
+  edit it in the browser; it saves to the file on disk (only inside the code folder).
+- **Technology as tags** (suggestions from the model), **symbols** per architecture type (database,
+  queue, pipeline, web, mobile, cache, storage, cloud, document, service), **notes**, **tradeoffs**,
+  **usage** (who, how often), and **sensitive** labels (public to restricted) on objects; lenses
+  choose which of these sections and badges show.
+- **Editing like draw.io / Lucidchart**: resize boxes, connect from any side, drag line ends to any
+  point on a box, bend lines, straight/curved/right-angle lines, slide a line's label, colours,
+  line style/width, text size, arrows, duplicate, undo/redo (Ctrl/Cmd+Z), copy/paste (Ctrl/Cmd+C/V/D), arrow-key nudge, Back/Forward between diagrams, a Download menu (PNG/SVG), details tables on objects, example data per flow step, drag the sidebar edges.
+- `dp serve --read-only` gives a viewer role: nothing can be changed.
+
 ## Develop
 
 ```bash
 python -m venv .venv && . .venv/bin/activate
 pip install -e ".[dev]"
-pytest                          # model, validation, diagrams, flows, API
+pytest                          # model, validation, diagrams, flows, connectors, code, API
 
 cd ui && npm ci && npm run dev  # UI dev server on :5173, proxies /api to dp serve on :8765
 npm run build                   # writes the UI into src/designperspectives/static/
