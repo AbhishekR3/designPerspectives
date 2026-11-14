@@ -16,8 +16,9 @@ meet these rules; the flow still works here but may not open in Structurizr.
 
 from __future__ import annotations
 
-from .diagrams import positions_of
-from .ops import Index, ModelError, build_index, element_summary, slugify, unique
+from .diagrams import decorate, positions_of
+from .ops import Index, ModelError, build_index, element_summary, relationship_summary, slugify, unique
+from .sidecar import Sidecar
 from .workspace import ElementView, RelationshipView, View, Workspace
 
 FLOW_PROPERTY = "dp.flow"
@@ -171,7 +172,7 @@ def sync_flows(ws: Workspace) -> None:
         sync_flow(idx, v)
 
 
-def flow_diagram(ws: Workspace, key: str) -> dict | None:
+def flow_diagram(ws: Workspace, key: str, sidecar: Sidecar | None = None) -> dict | None:
     idx = build_index(ws)
     try:
         view = _flow_view(ws, key)
@@ -189,6 +190,7 @@ def flow_diagram(ws: Workspace, key: str) -> dict | None:
     edges: dict[str, dict] = {}
     for n, rv in enumerate(steps, start=1):
         r = idx.relationships[rv.id]
+        summ = relationship_summary(r)
         edge = edges.setdefault(
             r.id,
             {
@@ -196,17 +198,25 @@ def flow_diagram(ws: Workspace, key: str) -> dict | None:
                 "source": r.source_id,
                 "target": r.destination_id,
                 "description": r.description or "",
-                "technology": r.technology or "",
+                "technology": summ["technology"],
+                "technologies": summ["technologies"],
+                "kind": summ["kind"],
+                "sensitivityLevel": summ["sensitivityLevel"],
+                "hasNotes": bool(summ["notes"]),
+                "stageCount": len(summ["stages"]),
                 "derived": False,
                 "relationshipIds": [r.id],
+                "detailKey": None,
+                "drillTargets": [],
                 "steps": [],
             },
         )
         edge["steps"].append(n)
     flows = {f["key"]: f for f in list_flows(ws)}
-    return {
+    d = {
         "key": key,
         "level": "flow",
+        "c4": "",
         "scope": view.element_id,
         "title": view.title or key,
         "breadcrumb": [{"key": "landscape", "label": "Landscape", "level": "landscape"},
@@ -217,3 +227,5 @@ def flow_diagram(ws: Workspace, key: str) -> dict | None:
         "addable": [],
         "flow": flows[key],
     }
+    decorate(d, sidecar)
+    return d

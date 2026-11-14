@@ -123,7 +123,7 @@ textarea {
 /* ---------------------------------------------------------------- layout */
 .app {
   display: grid;
-  grid-template-columns: 250px 1fr 320px;
+  grid-template-columns: 250px 5px minmax(0, 1fr) 5px 320px;
   height: 100vh;
   background: var(--bg);
 }
@@ -184,7 +184,7 @@ textarea {
   border-radius: 4px;
   padding: 0 4px;
   margin-right: 2px;
-  min-width: 62px;
+  min-width: 26px;
   text-align: center;
 }
 .footer {
@@ -290,36 +290,28 @@ textarea {
 /* ---------------------------------------------------------------- C4 nodes */
 .c4-node {
   position: relative;
-  border-radius: 8px;
-  padding: 12px 12px 8px;
+  text-align: center;
+}
+.shape-svg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: visible;
+  filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.25));
+}
+.c4-content {
+  position: absolute;
+  inset: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  text-align: center;
-  gap: 4px;
-  border: 2px solid transparent;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  justify-content: center;
+  gap: 3px;
   overflow: hidden;
 }
-.c4-node.kind-person {
-  border-radius: 28px;
-  padding-top: 16px;
-  overflow: visible;
-}
-.person-head {
-  position: absolute;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  top: -26px;
-  left: 50%;
-  transform: translateX(-50%);
-  border: 2px solid;
-  z-index: -1;
-}
 .c4-node.selected {
-  outline: 3px solid #f59e0b;
-  outline-offset: 2px;
+  outline: 2px dashed #f59e0b;
+  outline-offset: 3px;
 }
 .c4-node.flow-active {
   outline: 3px solid #c2410c;
@@ -376,22 +368,26 @@ textarea {
   border: 2px solid #4b5563;
   opacity: 0;
   transition: opacity 0.1s;
+  z-index: 5;
 }
 .c4-node:hover .connect-handle.react-flow__handle,
-.c4-node.selected .connect-handle.react-flow__handle {
+.c4-node.selected .connect-handle.react-flow__handle,
+.react-flow__node.connecting .connect-handle.react-flow__handle {
   opacity: 1;
 }
-.target-handle.react-flow__handle {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  transform: none;
-  left: 0;
-  top: 0;
-  border-radius: 0;
-  opacity: 0;
-  border: none;
+.react-flow__connection .react-flow__connection-path {
+  stroke: #1168bd;
+  stroke-width: 2;
+}
+.resize-handle {
+  width: 10px !important;
+  height: 10px !important;
+  background: #fff !important;
+  border: 2px solid #f59e0b !important;
+  border-radius: 2px !important;
+}
+.resize-line {
+  border-color: #f59e0b !important;
 }
 .boundary {
   border: 2px dashed #8b95a1;
@@ -653,4 +649,206 @@ textarea {
 }
 .modal .row input:not([type="color"]) {
   flex: 1;
+}
+
+/* ---------------------------------------------------------------- resizers, tree levels */
+.resizer {
+  cursor: col-resize;
+  background: var(--line);
+  transition: background 0.1s;
+  touch-action: none;
+}
+.resizer:hover,
+.resizer:active {
+  background: var(--accent);
+}
+.sidebar {
+  min-width: 0;
+}
+.sidebar .tree li {
+  white-space: nowrap;
+}
+.level-tag.c4-C1 { color: #08427b; border-color: #08427b; }
+.level-tag.c4-C2 { color: #1168bd; border-color: #1168bd; }
+.level-tag.c4-C3 { color: #2b7bb9; border-color: #2b7bb9; }
+.level-tag.c4-C4 { color: #4f7f6a; border-color: #4f7f6a; }
+.breadcrumb .level-tag {
+  margin-right: 2px;
+}
+
+/* ---------------------------------------------------------------- badges */
+.badge.sens-public { background: #dcfce7; color: #14532d; }
+.badge.sens-internal { background: #e0f2fe; color: #0c4a6e; }
+.badge.sens-confidential { background: #fde68a; color: #78350f; }
+.badge.sens-restricted { background: #fecaca; color: #7f1d1d; border-color: #b91c1c; }
+.edge-badges {
+  display: flex;
+  gap: 3px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+.edge-label .badge.subtle {
+  background: #eef1f5;
+  color: #44546a;
+  border-color: #cfd6df;
+}
+
+/* ---------------------------------------------------------------- edge editing */
+.edge-label {
+  pointer-events: all;
+}
+.edge-label.movable {
+  cursor: grab;
+}
+.edge-label.movable:active {
+  cursor: grabbing;
+}
+.edge-grip {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid #f59e0b;
+  background: #fff;
+  pointer-events: all;
+  cursor: move;
+  touch-action: none;
+  z-index: 10;
+}
+.edge-grip.bend {
+  background: #f59e0b;
+  width: 12px;
+  height: 12px;
+}
+
+/* ---------------------------------------------------------------- panel parts */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 3px 5px;
+  background: #fff;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: #e8eef6;
+  color: #243b53;
+  border-radius: 10px;
+  padding: 1px 4px 1px 8px;
+  font-size: 12px;
+}
+.chip .icon {
+  padding: 0 4px;
+  border: none;
+  background: transparent;
+}
+.chips .chip-input {
+  flex: 1;
+  min-width: 90px;
+  border: none;
+  outline: none;
+  padding: 3px;
+  background: transparent;
+}
+.p-section {
+  border-top: 1px solid var(--line);
+  margin-top: 6px;
+}
+.p-section-head {
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  font-weight: 600;
+  padding: 6px 0;
+}
+.p-section-head .count {
+  margin-left: 6px;
+}
+.p-section-body {
+  padding-bottom: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.rowed {
+  display: flex;
+  gap: 4px;
+  align-items: flex-start;
+  margin-bottom: 4px;
+}
+.rowed > input,
+.rowed > .stack {
+  flex: 1;
+  min-width: 0;
+}
+.rowed .stack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.rowed .row input {
+  min-width: 0;
+  flex: 1;
+}
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  align-items: center;
+}
+.swatches .sw {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid #b8c0ca;
+  border-radius: 3px;
+}
+.swatches .sw.on {
+  outline: 2px solid #f59e0b;
+}
+.swatches input[type="color"] {
+  width: 28px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid #b8c0ca;
+}
+.stage-list {
+  padding-left: 20px;
+  margin: 4px 0 8px;
+}
+.picker {
+  list-style: none;
+  padding: 0;
+  margin: 6px 0;
+  max-height: 320px;
+  overflow: auto;
+}
+.picker li {
+  padding: 2px 0;
+}
+.modal.wide {
+  width: min(900px, 92vw);
+}
+.code-editor {
+  width: 100%;
+  height: 60vh;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.45;
+  tab-size: 4;
+  white-space: pre;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px;
+}
+
+.react-flow__resize-control {
+  z-index: 8;
 }

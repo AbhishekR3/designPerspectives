@@ -10,9 +10,10 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
 
+from . import code as codemod
 from . import diagrams, flows, ops
 from .ops import ModelError, build_index, element_summary, relationship_summary, slugify, unique
-from .sidecar import BUILTIN_LENSES, Lens, Sidecar, TagGroup, TagValue
+from .sidecar import BUILTIN_LENSES, SECTIONS, DiagramLayout, EdgeLayout, Lens, Point, Size, Sidecar, TagGroup, TagValue
 from .store import Project, static_dir
 from .workspace import Workspace
 
@@ -31,8 +32,9 @@ class NewElement(_In):
     name: str | None = None
     parent_id: str | None = None
     description: str | None = None
-    technology: str | None = None
+    technology: str | list[str] | None = None
     external: bool = False
+    arch_type: str | None = None
     diagram_key: str | None = None
     position: Position | None = None
 
@@ -41,7 +43,8 @@ class NewRelationship(_In):
     source_id: str
     destination_id: str
     description: str | None = None
-    technology: str | None = None
+    technology: str | list[str] | None = None
+    kind: str | None = None
 
 
 class TagValueIn(_In):
@@ -62,6 +65,7 @@ class LensIn(_In):
     hidden_tag_groups: list[str] = []
     show_technology: bool = True
     show_descriptions: bool = True
+    visible_sections: list[str] = list(SECTIONS)
 
 
 class NewFlow(_In):
@@ -83,11 +87,18 @@ def state(project: Project) -> dict:
         "lenses": lenses,
         "flows": flows.list_flows(ws),
         "loadErrors": project.load_errors,
+        "enums": ops.ENUMS,
+        "technologies": ops.technology_catalog(idx),
+        "styles": {k: v.model_dump(by_alias=True, exclude_none=True) for k, v in sc.styles.items()},
+        "sections": list(SECTIONS),
+        "canUndo": bool(project.undo_stack),
+        "canRedo": bool(project.redo_stack),
+        "codeRoot": str(project.code_root),
     }
 
 
-def create_app(root: Path) -> FastAPI:
-    project = Project(root)
+def create_app(root: Path, code_root: Path | None = None) -> FastAPI:
+    project = Project(root, code_root)
     app = FastAPI(title="designPerspectives", docs_url="/api/docs", openapi_url="/api/openapi.json")
     app.state.project = project
 
@@ -108,7 +119,9 @@ def create_app(root: Path) -> FastAPI:
     @app.get("/api/diagrams/{key}")
     def get_diagram(key: str):
         project.reload_if_changed()
-        d = diagrams.diagram(project.workspace, key) or flows.flow_diagram(project.workspace, key)
+        d = diagrams.diagram(project.workspace, key, project.sidecar, project.code_root) or flows.flow_diagram(
+            project.workspace, key, project.sidecar
+        )
         if d is None:
             raise HTTPException(404, f"No diagram {key}")
         return d
@@ -146,7 +159,7 @@ def create_app(root: Path) -> FastAPI:
     def post_element(body: NewElement):
         def fn(ws: Workspace, _: Sidecar):
             new_id = ops.create_element(
-                ws, body.kind, body.name, body.parent_id, body.description, body.technology, body.external
+                ws, body.kind, body.name, body.parent_id, body.description, body.technology, body.external, body.arch_type
             )
             if body.diagram_key and body.position:
                 diagrams.set_positions(ws, body.diagram_key, {new_id: body.position.model_dump()})
@@ -169,7 +182,9 @@ def create_app(root: Path) -> FastAPI:
     @app.post("/api/relationships")
     def post_relationship(body: NewRelationship):
         rid = edit(
-            lambda ws, _: ops.create_relationship(ws, body.source_id, body.destination_id, body.description, body.technology)
+            lambda ws, _: ops.create_relationship(
+                ws, body.source_id, body.destination_id, body.description, body.technology, body.kind
+            )
         )
         return {"id": rid}
 
@@ -254,6 +269,7 @@ def create_app(root: Path) -> FastAPI:
             hidden_tag_groups=body.hidden_tag_groups,
             show_technology=body.show_technology,
             show_descriptions=body.show_descriptions,
+            visible_sections=body.visible_sections,
         )
 
     @app.post("/api/lenses")
@@ -297,6 +313,67 @@ def create_app(root: Path) -> FastAPI:
 
         edit(fn)
         return {"ok": True}
+
+    # ------------------------------------------------------------ layout, styles, history
+
+    @app.put("/api/diagrams/{key}/layout")
+    def put_layout(key: str, patch: dict = Body(...)):
+        """Merge sizes / edge geometry / positions (connector and code diagrams) into the sidecar.
+        A null value removes that entry."""
+
+        def fn(ws: Workspace, sc: Sidecar):
+            if not diagrams.key_is_valid(ws, build_index(ws), key):
+                raise HTTPException(404, f"No diagram {key}")
+            lay = sc.layouts.setdefault(key, DiagramLayout())
+            for eid, v in (patch.get("sizes") or {}).items():
+                if v is None:
+                    lay.sizes.pop(eid, None)
+                else:
+                    lay.sizes[eid] = Size(w=max(80, float(v["w"])), h=max(50, float(v["h"])))
+            for eid, v in (patch.get("edges") or {}).items():
+                if v is None:
+                    lay.edges.pop(eid, None)
+                else:
+                    lay.edges[eid] = EdgeLayout.model_validate(v)
+            for eid, v in (patch.get("positions") or {}).items():
+                if v is None:
+                    lay.positions.pop(eid, None)
+                else:
+                    lay.positions[eid] = Point(x=float(v["x"]), y=float(v["y"]))
+
+        edit(fn)
+        return {"ok": True}
+
+    @app.put("/api/styles/{target:path}")
+    def put_style(target: str, patch: dict | None = Body(None)):
+        edit(lambda ws, sc: ops.set_style(ws, sc, target, patch))
+        return {"ok": True}
+
+    @app.post("/api/elements/{element_id}/duplicate")
+    def duplicate(element_id: str):
+        return {"id": edit(lambda ws, sc: ops.duplicate_element(ws, sc, element_id))}
+
+    @app.post("/api/undo")
+    def undo():
+        return {"ok": project.undo()}
+
+    @app.post("/api/redo")
+    def redo():
+        return {"ok": project.redo()}
+
+    # ------------------------------------------------------------ code
+
+    @app.get("/api/code/tree")
+    def code_tree(path: str = ""):
+        return {"entries": codemod.list_tree(project.code_root, path)}
+
+    @app.get("/api/code/file")
+    def code_read(path: str):
+        return codemod.read_file(project.code_root, path)
+
+    @app.put("/api/code/file")
+    def code_write(body: dict = Body(...)):
+        return codemod.write_file(project.code_root, body.get("path", ""), body.get("content", ""), body.get("mtime"))
 
     # ------------------------------------------------------------ flows
 

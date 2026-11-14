@@ -1,6 +1,4 @@
-import { LEVEL_LABEL, type AppState, type Lens, type TagGroup } from "./types";
-
-const INDENT: Record<string, number> = { landscape: 0, context: 1, container: 1, component: 2 };
+import type { AppState, Lens, Level, TagGroup } from "./types";
 
 export function Sidebar({
   state,
@@ -33,7 +31,7 @@ export function Sidebar({
   onDeleteTagGroup(g: TagGroup): void;
   onRenameWorkspace(): void;
 }) {
-  const diagrams = state.diagrams.filter((d) => showAllLevels || lens.visibleLevels.includes(d.level));
+  const diagrams = state.diagrams.filter((d) => showAllLevels || d.level === "connector" || lens.visibleLevels.includes(d.level as Level));
   const hidden = state.diagrams.length - diagrams.length;
   return (
     <aside className="sidebar">
@@ -68,9 +66,10 @@ export function Sidebar({
         <h3>Diagrams</h3>
         <ul className="tree" data-testid="diagram-list">
           {diagrams.map((d) => (
-            <li key={d.key} style={{ paddingLeft: INDENT[d.level] * 14 }}>
-              <button className={`link ${d.key === currentKey ? "active" : ""}`} onClick={() => onOpen(d.key)} data-testid={`diagram-${d.key}`}>
-                <span className="level-tag">{LEVEL_LABEL[d.level]}</span> {d.level === "landscape" ? "System landscape" : d.title.split(" — ")[0]}
+            <li key={d.key} style={{ paddingLeft: d.depth * 14 }}>
+              <button className={`link ${d.key === currentKey ? "active" : ""}`} onClick={() => onOpen(d.key)} data-testid={`diagram-${d.key}`} title={d.title}>
+                <span className={`level-tag c4-${d.c4}`} data-testid={`level-${d.key}`}>{d.c4}</span> {d.level === "connector" ? "⇢ " : ""}
+                {d.level === "landscape" ? "System landscape" : d.level === "context" ? `${d.label} (context)` : d.label}
               </button>
             </li>
           ))}

@@ -1,5 +1,89 @@
 {
   "version": 1,
-  "tagGroups": [],
-  "lenses": []
+  "tagGroups": [
+    {
+      "name": "Risk",
+      "values": [
+        {
+          "name": "Low",
+          "color": "#2ca02c"
+        },
+        {
+          "name": "Medium",
+          "color": "#ff7f0e"
+        },
+        {
+          "name": "High",
+          "color": "#d62728"
+        }
+      ]
+    },
+    {
+      "name": "Lifecycle",
+      "values": [
+        {
+          "name": "Planned",
+          "color": "#9467bd"
+        },
+        {
+          "name": "Live",
+          "color": "#1f77b4"
+        },
+        {
+          "name": "Deprecated",
+          "color": "#7f7f7f"
+        }
+      ]
+    }
+  ],
+  "lenses": [
+    {
+      "id": "security-review",
+      "name": "Security review",
+      "visibleLevels": [
+        "context",
+        "container",
+        "component"
+      ],
+      "defaultOverlay": "Risk",
+      "hiddenTagGroups": [],
+      "visibleSections": [
+        "technology",
+        "notes",
+        "sensitive",
+        "tradeoffs"
+      ],
+      "showTechnology": true,
+      "showDescriptions": true
+    },
+    {
+      "id": "product-owner",
+      "name": "Product owner",
+      "visibleLevels": [
+        "landscape",
+        "context",
+        "container"
+      ],
+      "defaultOverlay": "Lifecycle",
+      "hiddenTagGroups": [
+        "Risk"
+      ],
+      "visibleSections": [
+        "notes",
+        "usage"
+      ],
+      "showTechnology": false,
+      "showDescriptions": true
+    }
+  ],
+  "styles": {
+    "atm": {
+      "fill": "#8c8c8c",
+      "strokeStyle": "dashed"
+    },
+    "event-stream--data-warehouse": {
+      "stroke": "#9467bd",
+      "strokeWidth": 3.0
+    }
+  }
 }
