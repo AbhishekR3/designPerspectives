@@ -37,17 +37,30 @@ export interface Res {
 }
 
 export class Client {
-  readonly app;
-  constructor(dir: string, opts: AppOptions = {}) {
-    this.app = createApp(dir, opts);
+  readonly app: ReturnType<typeof createApp>;
+  constructor(
+    dir: string,
+    opts: AppOptions = {},
+    app?: ReturnType<typeof createApp>,
+    readonly headers: Record<string, string> = {},
+  ) {
+    this.app = app ?? createApp(dir, opts);
+  }
+
+  /** The same server, with requests on another model version (X-DP-Model / X-DP-Compare). */
+  at(model: string, compare?: string): Client {
+    const h: Record<string, string> = { "X-DP-Model": model };
+    if (compare) h["X-DP-Compare"] = compare;
+    return new Client("", {}, this.app, h);
   }
 
   async req(method: string, url: string, body?: unknown, query?: Record<string, string>): Promise<Res> {
     const qs = query ? "?" + new URLSearchParams(query).toString() : "";
-    const init: RequestInit = { method };
+    const headers: Record<string, string> = { ...this.headers };
+    const init: RequestInit = { method, headers };
     if (body !== undefined) {
       init.body = JSON.stringify(body);
-      init.headers = { "Content-Type": "application/json" };
+      headers["Content-Type"] = "application/json";
     }
     const r = await this.app.request(url + qs, init);
     const text = await r.text();

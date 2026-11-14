@@ -1,6 +1,6 @@
 /**
  * Overlays colour objects by one attribute: a tag group, an architecture characteristic (rating
- * 1-5), monthly cost (by band) or technology. Filters focus on (dim everything else) or hide the
+ * 1-5), monthly cost (by band), technology, or changes against another version of the model. Filters focus on (dim everything else) or hide the
  * objects that have one value of an overlay.
  */
 import type { AppState, CostSettings, Diagram, ElementSummary, TagGroup } from "./types";
@@ -10,7 +10,8 @@ export type OverlaySpec =
   | { kind: "char"; name: string }
   | { kind: "cost" }
   | { kind: "tech" }
-  | { kind: "work"; type: string }; // type: a work type, or "all"
+  | { kind: "work"; type: string } // type: a work type, or "all"
+  | { kind: "changes" }; // added / changed / removed, when a compared version is shown
 
 /** A value of an overlay as shown in the legend: `key` identifies it in filters. */
 export interface OverlayItem {
@@ -43,6 +44,7 @@ export function decodeSpec(v: string | null | undefined): OverlaySpec | null {
   if (!v) return null;
   if (v === "@cost") return { kind: "cost" };
   if (v === "@tech") return { kind: "tech" };
+  if (v === "@changes") return { kind: "changes" };
   if (v.startsWith("@char:")) return { kind: "char", name: v.slice(6) };
   if (v.startsWith("@work:")) return { kind: "work", type: v.slice(6) || "all" };
   return { kind: "tag", name: v };
@@ -52,6 +54,7 @@ export const sameSpec = (a: OverlaySpec | null, b: OverlaySpec | null) => !!a &&
 export function specExists(s: OverlaySpec, state: AppState, visibleGroups: TagGroup[]): boolean {
   if (s.kind === "tag") return visibleGroups.some((g) => g.name === s.name);
   if (s.kind === "char") return state.characteristics.some((c) => c.name === s.name);
+  if (s.kind === "changes") return state.compare !== null;
   return true;
 }
 
@@ -71,8 +74,13 @@ export function openWork(el: { work?: { type: string; status: string; severity?:
   return (el.work ?? []).filter((w) => w.status !== "done" && (type === "all" || w.type === type));
 }
 
+export const CHANGE_COLORS: Record<string, string> = { added: "#22c55e", changed: "#f59e0b", inner: "#60a5fa", removed: "#ef4444" };
+export const CHANGE_LABEL: Record<string, string> = { added: "Added", changed: "Changed", inner: "Changed inside", removed: "Removed" };
+const CHANGE_ORDER = ["added", "changed", "inner", "removed"];
+
 export function specLabel(s: OverlaySpec): string {
   if (s.kind === "cost") return "Cost";
+  if (s.kind === "changes") return "Changes";
   if (s.kind === "work") return WORK_LABEL[s.type] ?? s.type;
   if (s.kind === "tech") return "Technology";
   return s.name;
@@ -120,6 +128,7 @@ export function legendItems(s: OverlaySpec, state: AppState, diagram: Diagram): 
   if (s.kind === "tag") return (state.tagGroups.find((g) => g.name === s.name)?.values ?? []).map((v) => ({ key: v.name, label: v.name, color: v.color }));
   if (s.kind === "char") return [5, 4, 3, 2, 1].map((r) => ({ key: String(r), label: `${r}/5`, color: RATING_COLORS[r] }));
   if (s.kind === "cost") return state.costSettings.bands.map((b) => ({ key: b.name, label: b.name, color: b.color }));
+  if (s.kind === "changes") return CHANGE_ORDER.map((k) => ({ key: k, label: CHANGE_LABEL[k], color: CHANGE_COLORS[k] }));
   if (s.kind === "work") return SEV_ORDER.map((k) => ({ key: k, label: k === "open" ? "Open, no severity" : k[0].toUpperCase() + k.slice(1), color: SEVERITY_COLORS[k] }));
   return [...techColors(diagram).entries()].map(([t, c]) => ({ key: t, label: t, color: c }));
 }
@@ -130,7 +139,10 @@ export interface NodeOverlay {
   color: string | null;
 }
 
-export function overlayOf(s: OverlaySpec, el: ElementSummary, state: AppState, techs: Map<string, string>): NodeOverlay {
+export function overlayOf(s: OverlaySpec, el: ElementSummary & { change?: string }, state: AppState, techs: Map<string, string>): NodeOverlay {
+  if (s.kind === "changes") {
+    return el.change ? { key: el.change, chip: CHANGE_LABEL[el.change], color: CHANGE_COLORS[el.change] } : { key: null, chip: "Unchanged", color: null };
+  }
   if (s.kind === "tag") {
     const v = el.tags[s.name] ?? null;
     const color = state.tagGroups.find((g) => g.name === s.name)?.values.find((x) => x.name === v)?.color ?? null;

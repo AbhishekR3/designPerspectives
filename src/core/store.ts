@@ -55,8 +55,45 @@ function stampOf(file: string): string {
   }
 }
 
-export class Project {
+/** A model version the server can show: the main model, a draft, or a read-only copy. */
+export interface ModelSource {
+  readonly workspace: Workspace;
+  readonly sidecar: Sidecar;
+  readonly loadErrors: string[];
+  readonly readOnly: boolean;
+  reloadIfChanged(): boolean;
+}
+
+/** A read-only model version read from two files (e.g. a draft's base copy). */
+export class FileSnapshot implements ModelSource {
+  readonly readOnly = true;
+  workspace!: Workspace;
+  sidecar!: Sidecar;
+  loadErrors: string[] = [];
+  private stamp = "";
+
+  constructor(
+    readonly wsPath: string,
+    readonly scPath: string,
+  ) {
+    this.reloadIfChanged();
+  }
+
+  reloadIfChanged(): boolean {
+    const now = `${stampOf(this.wsPath)}|${stampOf(this.scPath)}`;
+    if (now === this.stamp) return false;
+    if (!fs.existsSync(this.wsPath)) throw new NotFound(`No ${this.wsPath}`);
+    this.workspace = readWorkspace(this.wsPath);
+    this.sidecar = fs.existsSync(this.scPath) ? parseSidecar(fs.readFileSync(this.scPath, "utf-8")) : emptySidecar();
+    this.loadErrors = errors(this.workspace, this.sidecar);
+    this.stamp = now;
+    return true;
+  }
+}
+
+export class Project implements ModelSource {
   static HISTORY = 50;
+  readonly readOnly = false;
   readonly root: string;
   readonly codeRoot: string;
   readonly dir: string;
@@ -69,10 +106,11 @@ export class Project {
   redoStack: Snapshot[] = [];
   private stamp: Stamp = "";
 
-  constructor(root: string, codeRoot?: string | null) {
+  /** `dir`: the folder holding the two files (default `<root>/architecture`; drafts live elsewhere). */
+  constructor(root: string, codeRoot?: string | null, dir?: string) {
     this.root = path.resolve(root);
     this.codeRoot = codeRoot ? path.resolve(codeRoot) : this.root;
-    this.dir = path.join(this.root, ARCH_DIR);
+    this.dir = dir ? path.resolve(dir) : path.join(this.root, ARCH_DIR);
     this.wsPath = path.join(this.dir, WORKSPACE_FILE);
     this.scPath = path.join(this.dir, SIDECAR_FILE);
     this.load();
@@ -83,7 +121,7 @@ export class Project {
   }
 
   load(): void {
-    if (!fs.existsSync(this.wsPath)) throw new NotFound(`No ${ARCH_DIR}/${WORKSPACE_FILE} in ${this.root}`);
+    if (!fs.existsSync(this.wsPath)) throw new NotFound(`No ${path.relative(this.root, this.wsPath) || WORKSPACE_FILE} in ${this.root}`);
     this.workspace = readWorkspace(this.wsPath);
     this.sidecar = fs.existsSync(this.scPath) ? parseSidecar(fs.readFileSync(this.scPath, "utf-8")) : emptySidecar();
     this.loadErrors = errors(this.workspace, this.sidecar);

@@ -1,6 +1,7 @@
 import { ReactFlowProvider } from "@xyflow/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { api } from "./api";
+import { api, ApiError, setContext } from "./api";
+import { ApplyDialog, ChangeDetails, ChangeList, DraftBanner, DraftList, GhostPanel } from "./ChangesPanel";
 import { Canvas, type CanvasHandle, type NodeDecor } from "./Canvas";
 import { Dock } from "./Dock";
 import { CharacteristicsEditor, CostSettingsEditor, LensEditor, TagGroupEditor } from "./editors";
@@ -14,7 +15,7 @@ import { FileEditor } from "./CodeParts";
 import { CodeDiagramPanel, ConnectorPanel, EdgePanel, FilePanel, ObjectPanel, StagePanel, homeDiagramOf } from "./ObjectPanel";
 import { defaultSize } from "./layout";
 import { Sidebar } from "./Sidebar";
-import { KIND_LABEL, LEVEL_LABEL, type AppState, type Diagram, type DiagramLevel, type DiagramNode, type Level, type Lens, type Pt, type Selection, type TagGroup } from "./types";
+import { KIND_LABEL, LEVEL_LABEL, type AppState, type ChangeSet, type Diagram, type DiagramLevel, type DiagramNode, type Level, type Lens, type Pt, type Selection, type TagGroup } from "./types";
 
 const inLens = (lens: Lens, level: DiagramLevel) => level === "flow" || level === "connector" || lens.visibleLevels.includes(level as Level);
 
@@ -41,12 +42,29 @@ const storage = {
   },
 };
 
+/** The URL hash: `#/d/<diagram>`, plus `?m=<model version>&c=<compared version>` when not the main model. */
+interface HashState {
+  key: string | null;
+  model: string;
+  compare: string | null;
+}
+function fromHash(): HashState {
+  const m = /^#\/d\/([^?]+)(?:\?(.*))?$/.exec(window.location.hash);
+  const q = new URLSearchParams(m?.[2] ?? "");
+  return { key: m ? decodeURIComponent(m[1]) : null, model: q.get("m") || "main", compare: q.get("c") || null };
+}
 function keyFromHash(): string | null {
-  const m = /^#\/d\/(.+)$/.exec(window.location.hash);
-  return m ? decodeURIComponent(m[1]) : null;
+  return fromHash().key;
+}
+function hashFor(key: string, model: string, compare: string | null): string {
+  const q = new URLSearchParams();
+  if (model !== "main") q.set("m", model);
+  if (compare) q.set("c", compare);
+  const qs = q.toString();
+  return `#/d/${encodeURIComponent(key)}${qs ? `?${qs}` : ""}`;
 }
 
-type ModalState = { type: "tag"; group: TagGroup | null } | { type: "lens"; lens: Lens | null } | { type: "chars" } | { type: "cost" } | null;
+type ModalState = { type: "tag"; group: TagGroup | null } | { type: "lens"; lens: Lens | null } | { type: "chars" } | { type: "cost" } | { type: "apply"; draftId: string; title: string } | null;
 
 /** The overlay a lens turns on by default, if it still exists. */
 function lensOverlay(l: Lens, s: AppState): OverlaySpec | null {
@@ -59,6 +77,15 @@ export default function App() {
   const [state, setState] = useState<AppState | null>(null);
   const [diagram, setDiagram] = useState<Diagram | null>(null);
   const [key, setKey] = useState<string | null>(keyFromHash());
+  // Model version shown (main or a draft) and the version it is compared with; sent with every request.
+  const [version, setVersion] = useState<{ model: string; compare: string | null }>(() => {
+    const h = fromHash();
+    setContext(h.model, h.compare);
+    return { model: h.model, compare: h.compare };
+  });
+  const versionRef = useRef(version);
+  versionRef.current = version;
+  const [changes, setChanges] = useState<ChangeSet | null>(null);
   const [selection, setSelection] = useState<Selection>(null);
   const [focusName, setFocusName] = useState(false);
   const [lensId, setLensId] = useState<string>(storage.get(LENS_KEY) ?? "engineer");
@@ -101,8 +128,32 @@ export default function App() {
   const refresh = useCallback(async () => {
     const s = await api.state();
     setState(s);
+    setChanges(versionRef.current.compare ? await api.changes() : null);
     if (keyRef.current) await loadDiagram(keyRef.current);
   }, [loadDiagram]);
+
+  /** Show another model version (main or a draft), optionally compared with another one. */
+  const switchVersion = useCallback(
+    async (model: string, compare: string | null) => {
+      setContext(model, compare);
+      const v = { model, compare };
+      versionRef.current = v;
+      setVersion(v);
+      setSelection(null);
+      setFilters((fs) => fs.filter((f) => f.spec !== "@changes"));
+      setOverlay((o) => (compare ? { kind: "changes" } : o?.kind === "changes" ? null : o));
+      if (keyRef.current) window.history.replaceState(null, "", hashFor(keyRef.current, model, compare));
+      try {
+        await refresh();
+        setError(null);
+      } catch (e) {
+        // The draft is gone (discarded elsewhere, or an old link): fall back to the main model.
+        if (model !== "main" && e instanceof ApiError && e.status === 404) await switchVersion("main", null);
+        else setError(e instanceof Error ? e.message : String(e));
+      }
+    },
+    [refresh],
+  );
 
   const mutate = useCallback(
     async (fn: () => Promise<unknown>) => {
@@ -124,16 +175,20 @@ export default function App() {
   useEffect(() => {
     api
       .state()
-      .then((s) => {
+      .then(async (s) => {
         setState(s);
+        if (versionRef.current.compare) setChanges(await api.changes());
         const l = s.lenses.find((x) => x.id === lensId) ?? s.lenses[0];
-        setOverlay(lensOverlay(l, s));
+        setOverlay(versionRef.current.compare ? { kind: "changes" } : lensOverlay(l, s));
         if (!keyRef.current) {
           const first = s.diagrams.find((d) => inLens(l, d.level)) ?? s.diagrams[0];
           setKey(first?.key ?? "landscape");
         }
       })
-      .catch((e) => setError(String(e)));
+      .catch((e) => {
+        if (versionRef.current.model !== "main" && e instanceof ApiError && e.status === 404) switchVersion("main", null);
+        else setError(String(e));
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -142,7 +197,7 @@ export default function App() {
     if (keyFromHash() !== key) {
       // A new diagram is a new history entry, so the browser Back/Forward buttons walk through diagrams.
       const first = !navStarted.current;
-      const h = `#/d/${encodeURIComponent(key)}`;
+      const h = hashFor(key, versionRef.current.model, versionRef.current.compare);
       if (first) window.history.replaceState(null, "", h);
       else window.history.pushState(null, "", h);
     }
@@ -154,7 +209,10 @@ export default function App() {
 
   useEffect(() => {
     const onHash = () => {
-      const k = keyFromHash();
+      const h = fromHash();
+      const v = versionRef.current;
+      if (h.model !== v.model || h.compare !== v.compare) void switchVersion(h.model, h.compare);
+      const k = h.key;
       if (k && k !== keyRef.current) {
         setSelection(null);
         setKey(k);
@@ -162,7 +220,7 @@ export default function App() {
     };
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
-  }, []);
+  }, [switchVersion]);
 
   // Flow player
   const flow = diagram?.level === "flow" ? diagram.flow : undefined;
@@ -295,6 +353,8 @@ export default function App() {
       const t = e.target as HTMLElement;
       if (t.closest("input, textarea, select, [contenteditable]")) return;
       if (!selection || !state) return;
+      const ghost = selection.type === "node" ? diagram?.nodes.find((n) => n.id === selection.id)?.ghost : diagram?.edges.find((x) => x.id === selection.id)?.ghost;
+      if (ghost || diagram?.compare?.removed) return;
       if (selection.type === "node") {
         const el = state.elements.find((x) => x.id === selection.id);
         if (el && window.confirm(`Delete "${el.name}"${el.childCount ? ` and the ${el.childCount} element(s) inside it` : ""}?`))
@@ -375,6 +435,36 @@ export default function App() {
     storage.set(LEFT_OPEN_KEY, leftOpen ? "0" : "1");
     setLeftOpen(!leftOpen);
   };
+  const draftId = version.model.startsWith("draft:") ? version.model.slice(6) : null;
+  const newDraft = async () => {
+    const title = window.prompt("Name of the new draft (a planned change, edited on a copy of the model)");
+    if (!title?.trim()) return;
+    try {
+      const { id } = await api.createDraft({ title });
+      await switchVersion(`draft:${id}`, "base");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  };
+  const discardDraft = async () => {
+    if (!draftId || !window.confirm(`Discard "${state.model.title.replace(/^Draft: /, "")}"? The draft and all its changes are deleted.`)) return;
+    try {
+      await api.deleteDraft(draftId);
+      await switchVersion("main", null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  };
+  const pickChange = (c: { id: string; type: string; homeKey: string | null }) => {
+    if (!c.homeKey) return;
+    if (c.homeKey !== key) setKey(c.homeKey);
+    if (c.type === "element") setSelection({ type: "node", id: c.id });
+    else if (c.type === "relationship") setSelection({ type: "edge", id: c.id });
+    else setSelection(null);
+  };
+  const changeOf = (id: string) => (changes ? [...changes.elements, ...changes.relationships].find((c) => c.id === id) : undefined);
+  const againstLabel = state.compare?.title ?? "the compared version";
+
   const newFlow = async () => {
     const title = window.prompt("Name of the new flow");
     if (!title) return;
@@ -453,6 +543,9 @@ export default function App() {
   };
 
   const selectedNode = selection?.type === "node" ? diagram?.nodes.find((n) => n.id === selection.id) : undefined;
+  const selectedEdge = selection?.type === "edge" ? diagram?.edges.find((e) => e.id === selection.id) : undefined;
+  const selectedChange = selection ? changeOf(selection.id) : undefined;
+  const showGhost = !!(selectedNode?.ghost || selectedEdge?.ghost || (selection && diagram?.compare?.removed));
   const selectedElement = selection?.type === "node" ? state.elements.find((e) => e.id === selection.id) : undefined;
   const panelProps = { state, diagram: diagram!, lens, mutate, onSelect: select, onOpen: open, onReveal: reveal, onOpenFile: setOpenFile, focusName };
   const startDrag = (side: "left" | "right") => (e: React.PointerEvent) => {
@@ -533,6 +626,7 @@ export default function App() {
           }}
           onEditCharacteristics={() => setModal({ type: "chars" })}
           onEditCost={() => setModal({ type: "cost" })}
+          draftsSection={<DraftList state={state} onSwitch={(ref) => switchVersion(ref, ref === "main" ? null : "base")} onNewDraft={newDraft} />}
           onRenameWorkspace={() => {
             const name = window.prompt("Workspace name", state.workspace.name);
             if (name && name !== state.workspace.name) mutate(() => api.workspace({ name }));
@@ -547,6 +641,16 @@ export default function App() {
         <div />
       )}
       <main className="main">
+        {draftId && (
+          <DraftBanner
+            state={state}
+            showChanges={!!version.compare}
+            setShowChanges={(v) => switchVersion(version.model, v ? "base" : null)}
+            onApply={() => setModal({ type: "apply", draftId, title: state.model.title.replace(/^Draft: /, "") })}
+            onDiscard={discardDraft}
+            onExit={() => switchVersion("main", null)}
+          />
+        )}
         <div className="canvas-wrap">
           {diagram && (
             <ReactFlowProvider key={diagram.key}>
@@ -561,6 +665,7 @@ export default function App() {
                 onDropItem={(item, at) => addItem(item, at)}
                 onConnectToEmpty={connectToEmpty}
                 flowStep={flowStep}
+                showChanges={activeOverlay?.kind === "changes"}
                 selection={selection}
                 onSelect={select}
                 onDrill={open}
@@ -689,7 +794,7 @@ export default function App() {
             />
           )}
 
-          {diagram && !state.readOnly && diagram.level !== "flow" && diagram.level !== "code" && <Palette diagram={diagram} onAdd={(it) => addItem(it)} />}
+          {diagram && !state.readOnly && !diagram.compare?.removed && diagram.level !== "flow" && diagram.level !== "code" && <Palette diagram={diagram} onAdd={(it) => addItem(it)} />}
 
           {diagram && diagram.nodes.length === 0 && (
             <div className="empty-hint">
@@ -705,10 +810,14 @@ export default function App() {
 
       <div className="resizer" onPointerDown={startDrag("right")} onDoubleClick={() => { setRightW(320); storage.set(RIGHT_KEY, "320"); }} role="separator" aria-orientation="vertical" title="Drag to resize the panel (double-click: reset)" data-testid="resize-right" />
       <aside className="panel">
-        {selectedElement && diagram && <ObjectPanel key={selectedElement.id} element={selectedElement} {...panelProps} />}
-        {!selectedElement && selectedNode?.kind === "stage" && diagram && <StagePanel key={selectedNode.id} node={selectedNode} {...panelProps} />}
+        {showGhost && (
+          <GhostPanel node={selectedNode} edge={selectedEdge} change={selectedChange} against={againstLabel} />
+        )}
+        {!showGhost && selectedChange && selectedChange.change !== "added" && <ChangeDetails change={selectedChange} against={againstLabel} />}
+        {!showGhost && selectedElement && diagram && <ObjectPanel key={selectedElement.id} element={selectedElement} {...panelProps} />}
+        {!showGhost && !selectedElement && selectedNode?.kind === "stage" && diagram && <StagePanel key={selectedNode.id} node={selectedNode} {...panelProps} />}
         {!selectedElement && selectedNode?.kind === "file" && diagram && <FilePanel key={selectedNode.id} node={selectedNode} {...panelProps} />}
-        {selection?.type === "edge" && diagram && <EdgePanel key={selection.id} edgeId={selection.id} {...panelProps} />}
+        {!showGhost && selection?.type === "edge" && diagram && <EdgePanel key={selection.id} edgeId={selection.id} {...panelProps} />}
         {!selection && flow && (
           <FlowPanel
             flow={flow}
@@ -738,6 +847,12 @@ export default function App() {
               )}
             </dl>
             <p className="muted small">Click an object or connection to see its details here. Press ? at the top right for help.</p>
+            {changes && (
+              <>
+                <h3 className="panel-subtitle">Changes compared with {againstLabel}</h3>
+                <ChangeList changes={changes} onPick={pickChange} />
+              </>
+            )}
           </div>
         )}
       </aside>
@@ -754,6 +869,17 @@ export default function App() {
           onOpen={(k) => {
             setSearchOpen(false);
             open(k);
+          }}
+        />
+      )}
+      {modal?.type === "apply" && (
+        <ApplyDialog
+          draftId={modal.draftId}
+          title={modal.title}
+          onClose={() => setModal(null)}
+          onApplied={() => {
+            setModal(null);
+            void switchVersion("main", null);
           }}
         />
       )}

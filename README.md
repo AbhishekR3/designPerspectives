@@ -40,6 +40,7 @@ Model files written by the earlier Python version (0.2) open unchanged.
 |---|---|
 | `architecture/workspace.json` | A [Structurizr](https://github.com/structurizr/structurizr) workspace: elements, relationships, views, positions, flows. Readable IDs (`api-application`), stable formatting for `git diff`. |
 | `architecture/designperspectives.json` | Tag groups, lenses, the list of characteristics and cost settings (data Structurizr has no place for). |
+| `architecture/drafts/<id>/` | A draft (planned change): its own `workspace.json` and `designperspectives.json`, `draft.json` (title, description, date) and `base/` (the main model when the draft was made, used when applying it). |
 
 designPerspectives data stored inside the workspace as Structurizr element properties:
 `dp.owner`, `dp.links`, `dp.tag.<Group>` (e.g. `dp.tag.Risk = High`), `dp.archType` (symbol),
@@ -122,6 +123,18 @@ Stage A3 additions:
   colours boxes by their most severe open item.
 - `dp --version`, `GET /api/health`, a recovery screen if the page hits an error, code-file saves
   that keep permissions and never leave half-written files.
+
+Stage C1 additions (planned change):
+
+- **Drafts**: start a draft from the sidebar (Drafts → + New draft). It is a copy of the model you
+  edit like the main one (with its own undo history); the main model is not touched.
+- **Changes overlay**: in a draft, boxes and lines are coloured added / changed / changed inside /
+  removed against the main model as it was when the draft was made. Removed objects stay on the
+  diagram as faded, read-only ghosts. The panel lists every change; a changed object shows its fields
+  before and after.
+- **Apply or discard**: Apply merges the draft into the main model as one undoable step. Changes made
+  to the main model since the draft was made are kept; if both changed the same object, Apply is
+  refused and lists the conflicts. Discard deletes the draft.
 
 ## Develop
 

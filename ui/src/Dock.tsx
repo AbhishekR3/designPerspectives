@@ -18,7 +18,7 @@ import {
 } from "./overlays";
 import type { AppState, Diagram, TagGroup } from "./types";
 
-type Tab = "tags" | "tech" | "char" | "cost" | "work";
+type Tab = "tags" | "tech" | "char" | "cost" | "work" | "changes";
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: "tags", label: "Tags", icon: "tag" },
   { id: "tech", label: "Technology", icon: "code" },
@@ -26,6 +26,7 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: "cost", label: "Cost", icon: "coin" },
   { id: "work", label: "Work", icon: "warning" },
 ];
+const CHANGES_TAB = { id: "changes" as Tab, label: "Changes", icon: "layers" };
 
 const tabOf = (s: OverlaySpec | null): Tab | null => (s ? (s.kind === "tag" ? "tags" : s.kind) : null);
 
@@ -75,7 +76,9 @@ export function Dock({
   const els = overlayable(diagram);
 
   const subTabs: { spec: OverlaySpec; label: string; count: number; title?: string }[] =
-    tab === "tags"
+    tab === "changes"
+      ? [{ spec: { kind: "changes" }, label: `Against: ${state.compare?.title ?? "—"}`, count: els.filter((n) => n.change).length }]
+      : tab === "tags"
       ? groups.map((g) => ({ spec: { kind: "tag", name: g.name }, label: g.name, count: els.filter((n) => n.tags[g.name]).length }))
       : tab === "char"
         ? state.characteristics.map((c) => ({
@@ -143,7 +146,7 @@ export function Dock({
   return (
     <div className="dock" data-testid="dock">
       <div className="dock-tabs">
-        {TABS.map((t) => (
+        {(state.compare ? [CHANGES_TAB, ...TABS] : TABS).map((t) => (
           <button
             key={t.id}
             className={`float-btn${tab === t.id ? " on" : ""}`}
@@ -203,7 +206,7 @@ export function Dock({
               {items.map((it, i) =>
                 chip(it.key, it.label, it.color, c.byKey.get(it.key) ?? 0, active.kind === "cost" ? bandRange(i, state.costSettings) : undefined),
               )}
-              {chip(NONE, active.kind === "char" ? "Not rated" : active.kind === "cost" ? "No cost" : active.kind === "work" ? "Nothing open" : "No value", null, c.none)}
+              {chip(NONE, active.kind === "char" ? "Not rated" : active.kind === "cost" ? "No cost" : active.kind === "work" ? "Nothing open" : active.kind === "changes" ? "Unchanged" : "No value", null, c.none)}
             </div>
           )}
           {!active && tab && subTabs.length > 0 && <div className="dock-note muted small">Choose one above to colour the objects.</div>}

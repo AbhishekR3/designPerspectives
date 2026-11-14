@@ -26,7 +26,7 @@ Stage A (model, diagrams, overlays, flows, lenses, demo) is built and extended i
 | Stage | Content | Status |
 |---|---|---|
 | B — Python codebase to model (deterministic) | `dp scan <path>` proposes containers (from `pyproject.toml`, `requirements*.txt`, Dockerfiles, docker-compose), components (Python packages) and connections (imports); proposals are accepted, edited or rejected one by one; accepted objects keep their source paths and a re-scan never changes them (new code appears as "unmapped") | Not confirmed as built. `src/core/code.ts` already maps components to files and scans Python/JS/TS imports |
-| C — Planned change | C1 drafts: a separately edited copy of the workspace with a diff overlay (added / changed / removed) and apply or discard. C2 branch compare: scan two git refs and show the same overlay | Not built (per the last reviews) |
+| C — Planned change | C1 drafts: a separately edited copy of the workspace with a diff overlay (added / changed / removed) and apply or discard. C2 branch compare: scan two git refs and show the same overlay | C1 built (branch `stage-c1-drafts`, DEC-016/017); C2 and C3 in progress. Stage review at the end of C3 |
 | D — LLM assist (optional, off by default) | D-1 describe scan results; D-2 draft a model from a written description (planning a codebase); D-3 explain a diagram or object in the wording of the active lens | Not built |
 
 Rules for Stage D [Notes]: the LLM gets the model as structured text, not images; output is always a proposal or draft that a person accepts; it never writes the model directly. The useful LLM role is outlining and challenging trade-offs, drafting ADR text and generating options, not making the decision.

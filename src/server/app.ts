@@ -1,10 +1,14 @@
 /** Local web server: a JSON API over the model files, plus the built browser UI. */
 
+import { AsyncLocalStorage } from "node:async_hooks";
 import fs from "node:fs";
 import path from "node:path";
 import { Hono, type Context } from "hono";
 import * as codemod from "../core/code.js";
+import { compareDiagram, diagramOf } from "../core/compare.js";
 import * as diagrams from "../core/diagrams.js";
+import { diffModels } from "../core/diff.js";
+import { ApplyConflict, Drafts } from "../core/drafts.js";
 import * as flows from "../core/flows.js";
 import { isObj, str, type Obj } from "../core/json.js";
 import * as ops from "../core/ops.js";
@@ -19,9 +23,9 @@ import {
   styleData,
   type Sidecar,
 } from "../core/sidecar.js";
-import { Project, staticDir, version } from "../core/store.js";
+import { NotFound, Project, staticDir, version, type ModelSource } from "../core/store.js";
 import type { Workspace } from "../core/workspace.js";
-import type { AppState, CharacteristicDef, CostBand, CostSettings, EdgeLayout, Lens, Level, Section, Style } from "../shared/types.js";
+import type { AppState, ChangeSet, CharacteristicDef, CostBand, CostSettings, EdgeLayout, Lens, Level, Section, Style } from "../shared/types.js";
 
 /** An HTTP error with a status code; the body is {"detail": message}. */
 export class HttpError extends Error {
@@ -33,9 +37,22 @@ export class HttpError extends Error {
   }
 }
 
-export function state(project: Project, readOnly = false): AppState {
-  const ws = project.workspace;
-  const sc = project.sidecar;
+/** The model version a request works on (header X-DP-Model) and the one it is compared with
+ *  (header X-DP-Compare). */
+export interface Selection {
+  src: ModelSource;
+  ref: string;
+  title: string;
+  cmp: ModelSource | null;
+  cmpRef: string | null;
+  cmpTitle: string | null;
+}
+
+export function state(project: Project, readOnly = false, sel?: Selection, drafts?: Drafts): AppState {
+  const src = sel?.src ?? project;
+  const ws = src.workspace;
+  const sc = src.sidecar;
+  const editable = src instanceof Project ? src : null;
   const idx = buildIndex(ws);
   return {
     workspace: { name: ws.name, description: ws.description || "" },
@@ -48,15 +65,21 @@ export function state(project: Project, readOnly = false): AppState {
     costSettings: { currency: sc.cost.currency, bands: sc.cost.bands.map((b) => ({ name: b.name, max: b.max ?? null, color: b.color })) },
     lenses: [...BUILTIN_LENSES, ...sc.lenses].map((l) => ({ ...lensData(l), defaultOverlay: l.defaultOverlay ?? null, builtin: l.builtin }) as unknown as Lens),
     flows: flows.listFlows(ws),
-    loadErrors: project.loadErrors,
+    loadErrors: src.loadErrors,
     enums: ops.ENUMS,
     technologies: ops.technologyCatalog(idx),
     styles: Object.fromEntries(Object.entries(sc.styles).map(([k, v]) => [k, styleData(v) as Style])),
-    canUndo: project.undoStack.length > 0,
-    canRedo: project.redoStack.length > 0,
+    canUndo: (editable?.undoStack.length ?? 0) > 0,
+    canRedo: (editable?.redoStack.length ?? 0) > 0,
     codeRoot: project.codeRoot,
     sections: [...SECTIONS],
-    readOnly,
+    readOnly: readOnly || src.readOnly,
+    model: { ref: sel?.ref ?? "main", title: sel?.title ?? "Main model" },
+    drafts: drafts?.list() ?? [],
+    compare:
+      sel?.cmp && sel.cmpRef
+        ? { against: sel.cmpRef, title: sel.cmpTitle ?? sel.cmpRef, summary: diffModels(sel.cmp, src, sel.cmpRef).summary }
+        : null,
   };
 }
 
@@ -134,11 +157,42 @@ export interface AppOptions {
 export function createApp(root: string, opts: AppOptions = {}): Hono {
   const readOnly = opts.readOnly ?? false;
   const project = new Project(root, opts.codeRoot);
+  const drafts = new Drafts(project);
   const app = new Hono();
-  const edit = <T>(fn: (ws: Workspace, sc: Sidecar) => T, record = true) => project.edit(fn, record);
   const ok = (c: Context) => c.json({ ok: true });
 
+  // Each request selects a model version; handlers read it from here (requests interleave at
+  // `await`, so this cannot be a plain variable).
+  const selection = new AsyncLocalStorage<Selection>();
+  const sel = (): Selection => selection.getStore() ?? { src: project, ref: "main", title: "Main model", cmp: null, cmpRef: null, cmpTitle: null };
+  const src = () => sel().src;
+  const writable = (): Project => {
+    const s = src();
+    if (!(s instanceof Project)) throw new HttpError(403, "This version of the model is read-only.");
+    return s;
+  };
+  const edit = <T>(fn: (ws: Workspace, sc: Sidecar) => T, record = true) => writable().edit(fn, record);
+
+  const draftId = (ref: string) => ref.slice("draft:".length);
+  const resolve = (ref: string): [ModelSource, string] => {
+    if (ref === "main") return [project, "Main model"];
+    if (ref.startsWith("draft:")) {
+      const id = draftId(ref);
+      return [drafts.get(id), `Draft: ${drafts.info(id).title}`];
+    }
+    throw new HttpError(422, `Unknown model version "${ref}".`);
+  };
+  const resolveCompare = (ref: string, against: string): [ModelSource, string] => {
+    if (against === "base") {
+      if (!ref.startsWith("draft:")) throw new HttpError(422, "Only a draft has a base to compare with.");
+      return [drafts.base(draftId(ref)), "Main model when the draft was made"];
+    }
+    return resolve(against);
+  };
+
   app.onError((err, c) => {
+    if (err instanceof ApplyConflict) return c.json({ detail: err.message, conflicts: err.conflicts }, 409);
+    if (err instanceof NotFound) return c.json({ detail: err.message }, 404);
     if (err instanceof ModelError) return c.json({ detail: err.message }, 422);
     if (err instanceof HttpError) return c.json({ detail: err.message }, err.status as 400);
     if (err instanceof diagrams.UnknownDiagram) return c.json({ detail: `No diagram ${err.message}` }, 404);
@@ -154,23 +208,67 @@ export function createApp(root: string, opts: AppOptions = {}): Hono {
     await next();
   });
 
+  app.use("/api/*", async (c, next) => {
+    const ref = c.req.header("x-dp-model")?.trim() || "main";
+    const [s, title] = resolve(ref);
+    s.reloadIfChanged();
+    const against = c.req.header("x-dp-compare")?.trim() || null;
+    let cmp: ModelSource | null = null;
+    let cmpTitle: string | null = null;
+    if (against) {
+      [cmp, cmpTitle] = resolveCompare(ref, against);
+      cmp.reloadIfChanged();
+    }
+    await selection.run({ src: s, ref, title, cmp, cmpRef: against, cmpTitle }, next);
+  });
+
   // ------------------------------------------------------------ read
 
   /** For process monitors: the server is up and the model files load. */
   app.get("/api/health", (c) => c.json({ ok: true, version: version(), loadErrors: project.loadErrors.length }));
 
-  app.get("/api/state", (c) => {
-    project.reloadIfChanged();
-    return c.json(state(project, readOnly));
-  });
+  app.get("/api/state", (c) => c.json(state(project, readOnly, sel(), drafts)));
+
+  /** The changes between the shown model and the one it is compared with. */
+  const changes = (): ChangeSet => {
+    const { src: s, cmp, cmpRef } = sel();
+    if (!cmp || !cmpRef) throw new HttpError(422, "Nothing to compare with: send the X-DP-Compare header.");
+    return diffModels(cmp, s, cmpRef);
+  };
 
   app.get("/api/diagrams/:key", (c) => {
-    project.reloadIfChanged();
     const key = c.req.param("key");
-    const d =
-      diagrams.diagram(project.workspace, key, project.sidecar, project.codeRoot) ?? flows.flowDiagram(project.workspace, key, project.sidecar);
+    const { src: s, cmp } = sel();
+    const d = cmp ? compareDiagram(s, cmp, key, changes(), project.codeRoot) : diagramOf(s, key, project.codeRoot);
     if (!d) throw new HttpError(404, `No diagram ${key}`);
     return c.json(d);
+  });
+
+  app.get("/api/changes", (c) => c.json(changes()));
+
+  // ------------------------------------------------------------ drafts
+
+  app.post("/api/drafts", async (c) => {
+    const b = await objBody(c);
+    return c.json({ id: drafts.create(needStr(b, "title"), optStr(b, "description") ?? "") });
+  });
+
+  app.patch("/api/drafts/:id", async (c) => {
+    const b = await objBody(c);
+    drafts.update(c.req.param("id"), { title: optStr(b, "title") ?? undefined, description: optStr(b, "description") ?? undefined });
+    return ok(c);
+  });
+
+  app.delete("/api/drafts/:id", (c) => {
+    drafts.remove(c.req.param("id"));
+    return ok(c);
+  });
+
+  app.get("/api/drafts/:id/apply-preview", (c) => c.json(drafts.preview(c.req.param("id"))));
+
+  app.post("/api/drafts/:id/apply", (c) => {
+    drafts.apply(c.req.param("id"));
+    return ok(c);
   });
 
   app.put("/api/diagrams/:key/positions", async (c) => {
@@ -467,8 +565,8 @@ export function createApp(root: string, opts: AppOptions = {}): Hono {
     return ok(c);
   });
 
-  app.post("/api/undo", (c) => c.json({ ok: project.undo() }));
-  app.post("/api/redo", (c) => c.json({ ok: project.redo() }));
+  app.post("/api/undo", (c) => c.json({ ok: writable().undo() }));
+  app.post("/api/redo", (c) => c.json({ ok: writable().redo() }));
 
   // ------------------------------------------------------------ code
 

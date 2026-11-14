@@ -225,6 +225,7 @@ export function C4Node({ data, selected }: NodeProps<C4NodeType>) {
     data.focused ? "focused" : "",
     overlay && !overlay.color ? "no-value" : "",
     el.external ? "external" : "",
+    el.ghost ? "ghost" : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -233,6 +234,7 @@ export function C4Node({ data, selected }: NodeProps<C4NodeType>) {
       className={cls}
       style={{ color: fg, width: w, height: h }}
       data-testid={`node-${el.id}`}
+      data-change={el.change}
       data-shape={type}
       title={el.drillKey ? "Double-click to open the next level" : undefined}
     >
@@ -496,6 +498,10 @@ export type C4EdgeData = {
   openWork: number;
   hasDetail: boolean;
   editable: boolean;
+  /** Only in the compared version (drawn faded, dotted). */
+  ghost?: boolean;
+  /** Colour by change, when the Changes overlay is on. */
+  changeColor?: string | null;
   onGeom(id: string, layout: EdgeLayout): void;
   onSelect(id: string): void;
   onOpen(id: string): void;
@@ -513,10 +519,12 @@ function edgeStyle(d: C4EdgeData, selected: boolean): React.CSSProperties {
   let stroke = edgeColor(d);
   let strokeWidth = d.style.strokeWidth ?? 1.6;
   let strokeDasharray: string | undefined = dashFor(d.style.strokeStyle) ?? (d.derived ? "6 5" : undefined);
+  if (d.changeColor) [stroke, strokeWidth] = [d.changeColor, Math.max(2.2, strokeWidth)];
+  if (d.ghost) strokeDasharray = "3 5";
   if (d.highlight === "past") [stroke, strokeWidth] = [FLOW_PAST, 2];
   if (d.highlight === "current") [stroke, strokeWidth, strokeDasharray] = [FLOW_CURRENT, 2.6, undefined];
   if (selected) [stroke, strokeWidth] = ["#f59e0b", Math.max(3, strokeWidth)];
-  return { stroke, strokeWidth, strokeDasharray, fill: "none", opacity: d.dimmed ? 0.2 : 1 };
+  return { stroke, strokeWidth, strokeDasharray, fill: "none", opacity: d.dimmed ? 0.2 : d.ghost ? 0.6 : 1 };
 }
 
 type Drag = { kind: "source" | "target" | "bend" | "label"; value: Pt | { t: number; offset: number } };
@@ -596,7 +604,7 @@ export function C4Edge({ id, source, target, data, selected, markerEnd, markerSt
   const ly = at.p.y;
   const bend = pointAlong(pts, 0.5).p;
 
-  const cls = ["c4-edge", data.derived ? "derived" : "", selected ? "selected" : "", data.highlight ?? "", data.dimmed ? "dimmed" : ""].filter(Boolean).join(" ");
+  const cls = ["c4-edge", data.derived ? "derived" : "", selected ? "selected" : "", data.highlight ?? "", data.dimmed ? "dimmed" : "", data.ghost ? "ghost" : ""].filter(Boolean).join(" ");
 
   const flowPoint = (e: React.PointerEvent): Pt => rf.screenToFlowPosition({ x: e.clientX, y: e.clientY });
   const begin = (kind: Drag["kind"]) => (e: React.PointerEvent) => {

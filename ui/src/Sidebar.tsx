@@ -17,6 +17,7 @@ export function Sidebar({
   onEditCharacteristics,
   onEditCost,
   onRenameWorkspace,
+  draftsSection,
 }: {
   state: AppState;
   lens: Lens;
@@ -33,6 +34,8 @@ export function Sidebar({
   onEditCharacteristics(): void;
   onEditCost(): void;
   onRenameWorkspace(): void;
+  /** The Drafts section (main model and planned changes). */
+  draftsSection?: React.ReactNode;
 }) {
   const diagrams = state.diagrams.filter((d) => showAllLevels || d.level === "connector" || lens.visibleLevels.includes(d.level as Level));
   const hidden = state.diagrams.length - diagrams.length;
@@ -67,6 +70,8 @@ export function Sidebar({
           Show all levels {hidden > 0 && !showAllLevels && <span className="muted">({hidden} hidden by lens)</span>}
         </label>
       </section>
+
+      {draftsSection}
 
       <section>
         <h3>Lenses</h3>

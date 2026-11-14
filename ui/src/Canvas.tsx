@@ -16,6 +16,7 @@ import {
 import { toPng, toSvg } from "html-to-image";
 import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type Ref } from "react";
 import { CUSTOM_HEADS, FLOW_CURRENT, MarkerDefs, edgeColor, edgeTypes, nodeTypes, type C4EdgeData, type C4NodeData, type NodeActions, type OverlayInfo, type Rect4 } from "./canvasParts";
+import { CHANGE_COLORS } from "./overlays";
 import { DRAG_TYPE, type PaletteItem } from "./Palette";
 import { NODE_H, NODE_W, autoLayout, defaultSize, findFreeSpot, placeMissing, type Rect, type Size } from "./layout";
 import type { Diagram, DiagramNode, EdgeLayout, Lens, Pt, Selection } from "./types";
@@ -57,6 +58,8 @@ interface Props {
   onDropItem(item: PaletteItem, topLeft: Pt): void;
   onConnectToEmpty(sourceId: string, at: Pt, sourceAnchor?: Pt): void;
   flowStep: number | null;
+  /** Colour lines by change (the Changes overlay is on). */
+  showChanges: boolean;
   selection: Selection;
   onSelect(sel: Selection): void;
   onDrill(key: string): void;
@@ -75,7 +78,7 @@ const FIT = { padding: { top: "110px", bottom: "130px", left: "200px", right: "6
 const groupedIds = (d: Diagram) => (d.boundary ? d.nodes.filter((n) => n.inScope).map((n) => n.id) : []);
 const BOUNDARY_PAD = 40;
 
-export function Canvas({ diagram, lens, decorate, actions, archTypes, renameId, onRenameStarted, onDropItem, onConnectToEmpty, flowStep, selection, onSelect, onDrill, onConnect, onPositions, onLayout, onOpenFile, handleRef }: Props) {
+export function Canvas({ diagram, lens, decorate, actions, archTypes, renameId, onRenameStarted, onDropItem, onConnectToEmpty, flowStep, showChanges, selection, onSelect, onDrill, onConnect, onPositions, onLayout, onOpenFile, handleRef }: Props) {
   const rf = useReactFlow();
   const [positions, setPositions] = useState<P>({});
   const [sizeOverride, setSizeOverride] = useState<Record<string, Size>>({});
@@ -89,8 +92,16 @@ export function Canvas({ diagram, lens, decorate, actions, archTypes, renameId, 
   }, [diagram]);
   const sizeOf = useCallback((id: string): Size => sizeOverride[id] ?? baseSizes[id] ?? { w: NODE_W, h: NODE_H }, [sizeOverride, baseSizes]);
   const direction = diagram.level === "connector" ? "RIGHT" : "DOWN";
-  const editable = diagram.level !== "flow";
-  const canConnect = ["landscape", "context", "container", "component"].includes(diagram.level);
+  // A diagram that only exists in the compared version is shown, not edited.
+  const frozen = !!diagram.compare?.removed;
+  const editable = diagram.level !== "flow" && !frozen;
+  const canConnect = !frozen && ["landscape", "context", "container", "component"].includes(diagram.level);
+  /** Ghosts (objects of the compared version) are never saved. */
+  const ghosts = useMemo(() => new Set([...diagram.nodes.filter((n) => n.ghost).map((n) => n.id)]), [diagram]);
+  const savable = useCallback(
+    (p: P): P => (frozen ? {} : Object.fromEntries(Object.entries(p).filter(([id]) => !ghosts.has(id)))),
+    [frozen, ghosts],
+  );
 
   useEffect(() => setSizeOverride({}), [diagram]);
 
@@ -119,7 +130,8 @@ export function Canvas({ diagram, lens, decorate, actions, archTypes, renameId, 
           : placeMissing({ ...saved }, baseSizes, missing, diagram.edges);
       if (cancelled) return;
       setPositions({ ...saved, ...add });
-      onPositions(add, true);
+      const keep = savable(add);
+      if (Object.keys(keep).length) onPositions(keep, true);
     })();
     return () => {
       cancelled = true;
@@ -202,7 +214,7 @@ export function Canvas({ diagram, lens, decorate, actions, archTypes, renameId, 
         archTypes,
         renameNow: renameId === n.id,
         onRenameStarted,
-        editable,
+        editable: editable && !n.ghost,
         onResize,
         onResizeEnd,
       };
@@ -214,7 +226,8 @@ export function Canvas({ diagram, lens, decorate, actions, archTypes, renameId, 
         width: sz.w,
         height: sz.h,
         selected: selection?.type === "node" && selection.id === n.id,
-        connectable: canConnect,
+        connectable: canConnect && !n.ghost,
+        draggable: editable && !n.ghost,
         measured: { width: sz.w, height: sz.h },
       });
     }
@@ -273,7 +286,9 @@ export function Canvas({ diagram, lens, decorate, actions, archTypes, renameId, 
         stageCount: e.stageCount,
         openWork: e.openWork ?? 0,
         hasDetail: !!e.detailKey || e.drillTargets.length === 1,
-        editable: editable && !flow,
+        editable: editable && !flow && !e.ghost,
+        ghost: !!e.ghost,
+        changeColor: showChanges && e.change ? CHANGE_COLORS[e.change] : null,
         onGeom: (id, layout) => onLayout({ edges: { [id]: layout } }),
         onSelect: (id) => onSelect({ type: "edge", id }),
         onOpen: openEdge,
@@ -289,7 +304,7 @@ export function Canvas({ diagram, lens, decorate, actions, archTypes, renameId, 
         selected: selection?.type === "edge" && selection.id === e.id,
       };
     });
-  }, [diagram, nodes, decorate, flow, flowStep, step, stepRel, selection, editable, onLayout, onSelect, openEdge]);
+  }, [diagram, nodes, decorate, flow, flowStep, step, stepRel, selection, editable, onLayout, onSelect, openEdge, showChanges]);
 
   const onNodesChange = useCallback((changes: NodeChange[]) => {
     const moves = changes.filter((c) => c.type === "position" && !c.id.startsWith("boundary:"));
@@ -325,12 +340,13 @@ export function Canvas({ diagram, lens, decorate, actions, archTypes, renameId, 
           direction,
         );
         setPositions(pos);
-        onPositions(pos);
+        const keep = savable(pos);
+        if (Object.keys(keep).length) onPositions(keep);
         requestAnimationFrame(() => rf.fitView({ ...FIT, duration: 300 }));
       },
       nudge(id, dx, dy) {
         const n = nodes.find((x) => x.id === id);
-        if (!n || !editable) return;
+        if (!n || !editable || ghosts.has(id)) return;
         const p = { x: Math.round(n.position.x + dx), y: Math.round(n.position.y + dy) };
         setPositions((prev) => ({ ...prev, [id]: p }));
         onPositions({ [id]: p });
@@ -364,7 +380,7 @@ export function Canvas({ diagram, lens, decorate, actions, archTypes, renameId, 
         a.click();
       },
     }),
-    [rf, diagram, nodes, onPositions, rects, sizeOf, direction, editable],
+    [rf, diagram, nodes, onPositions, rects, sizeOf, direction, editable, ghosts, savable],
   );
 
   return (
@@ -377,7 +393,7 @@ export function Canvas({ diagram, lens, decorate, actions, archTypes, renameId, 
         onNodesChange={onNodesChange}
         onNodeDragStop={(_, node, dragged) => {
           const moved: P = {};
-          for (const n of dragged) if (!n.id.startsWith("boundary:")) moved[n.id] = n.position;
+          for (const n of dragged) if (!n.id.startsWith("boundary:") && !ghosts.has(n.id)) moved[n.id] = n.position;
           // A box dropped on top of (or too close to) another goes to the nearest free spot.
           if (dragged.length === 1 && moved[node.id]) {
             const sz = sizeOf(node.id);
@@ -387,7 +403,7 @@ export function Canvas({ diagram, lens, decorate, actions, archTypes, renameId, 
               setPositions((p) => ({ ...p, [node.id]: spot }));
             }
           }
-          if (Object.keys(moved).length) onPositions(moved);
+          if (Object.keys(moved).length && !frozen) onPositions(moved);
         }}
         onNodeClick={(_, n) => onSelect({ type: "node", id: n.id.startsWith("boundary:") ? n.id.slice(9) : n.id })}
         onNodeDoubleClick={(_, n) => {

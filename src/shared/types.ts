@@ -151,6 +151,10 @@ export interface DiagramNode extends ElementSummary {
   linkedElementName?: string | null;
   filePath?: string;
   lineCount?: number | null;
+  /** Set when the diagram is compared with another version of the model. */
+  change?: ChangeKind;
+  /** Not in the shown model: drawn from the compared version (read-only). */
+  ghost?: boolean;
 }
 
 export interface DrillTarget {
@@ -180,6 +184,8 @@ export interface DiagramEdge {
   steps?: number[];
   style: Style;
   layout: EdgeLayout;
+  change?: ChangeKind;
+  ghost?: boolean;
 }
 
 export interface Crumb {
@@ -230,6 +236,8 @@ export interface Diagram {
     archType?: string;
   };
   code?: { ownerName: string; paths: string[]; missing: string[]; hasRoot: boolean; truncated: boolean };
+  /** Set when compared with another version; `removed`: this diagram exists only in that version. */
+  compare?: { against: string; removed: boolean };
 }
 
 export interface Relationship {
@@ -311,4 +319,70 @@ export interface AppState {
   canUndo: boolean;
   canRedo: boolean;
   readOnly: boolean;
+  /** The model shown: "main" or "draft:<id>". */
+  model: { ref: string; title: string };
+  drafts: DraftInfo[];
+  /** Set when the model is compared with another version (overlay "Changes"). */
+  compare: { against: string; title: string; summary: ChangeSummary } | null;
+}
+
+// ------------------------------------------------------------------ planned change (Stage C)
+
+/** How an object differs from the model it is compared with. "inner": something inside it changed. */
+export type ChangeKind = "added" | "changed" | "removed" | "inner";
+
+export interface FieldChange {
+  field: string;
+  label: string;
+  before: unknown;
+  after: unknown;
+}
+
+export interface ObjectChange {
+  id: string;
+  type: "element" | "relationship" | "flow" | "setting";
+  /** Element kind, "relationship", "flow", or the setting's kind (tag group, lens, ...). */
+  kind: string;
+  name: string;
+  change: Exclude<ChangeKind, "inner">;
+  fields: FieldChange[];
+  /** The diagram to open to see the object (in the version where it exists). */
+  homeKey: string | null;
+}
+
+export interface ChangeSummary {
+  added: number;
+  changed: number;
+  removed: number;
+  /** Position, size, line-shape and style changes; not counted as model changes. */
+  layout: number;
+}
+
+export interface ChangeSet {
+  /** What the shown model is compared with, e.g. "base" or "main". */
+  against: string;
+  elements: ObjectChange[];
+  relationships: ObjectChange[];
+  flows: ObjectChange[];
+  settings: ObjectChange[];
+  /** Elements not changed themselves but with a changed element or relationship inside. */
+  inner: string[];
+  summary: ChangeSummary;
+}
+
+export interface Conflict {
+  label: string;
+  reason: string;
+}
+
+export interface DraftInfo {
+  id: string;
+  title: string;
+  description: string;
+  created: string;
+}
+
+export interface ApplyPreview {
+  changes: ChangeSet;
+  conflicts: Conflict[];
 }

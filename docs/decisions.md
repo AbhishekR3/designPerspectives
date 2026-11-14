@@ -97,3 +97,16 @@ Entry format: **ID — title** · date · status · who decided · what was deci
 - Date: 2026-11-14 · Status: Accepted · Decided by: Owner
 - Decision: the repository keeps the two book notes (`notes/`), the backlog (`backlog.md`), this decisions list, and per-stage reviews (`reviews/`). The books themselves and superseded plans are not committed. Other tools are not named or compared in repository files, commit messages or pull requests. Commits and PRs carry no co-author or session-link lines.
 - Why: the owner will work from a local folder synced with this repository, using a local editor with Claude Code, so everything a session needs must be in the repository.
+
+## DEC-016 — Drafts are folders with a base copy; applying is a three-way merge
+- Date: 2026-11-14 · Status: Accepted · Decided by: Owner (merge behaviour, storage, scope); file layout and merge granularity by the assistant (Proposal)
+- Decision: a draft is `architecture/drafts/<id>/` holding its own `workspace.json` and `designperspectives.json`, a `draft.json` (title, description, date) and `base/` (the main model's two files when the draft was made). Drafts are meant to be committed. Applying merges object by object (element, relationship, view, position, tag group, lens, style, layout entry): a change on one side wins; the same change on both sides is kept; different changes to the same object are a conflict and nothing is applied. Positions and other layout never conflict (the draft's wins). References are checked after the merge (an element inside a removed element, a relationship to a removed element) and model rules are run, so a merge that breaks one (e.g. two containers with the same name) is refused too. Apply is one undo step on the main model and deletes the draft.
+- Why: the base copy is what makes a three-way merge possible, so a draft can live while the main model keeps changing. Object-level units match how the model is edited (one edit touches one object), so unrelated edits merge cleanly.
+- Trade-off: five files per draft in git; Structurizr tools ignore the folder. A conflict must be resolved by editing one side (no merge editor yet). Undoing an apply restores the main model but not the draft (git history still has it). New objects from the draft are placed after the object that preceded them in the draft, so sibling order can differ slightly from the draft's.
+
+## DEC-017 — The model version is chosen per request
+- Date: 2026-11-14 · Status: Accepted · Decided by: assistant (Proposal)
+- Decision: every API request names the model version it works on in the header `X-DP-Model` (`main` or `draft:<id>`) and, optionally, the version it is compared with in `X-DP-Compare` (`base` or `main`). With a compare, diagrams carry `change` and `ghost` marks and `GET /api/changes` lists the changes. The UI keeps both in the URL (`#/d/<diagram>?m=…&c=…`).
+- Why: the server holds no "current draft", so two browser tabs can show different versions, links keep the version, and tests stay stateless.
+- Options rejected: a server-side "active draft" (tabs would interfere); separate URL prefixes per version (every route and client call would change).
+- Trade-off: the header is invisible in the browser's network URL list; clients other than the UI must send it to work on a draft.
