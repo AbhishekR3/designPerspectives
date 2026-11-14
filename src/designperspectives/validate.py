@@ -95,6 +95,13 @@ def errors(ws: Workspace, sidecar: Sidecar) -> list[str]:
         bad = [lv for lv in lens.visible_levels if lv not in LEVELS]
         if bad:
             out.append(f'Lens "{lens.name}" has unknown levels: {", ".join(bad)}.')
-        if lens.default_overlay and lens.default_overlay not in groups:
-            out.append(f'Lens "{lens.name}" uses tag group "{lens.default_overlay}", which is not defined.')
+        ov = lens.default_overlay
+        # Default overlay: a tag group name, "@cost", "@tech", "@work:<type>" or "@char:<characteristic>".
+        if ov in ("@cost", "@tech") or (ov and ov.startswith("@work:")):
+            pass
+        elif ov and ov.startswith("@char:"):
+            if ov[6:] not in {c.name for c in sidecar.characteristics}:
+                out.append(f'Lens "{lens.name}" uses characteristic "{ov[6:]}", which is not defined.')
+        elif ov and ov not in groups:
+            out.append(f'Lens "{lens.name}" uses tag group "{ov}", which is not defined.')
     return out

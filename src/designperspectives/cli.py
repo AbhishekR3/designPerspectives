@@ -8,9 +8,23 @@ from pathlib import Path
 
 import typer
 
+from . import __version__
 from .store import ARCH_DIR, WORKSPACE_FILE, Project, init_project
 
 app = typer.Typer(help="designPerspectives: C4 architecture models with lenses.", no_args_is_help=True, add_completion=False)
+
+
+def _version(value: bool):
+    if value:
+        typer.echo(f"designPerspectives {__version__}")
+        raise typer.Exit()
+
+
+@app.callback()
+def main(
+    version: bool = typer.Option(False, "--version", callback=_version, is_eager=True, help="Show the version and exit."),
+):
+    """designPerspectives: C4 architecture models with lenses."""
 
 
 @app.command()

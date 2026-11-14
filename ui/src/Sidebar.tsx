@@ -1,3 +1,4 @@
+import { Icon } from "./icons";
 import type { AppState, Lens, Level, TagGroup } from "./types";
 
 export function Sidebar({
@@ -7,13 +8,14 @@ export function Sidebar({
   showAllLevels,
   setShowAllLevels,
   onOpen,
-  onLens,
+  onClose,
   onEditLens,
   onNewLens,
-  onNewFlow,
   onEditTagGroup,
   onNewTagGroup,
   onDeleteTagGroup,
+  onEditCharacteristics,
+  onEditCost,
   onRenameWorkspace,
 }: {
   state: AppState;
@@ -22,45 +24,31 @@ export function Sidebar({
   showAllLevels: boolean;
   setShowAllLevels(v: boolean): void;
   onOpen(key: string): void;
-  onLens(id: string): void;
+  onClose(): void;
   onEditLens(l: Lens): void;
   onNewLens(): void;
-  onNewFlow(): void;
   onEditTagGroup(g: TagGroup): void;
   onNewTagGroup(): void;
   onDeleteTagGroup(g: TagGroup): void;
+  onEditCharacteristics(): void;
+  onEditCost(): void;
   onRenameWorkspace(): void;
 }) {
   const diagrams = state.diagrams.filter((d) => showAllLevels || d.level === "connector" || lens.visibleLevels.includes(d.level as Level));
   const hidden = state.diagrams.length - diagrams.length;
   return (
     <aside className="sidebar">
-      <div className="brand">
-        <div className="product">designPerspectives</div>
-        <button className="ws-name link" onClick={onRenameWorkspace} title="Rename workspace" data-testid="ws-name">
-          {state.workspace.name}
-        </button>
-      </div>
-
-      <section>
-        <h3>Lens</h3>
-        <div className="row">
-          <select value={lens.id} onChange={(e) => onLens(e.target.value)} data-testid="lens-select">
-            {state.lenses.map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.name}
-                {l.builtin ? " (built-in)" : ""}
-              </option>
-            ))}
-          </select>
-          <button className="icon" onClick={() => onEditLens(lens)} title={lens.builtin ? "Duplicate lens" : "Edit lens"} data-testid="lens-edit">
-            {lens.builtin ? "⧉" : "✎"}
+      <div className="brand row between">
+        <div>
+          <div className="product">designPerspectives</div>
+          <button className="ws-name link" onClick={onRenameWorkspace} title="Rename workspace" data-testid="ws-name">
+            {state.workspace.name}
           </button>
         </div>
-        <button className="add" onClick={onNewLens} data-testid="new-lens">
-          + New lens
+        <button className="ghost icon" onClick={onClose} title="Hide the diagram list" aria-label="Hide the diagram list">
+          <Icon name="panel" />
         </button>
-      </section>
+      </div>
 
       <section>
         <h3>Diagrams</h3>
@@ -81,18 +69,22 @@ export function Sidebar({
       </section>
 
       <section>
-        <h3>Flows</h3>
-        <ul className="tree" data-testid="flow-list">
-          {state.flows.map((f) => (
-            <li key={f.key}>
-              <button className={`link ${f.key === currentKey ? "active" : ""}`} onClick={() => onOpen(f.key)} data-testid={`flow-${f.key}`}>
-                ▸ {f.title} <span className="muted">({f.steps.length})</span>
+        <h3>Lenses</h3>
+        <ul className="tree">
+          {state.lenses.map((l) => (
+            <li key={l.id} className="row between">
+              <span className={l.id === lens.id ? "strong" : ""}>
+                {l.name}
+                {l.builtin && <span className="muted small"> built-in</span>}
+              </span>
+              <button className="ghost icon" onClick={() => onEditLens(l)} title={l.builtin ? "Duplicate lens" : "Edit lens"} data-testid={l.id === lens.id ? "lens-edit" : undefined}>
+                {l.builtin ? "⧉" : "✎"}
               </button>
             </li>
           ))}
         </ul>
-        <button className="add" onClick={onNewFlow} data-testid="new-flow">
-          + New flow
+        <button className="add" onClick={onNewLens} data-testid="new-lens">
+          + New lens
         </button>
       </section>
 
@@ -104,7 +96,7 @@ export function Sidebar({
               <button className="link" onClick={() => onEditTagGroup(g)} data-testid={`taggroup-${g.name}`}>
                 {g.name} <span className="muted">({g.values.map((v) => v.name).join(", ")})</span>
               </button>
-              <button className="icon" onClick={() => onDeleteTagGroup(g)} aria-label={`Delete ${g.name}`}>
+              <button className="ghost icon" onClick={() => onDeleteTagGroup(g)} aria-label={`Delete ${g.name}`}>
                 ×
               </button>
             </li>
@@ -112,6 +104,16 @@ export function Sidebar({
         </ul>
         <button className="add" onClick={onNewTagGroup} data-testid="new-tag-group">
           + New tag group
+        </button>
+      </section>
+
+      <section>
+        <h3>Ratings and cost</h3>
+        <button className="link" onClick={onEditCharacteristics} data-testid="sidebar-characteristics">
+          Characteristics <span className="muted">({state.characteristics.length})</span>
+        </button>
+        <button className="link" onClick={onEditCost} data-testid="sidebar-cost">
+          Cost settings <span className="muted">({state.costSettings.currency})</span>
         </button>
       </section>
 

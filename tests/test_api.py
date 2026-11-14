@@ -134,3 +134,35 @@ def test_delete_element_and_relationship(client):
 def test_cli_validate(demo_dir):
     r = subprocess.run(["dp", "validate", str(demo_dir)], capture_output=True, text=True)
     assert r.returncode == 0 and r.stdout.strip() == "OK"
+
+
+def test_page_is_not_cached(client):
+    from designperspectives.store import static_dir
+
+    if static_dir() is None:
+        return
+    r = client.get("/")
+    assert r.status_code == 200 and r.headers["cache-control"] == "no-cache"
+
+
+def test_health_and_version(client):
+    from designperspectives import __version__
+
+    r = client.get("/api/health").json()
+    assert r == {"ok": True, "version": __version__, "loadErrors": 0}
+
+
+def test_code_file_save_keeps_permissions(tmp_path):
+    import os
+    import stat
+
+    from designperspectives import code
+
+    f = tmp_path / "run.sh"
+    f.write_text("echo hi\r\n", encoding="utf-8")
+    f.chmod(0o755)
+    m = f.stat().st_mtime
+    code.write_file(tmp_path, "run.sh", "echo bye\r\n", m)
+    assert f.read_bytes() == b"echo bye\r\n"  # line endings kept as typed
+    assert stat.S_IMODE(f.stat().st_mode) == 0o755
+    assert not [p for p in os.listdir(tmp_path) if p.endswith(".tmp")]

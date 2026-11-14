@@ -168,7 +168,7 @@ export function Shape({ type, w, h, s }: { type: string; w: number; h: number; s
 export function ShapeIcon({ type }: { type: string }) {
   return (
     <svg width="28" height="20" viewBox="0 0 28 20" style={{ verticalAlign: "middle" }}>
-      <Shape type={type} w={28} h={20} s={{ fill: "#e8eef6", stroke: "#44546a", strokeWidth: 1.2 }} />
+      <Shape type={type} w={28} h={20} s={{ fill: "#24282e", stroke: "#9aa3ad", strokeWidth: 1.2 }} />
     </svg>
   );
 }

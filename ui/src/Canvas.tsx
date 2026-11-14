@@ -15,9 +15,10 @@ import {
 } from "@xyflow/react";
 import { toPng, toSvg } from "html-to-image";
 import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type Ref } from "react";
-import { edgeColor, edgeTypes, nodeTypes, type C4EdgeData, type C4NodeData, type OverlayInfo, type Rect4 } from "./canvasParts";
+import { CUSTOM_HEADS, FLOW_CURRENT, MarkerDefs, edgeColor, edgeTypes, nodeTypes, type C4EdgeData, type C4NodeData, type NodeActions, type OverlayInfo, type Rect4 } from "./canvasParts";
+import { DRAG_TYPE, type PaletteItem } from "./Palette";
 import { NODE_H, NODE_W, autoLayout, defaultSize, findFreeSpot, placeMissing, type Rect, type Size } from "./layout";
-import type { Diagram, EdgeLayout, Lens, Pt, Selection, TagGroup } from "./types";
+import type { Diagram, DiagramNode, EdgeLayout, Lens, Pt, Selection } from "./types";
 
 export interface CanvasHandle {
   freeSpot(size?: Size): Pt;
@@ -26,6 +27,15 @@ export interface CanvasHandle {
   nudge(id: string, dx: number, dy: number): void;
   fit(): void;
   zoom(dir: 1 | -1): void;
+}
+
+/** How overlays and filters show one element: colour/chip, hidden by a Hide filter, in or out of focus. */
+export interface NodeDecor {
+  overlay: OverlayInfo | null;
+  hidden: boolean;
+  focused: boolean;
+  outOfFocus: boolean;
+  costLabel: string | null;
 }
 
 export interface LayoutPatch {
@@ -39,7 +49,13 @@ const HANDLE_ANCHOR: Record<string, Pt> = { t: { x: 0.5, y: 0 }, r: { x: 1, y: 0
 interface Props {
   diagram: Diagram;
   lens: Lens;
-  overlay: TagGroup | null;
+  decorate(n: DiagramNode): NodeDecor;
+  actions: NodeActions | null;
+  archTypes: { id: string; label: string }[];
+  renameId: string | null;
+  onRenameStarted(): void;
+  onDropItem(item: PaletteItem, topLeft: Pt): void;
+  onConnectToEmpty(sourceId: string, at: Pt, sourceAnchor?: Pt): void;
   flowStep: number | null;
   selection: Selection;
   onSelect(sel: Selection): void;
@@ -53,10 +69,13 @@ interface Props {
 
 type P = Record<string, Pt>;
 
+/** Room for the floating bars around the canvas, so fitting the view does not put boxes under them. */
+const FIT = { padding: { top: "110px", bottom: "130px", left: "200px", right: "60px" } } as const;
+
 const groupedIds = (d: Diagram) => (d.boundary ? d.nodes.filter((n) => n.inScope).map((n) => n.id) : []);
 const BOUNDARY_PAD = 40;
 
-export function Canvas({ diagram, lens, overlay, flowStep, selection, onSelect, onDrill, onConnect, onPositions, onLayout, onOpenFile, handleRef }: Props) {
+export function Canvas({ diagram, lens, decorate, actions, archTypes, renameId, onRenameStarted, onDropItem, onConnectToEmpty, flowStep, selection, onSelect, onDrill, onConnect, onPositions, onLayout, onOpenFile, handleRef }: Props) {
   const rf = useReactFlow();
   const [positions, setPositions] = useState<P>({});
   const [sizeOverride, setSizeOverride] = useState<Record<string, Size>>({});
@@ -112,7 +131,7 @@ export function Canvas({ diagram, lens, overlay, flowStep, selection, onSelect, 
   useEffect(() => {
     if (fitFor.current !== diagram.key && Object.keys(positions).length >= diagram.nodes.length) {
       fitFor.current = diagram.key;
-      requestAnimationFrame(() => rf.fitView({ padding: 0.15, duration: 0 }));
+      requestAnimationFrame(() => rf.fitView({ ...FIT, duration: 0 }));
     }
   }, [positions, diagram, rf]);
 
@@ -149,7 +168,7 @@ export function Canvas({ diagram, lens, overlay, flowStep, selection, onSelect, 
         id: `boundary:${diagram.boundary.id}`,
         type: "boundary",
         position: { x, y },
-        data: { name: diagram.boundary.name, kind: diagram.boundary.kind, width, height },
+        data: { name: diagram.boundary.name, kind: diagram.boundary.kind, description: diagram.nodes.find((n) => n.id === diagram.boundary!.id)?.description ?? "", width, height },
         width,
         height,
         measured: { width, height },
@@ -164,22 +183,25 @@ export function Canvas({ diagram, lens, overlay, flowStep, selection, onSelect, 
     for (const n of diagram.nodes) {
       const p = positions[n.id];
       if (!p) continue;
-      let ov: OverlayInfo | null = null;
-      if (overlay && n.kind !== "file" && n.kind !== "stage") {
-        const value = n.tags[overlay.name] ?? null;
-        ov = { group: overlay.name, value, color: overlay.values.find((v) => v.name === value)?.color ?? null };
-      }
+      const dec = decorate(n);
+      if (dec.hidden) continue;
       const sz = sizeOf(n.id);
       const data: C4NodeData = {
         el: n,
         w: sz.w,
         h: sz.h,
-        overlay: ov,
+        overlay: dec.overlay,
         showTechnology: lens.showTechnology,
         showDescriptions: lens.showDescriptions,
         sections: lens.visibleSections,
         flowActive: activeNodes.has(n.id),
-        dimmed: !!step && !activeNodes.has(n.id),
+        dimmed: (!!step && !activeNodes.has(n.id)) || dec.outOfFocus,
+        focused: dec.focused,
+        costLabel: dec.costLabel,
+        actions,
+        archTypes,
+        renameNow: renameId === n.id,
+        onRenameStarted,
         editable,
         onResize,
         onResizeEnd,
@@ -197,7 +219,7 @@ export function Canvas({ diagram, lens, overlay, flowStep, selection, onSelect, 
       });
     }
     return out;
-  }, [diagram, positions, overlay, lens, activeNodes, step, selection, sizeOf, editable, canConnect, onResize, onResizeEnd]);
+  }, [diagram, positions, decorate, actions, archTypes, renameId, onRenameStarted, lens, activeNodes, step, selection, sizeOf, editable, canConnect, onResize, onResizeEnd]);
 
   const openEdge = useCallback(
     (id: string) => {
@@ -217,7 +239,9 @@ export function Canvas({ diagram, lens, overlay, flowStep, selection, onSelect, 
       groups.set(k, [...(groups.get(k) ?? []), e.id]);
     }
     const pastSteps = new Set(flow && flowStep !== null ? flow.steps.slice(0, flowStep).map((s) => s.relationshipId) : []);
-    return diagram.edges.map((e) => {
+    const shown = new Set(nodes.map((n) => n.id));
+    const unfocused = new Set(diagram.nodes.filter((n) => decorate(n).outOfFocus).map((n) => n.id));
+    return diagram.edges.filter((e) => shown.has(e.source) && shown.has(e.target)).map((e) => {
       const g = groups.get([e.source, e.target].sort().join("|"))!;
       const i = g.indexOf(e.id);
       const offset = g.length > 1 && !e.layout.control ? (i - (g.length - 1) / 2) * 60 : 0;
@@ -225,8 +249,11 @@ export function Canvas({ diagram, lens, overlay, flowStep, selection, onSelect, 
       let label = e.description;
       if (e.steps?.length) label = `${e.steps.join(", ")}. ${e.description}`;
       if (current && step) label = `${flowStep! + 1}. ${step.description || e.description}${step.response ? " (response)" : ""}`;
-      const color = current ? "#c2410c" : edgeColor(e);
-      const arrow = { type: MarkerType.ArrowClosed, color, width: 18, height: 18 };
+      const color = current ? FLOW_CURRENT : edgeColor(e);
+      const head = e.style.arrowHead ?? "filled";
+      const arrow: Edge["markerEnd"] = (CUSTOM_HEADS as readonly string[]).includes(head)
+        ? `dp-head-${head}`
+        : { type: head === "open" ? MarkerType.Arrow : MarkerType.ArrowClosed, color, width: 18, height: 18 };
       const reverse = current && step?.response;
       const mode = e.style.arrow ?? "end";
       const data: C4EdgeData = {
@@ -237,13 +264,14 @@ export function Canvas({ diagram, lens, overlay, flowStep, selection, onSelect, 
         offset,
         highlight: current ? "current" : pastSteps.has(e.id) ? "past" : null,
         response: !!reverse,
-        dimmed: !!step && !current && !pastSteps.has(e.id),
+        dimmed: (!!step && !current && !pastSteps.has(e.id)) || unfocused.has(e.source) || unfocused.has(e.target),
         testId: e.id,
         style: e.style,
         layout: e.layout,
         sensitivityLevel: e.sensitivityLevel,
         hasNotes: e.hasNotes,
         stageCount: e.stageCount,
+        openWork: e.openWork ?? 0,
         hasDetail: !!e.detailKey || e.drillTargets.length === 1,
         editable: editable && !flow,
         onGeom: (id, layout) => onLayout({ edges: { [id]: layout } }),
@@ -261,7 +289,7 @@ export function Canvas({ diagram, lens, overlay, flowStep, selection, onSelect, 
         selected: selection?.type === "edge" && selection.id === e.id,
       };
     });
-  }, [diagram, flow, flowStep, step, stepRel, selection, editable, onLayout, onSelect, openEdge]);
+  }, [diagram, nodes, decorate, flow, flowStep, step, stepRel, selection, editable, onLayout, onSelect, openEdge]);
 
   const onNodesChange = useCallback((changes: NodeChange[]) => {
     const moves = changes.filter((c) => c.type === "position" && !c.id.startsWith("boundary:"));
@@ -298,7 +326,7 @@ export function Canvas({ diagram, lens, overlay, flowStep, selection, onSelect, 
         );
         setPositions(pos);
         onPositions(pos);
-        requestAnimationFrame(() => rf.fitView({ padding: 0.15, duration: 300 }));
+        requestAnimationFrame(() => rf.fitView({ ...FIT, duration: 300 }));
       },
       nudge(id, dx, dy) {
         const n = nodes.find((x) => x.id === id);
@@ -308,7 +336,7 @@ export function Canvas({ diagram, lens, overlay, flowStep, selection, onSelect, 
         onPositions({ [id]: p });
       },
       fit() {
-        rf.fitView({ padding: 0.15, duration: 200 });
+        rf.fitView({ ...FIT, duration: 200 });
       },
       zoom(dir) {
         if (dir > 0) rf.zoomIn({ duration: 150 });
@@ -323,7 +351,7 @@ export function Canvas({ diagram, lens, overlay, flowStep, selection, onSelect, 
         const height = Math.ceil(bounds.height + pad * 2);
         const vp = getViewportForBounds(bounds, width, height, 1, 1, 0);
         const opts = {
-          backgroundColor: "#ffffff",
+          backgroundColor: "#121417",
           width,
           height,
           style: { width: `${width}px`, height: `${height}px`, transform: `translate(${vp.x}px, ${vp.y}px) scale(1)` },
@@ -377,6 +405,30 @@ export function Canvas({ diagram, lens, overlay, flowStep, selection, onSelect, 
             targetAnchor: c.targetHandle ? HANDLE_ANCHOR[c.targetHandle] : undefined,
           });
         }}
+        onConnectEnd={(event, cs) => {
+          // A line dropped on empty canvas creates a new box there, connected to the box it came from.
+          if (cs.isValid || !cs.fromNode || !canConnect || cs.fromNode.id.startsWith("boundary:")) return;
+          const target = (event.target as HTMLElement | null)?.closest?.(".react-flow__node");
+          if (target) return;
+          const pt = "changedTouches" in event ? event.changedTouches[0] : (event as MouseEvent);
+          const at = rf.screenToFlowPosition({ x: pt.clientX, y: pt.clientY });
+          onConnectToEmpty(cs.fromNode.id, at, cs.fromHandle?.id ? HANDLE_ANCHOR[cs.fromHandle.id] : undefined);
+        }}
+        onDragOver={(e) => {
+          if (!editable || !e.dataTransfer.types.includes(DRAG_TYPE)) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "copy";
+        }}
+        onDrop={(e) => {
+          const raw = e.dataTransfer.getData(DRAG_TYPE);
+          if (!raw || !editable) return;
+          e.preventDefault();
+          const item = JSON.parse(raw) as PaletteItem;
+          const c = rf.screenToFlowPosition({ x: e.clientX, y: e.clientY });
+          const sz = defaultSize(item.kind);
+          const spot = findFreeSpot({ x: c.x - sz.w / 2, y: c.y - sz.h / 2 }, sz, rects());
+          onDropItem(item, spot);
+        }}
         connectionMode={ConnectionMode.Loose}
         connectionRadius={90}
         deleteKeyCode={null}
@@ -387,8 +439,9 @@ export function Canvas({ diagram, lens, overlay, flowStep, selection, onSelect, 
         maxZoom={2.5}
         proOptions={{ hideAttribution: true }}
       >
-        <Background gap={24} size={1} color="#e3e6ea" />
-        <Controls showInteractive={false} />
+        <MarkerDefs />
+        <Background gap={22} size={1.2} color="#262a30" />
+        <Controls showInteractive={false} position="bottom-right" />
       </ReactFlow>
     </div>
   );

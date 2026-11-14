@@ -1,5 +1,5 @@
 export const NODE_W = 225;
-export const NODE_H = 150;
+export const NODE_H = 120;
 export const SMALL_W = 200;
 export const SMALL_H = 100;
 /** Minimum empty space kept between two boxes. */

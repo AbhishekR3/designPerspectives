@@ -24,7 +24,7 @@ from designperspectives.workspace import dump_json, empty_workspace  # noqa: E40
 
 def build():
     ws = empty_workspace("Big Bank plc")
-    ws.description = "Demo: the Internet Banking System example from the C4 model, extended to show every designPerspectives feature (tag groups, lenses, notes, tradeoffs, usage, sensitive labels, symbols, a pipeline connector, and code mapped to components)."
+    ws.description = "Demo: the Internet Banking System example from the C4 model, extended to show every designPerspectives feature (tag groups, lenses, characteristic ratings, cost, linked work, notes, tradeoffs, usage, sensitive labels, symbols, a pipeline connector, and code mapped to components). Ratings, costs and work items are made-up examples."
     sc = Sidecar()
     def E(kind, name, parent=None, description=None, technology=None, **k):  # noqa: N802
         if isinstance(technology, str):
@@ -192,16 +192,60 @@ def build():
                       (load_c, ["sample_code/pipeline/load_warehouse.py"])]:
         ops.update_element(ws, sc, el, {"codePaths": paths})
 
+    # Architecture characteristics (1-5) and monthly cost. Example values for the demo, not measurements.
+    def chars(*rows):
+        return [dict(name=n, rating=r, **({"driving": True} if d else {}), **({"note": t} if t else {})) for n, r, d, t in rows]
+
+    def cost(*rows):
+        return [dict(item=i, monthly=m, **({"note": t} if t else {})) for i, m, t in rows]
+
+    for el, c, k in [
+        (spa, chars(("Scalability", 5, True, "Static files served from a CDN"), ("Deployability", 4, False, ""), ("Testability", 3, False, "")),
+         cost(("CDN and static hosting", 40, ""))),
+        (mobile, chars(("Deployability", 2, False, "App-store review delays releases"), ("Testability", 2, False, ""), ("Performance", 4, False, "")),
+         cost(("App store accounts", 10, ""), ("Device test lab", 150, ""))),
+        (web, chars(("Scalability", 3, False, ""), ("Deployability", 3, False, ""), ("Availability", 4, True, "")), cost(("Cloud Run, 2 instances", 180, ""))),
+        (api, chars(("Scalability", 3, True, "Stateless; scales horizontally behind the load balancer"), ("Performance", 3, True, "Mainframe calls dominate latency"),
+                    ("Availability", 4, True, ""), ("Deployability", 3, False, "Single deployment unit"), ("Testability", 4, False, ""), ("Security", 4, True, "")),
+         cost(("Kubernetes nodes, 3 x n2-standard-4", 1150, ""), ("Load balancer", 60, ""))),
+        (db, chars(("Scalability", 2, False, "Vertical scaling only"), ("Availability", 4, True, "Data Guard standby"), ("Fault tolerance", 3, False, "")),
+         cost(("Oracle licences", 4200, "Prorated per month"), ("Storage and backups", 380, ""))),
+        (mainframe, chars(("Scalability", 1, False, ""), ("Deployability", 1, False, "Quarterly release window"), ("Availability", 5, True, ""), ("Evolvability", 1, False, "")),
+         cost(("Mainframe MIPS share", 9500, "Internal chargeback"))),
+        (email, chars(("Availability", 4, False, "")), cost(("E-mail licences", 120, ""))),
+        (stream, chars(("Scalability", 5, True, ""), ("Elasticity", 4, False, ""), ("Fault tolerance", 4, True, "Replication factor 3")), cost(("Managed Kafka", 640, ""))),
+        (worker, chars(("Scalability", 2, False, "Single scheduler"), ("Testability", 3, False, ""), ("Deployability", 4, False, "")), cost(("Airflow workers", 320, ""))),
+        (warehouse, chars(("Scalability", 5, False, ""), ("Performance", 4, False, ""), ("Security", 4, True, "PII masked before load")), cost(("Warehouse credits", 2100, ""))),
+        (security, chars(("Security", 4, True, ""), ("Testability", 3, False, "")), []),
+        (signin, chars(("Testability", 4, False, "")), []),
+        (facade, chars(("Testability", 2, False, "Needs a mainframe test region"), ("Fault tolerance", 2, False, "No circuit breaker yet")), []),
+        (mask_c, chars(("Security", 5, True, ""), ("Testability", 4, False, "")), []),
+    ]:
+        ops.update_element(ws, sc, el, {"characteristics": c, "cost": k})
+
+    # Linked work: security issues, pull requests, issues, backlog items, required updates (examples).
+    for el, work in [
+        (security, [{"type": "security", "title": "Password hashing uses SHA-1; move to bcrypt", "status": "in-progress", "severity": "critical", "url": "https://example.com/security/101"}]),
+        (api, [{"type": "pr", "title": "Add rate limiting to the accounts API", "status": "open", "url": "https://example.com/pulls/42"},
+               {"type": "security", "title": "Upgrade the JSON library (known deserialisation issue)", "status": "open", "severity": "high"}]),
+        (mobile, [{"type": "update", "title": "Migrate off the current mobile framework", "status": "open", "severity": "medium"}]),
+        (facade, [{"type": "backlog", "title": "Add a circuit breaker around mainframe calls", "status": "open", "severity": "medium"}]),
+        (worker, [{"type": "issue", "title": "Nightly job retries forever on bad events", "status": "blocked", "severity": "low"}]),
+        (db, [{"type": "backlog", "title": "Partition the audit table", "status": "open", "severity": "low"}]),
+    ]:
+        ops.update_element(ws, sc, el, {"work": work})
+    ops.update_relationship(ws, spa_signin, {"work": [{"type": "update", "title": "Move to TLS 1.3 only", "status": "open", "severity": "medium"}]})
+
     # Styling examples
-    ops.set_style(ws, sc, atm, {"fill": "#8c8c8c", "strokeStyle": "dashed"})
+    ops.set_style(ws, sc, atm, {"fill": "#33293f", "strokeStyle": "dashed"})
     ops.set_style(ws, sc, pipe, {"stroke": "#9467bd", "strokeWidth": 3})
 
     # Lenses
     sc.lenses = [
         Lens(id="security-review", name="Security review", visible_levels=["context", "container", "component"], default_overlay="Risk",
-             visible_sections=["technology", "details", "notes", "sensitive", "tradeoffs"]),
+             visible_sections=["technology", "characteristics", "work", "details", "notes", "sensitive", "tradeoffs"]),
         Lens(id="product-owner", name="Product owner", visible_levels=["landscape", "context", "container"], default_overlay="Lifecycle",
-             hidden_tag_groups=["Risk"], visible_sections=["notes", "usage"], show_technology=False),
+             hidden_tag_groups=["Risk"], visible_sections=["cost", "work", "notes", "usage"], show_technology=False),
     ]
 
     key2 = flows.create_flow(ws, "Publish usage event", "How a usage event reaches the warehouse.")
