@@ -66,7 +66,7 @@ No linter is configured. CI ([.github/workflows/ci.yml](.github/workflows/ci.yml
 
 - Everything is TypeScript. Do not add Python or other-language code.
 - State trade-offs for design decisions. Separate sourced facts from interpretation, and say which is which.
-- Do not name or compare other commercial architecture tools in repository files, commit messages or pull requests.
+- You may research other websites, tools and competitors (read their docs, pages and features) to inform design. Do not name or compare them in repository files, commit messages or pull requests; write the resulting ideas in our own terms.
 - Do not add `Co-Authored-By` lines or session links to commit messages or pull request descriptions.
 - Do not commit the reference books (PDFs) or superseded plans.
 - Branch from `main` for changes; do not commit directly to `main`.

@@ -7,85 +7,49 @@
  * and strings are skipped), JavaScript/TypeScript via a regex over import/require statements.
  * Only imports that resolve to another file in the same diagram are drawn.
  *
- * File read/write is restricted to the code root: paths are resolved (symlinks included) and must stay inside it.
+ * Files are read through a `CodeSource` (codefs.ts): the code folder on disk, a draft's planned edits
+ * over it, or a git commit. Disk read/write is restricted to the code root: paths are resolved
+ * (symlinks included) and must stay inside it.
  */
 
 import fs from "node:fs";
 import path from "node:path";
 import { blankNode } from "./connectors.js";
 import { scopeName, titleOf, type DiagramRef, type RawDiagram, type RawEdge, type RawNode } from "./diagrams.js";
+import { cleanRel, DiskCode, MAX_BYTES, safePath, sha1, type CodeSource } from "./codefs.js";
 import { CODE_KEY, getJson, ModelError, normpath, type Index } from "./ops.js";
+
+export { MAX_BYTES, safePath };
 
 const posix = path.posix;
 
 export const SOURCE_EXT = new Set([".py", ".js", ".jsx", ".ts", ".tsx", ".mjs", ".java", ".kt", ".go", ".rs", ".cs", ".sql", ".yaml", ".yml", ".json", ".md"]);
 export const SKIP_DIRS = new Set(["__pycache__", "node_modules", ".git", ".venv", "venv", "dist", "build", ".idea"]);
 export const MAX_FILES = 60;
-export const MAX_BYTES = 1_000_000;
 const JS_IMPORT = /(?:import\s[^'"]*?from\s*|import\s*|require\(\s*|export\s[^'"]*?from\s*)['"]([^'"]+)['"]/g;
 
-/** Resolve symlinks for the part of `p` that exists, then append the rest (like Python's Path.resolve()). */
-function resolveLoose(p: string): string {
-  const abs = path.resolve(p);
-  const rest: string[] = [];
-  let cur = abs;
-  for (;;) {
-    try {
-      const real = fs.realpathSync(cur);
-      return rest.length ? path.join(real, ...rest.reverse()) : real;
-    } catch {
-      const parent = path.dirname(cur);
-      if (parent === cur) return abs;
-      rest.push(path.basename(cur));
-      cur = parent;
-    }
+
+/** A code folder path or a code source. */
+export type CodeInput = CodeSource | string | null;
+export const asSource = (c: CodeInput): CodeSource => (c === null || typeof c === "string" ? new DiskCode(c) : c);
+
+/** All files under a folder of the source, as paths relative to the code root. */
+function walkFiles(src: CodeSource, dir: string, out: string[], depth = 0): void {
+  // Depth and size limits also stop symlink loops inside the code folder.
+  if (depth > 25 || out.length > MAX_FILES * 50) return;
+  for (const e of src.list(dir)) {
+    const rel = dir ? `${dir}/${e.name}` : e.name;
+    if (e.type === "dir") {
+      if (!SKIP_DIRS.has(e.name)) walkFiles(src, rel, out, depth + 1);
+    } else out.push(rel);
   }
 }
 
-function inside(root: string, target: string): boolean {
-  const rel = path.relative(root, target);
-  return rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel));
-}
-
-/** Resolve `rel` under the code root, refusing anything that escapes it. */
-export function safePath(codeRoot: string | null, rel: string): string {
-  if (codeRoot === null) throw new ModelError("No code folder is set. Start the app with --code-root <folder>.");
-  const root = resolveLoose(codeRoot);
-  const target = resolveLoose(path.resolve(root, rel));
-  if (!inside(root, target)) throw new ModelError("That path is outside the code folder.");
-  return target;
-}
-
-const toPosix = (root: string, p: string) => path.relative(root, p).split(path.sep).join("/");
-
-function isFile(p: string): boolean {
+function isFileOn(p: string): boolean {
   try {
     return fs.statSync(p).isFile();
   } catch {
     return false;
-  }
-}
-
-function isDir(p: string): boolean {
-  try {
-    return fs.statSync(p).isDirectory();
-  } catch {
-    return false;
-  }
-}
-
-/** All files under a folder (symlinked folders are not followed), as paths relative to `root`. */
-function walkFiles(root: string, dir: string, out: string[]): void {
-  let entries: fs.Dirent[];
-  try {
-    entries = fs.readdirSync(dir, { withFileTypes: true });
-  } catch {
-    return;
-  }
-  for (const e of entries) {
-    const full = path.join(dir, e.name);
-    if (e.isDirectory()) walkFiles(root, full, out);
-    else if (e.isFile() || (e.isSymbolicLink() && isFile(full))) out.push(toPosix(root, full));
   }
 }
 
@@ -100,23 +64,18 @@ function byParts(a: string, b: string): number {
 }
 
 /** Files for a list of paths (folders expanded). Returns [files, missing paths]. */
-export function expandPaths(codeRoot: string | null, paths: string[]): [string[], string[]] {
+export function expandPaths(code: CodeInput, paths: string[]): [string[], string[]] {
+  const src = asSource(code);
   const files: string[] = [];
   const missing: string[] = [];
-  if (codeRoot === null) return [files, [...paths]];
-  const root = resolveLoose(codeRoot);
+  if (!src.hasRoot) return [files, [...paths]];
   for (const p of paths) {
-    let target: string;
-    try {
-      target = safePath(codeRoot, p);
-    } catch {
-      missing.push(p);
-      continue;
-    }
-    if (isFile(target)) files.push(toPosix(root, target));
-    else if (isDir(target)) {
+    const rel = cleanRel(p);
+    const kind = rel === null ? null : src.kind(rel);
+    if (rel !== null && rel !== "" && kind === "file") files.push(rel);
+    else if (rel !== null && kind === "dir") {
       const found: string[] = [];
-      walkFiles(root, target, found);
+      walkFiles(src, rel, found);
       found.sort(byParts);
       for (const f of found) {
         if (f.split("/").some((part) => SKIP_DIRS.has(part))) continue;
@@ -125,14 +84,6 @@ export function expandPaths(codeRoot: string | null, paths: string[]): [string[]
     } else missing.push(p);
   }
   return [[...new Set(files)].slice(0, MAX_FILES), missing];
-}
-
-function readText(p: string): string {
-  try {
-    return fs.readFileSync(p, "utf-8").slice(0, MAX_BYTES);
-  } catch {
-    return "";
-  }
 }
 
 // --------------------------------------------------------------------------- Python imports
@@ -267,14 +218,14 @@ function resolveJs(rel: string, spec: string, files: Set<string>): string | null
 }
 
 /** Import edges [from file, to file] among the given files. */
-export function scanImports(codeRoot: string, files: string[]): [string, string][] {
+export function scanImports(code: CodeInput, files: string[]): [string, string][] {
+  const src = asSource(code);
   const fileset = new Set(files);
   const edges = new Map<string, [string, string]>();
-  const root = resolveLoose(codeRoot);
   for (const rel of files) {
     const ext = posix.extname(rel);
     if (![".py", ".js", ".jsx", ".ts", ".tsx", ".mjs"].includes(ext)) continue;
-    const source = readText(path.join(root, rel));
+    const source = src.read(rel) ?? "";
     let targets: (string | null)[];
     if (ext === ".py") targets = pyModules(source).map(([m, lvl]) => resolvePy(rel, m, lvl, fileset));
     else targets = [...source.matchAll(JS_IMPORT)].map((m) => resolveJs(rel, m[1]!, fileset));
@@ -283,19 +234,16 @@ export function scanImports(codeRoot: string, files: string[]): [string, string]
   return [...edges.values()];
 }
 
-function countLines(p: string): number | null {
-  try {
-    const buf = fs.readFileSync(p);
-    let n = 0;
-    for (const b of buf) if (b === 10) n++;
-    if (buf.length && buf[buf.length - 1] !== 10) n++;
-    return n;
-  } catch {
-    return null;
-  }
+function countLines(text: string): number {
+  let n = 0;
+  for (let i = 0; i < text.length; i++) if (text.charCodeAt(i) === 10) n++;
+  if (text.length && !text.endsWith("\n")) n++;
+  return n;
 }
 
-export function fileNode(rel: string, root: string | null): RawNode {
+export function fileNode(rel: string, code: CodeInput): RawNode {
+  const src = asSource(code);
+  const text = src.hasRoot ? src.read(rel) : null;
   const folder = posix.dirname(rel);
   return {
     ...blankNode(),
@@ -306,18 +254,20 @@ export function fileNode(rel: string, root: string | null): RawNode {
     archType: "document",
     codePaths: [rel],
     filePath: rel,
-    lineCount: root === null ? null : countLines(path.join(resolveLoose(root), rel)),
+    lineCount: text === null ? null : countLines(text),
+    contentHash: text === null ? undefined : sha1(text),
   };
 }
 
-export function codeDiagram(idx: Index, ref: DiagramRef, codeRoot: string | null): RawDiagram {
+export function codeDiagram(idx: Index, ref: DiagramRef, code: CodeInput): RawDiagram {
+  const src = asSource(code);
   const owner = idx.elements.get(ref.scope!) ?? idx.relationships.get(ref.scope!);
   const paths = getJson<string>(owner, CODE_KEY);
-  const [files, missing] = expandPaths(codeRoot, paths);
-  const nodes = files.map((f) => fileNode(f, codeRoot));
+  const [files, missing] = expandPaths(src, paths);
+  const nodes = files.map((f) => fileNode(f, src));
   const edges: RawEdge[] = [];
-  if (codeRoot !== null) {
-    for (const [a, b] of scanImports(codeRoot, files)) {
+  if (src.hasRoot) {
+    for (const [a, b] of scanImports(src, files)) {
       edges.push({
         id: `file:${a}->${b}`,
         source: `file:${a}`,
@@ -344,7 +294,7 @@ export function codeDiagram(idx: Index, ref: DiagramRef, codeRoot: string | null
     boundary: null,
     nodes,
     edges,
-    code: { ownerName: scopeName(idx, ref), paths, missing, hasRoot: codeRoot !== null, truncated: files.length >= MAX_FILES },
+    code: { ownerName: scopeName(idx, ref), paths, missing, hasRoot: src.hasRoot, truncated: files.length >= MAX_FILES },
   };
 }
 
@@ -357,15 +307,16 @@ export interface TreeEntry {
 }
 
 /** Entries of one folder under the code root, for the path picker. */
-export function listTree(codeRoot: string | null, rel = ""): TreeEntry[] {
-  const target = safePath(codeRoot, rel);
-  if (!isDir(target)) throw new ModelError("That is not a folder.");
-  const root = resolveLoose(codeRoot!);
+export function listTree(code: CodeInput, rel = ""): TreeEntry[] {
+  const src = asSource(code);
+  if (typeof code === "string" || code === null) safePath(code, rel); // explain a missing code folder or an escape
+  const dir = cleanRel(rel);
+  if (dir === null) throw new ModelError("That path is outside the code folder.");
+  if (src.kind(dir) !== "dir") throw new ModelError("That is not a folder.");
   const out: TreeEntry[] = [];
-  for (const name of fs.readdirSync(target)) {
-    if (SKIP_DIRS.has(name) || name.startsWith(".")) continue;
-    const full = path.join(target, name);
-    out.push({ name, path: toPosix(root, full), type: isDir(full) ? "dir" : "file" });
+  for (const e of src.list(dir)) {
+    if (SKIP_DIRS.has(e.name) || e.name.startsWith(".")) continue;
+    out.push({ name: e.name, path: dir ? `${dir}/${e.name}` : e.name, type: e.type });
   }
   out.sort((a, b) => (a.type === b.type ? (a.name.toLowerCase() < b.name.toLowerCase() ? -1 : a.name.toLowerCase() > b.name.toLowerCase() ? 1 : 0) : a.type === "dir" ? -1 : 1));
   return out;
@@ -375,7 +326,7 @@ const mtimeOf = (p: string) => fs.statSync(p).mtimeMs / 1000;
 
 export function readCodeFile(codeRoot: string | null, rel: string): { path: string; content: string; mtime: number } {
   const target = safePath(codeRoot, rel);
-  if (!isFile(target)) throw new ModelError("No such file.");
+  if (!isFileOn(target)) throw new ModelError("No such file.");
   if (fs.statSync(target).size > MAX_BYTES) throw new ModelError("File is too large to open here (over 1 MB).");
   const data = fs.readFileSync(target);
   if (data.includes(0)) throw new ModelError("This looks like a binary file.");
@@ -389,7 +340,7 @@ export function writeCodeFile(
   expectedMtime?: number | null,
 ): { path: string; mtime: number } {
   const target = safePath(codeRoot, rel);
-  if (!isFile(target)) throw new ModelError("No such file. New files cannot be created from here.");
+  if (!isFileOn(target)) throw new ModelError("No such file. New files cannot be created from here.");
   if (expectedMtime !== null && expectedMtime !== undefined && Math.abs(mtimeOf(target) - expectedMtime) > 0.001) {
     throw new ModelError("The file changed on disk since you opened it. Reopen it to see the new version.");
   }

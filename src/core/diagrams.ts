@@ -22,7 +22,7 @@
  * Diagrams with no Structurizr view (connector, code) keep positions in the sidecar.
  */
 
-import { codeDiagram } from "./code.js";
+import { codeDiagram, type CodeInput } from "./code.js";
 import { connectorDiagram } from "./connectors.js";
 import { roundHalfEven } from "./json.js";
 import { buildIndex, CODE_KEY, elementSummary, getJson, idStillValid, relationshipSummary, STAGES_KEY, type Index } from "./ops.js";
@@ -339,7 +339,7 @@ export function addableKinds(r: DiagramRef): string[] {
 
 // --------------------------------------------------------------------------- diagram payload
 
-export function diagram(ws: Workspace, key: string, sidecar?: Sidecar | null, codeRoot?: string | null): Diagram | null {
+export function diagram(ws: Workspace, key: string, sidecar?: Sidecar | null, codeRoot?: CodeInput): Diagram | null {
   const idx = buildIndex(ws);
   const r = parseKey(key);
   if (!r || !validRef(idx, r)) return null;

@@ -70,11 +70,14 @@ export function diffMarkdown(cs: ChangeSet, before: Snapshot, after: Snapshot, b
   const ib = buildIndex(after.workspace);
   const s = cs.summary;
   const out: string[] = ["## Architecture changes", "", `Compared ${baseLabel} with ${headLabel}.`, ""];
-  if (s.added + s.changed + s.removed === 0) {
+  if (s.added + s.changed + s.removed === 0 && !cs.code.length) {
     out.push(s.layout ? `No model changes (${s.layout} layout change${s.layout === 1 ? "" : "s"} only).` : "No architecture changes.");
     return out.join("\n") + "\n";
   }
-  out.push(`**${s.added} added · ${s.changed} changed · ${s.removed} removed**${s.layout ? ` (and ${s.layout} layout changes)` : ""}`, "");
+  out.push(
+    `**${s.added} added · ${s.changed} changed · ${s.removed} removed**${s.code ? ` · ${s.code} code file${s.code === 1 ? "" : "s"}` : ""}${s.layout ? ` (and ${s.layout} layout changes)` : ""}`,
+    "",
+  );
 
   const where = (id: string, removed: boolean) => {
     const idx = removed ? ia : ib;
@@ -101,6 +104,16 @@ export function diffMarkdown(cs: ChangeSet, before: Snapshot, after: Snapshot, b
   if (cs.settings.length) {
     out.push("### Settings", "", "| Change | Setting |", "|---|---|");
     for (const c of cs.settings) out.push(`| ${SIGN[c.change]} | ${cell(c.name)} |`);
+    out.push("");
+  }
+  if (cs.code.length) {
+    out.push("### Code", "", "Files behind objects mapped to code (`dp.code.paths`).", "", "| Object | File | Change |", "|---|---|---|");
+    for (const c of cs.code) for (const f of c.files) out.push(`| ${cell(c.ownerName)} | \`${cell(f.path)}\` | ${SIGN[f.change]} |`);
+    const imports = cs.code.flatMap((c) => c.imports.map((i) => ({ ...i, owner: c.ownerName })));
+    if (imports.length) {
+      out.push("", "| Object | Import | Change |", "|---|---|---|");
+      for (const i of imports) out.push(`| ${cell(i.owner)} | \`${cell(i.from)}\` → \`${cell(i.to)}\` | ${SIGN[i.change]} |`);
+    }
     out.push("");
   }
   // Field details for changed elements and relationships, collapsed.

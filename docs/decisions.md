@@ -117,3 +117,71 @@ Entry format: **ID — title** · date · status · who decided · what was deci
 - Why: no new dependency, works with any repository git can read, and a commit's model can be cached by its hash.
 - Interpretation: the backlog says C2 "scans" two refs. Code scanning (Stage B) is not built, so this compares the models stored at the refs; scan results can use the same diff later.
 - Trade-off: needs `git` on the PATH (the feature is hidden without it). A commit without the model files shows as an empty model. A repository created after the server started is found on the next request; one that disappears needs a restart.
+
+## DEC-019 — Deployment diagrams come next, on the native Structurizr deployment model
+- Date: 2026-11-14 · Status: Accepted · Decided by: Owner (order and model choice)
+- Decision: the next stage builds deployment diagrams ahead of the other small backlog items. They use Structurizr's own deployment model (deployment nodes, infrastructure nodes, container instances, deployment views) rather than a tag-based substitute. Deployment diagrams are computed from the model like the C4 diagrams (DEC-010): connections are entered once at container level and shown between instances.
+- Why: most requested missing view in the backlog review; native data stays readable by Structurizr tools.
+- Trade-off: more element kinds to build and test than tags on containers. Deployment nodes are currently kept as one unit in `units.ts`, so they need per-node units before drafts and `dp diff` handle them well. Opening our files in Structurizr's tools is still untested.
+- Open: first-cut scope, one or several environments per diagram, per-system or per-environment diagrams (to settle in the stage plan).
+
+## DEC-020 — MCP server moves to a "Future stage"
+- Date: 2026-11-14 · Status: Accepted · Decided by: Owner
+- Decision: the MCP server (reads the model, proposes edits as drafts) and related agent-facing work are parked in a new stage called Future stage. They are not scoped or scheduled; the owner will review and plan them later.
+- Why: needs more thought (relation to Stage D, local authentication, what an agent may write) before it is planned.
+- Trade-off: no agent integration soon; drafts and the `X-DP-Model` header (DEC-017) already let any HTTP client write into a draft.
+
+## DEC-021 — Groups are model objects
+- Date: 2026-11-14 · Status: Accepted (storage open) · Decided by: Owner
+- Decision: groups (layer, bounded context, subsystem, module, org unit) are queryable and taggable model objects, not shapes drawn on a single diagram.
+- Why: groups must work with tags, overlays, lenses, checks and diffs.
+- Trade-off: more model work than drawn boxes. Open: whether an element can be in several groups, whether groups nest, and how they are stored (Structurizr's `group` string cannot carry tags, so a sidecar list or `dp.*` data is likely).
+
+## DEC-022 — Deployment first cut
+- Date: 2026-11-14 · Status: Accepted · Decided by: Owner (confirmed the proposed scope)
+- Decision: the first deployment stage covers deployment nodes (nested), infrastructure nodes and container instances. One environment per diagram. Software system instances, deployment groups, health checks, side-by-side environment diff and cost per environment come later. Refines DEC-019.
+- Why: smallest slice that shows where each container runs.
+- Trade-off: no multi-environment view in the first cut; a system that is deployed as a whole (no containers modelled) cannot be shown yet.
+
+## DEC-023 — Shared resources are modelled as their own container or system
+- Date: 2026-11-14 · Status: Accepted (revisit if it confuses people) · Decided by: Owner (chose the simpler option from a comparison)
+- Decision: a shared library or service is its own container or software system, and each user of it has a relationship to it. No multi-parent elements. A component keeps exactly one parent, as in Structurizr.
+- Why: works today, stays standard Structurizr, keeps unique names per scope and cost rollups simple.
+- Options rejected for now: multi-parent elements (extra parents stored in `dp.*` data, shown as references) — a medium to large change that breaks the one-parent rule.
+- Trade-off: a shared library does not look "inside" the apps that use it; their diagrams show it as an outside box. A "shared" tag with a legend entry is a cheap aid if needed.
+
+## DEC-024 — Sharing: read-only serve now, static export after the deployment stage
+- Date: 2026-11-14 · Status: Accepted · Decided by: Owner
+- Decision: sharing stays `dp serve --read-only` for now. A static HTML export of the whole model (UI plus a snapshot of the model, no server) is planned after the deployment stage.
+- Why: serving is already built; the export needs a static data path in the UI, so it should not delay deployment diagrams. The export fits the `dp check` / `dp diff` CI jobs (publish the model from the pipeline).
+- Trade-off: until the export exists, people who cannot run Node cannot view the model. An export is a snapshot and includes everything in the model (notes, costs, links), which must be reviewed before publishing.
+
+## DEC-025 — Groups can nest
+- Date: 2026-11-14 · Status: Accepted (storage and multiple groups open) · Decided by: Owner
+- Decision: groups nest (for example a layer containing bounded contexts). Refines DEC-021.
+- Why: layers, contexts and org units are naturally trees.
+- Trade-off: nesting needs cycle checks and a rule for deleting a group that has children. Still open: whether an element can be in several groups, and where groups are stored. Structurizr's own `group` is a plain string on an element [Training], so groups that carry tags need a sidecar list or `dp.*` data.
+
+## DEC-026 — Stage B (codebase to model) moves to the Future stage
+- Date: 2026-11-14 · Status: Accepted · Decided by: Owner
+- Decision: Stage B, reverse engineering a C4 model from an existing codebase (`dp scan`: proposed containers, components and connections from the code), joins the MCP server in the Future stage. It is not scheduled; the owner will review and plan it later. Refines DEC-020.
+- Why: needs more review and planning; deployment diagrams come first (DEC-019).
+- Trade-off: the model is entered by hand for now. Already built and kept: mapping components to files and scanning Python/JS/TS imports (`code.ts`), and the code diagram. Items that depend on a scan wait: "unmapped code" in `dp check`, comparing scan results with the model, more scan languages.
+
+## DEC-027 — One group per element; tags for other dimensions
+- Date: 2026-11-14 · Status: Accepted · Decided by: Owner
+- Decision: an element belongs to at most one group. Groups nest (DEC-025), so an element's group is one path in a tree. A second dimension (for example a compliance scope next to a layer) is a tag, not a second group. Refines DEC-021 and DEC-025.
+- Why: maps onto Structurizr's single group per element, and avoids a colouring rule for overlays when an element has several groups.
+- Trade-off: an element cannot sit in two trees at once; the tag is a flat label without nesting. Storage (Structurizr's `group` string with a separator, or a sidecar list so groups can carry tags) is still to be decided in the plan.
+
+## DEC-028 — Stage order after Deployment
+- Date: 2026-11-14 · Status: Accepted · Decided by: Owner delegated the order; choice is a Proposal
+- Decision: Deployment stage first (DEC-019), then a small batch of fixes, then the static HTML export (DEC-024). Whether deployment diagrams are per environment only or also per system is deferred to the deployment stage plan [Owner: "think about environment later"].
+- Why: the small batch is quick and low risk (technology labels on connections, inherited owner, tag descriptions, a shortcuts menu, an "in diagrams" list, CSV export). The export is larger, and the export then carries those improvements from the start.
+- Trade-off: the export is delayed by one small stage; the batch is not a single theme, so its review file lists items separately.
+
+## DEC-029 — Research on other tools is allowed; naming them is not
+- Date: 2026-11-14 · Status: Accepted · Decided by: Owner
+- Decision: pulling information from other websites, tools and competitors is allowed as research input. The naming rule from DEC-015 stays: they are not named or compared in repository files, commit messages or pull requests. Ideas are written in our own terms.
+- Why: the owner wants to learn from existing products without the repository becoming a comparison document.
+- Trade-off: sources for a feature idea cannot be cited in the repository, so the reasoning must stand on its own.

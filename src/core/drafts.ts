@@ -6,6 +6,7 @@
  *   architecture/drafts/<id>/designperspectives.json
  *   architecture/drafts/<id>/base/workspace.json         the main model when the draft was made
  *   architecture/drafts/<id>/base/designperspectives.json
+ *   architecture/drafts/<id>/code.json, code/<path>     planned code edits (see codefs.ts CodePlan)
  *
  * The base copy makes a three-way merge possible on apply (`merge.ts`): changes made to the main
  * model since the draft was made are kept, and an object changed on both sides is a conflict.
@@ -15,7 +16,11 @@
 import fs from "node:fs";
 import path from "node:path";
 import { prune, syncViews } from "./diagrams.js";
+import { writeCodeFile } from "./code.js";
+import { CodePlan, DiskCode, OverlayCode, safePath, sha1 } from "./codefs.js";
 import { diffModels, type Snapshot } from "./diff.js";
+import { buildPlanItems, codingPlan } from "./plan.js";
+import type { CodeSource } from "./codefs.js";
 import { syncFlows } from "./flows.js";
 import { isObj, stableJson } from "./json.js";
 import { merge3 } from "./merge.js";
@@ -23,7 +28,7 @@ import { ModelError, slugify, unique } from "./ops.js";
 import { FileSnapshot, NotFound, Project, SIDECAR_FILE, WORKSPACE_FILE, atomicWrite } from "./store.js";
 import { flatten, unflatten, UnitError } from "./units.js";
 import { errors } from "./validate.js";
-import type { ApplyPreview, Conflict, DraftInfo } from "../shared/types.js";
+import type { ApplyPreview, CodingPlan, Conflict, DraftInfo } from "../shared/types.js";
 
 export const DRAFTS_DIR = "drafts";
 export const DRAFT_FILE = "draft.json";
@@ -73,7 +78,25 @@ export class Drafts {
       /* no or broken draft.json: fall back to the folder name */
     }
     const s = (v: unknown) => (typeof v === "string" ? v : "");
-    return { id, title: s(meta.title) || id, description: s(meta.description), created: s(meta.created) };
+    return {
+      id,
+      title: s(meta.title) || id,
+      description: s(meta.description),
+      created: s(meta.created),
+      branch: s(meta.branch),
+      link: s(meta.link),
+      plannedFiles: new CodePlan(f).files().size,
+    };
+  }
+
+  /** The draft's planned code edits. */
+  codePlan(id: string): CodePlan {
+    return new CodePlan(this.folder(id));
+  }
+
+  /** The code as the draft plans it: the code folder with the planned edits on top. */
+  code(id: string): OverlayCode {
+    return new OverlayCode(new DiskCode(this.main.codeRoot), this.codePlan(id));
   }
 
   /** The draft as an editable project (its own undo history). */
@@ -116,13 +139,18 @@ export class Drafts {
     return id;
   }
 
-  update(id: string, patch: { title?: string; description?: string }): void {
+  update(id: string, patch: { title?: string; description?: string; branch?: string; link?: string }): void {
     const cur = this.info(id);
     const title = patch.title === undefined ? cur.title : patch.title.trim();
     if (!title) throw new ModelError("A draft needs a name.");
     if (title !== cur.title && this.list().some((d) => d.title === title)) throw new ModelError(`A draft named "${title}" already exists.`);
-    const description = patch.description === undefined ? cur.description : patch.description.trim();
-    atomicWrite(path.join(this.folder(id), DRAFT_FILE), stableJson({ title, description, created: cur.created }));
+    const pick = (v: string | undefined, old: string) => (v === undefined ? old : v.trim());
+    const meta: Record<string, string> = { title, description: pick(patch.description, cur.description), created: cur.created };
+    const branch = pick(patch.branch, cur.branch);
+    const link = pick(patch.link, cur.link);
+    if (branch) meta.branch = branch;
+    if (link) meta.link = link;
+    atomicWrite(path.join(this.folder(id), DRAFT_FILE), stableJson(meta));
   }
 
   /** Discard a draft: delete its folder. */
@@ -134,21 +162,72 @@ export class Drafts {
   }
 
   /** What applying would change in the main model, and what stops it. */
-  preview(id: string): ApplyPreview {
+  preview(id: string, opts: { code?: boolean } = {}): ApplyPreview {
+    const withCode = opts.code ?? true;
     const { merged, conflicts } = this.merged(id);
-    const changes = diffModels(this.main, merged ?? this.main, "main");
-    return { changes, conflicts };
+    const disk = new DiskCode(this.main.codeRoot);
+    const plan = this.codePlan(id);
+    const changes = diffModels(this.main, merged ?? this.main, "main", withCode ? { before: disk, after: this.code(id), planned: [...plan.files().keys()] } : undefined);
+    const code = [...plan.files()].map(([path, p]) => ({ path, change: p.change }));
+    return { changes, conflicts: [...conflicts, ...(withCode ? this.codeConflicts(id) : [])], code };
   }
 
-  /** Merge the draft into the main model (one undo step there), then delete the draft. */
-  apply(id: string): void {
+  /** The coding plan of a draft; checked against `target` (the code folder or a branch) when given. */
+  plan(id: string, target: CodeSource | null): CodingPlan {
+    const draft = this.get(id);
+    draft.reloadIfChanged();
+    const base = this.base(id);
+    const cs = diffModels(base, draft, "base");
+    return codingPlan(this.info(id), buildPlanItems(base, draft, cs, this.codePlan(id)), target);
+  }
+
+  /** Planned files whose current version in the code folder is not the one they were planned on. */
+  codeConflicts(id: string): Conflict[] {
+    const disk = new DiskCode(this.main.codeRoot);
+    const plan = this.codePlan(id);
+    const out: Conflict[] = [];
+    for (const [rel, p] of plan.files()) {
+      const cur = disk.read(rel);
+      const planned = p.change === "deleted" ? null : plan.content(rel);
+      if (cur === planned) continue; // already like that
+      const label = `File ${rel}`;
+      if (!disk.hasRoot) out.push({ label, reason: "There is no code folder to write it to (start with --code-root)." });
+      else if (p.base === null && cur !== null) out.push({ label, reason: "Planned as a new file, but a file with that name now exists in the code folder." });
+      else if (p.base !== null && cur === null) out.push({ label, reason: "Removed from the code folder since the draft planned a change to it." });
+      else if (p.base !== null && cur !== null && sha1(cur) !== p.base) out.push({ label, reason: "Changed in the code folder since the draft planned a change to it." });
+    }
+    return out;
+  }
+
+  /** Merge the draft into the main model (one undo step there); with `code`, also write the planned
+   *  code edits to the code folder. Then delete the draft. */
+  apply(id: string, opts: { code?: boolean } = {}): void {
+    const withCode = opts.code ?? true;
     const { merged, conflicts } = this.merged(id);
-    if (conflicts.length || !merged) throw new ApplyConflict(conflicts);
+    const all = [...conflicts, ...(withCode ? this.codeConflicts(id) : [])];
+    if (all.length || !merged) throw new ApplyConflict(all);
     this.main.edit((ws, sc) => {
       replaceContents(ws, merged.workspace);
       replaceContents(sc, merged.sidecar);
     });
+    if (withCode) this.writeCode(id);
     this.remove(id);
+  }
+
+  private writeCode(id: string): void {
+    const plan = this.codePlan(id);
+    const root = this.main.codeRoot;
+    for (const [rel, p] of plan.files()) {
+      const target = safePath(root, rel);
+      if (p.change === "deleted") {
+        fs.rmSync(target, { force: true });
+        continue;
+      }
+      const content = plan.content(rel) ?? "";
+      if (fs.existsSync(target)) {
+        if (fs.readFileSync(target, "utf-8") !== content) writeCodeFile(root, rel, content, null);
+      } else atomicWrite(target, content);
+    }
   }
 
   private merged(id: string): { merged: Snapshot | null; conflicts: Conflict[] } {

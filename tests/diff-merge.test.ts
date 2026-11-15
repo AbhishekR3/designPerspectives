@@ -43,7 +43,7 @@ describe("diffModels", () => {
   it("reports nothing for the same model", () => {
     const a = demo();
     const cs = diffModels(a, changed(a, () => {}), "base");
-    expect(cs.summary).toEqual({ added: 0, changed: 0, removed: 0, layout: 0 });
+    expect(cs.summary).toEqual({ added: 0, changed: 0, removed: 0, layout: 0, code: 0 });
   });
 
   it("finds added, changed and removed objects with their fields", () => {
@@ -72,7 +72,7 @@ describe("diffModels", () => {
     const a = demo();
     const b = changed(a, (ws) => setPositions(ws, "landscape", { atm: { x: 999, y: 999 } }));
     const cs = diffModels(a, b, "base");
-    expect(cs.summary).toEqual({ added: 0, changed: 0, removed: 0, layout: 1 });
+    expect(cs.summary).toEqual({ added: 0, changed: 0, removed: 0, layout: 1, code: 0 });
   });
 
   it("reports flow and setting changes", () => {

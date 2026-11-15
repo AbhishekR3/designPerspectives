@@ -8,7 +8,9 @@ import { fileURLToPath } from "node:url";
 import { serve } from "@hono/node-server";
 import { Command, Option } from "commander";
 import { diffModels, type Snapshot } from "./core/diff.js";
-import { GitError, GitModels } from "./core/git.js";
+import { DiskCode, NO_CODE, type CodeSource } from "./core/codefs.js";
+import { Drafts } from "./core/drafts.js";
+import { GitCodes, GitError, GitModels } from "./core/git.js";
 import { checkProject, diffMarkdown } from "./core/report.js";
 import { AlreadyExists, ARCH_DIR, initProject, NotFound, Project, version, WORKSPACE_FILE } from "./core/store.js";
 import { createApp } from "./server/app.js";
@@ -96,9 +98,14 @@ export function program(): Command {
     .addOption(new Option("--format <format>", "Output format.").choices(["md", "json"]).default("md"))
     .option("--out <file>", "Write the report to a file instead of printing it.")
     .option("--exit-code", "Exit with 1 when the model changed (like git diff --exit-code).")
-    .action((dir: string, o: { base: string; head?: string; format: "md" | "json"; out?: string; exitCode?: boolean }) => {
-      const project = openProject(dir);
+    .option("--no-code", "Leave out the code files behind mapped objects.")
+    .option("--code-root <folder>", "Folder holding the source code (default: the project folder).")
+    .action((dir: string, o: { base: string; head?: string; format: "md" | "json"; out?: string; exitCode?: boolean; code?: boolean; codeRoot?: string }) => {
+      const project = openProject(dir, o.codeRoot);
       const gitModels = new GitModels(project.dir);
+      const gitCodes = new GitCodes(project.codeRoot);
+      let beforeCode: CodeSource = NO_CODE;
+      let afterCode: CodeSource = new DiskCode(project.codeRoot);
       let before: Snapshot;
       let after: Snapshot = project;
       let baseLabel: string;
@@ -106,10 +113,12 @@ export function program(): Command {
       try {
         const b = gitModels.at(o.base);
         before = b;
+        beforeCode = codeAt(gitCodes, o.base);
         baseLabel = `\`${o.base}\` (${b.sha.slice(0, 7)})${b.present ? "" : ", which has no model"}`;
         if (o.head) {
           const h = gitModels.at(o.head);
           after = h;
+          afterCode = codeAt(gitCodes, o.head);
           headLabel = `\`${o.head}\` (${h.sha.slice(0, 7)})`;
         }
       } catch (e) {
@@ -119,15 +128,61 @@ export function program(): Command {
         }
         throw e;
       }
-      const cs = diffModels(before, after, o.base);
+      const cs = diffModels(before, after, o.base, o.code === false ? undefined : { before: beforeCode, after: afterCode });
       const text = o.format === "json" ? JSON.stringify(cs, null, 2) + "\n" : diffMarkdown(cs, before, after, baseLabel, headLabel);
       if (o.out) fs.writeFileSync(o.out, text, "utf-8");
       else process.stdout.write(text);
       const s = cs.summary;
-      if (o.exitCode && s.added + s.changed + s.removed > 0) process.exit(1);
+      if (o.exitCode && s.added + s.changed + s.removed + s.code > 0) process.exit(1);
+    });
+
+  p.command("plan")
+    .description("The coding plan of a draft: what to build, connect, change or remove. With --check, how much of it the code already does.")
+    .argument("<draft>", "Draft ID (the folder name under architecture/drafts/).")
+    .argument("[path]", "Project folder containing architecture/.", ".")
+    .option("--check", "Check progress against the code folder (or --against). Exit code 1 while steps are open.")
+    .option("--against <ref>", "Check against a git branch, tag or commit instead of the code folder.")
+    .option("--code-root <folder>", "Folder holding the source code (default: the project folder).")
+    .addOption(new Option("--format <format>", "Output format.").choices(["md", "json"]).default("md"))
+    .option("--out <file>", "Write the plan to a file instead of printing it.")
+    .action((id: string, dir: string, o: { check?: boolean; against?: string; codeRoot?: string; format: "md" | "json"; out?: string }) => {
+      const project = openProject(dir, o.codeRoot);
+      const drafts = new Drafts(project);
+      if (!drafts.list().some((d) => d.id === id)) {
+        const ids = drafts.list().map((d) => d.id);
+        console.error(`No draft "${id}".${ids.length ? ` Drafts: ${ids.join(", ")}` : " There are no drafts."}`);
+        process.exit(2);
+      }
+      let target = null;
+      try {
+        if (o.against) target = new GitCodes(project.codeRoot).at(o.against);
+        else if (o.check) target = new DiskCode(project.codeRoot);
+      } catch (e) {
+        console.error((e as Error).message);
+        process.exit(2);
+      }
+      if (target && !target.hasRoot) {
+        // Without code to read, every automatic step would be "unchecked" and the run would pass.
+        console.error(o.against ? `Cannot check against "${o.against}": the code folder is not in a git repository that has it.` : "Cannot check: there is no code folder.");
+        process.exit(2);
+      }
+      const plan = drafts.plan(id, target);
+      const text = o.format === "json" ? JSON.stringify(plan, null, 2) + "\n" : plan.markdown;
+      if (o.out) fs.writeFileSync(o.out, text, "utf-8");
+      else process.stdout.write(text);
+      if ((o.check || o.against) && plan.summary.open > 0) process.exit(1);
     });
 
   return p;
+}
+
+/** The code at a ref, or none when the code folder is not in that repository / has no such ref. */
+function codeAt(codes: GitCodes, ref: string): CodeSource {
+  try {
+    return codes.at(ref);
+  } catch {
+    return NO_CODE;
+  }
 }
 
 /** Open the model in `dir`, or exit: 2 if there is none, 1 if it cannot be read. */

@@ -67,6 +67,21 @@ describe.skipIf(!hasGit)("dp diff", () => {
     expect(dp("diff", dir, "--base", "main", "--exit-code").status).toBe(1);
   });
 
+  it("lists code files changed behind mapped objects", async () => {
+    const dir = demoDir();
+    git(dir, "init", "-q", "-b", "main");
+    git(dir, "add", "-A");
+    git(dir, "commit", "-q", "-m", "first");
+    fs.appendFileSync(path.join(dir, "sample_code", "api", "store.py"), "\nfrom .mainframe_facade import balances\n");
+    const r = dp("diff", dir, "--base", "main");
+    expect(r.status, r.stderr).toBe(0);
+    expect(r.stdout).toContain("**0 added · 0 changed · 0 removed** · 1 code file");
+    expect(r.stdout).toContain("| Accounts Summary Controller | `sample_code/api/store.py` | Changed |");
+    expect(r.stdout).toContain("| Accounts Summary Controller | `sample_code/api/store.py` → `sample_code/api/mainframe_facade.py` | Added |");
+    expect(dp("diff", dir, "--base", "main", "--exit-code").status).toBe(1);
+    expect(dp("diff", dir, "--base", "main", "--no-code").stdout).toContain("No architecture changes.");
+  });
+
   it("compares two refs, writes JSON to a file, and refuses bad refs", async () => {
     const dir = await repoWithChange();
     git(dir, "commit", "-q", "-am", "second");

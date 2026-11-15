@@ -8,13 +8,22 @@
  * shapes and styles are counted as layout changes only.
  */
 
-import { drawnInMap, homeKey } from "./diagrams.js";
+import { expandPaths, scanImports } from "./code.js";
+import { sha1, type CodeSource } from "./codefs.js";
+import { drawnInMap, homeKey, keyFor } from "./diagrams.js";
 import { listFlows } from "./flows.js";
-import { buildIndex, elementSummary, relationshipSummary, type Index } from "./ops.js";
+import { buildIndex, CODE_KEY, elementSummary, getJson, relationshipSummary, type Index } from "./ops.js";
 import type { Sidecar } from "./sidecar.js";
 import { canon, flatten, isLayoutUnit, sameUnit, unitLabel, type Unit, type Units } from "./units.js";
 import type { Workspace } from "./workspace.js";
-import type { ChangeSet, FieldChange, Flow, ObjectChange } from "../shared/types.js";
+import type { ChangeSet, CodeChange, FieldChange, Flow, ObjectChange } from "../shared/types.js";
+
+/** The code each version reads; `planned`: files a draft plans to edit (reported even if no object maps them). */
+export interface CodePair {
+  before: CodeSource;
+  after: CodeSource;
+  planned?: string[];
+}
 
 export interface Snapshot {
   workspace: Workspace;
@@ -72,7 +81,7 @@ function fieldChanges(a: Record<string, unknown>, b: Record<string, unknown>, fi
 const OTHER: FieldChange = { field: "other", label: "Other data", before: null, after: null };
 
 /** Compare `before` (e.g. a draft's base) with `after` (the draft). */
-export function diffModels(before: Snapshot, after: Snapshot, against: string): ChangeSet {
+export function diffModels(before: Snapshot, after: Snapshot, against: string, code?: CodePair): ChangeSet {
   const ua = flatten(before.workspace, before.sidecar);
   const ub = flatten(after.workspace, after.sidecar);
   const ia = buildIndex(before.workspace);
@@ -162,8 +171,20 @@ export function diffModels(before: Snapshot, after: Snapshot, against: string): 
     markAbove(idx, rel.destinationId, false);
   }
 
+  const codeChanges = code && code.before.hasRoot && code.after.hasRoot ? diffCode(ia, ib, code) : [];
+  for (const cc of codeChanges) {
+    if (cc.ownerType === "element") markAbove(ib.elements.has(cc.ownerId) ? ib : ia, cc.ownerId, true);
+    else if (cc.ownerType === "relationship") {
+      const idx = ib.relationships.has(cc.ownerId) ? ib : ia;
+      const rel = idx.relationships.get(cc.ownerId)!;
+      markAbove(idx, rel.sourceId, false);
+      markAbove(idx, rel.destinationId, false);
+    }
+  }
+
   const all = [...elements, ...relationships, ...flows, ...settings];
   const count = (c: string) => all.filter((x) => x.change === c).length;
+  const codeFiles = new Set(codeChanges.flatMap((c) => c.files.map((f) => f.path)));
   return {
     against,
     elements,
@@ -171,7 +192,8 @@ export function diffModels(before: Snapshot, after: Snapshot, against: string): 
     flows,
     settings,
     inner: [...inner].filter((id) => ib.elements.has(id)),
-    summary: { added: count("added"), changed: count("changed"), removed: count("removed"), layout },
+    code: codeChanges,
+    summary: { added: count("added"), changed: count("changed"), removed: count("removed"), layout, code: codeFiles.size },
   };
 }
 
@@ -221,6 +243,71 @@ function lazy<T>(f: () => T): () => T {
     }
     return v as T;
   };
+}
+
+/** Files and imports that differ, per element or relationship mapped to code (in either version). */
+export function diffCode(ia: Index, ib: Index, code: CodePair): CodeChange[] {
+  const owners: { id: string; type: "element" | "relationship"; a: string[]; b: string[]; name: string }[] = [];
+  const pathsOf = (idx: Index, id: string, type: "element" | "relationship") =>
+    getJson<string>(type === "element" ? idx.elements.get(id) : idx.relationships.get(id), CODE_KEY);
+  for (const id of new Set([...ia.elements.keys(), ...ib.elements.keys()])) {
+    const a = ia.elements.has(id) ? pathsOf(ia, id, "element") : [];
+    const b = ib.elements.has(id) ? pathsOf(ib, id, "element") : [];
+    if (a.length || b.length) owners.push({ id, type: "element", a, b, name: (ib.elements.get(id) ?? ia.elements.get(id))!.name });
+  }
+  for (const id of new Set([...ia.relationships.keys(), ...ib.relationships.keys()])) {
+    const a = ia.relationships.has(id) ? pathsOf(ia, id, "relationship") : [];
+    const b = ib.relationships.has(id) ? pathsOf(ib, id, "relationship") : [];
+    if (!a.length && !b.length) continue;
+    const idx = ib.relationships.has(id) ? ib : ia;
+    const r = idx.rel(id);
+    owners.push({ id, type: "relationship", a, b, name: `${idx.elements.get(r.sourceId)?.name ?? r.sourceId} → ${idx.elements.get(r.destinationId)?.name ?? r.destinationId}` });
+  }
+  const hashA = new Map<string, string | null>();
+  const hashB = new Map<string, string | null>();
+  const hash = (src: CodeSource, cache: Map<string, string | null>, f: string) => {
+    if (!cache.has(f)) {
+      const t = src.read(f);
+      cache.set(f, t === null ? null : sha1(t));
+    }
+    return cache.get(f)!;
+  };
+  const out: CodeChange[] = [];
+  const covered = new Set<string>();
+  for (const o of owners) {
+    const [fa] = expandPaths(code.before, o.a);
+    const [fb] = expandPaths(code.after, o.b);
+    const sa = new Set(fa);
+    const sb = new Set(fb);
+    for (const f of [...fa, ...fb]) covered.add(f);
+    const files: CodeChange["files"] = [];
+    for (const f of fb) {
+      if (!sa.has(f)) files.push({ path: f, change: "added" });
+      else if (hash(code.before, hashA, f) !== hash(code.after, hashB, f)) files.push({ path: f, change: "changed" });
+    }
+    for (const f of fa) if (!sb.has(f)) files.push({ path: f, change: "removed" });
+    const key = (e: [string, string]) => `${e[0]}\u0000${e[1]}`;
+    const ea = new Map(scanImports(code.before, fa).map((e) => [key(e), e]));
+    const eb = new Map(scanImports(code.after, fb).map((e) => [key(e), e]));
+    const imports: CodeChange["imports"] = [];
+    for (const [k, [from, to]] of eb) if (!ea.has(k)) imports.push({ from, to, change: "added" });
+    for (const [k, [from, to]] of ea) if (!eb.has(k)) imports.push({ from, to, change: "removed" });
+    if (files.length || imports.length) {
+      out.push({ ownerId: o.id, ownerType: o.type, ownerName: o.name, homeKey: keyFor("code", o.id), files, imports });
+    }
+  }
+  const loose = (code.planned ?? []).filter((f) => !covered.has(f));
+  if (loose.length) {
+    const files: CodeChange["files"] = [];
+    for (const f of loose) {
+      const a = code.before.read(f);
+      const b = code.after.read(f);
+      if (a === b) continue;
+      files.push({ path: f, change: a === null ? "added" : b === null ? "removed" : "changed" });
+    }
+    if (files.length) out.push({ ownerId: "", ownerType: "none", ownerName: "Not mapped to any object", homeKey: null, files, imports: [] });
+  }
+  return out;
 }
 
 /** ID → change kind, for decorating diagrams. */

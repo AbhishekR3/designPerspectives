@@ -1,4 +1,14 @@
-import type { AppState, ApplyPreview, ChangeSet, Conflict, Diagram, EdgeLayout, Pt, Style } from "./types";
+import type { AppState, ApplyPreview, ChangeSet, CodingPlan, Conflict, Diagram, EdgeLayout, Pt, Style } from "./types";
+
+export interface CodeFile {
+  path: string;
+  content: string;
+  mtime: number;
+  /** In a draft: the planned edit of this file, if any. */
+  planned: "added" | "changed" | "deleted" | null;
+  /** A git version: the file cannot be saved. */
+  readOnly: boolean;
+}
 
 /** The model version every request works on ("main" or "draft:<id>") and the one it is
  *  compared with ("base", "main", or null), sent as headers. */
@@ -60,11 +70,15 @@ export const api = {
     },
   ) => request("PUT", `/diagrams/${enc(key)}/layout`, patch),
   style: (target: string, style: Style | null) => request("PUT", `/styles/${target.split("/").map(enc).join("/")}`, style),
-  duplicate: (id: string) => request<{ id: string }>("POST", `/elements/${enc(id)}/duplicate`),
+  /** Copy an element; with `place`, put the copy at that point of a diagram (one undo step). */
+  duplicate: (id: string, place?: { diagramKey: string; position: Pt }) => request<{ id: string }>("POST", `/elements/${enc(id)}/duplicate`, place),
   undo: () => request<{ ok: boolean }>("POST", "/undo"),
   redo: () => request<{ ok: boolean }>("POST", "/redo"),
   codeTree: (path = "") => request<{ entries: { name: string; path: string; type: "dir" | "file" }[] }>("GET", `/code/tree?path=${enc(path)}`),
-  codeFile: (path: string) => request<{ path: string; content: string; mtime: number }>("GET", `/code/file?path=${enc(path)}`),
+  codeFile: (path: string) => request<CodeFile>("GET", `/code/file?path=${enc(path)}`),
+  newCodeFile: (path: string, content = "") => request<{ path: string }>("POST", "/code/file", { path, content }),
+  deleteCodeFile: (path: string) => request("DELETE", `/code/file?path=${enc(path)}`),
+  revertCodeFile: (path: string) => request("POST", "/code/revert", { path }),
   saveCodeFile: (path: string, content: string, mtime: number) => request<{ path: string; mtime: number }>("PUT", "/code/file", { path, content, mtime }),
   workspace: (patch: object) => request("PATCH", "/workspace", patch),
   createElement: (body: object) => request<{ id: string }>("POST", "/elements", body),
@@ -86,8 +100,9 @@ export const api = {
   deleteFlow: (key: string) => request("DELETE", `/flows/${enc(key)}`),
   changes: () => request<ChangeSet>("GET", "/changes"),
   createDraft: (body: { title: string; description?: string }) => request<{ id: string }>("POST", "/drafts", body),
-  updateDraft: (id: string, body: { title?: string; description?: string }) => request("PATCH", `/drafts/${enc(id)}`, body),
+  updateDraft: (id: string, body: { title?: string; description?: string; branch?: string; link?: string }) => request("PATCH", `/drafts/${enc(id)}`, body),
   deleteDraft: (id: string) => request("DELETE", `/drafts/${enc(id)}`),
-  applyPreview: (id: string) => request<ApplyPreview>("GET", `/drafts/${enc(id)}/apply-preview`),
-  applyDraft: (id: string) => request("POST", `/drafts/${enc(id)}/apply`),
+  applyPreview: (id: string, code = true) => request<ApplyPreview>("GET", `/drafts/${enc(id)}/apply-preview${code ? "" : "?code=0"}`),
+  applyDraft: (id: string, code = true) => request("POST", `/drafts/${enc(id)}/apply`, { code }),
+  plan: (id: string, against: string | null) => request<CodingPlan>("GET", `/drafts/${enc(id)}/plan${against ? `?against=${enc(against)}` : ""}`),
 };

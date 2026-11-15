@@ -7,7 +7,7 @@ import { api, ApiError } from "./api";
 import { Modal } from "./fields";
 import { Icon } from "./icons";
 import { CHANGE_COLORS, CHANGE_LABEL } from "./overlays";
-import { KIND_LABEL, type AppState, type ApplyPreview, type ChangeSet, type Conflict, type DiagramEdge, type DiagramNode, type FieldChange, type ObjectChange } from "./types";
+import { KIND_LABEL, type AppState, type ApplyPreview, type ChangeSet, type CodingPlan, type Conflict, type DiagramEdge, type DiagramNode, type FieldChange, type ObjectChange } from "./types";
 
 const OTHER_REF = "__other";
 
@@ -98,6 +98,7 @@ export function VersionStrip({
   showChanges,
   setShowChanges,
   onApply,
+  onPlan,
   onDiscard,
   onStopCompare,
   onExit,
@@ -107,6 +108,7 @@ export function VersionStrip({
   showChanges: boolean;
   setShowChanges(v: boolean): void;
   onApply(): void;
+  onPlan(): void;
   onDiscard(): void;
   onStopCompare(): void;
   onExit(): void;
@@ -130,6 +132,11 @@ export function VersionStrip({
         </label>
       )}
       {s && <SummaryChips s={s} compact />}
+      {isDraft && (
+        <button className="small" onClick={onPlan} title="What to build, and how much of it the code already does" data-testid="draft-plan">
+          Coding plan…
+        </button>
+      )}
       {isDraft && !state.readOnly && (
         <>
           <button className="primary small" onClick={onApply} data-testid="draft-apply">
@@ -158,7 +165,7 @@ export function VersionStrip({
 const SIGN: Record<string, string> = { added: "+", changed: "~", removed: "−" };
 
 /** Counts of added / changed / removed objects; `compact` (the banner) shows "+1 ~0 −5". */
-function SummaryChips({ s, compact = false }: { s: { added: number; changed: number; removed: number; layout: number }; compact?: boolean }) {
+function SummaryChips({ s, compact = false }: { s: { added: number; changed: number; removed: number; layout: number; code?: number }; compact?: boolean }) {
   return (
     <span className="change-summary small" data-testid="change-summary">
       {(["added", "changed", "removed"] as const).map((k) => (
@@ -167,6 +174,11 @@ function SummaryChips({ s, compact = false }: { s: { added: number; changed: num
           {compact ? `${SIGN[k]}${s[k]}` : `${s[k]} ${CHANGE_LABEL[k].toLowerCase()}`}
         </span>
       ))}
+      {(s.code ?? 0) > 0 && (
+        <span className="muted" title="Code files added, changed or removed behind mapped objects" data-count="code">
+          {compact ? `· ${s.code} code` : `${s.code} code file${s.code === 1 ? "" : "s"}`}
+        </span>
+      )}
       {s.layout > 0 && <span className="muted" title="Moved or resized boxes, line shapes, styles">{compact ? `· ${s.layout} layout` : `and ${s.layout} layout changes`}</span>}
     </span>
   );
@@ -178,19 +190,21 @@ export function ApplyDialog({ draftId, title, onClose, onApplied }: { draftId: s
   const [error, setError] = useState<string | null>(null);
   const [conflicts, setConflicts] = useState<Conflict[]>([]);
   const [busy, setBusy] = useState(false);
+  const [withCode, setWithCode] = useState(true);
   useEffect(() => {
+    setPreview(null);
     api
-      .applyPreview(draftId)
+      .applyPreview(draftId, withCode)
       .then((p) => {
         setPreview(p);
         setConflicts(p.conflicts);
       })
       .catch((e) => setError(String(e instanceof Error ? e.message : e)));
-  }, [draftId]);
+  }, [draftId, withCode]);
   const apply = async () => {
     setBusy(true);
     try {
-      await api.applyDraft(draftId);
+      await api.applyDraft(draftId, withCode);
       onApplied();
     } catch (e) {
       if (e instanceof ApiError && e.conflicts.length) setConflicts(e.conflicts);
@@ -204,13 +218,19 @@ export function ApplyDialog({ draftId, title, onClose, onApplied }: { draftId: s
   return (
     <Modal title={`Apply "${title}" to the main model`} onClose={onClose} wide>
       {!preview && !error && <p className="muted">Checking…</p>}
+      {preview && preview.code.length > 0 && (
+        <label className="check" title="Without this, only the model changes are applied; write the code yourself (see the coding plan)">
+          <input type="checkbox" checked={withCode} onChange={(e) => setWithCode(e.target.checked)} data-testid="apply-with-code" />
+          Also write the {preview.code.length} planned code edit{preview.code.length === 1 ? "" : "s"} to the code folder
+        </label>
+      )}
       {error && <p className="danger-text">{error}</p>}
       {conflicts.length > 0 && (
         <div data-testid="apply-conflicts">
           <h4 className="danger-text">Conflicts: the draft cannot be applied</h4>
           <p className="muted small">
-            These objects were changed both in the main model (since the draft was made) and in the draft. Change one side so they agree, then
-            apply again.
+            These objects or files were changed both on the main side (since the draft was made) and in the draft. Change one side so they
+            agree, then apply again{preview?.code.length ? ", or apply the model only" : ""}.
           </p>
           <ul className="conflict-list">
             {conflicts.map((c, i) => (
@@ -246,7 +266,7 @@ const TYPE_LABEL: Record<string, string> = { elements: "Elements", relationships
 /** Every change, grouped by type. Clicking one opens the diagram that shows it. */
 export function ChangeList({ changes, onPick }: { changes: ChangeSet; onPick?(c: ObjectChange): void }) {
   const groups = (["elements", "relationships", "flows", "settings"] as const).filter((g) => changes[g].length);
-  if (!groups.length) return <p className="muted small">No changes{changes.summary.layout ? ` (only ${changes.summary.layout} layout changes)` : ""}.</p>;
+  if (!groups.length && !changes.code.length) return <p className="muted small">No changes{changes.summary.layout ? ` (only ${changes.summary.layout} layout changes)` : ""}.</p>;
   return (
     <div className="change-list" data-testid="change-list">
       {groups.map((g) => (
@@ -276,6 +296,32 @@ export function ChangeList({ changes, onPick }: { changes: ChangeSet; onPick?(c:
           </ul>
         </div>
       ))}
+      {changes.code.length > 0 && (
+        <div data-testid="code-changes">
+          <h4>
+            Code <span className="muted">{changes.summary.code} file{changes.summary.code === 1 ? "" : "s"}</span>
+          </h4>
+          <ul>
+            {changes.code.map((c) => (
+              <li key={c.ownerId || "none"}>
+                <button
+                  className="link change-item"
+                  disabled={!onPick || !c.homeKey}
+                  onClick={() => onPick?.({ id: c.ownerId, type: "setting", kind: "code", name: c.ownerName, change: "changed", fields: [], homeKey: c.homeKey })}
+                  data-testid={`code-change-${c.ownerId || "none"}`}
+                >
+                  <span className="dot" style={{ background: CHANGE_COLORS.inner }} />
+                  <span className="change-name">{c.ownerName}</span>
+                  <span className="muted small">
+                    {c.files.map((f) => `${f.path.split("/").pop()} ${CHANGE_LABEL[f.change].toLowerCase()}`).join(", ")}
+                    {c.imports.length > 0 && ` · ${c.imports.length} import${c.imports.length === 1 ? "" : "s"} ${[...new Set(c.imports.map((i) => i.change))].join("/")}`}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
@@ -347,5 +393,126 @@ export function GhostPanel({ node, edge, change, against }: { node?: DiagramNode
           : `Not on this diagram any more (it is still in the model, shown on another diagram).`}
       </p>
     </div>
+  );
+}
+
+const STATUS: Record<string, { icon: string; label: string; cls: string }> = {
+  done: { icon: "✓", label: "Done", cls: "done" },
+  open: { icon: "○", label: "Open", cls: "open" },
+  manual: { icon: "?", label: "Check by hand", cls: "manual" },
+  unchecked: { icon: "·", label: "Not checked yet", cls: "unchecked" },
+};
+
+/** The draft's coding plan: what to build, and how much of it the code already does. */
+export function PlanDialog({ state, draftId, onClose, onSaved }: { state: AppState; draftId: string; onClose(): void; onSaved(): void }) {
+  const draft = state.drafts.find((d) => d.id === draftId);
+  const [branch, setBranch] = useState(draft?.branch ?? "");
+  const [against, setAgainst] = useState<string>(draft?.branch && state.git ? `ref:${draft.branch}` : "disk");
+  const [plan, setPlan] = useState<CodingPlan | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    setError(null);
+    api
+      .plan(draftId, against === "none" ? null : against)
+      .then(setPlan)
+      .catch((e) => {
+        setError(e instanceof Error ? e.message : String(e));
+        if (against !== "none") setAgainst("none");
+      });
+  }, [draftId, against]);
+  const saveBranch = async () => {
+    if (branch.trim() === (draft?.branch ?? "")) return;
+    try {
+      await api.updateDraft(draftId, { branch: branch.trim() });
+      onSaved();
+      if (branch.trim() && state.git) setAgainst(`ref:${branch.trim()}`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  };
+  const copy = async () => {
+    if (!plan) return;
+    try {
+      await navigator.clipboard.writeText(plan.markdown);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      setError("Copying is not allowed here; select the text in the Markdown view instead.");
+    }
+  };
+  const work = plan?.items.filter((i) => i.status !== "info") ?? [];
+  const docs = plan?.items.filter((i) => i.status === "info") ?? [];
+  const sections = [...new Set(work.map((i) => i.section))];
+  const [showMd, setShowMd] = useState(false);
+  return (
+    <Modal title={`Coding plan: ${draft?.title ?? draftId}`} onClose={onClose} wide>
+      <p className="muted small">
+        What the code has to do for this draft. Steps with a code path or an import between mapped objects are checked against the code;
+        the rest are checked by hand. Write the code on a branch, check progress here or with <code>dp plan {draftId} --against &lt;branch&gt;</code>,
+        then apply the draft.
+      </p>
+      <div className="row plan-controls">
+        <label className="field inline">
+          <span>Branch</span>
+          <input value={branch} placeholder="e.g. feature/audit-log" onChange={(e) => setBranch(e.target.value)} onBlur={saveBranch} onKeyDown={(e) => e.key === "Enter" && saveBranch()} disabled={state.readOnly} data-testid="plan-branch" />
+        </label>
+        <label className="field inline">
+          <span>Check against</span>
+          <select value={against} onChange={(e) => setAgainst(e.target.value)} data-testid="plan-against">
+            <option value="none">Not checked</option>
+            <option value="disk">The code folder (working copy)</option>
+            {state.git && draft?.branch && <option value={`ref:${draft.branch}`}>Branch {draft.branch}</option>}
+          </select>
+        </label>
+      </div>
+      {error && <p className="danger-text">{error}</p>}
+      {plan?.checkedAgainst && (
+        <p data-testid="plan-summary">
+          Checked against {plan.checkedAgainst}: <strong>{plan.summary.done} done</strong> · {plan.summary.open} open · {plan.summary.manual} to check by hand
+        </p>
+      )}
+      {plan && !work.length && <p className="muted">No code work: the draft changes only the model's documentation.</p>}
+      {plan && !showMd && (
+        <div className="plan-list" data-testid="plan-list">
+          {sections.map((s) => (
+            <div key={s}>
+              <h4>{s}</h4>
+              <ul>
+                {work.filter((i) => i.section === s).map((i) => (
+                  <li key={i.id} className={`plan-item ${STATUS[i.status].cls}`} data-testid={`plan-${i.id}`} data-status={i.status}>
+                    <span className="plan-status" title={STATUS[i.status].label}>{STATUS[i.status].icon}</span>
+                    <div>
+                      <div className="plan-title">{i.title}</div>
+                      {i.details.map((d, k) => (
+                        <div key={k} className="muted small">{d}</div>
+                      ))}
+                      {i.evidence && <div className="small plan-evidence">{i.evidence}</div>}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+          {docs.length > 0 && (
+            <div>
+              <h4>Model-only changes (no code work)</h4>
+              <ul>
+                {docs.map((i) => (
+                  <li key={i.id} className="muted small">{i.title}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+      {plan && showMd && <textarea className="code-editor" readOnly value={plan.markdown} data-testid="plan-markdown" />}
+      <div className="modal-actions">
+        <button className="ghost" onClick={() => setShowMd(!showMd)}>{showMd ? "Show list" : "Show Markdown"}</button>
+        <span className="spacer" />
+        <button onClick={copy} disabled={!plan} data-testid="plan-copy">{copied ? "Copied" : "Copy Markdown"}</button>
+        <button className="primary" onClick={onClose}>Close</button>
+      </div>
+    </Modal>
   );
 }

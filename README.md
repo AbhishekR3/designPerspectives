@@ -31,6 +31,9 @@ dp check --strict   # also fail on warnings (mapped code paths that do not exist
 dp diff --base main          # what changed in the model since a git branch/tag/commit, as Markdown
 dp diff --base v1 --head v2 --format json --out diff.json
 dp diff --base origin/main --exit-code   # exit code 1 when the model changed
+dp plan <draft>                    # coding plan for a draft, as Markdown
+dp plan <draft> --check            # check the plan against the working copy; exit code 1 while steps are open
+dp plan <draft> --against <branch> # check the plan against a git branch, tag or commit
 dp --version
 ```
 
@@ -44,7 +47,7 @@ Model files written by the earlier Python version (0.2) open unchanged.
 |---|---|
 | `architecture/workspace.json` | A [Structurizr](https://github.com/structurizr/structurizr) workspace: elements, relationships, views, positions, flows. Readable IDs (`api-application`), stable formatting for `git diff`. |
 | `architecture/designperspectives.json` | Tag groups, lenses, the list of characteristics and cost settings (data Structurizr has no place for). |
-| `architecture/drafts/<id>/` | A draft (planned change): its own `workspace.json` and `designperspectives.json`, `draft.json` (title, description, date) and `base/` (the main model when the draft was made, used when applying it). |
+| `architecture/drafts/<id>/` | A draft (planned change): its own `workspace.json` and `designperspectives.json`, `draft.json` (title, description, date, and optional `branch` and `link`) and `base/` (the main model when the draft was made, used when applying it). `code.json` and `code/` hold planned code edits, kept out of your code folder until apply. |
 
 designPerspectives data stored inside the workspace as Structurizr element properties:
 `dp.owner`, `dp.links`, `dp.tag.<Group>` (e.g. `dp.tag.Risk = High`), `dp.archType` (symbol),
@@ -145,6 +148,27 @@ Stage C1 additions (planned change):
 - **In CI** (C3): `dp check` fails the build on model problems; `dp diff --base <ref>` writes a
   Markdown summary for a pull request comment. Sample workflows are in
   [docs/examples/ci/](docs/examples/ci/).
+
+Stage C4 additions (planned code changes). See [docs/planned-change.md](docs/planned-change.md):
+
+- **Code edits in a draft**: open a mapped file from a code diagram and edit it, add a planned file,
+  or plan a deletion. Saves go to the draft (`code/`), not to your code folder, and the code diagram
+  shows them as changed or added files. Saves are refused when comparing with a git version.
+- **Coding plan**: Drafts strip → **Coding plan…** lists the work the draft implies (build, remove,
+  change, connect, disconnect, flow, file). Paths and imports are checked automatically. Set the branch
+  the code will be written on, check against the code folder or a branch, or copy the plan as Markdown.
+  On the command line: `dp plan <draft>`.
+- **Apply with code**: the apply dialog can also write the planned code edits ("Also write the planned
+  code edits"). A file changed, removed or created in the code folder since it was planned is reported
+  as a conflict.
+- **`dp diff` covers code**: changed code files behind mapped objects are listed and count toward
+  `--exit-code`. `--no-code` leaves them out.
+- **Right-click menus**: on a box (open, rename, symbol, external, cut/copy/paste/duplicate, copy and
+  paste style, reset size, delete), on a line (open the connector, edit the label, line shape, arrows,
+  reset the line, copy and paste style, delete) and on empty canvas (add any palette item at that
+  spot, paste there, undo/redo, auto-layout, fit and zoom, go up a level, download). Items that do
+  not apply (read-only server, flows, objects from a compared version) are left out. Arrow keys,
+  Enter and Escape work in the menu.
 
 ## Develop
 

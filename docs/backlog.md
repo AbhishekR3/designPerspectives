@@ -25,9 +25,13 @@ Stage A (model, diagrams, overlays, flows, lenses, demo) is built and extended i
 
 | Stage | Content | Status |
 |---|---|---|
-| B — Python codebase to model (deterministic) | `dp scan <path>` proposes containers (from `pyproject.toml`, `requirements*.txt`, Dockerfiles, docker-compose), components (Python packages) and connections (imports); proposals are accepted, edited or rejected one by one; accepted objects keep their source paths and a re-scan never changes them (new code appears as "unmapped") | Not confirmed as built. `src/core/code.ts` already maps components to files and scans Python/JS/TS imports |
-| C — Planned change | C1 drafts: a separately edited copy of the workspace with a diff overlay (added / changed / removed) and apply or discard. C2 branch compare: scan two git refs and show the same overlay | Built: C1 drafts (DEC-016/017), C2 compare of the stored models at git refs (DEC-018), C3 `dp check` / `dp diff`. See `reviews/stage-c_review.md` |
+| B — Python codebase to model (deterministic) | `dp scan <path>` proposes containers (from `pyproject.toml`, `requirements*.txt`, Dockerfiles, docker-compose), components (Python packages) and connections (imports); proposals are accepted, edited or rejected one by one; accepted objects keep their source paths and a re-scan never changes them (new code appears as "unmapped") | **Moved to the Future stage** [Owner, 2026-11-14, DEC-026]. `src/core/code.ts` already maps components to files and scans Python/JS/TS imports |
+| C — Planned change | C1 drafts: a separately edited copy of the workspace with a diff overlay (added / changed / removed) and apply or discard. C2 branch compare: scan two git refs and show the same overlay | Built: C1 drafts (DEC-016/017), C2 compare of the stored models at git refs (DEC-018), C3 `dp check` / `dp diff`; C4 planned code changes and the coding plan (`dp plan`). See `reviews/stage-c_review.md`, `reviews/stage-c4_review.md` and `planned-change.md` |
 | D — LLM assist (optional, off by default) | D-1 describe scan results; D-2 draft a model from a written description (planning a codebase); D-3 explain a diagram or object in the wording of the active lens | Not built |
+| Deployment (next) | Deployment diagrams on the native Structurizr deployment model: nested deployment nodes, infrastructure nodes and container instances, one environment per diagram; diagrams computed from container relationships; per-node diff/merge units; `dp check` rules [Owner, 2026-11-14, DEC-019, DEC-022]. Later on this track: system instances, deployment groups, side-by-side environment diff, cost per environment | Next stage; plan first |
+| Small batch (after Deployment) | Technology shown on connections (toggle); owner inherited from the parent; descriptions on tag groups and values; keyboard shortcuts menu; "appears in diagrams" list per object; CSV export (A8+) [Proposal, DEC-028] | Planned after Deployment |
+| Static export (after the small batch) | `dp export html`: the built UI plus a snapshot of the model, opened without a server; can be published from CI [Owner, 2026-11-14, DEC-024; order DEC-028] | Planned |
+| Future stage | Parked work that needs more review and planning before it is scoped: **Stage B** (reverse engineering a C4 model from an existing codebase, DEC-026); the MCP server that reads the model and proposes edits as drafts, diagram write tools and agent task packages (DEC-020) [Owner, 2026-11-14] | Not scoped |
 
 Rules for Stage D [Notes]: the LLM gets the model as structured text, not images; output is always a proposal or draft that a person accepts; it never writes the model directly. The useful LLM role is outlining and challenging trade-offs, drafting ADR text and generating options, not making the decision.
 
@@ -54,7 +58,7 @@ Open questions for the owner [Proposal]:
 - Rebase a draft onto the current main model (today conflicts are only reported at apply time), and a merge editor for conflicts.
 - Undoing an apply could restore the draft too.
 - A sample draft in the demo model.
-- Compare scan results (Stage B) with the model, using the same diff.
+- Compare scan results (Stage B, now in the Future stage) with the model, using the same diff.
 - Compare against a draft from the main model ("what would this draft change now"), not only draft vs its base.
 
 ### Model and diagrams
@@ -63,11 +67,12 @@ Open questions for the owner [Proposal]:
 - Characteristic rating **targets** so overlays can show gaps; one-off costs and cost per environment; light/dark theme switch; a separate "Status" tab versus the Lifecycle tag group [Review, stage-a3 questions].
 - Ratings on relationships and whole flows (today objects only) [Review, stage-a3].
 - Add a pipeline as a **connector** (a line with stages) from the palette by picking two ends [Review, release-0.2].
-- Groupings as a first-class concept (layer, bounded context, subsystem, module, org unit) without extra C4 levels [Notes].
-- Deployment views per environment, system landscape as home screen, dynamic views (sequence ↔ collaboration), side-by-side environment diff [Notes].
+- Groupings as a first-class concept (layer, bounded context, subsystem, module, org unit) without extra C4 levels [Notes]. Decided: groups are queryable, taggable model objects [Owner, 2026-11-14, DEC-021]; groups nest [Owner, 2026-11-14, DEC-025]; one group per element, tags for other dimensions [Owner, DEC-027]; storage is open.
+- Deployment views per environment: now the next stage (see section 2). Still here: system landscape as home screen, dynamic views (sequence ↔ collaboration), side-by-side environment diff [Notes].
 - Sketch (low-fidelity) mode, "what-if" branches of the model, semantic layers [Notes].
 - Technology catalog with search and icons (today generic symbols, no product logos) [Review, stage-a3].
-- Versions/history view, share links, desktop packaging.
+- Versions/history view, desktop packaging. Share links: read-only serve now, static HTML export after Deployment (DEC-024).
+- Shared libraries and services are modelled as their own container or system (DEC-023); multi-parent elements are not planned.
 - Export to Mermaid, PlantUML, LikeC4; built-in Structurizr DSL import; DDD context map import (e.g. Context Mapper [Training]); Backstage `catalog-info.yaml` import/export [Training]; docs embedding (static SVG export exists; MkDocs/Docusaurus plugin later).
 
 ### Lints and checks (computable from the model) [Notes]
@@ -86,7 +91,7 @@ Open questions for the owner [Proposal]:
 
 ### Governance and hand-off [Notes]
 - Fitness-function generation from model rules (layer access, cycles, module dependency caps) for ArchUnit, NetArchTest, PyTestArch, TSArch, dependency-cruiser, import-linter; pass/fail overlay on diagrams.
-- Hand-off to coding agents: task packages with constraints at the right granularity (responsibilities, interfaces, allowed dependencies, fitness functions; not internal class design), generated checklists, POC/spike tasks for undecided choices; an MCP server that reads the model and proposes edits as drafts.
+- Hand-off to coding agents: task packages with constraints at the right granularity (responsibilities, interfaces, allowed dependencies, fitness functions; not internal class design), generated checklists, POC/spike tasks for undecided choices. The MCP server that reads the model and proposes edits as drafts moved to the Future stage (section 2, DEC-020).
 - Drift detection between modelled and coded structure.
 
 ### Integrations (beyond section 3)

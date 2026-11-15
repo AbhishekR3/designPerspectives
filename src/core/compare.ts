@@ -9,17 +9,35 @@
 import { diagram as staticDiagram } from "./diagrams.js";
 import { changeMap, type Snapshot } from "./diff.js";
 import { flowDiagram } from "./flows.js";
+import type { CodeInput } from "./code.js";
 import type { ChangeSet, Diagram, DiagramEdge } from "../shared/types.js";
 
-export function diagramOf(s: Snapshot, key: string, codeRoot: string | null): Diagram | null {
-  return staticDiagram(s.workspace, key, s.sidecar, codeRoot) ?? flowDiagram(s.workspace, key, s.sidecar);
+export function diagramOf(s: Snapshot, key: string, code: CodeInput): Diagram | null {
+  return staticDiagram(s.workspace, key, s.sidecar, code) ?? flowDiagram(s.workspace, key, s.sidecar);
 }
 
-export function compareDiagram(shown: Snapshot, other: Snapshot, key: string, cs: ChangeSet, codeRoot: string | null): Diagram | null {
-  const d = diagramOf(shown, key, codeRoot);
-  const o = diagramOf(other, key, codeRoot);
+/** `code` / `otherCode`: where each version reads its source files (for code diagrams). */
+export function compareDiagram(shown: Snapshot, other: Snapshot, key: string, cs: ChangeSet, code: CodeInput, otherCode: CodeInput = code): Diagram | null {
+  const d = diagramOf(shown, key, code);
+  const o = diagramOf(other, key, otherCode);
   if (!d && !o) return null;
   const changes = changeMap(cs);
+  // On a code diagram, files and imports are compared directly (by path and content).
+  if (d?.level === "code" || o?.level === "code") {
+    if (d && o) {
+      const before = new Map(o.nodes.map((n) => [n.id, n.contentHash]));
+      for (const n of d.nodes) {
+        if (!before.has(n.id)) n.change = "added";
+        else if (before.get(n.id) !== n.contentHash) n.change = "changed";
+      }
+      const oldEdges = new Set(o.edges.map((e) => e.id));
+      for (const e of d.edges) if (!oldEdges.has(e.id)) e.change = "added";
+    } else if (d) {
+      for (const n of d.nodes) n.change = "added";
+      for (const e of d.edges) e.change = "added";
+    }
+    for (const id of [...changes.keys()]) changes.delete(id);
+  }
 
   if (!d) {
     const gone = o!;
@@ -32,10 +50,11 @@ export function compareDiagram(shown: Snapshot, other: Snapshot, key: string, cs
 
   for (const n of d.nodes) {
     const c = changes.get(n.id);
-    if (c) n.change = c;
+    if (c && !n.change) n.change = c;
   }
   const otherEdges = new Map((o?.edges ?? []).map((e) => [e.id, e]));
   for (const e of d.edges) {
+    if (e.change) continue;
     const c = edgeChange(e, otherEdges.get(e.id), changes, o !== null);
     if (c) e.change = c;
   }

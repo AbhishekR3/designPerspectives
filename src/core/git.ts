@@ -9,6 +9,7 @@
 
 import { execFileSync } from "node:child_process";
 import path from "node:path";
+import { GitCode, NO_CODE, type CodeSource } from "./codefs.js";
 import { emptySidecar, parseSidecar, type Sidecar } from "./sidecar.js";
 import { NotFound, SIDECAR_FILE, WORKSPACE_FILE, type ModelSource } from "./store.js";
 import { errors } from "./validate.js";
@@ -150,5 +151,27 @@ export class GitModels {
       if (this.cache.size > 20) this.cache.delete(this.cache.keys().next().value!);
     }
     return s;
+  }
+}
+
+/** The code folder as it is at a ref (the code folder may be in another repository than the model). */
+export class GitCodes {
+  private cache = new Map<string, GitCode>();
+  private repo: Repo | null = null;
+
+  constructor(readonly codeRoot: string | null) {}
+
+  at(ref: string): CodeSource {
+    if (this.codeRoot === null) return NO_CODE;
+    if (!this.repo) this.repo = findRepo(this.codeRoot);
+    if (!this.repo) return NO_CODE;
+    const sha = resolveRef(this.repo, ref);
+    let c = this.cache.get(sha);
+    if (!c) {
+      c = new GitCode(this.repo.cwd, this.repo.prefix, sha, `git ${ref} (${sha.slice(0, 7)})`);
+      this.cache.set(sha, c);
+      if (this.cache.size > 20) this.cache.delete(this.cache.keys().next().value!);
+    }
+    return c;
   }
 }

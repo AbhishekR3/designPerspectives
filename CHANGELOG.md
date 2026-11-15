@@ -1,5 +1,32 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- Drafts: a planned change in `architecture/drafts/<id>/`, with a changes overlay (added, changed,
+  removed) against the main model. Apply merges it as one undo step (three-way merge, conflicts
+  refused); Discard deletes it.
+- Compare with git: pick a branch, tag or commit and compare the stored model with it, or open it
+  read-only. Needs the `git` command.
+- `dp check` (model rules for the main model and drafts, warnings for mapped paths that do not exist,
+  `--strict`) and `dp diff --base <ref>` (Markdown or JSON summary for pull requests). Sample GitHub
+  Actions and GitLab CI jobs in `docs/examples/ci/`.
+- Planned code edits in a draft: edit mapped files, add planned files or plan deletions. The code
+  folder is untouched until apply.
+- Coding plan: steps from a draft, checked against the code folder or a git branch; copy as Markdown.
+  `dp plan <draft>` with `--check`, `--against <ref>`, `--format md|json` and `--out`.
+- Apply with code: "Also write the planned code edits" in the apply dialog. A file changed, removed or
+  created in the code folder since it was planned is reported as a conflict.
+- `draft.json` gains optional `branch` and `link`.
+- `dp diff --no-code` and `--code-root`. Changed code files behind mapped objects are listed and count
+  toward `--exit-code`.
+- Right-click menus on boxes, lines and the empty canvas, with copy and paste style and keyboard
+  navigation.
+
+### Fixed
+- `dp plan --against <ref>` exits 2 when there is no code to check against (for example, the code
+  folder is not in a git repository). It used to pass.
+
 ## 0.3.0 — 2026-11-14
 
 ### Changed

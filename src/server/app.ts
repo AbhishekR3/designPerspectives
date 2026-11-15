@@ -9,7 +9,8 @@ import { compareDiagram, diagramOf } from "../core/compare.js";
 import * as diagrams from "../core/diagrams.js";
 import { diffModels } from "../core/diff.js";
 import { ApplyConflict, Drafts } from "../core/drafts.js";
-import { currentBranch, GitError, GitModels, listRefs } from "../core/git.js";
+import { cleanRel, DiskCode, NO_CODE, type CodeSource } from "../core/codefs.js";
+import { currentBranch, GitCodes, GitError, GitModels, listRefs } from "../core/git.js";
 import * as flows from "../core/flows.js";
 import { isObj, str, type Obj } from "../core/json.js";
 import * as ops from "../core/ops.js";
@@ -47,6 +48,16 @@ export interface Selection {
   cmp: ModelSource | null;
   cmpRef: string | null;
   cmpTitle: string | null;
+  /** Where each version reads source files from. */
+  code: CodeSource;
+  cmpCode: CodeSource | null;
+  /** Files the shown draft plans to edit. */
+  planned: string[];
+}
+
+/** The two code sources of a comparison, for `diffModels`. */
+export function codePair(sel: Selection) {
+  return sel.cmpCode ? { before: sel.cmpCode, after: sel.code, planned: sel.planned } : undefined;
 }
 
 export function state(project: Project, readOnly = false, sel?: Selection, drafts?: Drafts, gitModels?: GitModels): AppState {
@@ -83,7 +94,7 @@ export function state(project: Project, readOnly = false, sel?: Selection, draft
     })(),
     compare:
       sel?.cmp && sel.cmpRef
-        ? { against: sel.cmpRef, title: sel.cmpTitle ?? sel.cmpRef, summary: diffModels(sel.cmp, src, sel.cmpRef).summary }
+        ? { against: sel.cmpRef, title: sel.cmpTitle ?? sel.cmpRef, summary: diffModels(sel.cmp, src, sel.cmpRef, codePair(sel)).summary }
         : null,
   };
 }
@@ -164,13 +175,16 @@ export function createApp(root: string, opts: AppOptions = {}): Hono {
   const project = new Project(root, opts.codeRoot);
   const drafts = new Drafts(project);
   const gitModels = new GitModels(project.dir);
+  const gitCodes = new GitCodes(project.codeRoot);
+  const disk = new DiskCode(project.codeRoot);
   const app = new Hono();
   const ok = (c: Context) => c.json({ ok: true });
 
   // Each request selects a model version; handlers read it from here (requests interleave at
   // `await`, so this cannot be a plain variable).
   const selection = new AsyncLocalStorage<Selection>();
-  const sel = (): Selection => selection.getStore() ?? { src: project, ref: "main", title: "Main model", cmp: null, cmpRef: null, cmpTitle: null };
+  const sel = (): Selection =>
+    selection.getStore() ?? { src: project, ref: "main", title: "Main model", cmp: null, cmpRef: null, cmpTitle: null, code: disk, cmpCode: null, planned: [] };
   const src = () => sel().src;
   const writable = (): Project => {
     const s = src();
@@ -180,23 +194,31 @@ export function createApp(root: string, opts: AppOptions = {}): Hono {
   const edit = <T>(fn: (ws: Workspace, sc: Sidecar) => T, record = true) => writable().edit(fn, record);
 
   const draftId = (ref: string) => ref.slice("draft:".length);
-  const resolve = (ref: string): [ModelSource, string] => {
-    if (ref === "main") return [project, "Main model"];
+  /** A version's model, title and code. */
+  const resolve = (ref: string): [ModelSource, string, CodeSource] => {
+    if (ref === "main") return [project, "Main model", disk];
     if (ref.startsWith("draft:")) {
       const id = draftId(ref);
-      return [drafts.get(id), `Draft: ${drafts.info(id).title}`];
+      return [drafts.get(id), `Draft: ${drafts.info(id).title}`, drafts.code(id)];
     }
     if (ref.startsWith("ref:")) {
       const name = ref.slice("ref:".length);
       const snap = gitModels.at(name);
-      return [snap, `Git: ${name} (${snap.sha.slice(0, 7)})${snap.present ? "" : ", no model"}`];
+      let code: CodeSource;
+      try {
+        code = gitCodes.at(name);
+      } catch {
+        code = NO_CODE; // the code folder is in another repository without that ref
+      }
+      return [snap, `Git: ${name} (${snap.sha.slice(0, 7)})${snap.present ? "" : ", no model"}`, code];
     }
     throw new HttpError(422, `Unknown model version "${ref}".`);
   };
-  const resolveCompare = (ref: string, against: string): [ModelSource, string] => {
+  const resolveCompare = (ref: string, against: string): [ModelSource, string, CodeSource] => {
     if (against === "base") {
       if (!ref.startsWith("draft:")) throw new HttpError(422, "Only a draft has a base to compare with.");
-      return [drafts.base(draftId(ref)), "Main model when the draft was made"];
+      // A draft's planned code edits are compared with the code folder as it is now.
+      return [drafts.base(draftId(ref)), "Main model when the draft was made", disk];
     }
     return resolve(against);
   };
@@ -222,16 +244,18 @@ export function createApp(root: string, opts: AppOptions = {}): Hono {
 
   app.use("/api/*", async (c, next) => {
     const ref = c.req.header("x-dp-model")?.trim() || "main";
-    const [s, title] = resolve(ref);
+    const [s, title, code] = resolve(ref);
     s.reloadIfChanged();
     const against = c.req.header("x-dp-compare")?.trim() || null;
     let cmp: ModelSource | null = null;
     let cmpTitle: string | null = null;
+    let cmpCode: CodeSource | null = null;
     if (against) {
-      [cmp, cmpTitle] = resolveCompare(ref, against);
+      [cmp, cmpTitle, cmpCode] = resolveCompare(ref, against);
       cmp.reloadIfChanged();
     }
-    await selection.run({ src: s, ref, title, cmp, cmpRef: against, cmpTitle }, next);
+    const planned = ref.startsWith("draft:") ? [...drafts.codePlan(draftId(ref)).files().keys()] : [];
+    await selection.run({ src: s, ref, title, cmp, cmpRef: against, cmpTitle, code, cmpCode, planned }, next);
   });
 
   // ------------------------------------------------------------ read
@@ -245,13 +269,13 @@ export function createApp(root: string, opts: AppOptions = {}): Hono {
   const changes = (): ChangeSet => {
     const { src: s, cmp, cmpRef } = sel();
     if (!cmp || !cmpRef) throw new HttpError(422, "Nothing to compare with: send the X-DP-Compare header.");
-    return diffModels(cmp, s, cmpRef);
+    return diffModels(cmp, s, cmpRef, codePair(sel()));
   };
 
   app.get("/api/diagrams/:key", (c) => {
     const key = c.req.param("key");
-    const { src: s, cmp } = sel();
-    const d = cmp ? compareDiagram(s, cmp, key, changes(), project.codeRoot) : diagramOf(s, key, project.codeRoot);
+    const { src: s, cmp, code, cmpCode } = sel();
+    const d = cmp ? compareDiagram(s, cmp, key, changes(), code, cmpCode ?? code) : diagramOf(s, key, code);
     if (!d) throw new HttpError(404, `No diagram ${key}`);
     return c.json(d);
   });
@@ -267,7 +291,12 @@ export function createApp(root: string, opts: AppOptions = {}): Hono {
 
   app.patch("/api/drafts/:id", async (c) => {
     const b = await objBody(c);
-    drafts.update(c.req.param("id"), { title: optStr(b, "title") ?? undefined, description: optStr(b, "description") ?? undefined });
+    drafts.update(c.req.param("id"), {
+      title: optStr(b, "title") ?? undefined,
+      description: optStr(b, "description") ?? undefined,
+      branch: optStr(b, "branch") ?? undefined,
+      link: optStr(b, "link") ?? undefined,
+    });
     return ok(c);
   });
 
@@ -276,10 +305,22 @@ export function createApp(root: string, opts: AppOptions = {}): Hono {
     return ok(c);
   });
 
-  app.get("/api/drafts/:id/apply-preview", (c) => c.json(drafts.preview(c.req.param("id"))));
+  /** The draft's coding plan. ?against=disk (the code folder) or ref:<branch> checks progress. */
+  const planTarget = (against: string | undefined): CodeSource | null => {
+    if (!against || against === "none") return null;
+    if (against === "disk") return disk;
+    if (against.startsWith("ref:")) return gitCodes.at(against.slice(4));
+    throw new HttpError(422, 'Check against "disk" or "ref:<branch>".');
+  };
+  app.get("/api/drafts/:id/plan", (c) => c.json(drafts.plan(c.req.param("id"), planTarget(c.req.query("against")))));
 
-  app.post("/api/drafts/:id/apply", (c) => {
-    drafts.apply(c.req.param("id"));
+  // ?code=0 / {"code": false}: apply the model changes only, not the planned code edits.
+  const codeFlag = (v: unknown) => !(v === false || v === "0" || v === "false");
+  app.get("/api/drafts/:id/apply-preview", (c) => c.json(drafts.preview(c.req.param("id"), { code: codeFlag(c.req.query("code")) })));
+
+  app.post("/api/drafts/:id/apply", async (c) => {
+    const b = await body(c);
+    drafts.apply(c.req.param("id"), { code: codeFlag(isObj(b) ? b.code : undefined) });
     return ok(c);
   });
 
@@ -345,7 +386,20 @@ export function createApp(root: string, opts: AppOptions = {}): Hono {
     return c.json({ deleted: [...gone].sort() });
   });
 
-  app.post("/api/elements/:id/duplicate", (c) => c.json({ id: edit((ws, sc) => ops.duplicateElement(ws, sc, c.req.param("id"))) }));
+  /** Copy an element; optionally place the copy on a diagram (paste at a point) in the same undo step. */
+  app.post("/api/elements/:id/duplicate", async (c) => {
+    const raw = await body(c);
+    if (raw !== null && !isObj(raw)) throw new HttpError(422, "The request body must be a JSON object.");
+    const b: Obj = raw ?? {};
+    const diagramKey = optStr(b, "diagramKey");
+    const position = b.position === null || b.position === undefined ? null : point(b.position, "position");
+    const id = edit((ws, sc) => {
+      const newId = ops.duplicateElement(ws, sc, c.req.param("id"));
+      if (diagramKey && position) diagrams.setPositions(ws, diagramKey, { [newId]: position });
+      return newId;
+    });
+    return c.json({ id });
+  });
 
   // ------------------------------------------------------------ relationships
 
@@ -582,18 +636,95 @@ export function createApp(root: string, opts: AppOptions = {}): Hono {
 
   // ------------------------------------------------------------ code
 
-  app.get("/api/code/tree", (c) => c.json({ entries: codemod.listTree(project.codeRoot, c.req.query("path") ?? "") }));
+  // In a draft, code files are read from and saved to the draft's planned edits; the code folder
+  // is only written when the draft is applied. A git version's code is read-only.
+  const view = () => {
+    const s = sel();
+    return { draft: s.ref.startsWith("draft:") ? draftId(s.ref) : null, git: s.ref.startsWith("ref:"), code: s.code };
+  };
+  const relOf = (p: unknown): string => {
+    const rel = cleanRel(str(p));
+    if (!rel) throw new ModelError("That path is outside the code folder.");
+    if (project.codeRoot === null) throw new ModelError("No code folder is set. Start the app with --code-root <folder>.");
+    return rel;
+  };
+  const draftOnly = (what: string): string => {
+    const v = view();
+    if (v.git) throw new HttpError(403, "This version of the model is read-only.");
+    if (!v.draft) throw new ModelError(`${what} can only be planned in a draft. Open or start a draft first.`);
+    return v.draft;
+  };
+
+  app.get("/api/code/tree", (c) => {
+    const v = view();
+    return c.json({ entries: codemod.listTree(v.draft || v.git ? v.code : project.codeRoot, c.req.query("path") ?? "") });
+  });
 
   app.get("/api/code/file", (c) => {
     const p = c.req.query("path");
     if (p === undefined) throw new HttpError(422, '"path" is required.');
-    return c.json(codemod.readCodeFile(project.codeRoot, p));
+    const v = view();
+    if (v.git) {
+      const rel = relOf(p);
+      const content = v.code.read(rel);
+      if (content === null) throw new ModelError("No such file in this version.");
+      return c.json({ path: rel, content, mtime: 0, planned: null, readOnly: true });
+    }
+    if (v.draft) {
+      const rel = relOf(p);
+      const plan = drafts.codePlan(v.draft);
+      const planned = plan.files().get(rel);
+      if (planned && planned.change !== "deleted") return c.json({ path: rel, content: plan.content(rel) ?? "", mtime: plan.mtime(rel) ?? 0, planned: planned.change, readOnly: false });
+      const onDisk = codemod.readCodeFile(project.codeRoot, rel);
+      return c.json({ ...onDisk, planned: planned?.change ?? null, readOnly: false });
+    }
+    return c.json({ ...codemod.readCodeFile(project.codeRoot, p), planned: null, readOnly: false });
   });
 
   app.put("/api/code/file", async (c) => {
     const b = await objBody(c);
     const mtime = b.mtime === null || b.mtime === undefined ? null : num(b.mtime, "mtime");
-    return c.json(codemod.writeCodeFile(project.codeRoot, str(b.path), str(b.content), mtime));
+    const v = view();
+    if (v.git) throw new HttpError(403, "This version of the model is read-only.");
+    if (!v.draft) return c.json(codemod.writeCodeFile(project.codeRoot, str(b.path), str(b.content), mtime));
+    const rel = relOf(b.path);
+    const plan = drafts.codePlan(v.draft);
+    const planned = plan.files().get(rel);
+    const current = disk.read(rel);
+    if (!planned && current === null) throw new ModelError("No such file. Use New file to plan a new one.");
+    const curMtime = planned && planned.change !== "deleted" ? plan.mtime(rel) : current === null ? null : codemod.readCodeFile(project.codeRoot, rel).mtime;
+    if (mtime !== null && curMtime !== null && Math.abs(curMtime - mtime) > 0.001) {
+      throw new ModelError("The file changed since you opened it. Reopen it to see the new version.");
+    }
+    plan.write(rel, str(b.content), current);
+    return c.json({ path: rel, mtime: plan.mtime(rel) ?? (current === null ? 0 : codemod.readCodeFile(project.codeRoot, rel).mtime) });
+  });
+
+  /** Plan a new file (drafts only). */
+  app.post("/api/code/file", async (c) => {
+    const b = await objBody(c);
+    const id = draftOnly("New files");
+    const rel = relOf(b.path);
+    if (drafts.code(id).kind(rel) !== null) throw new ModelError(`${rel} already exists.`);
+    drafts.codePlan(id).write(rel, str(b.content), null);
+    return c.json({ path: rel });
+  });
+
+  /** Plan the removal of a file (drafts only). */
+  app.delete("/api/code/file", (c) => {
+    const id = draftOnly("Removing files");
+    const rel = relOf(c.req.query("path"));
+    if (drafts.code(id).kind(rel) !== "file") throw new ModelError("No such file.");
+    drafts.codePlan(id).remove(rel, disk.read(rel));
+    return ok(c);
+  });
+
+  /** Drop the draft's planned edit of one file. */
+  app.post("/api/code/revert", async (c) => {
+    const b = await objBody(c);
+    const id = draftOnly("Reverting files");
+    drafts.codePlan(id).revert(relOf(b.path));
+    return ok(c);
   });
 
   // ------------------------------------------------------------ flows

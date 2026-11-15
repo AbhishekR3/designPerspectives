@@ -101,23 +101,47 @@ export function CodePaths({
   );
 }
 
-/** Edit one source file. Saves back to the file on disk. */
-export function FileEditor({ path, onClose }: { path: string; onClose(): void }) {
+const PLANNED_TEXT: Record<string, string> = {
+  added: "New file planned in this draft.",
+  changed: "This draft plans a change to this file.",
+  deleted: "This draft plans to delete this file (the current version is shown).",
+};
+
+/** Edit one source file. Saves back to the file on disk; in a draft, to the draft's planned edits. */
+export function FileEditor({ path, onClose, inDraft = false, onChanged }: { path: string; onClose(): void; inDraft?: boolean; onChanged?(): void }) {
   const [content, setContent] = useState<string | null>(null);
   const [orig, setOrig] = useState("");
   const [mtime, setMtime] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
-  useEffect(() => {
+  const [planned, setPlanned] = useState<string | null>(null);
+  const [readOnly, setReadOnly] = useState(false);
+  const load = () =>
     api
       .codeFile(path)
       .then((f) => {
         setContent(f.content);
         setOrig(f.content);
         setMtime(f.mtime);
+        setPlanned(f.planned);
+        setReadOnly(f.readOnly);
       })
       .catch((e) => setError(e instanceof Error ? e.message : String(e)));
+  useEffect(() => {
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [path]);
+  const act = async (fn: () => Promise<unknown>, close = false) => {
+    try {
+      await fn();
+      setError(null);
+      onChanged?.();
+      if (close) onClose();
+      else await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  };
   const dirty = content !== null && content !== orig;
   const save = async () => {
     if (content === null) return;
@@ -127,6 +151,10 @@ export function FileEditor({ path, onClose }: { path: string; onClose(): void })
       setOrig(content);
       setSaved(true);
       setError(null);
+      if (inDraft) {
+        onChanged?.();
+        await load();
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     }
@@ -137,6 +165,23 @@ export function FileEditor({ path, onClose }: { path: string; onClose(): void })
   };
   return (
     <Modal title={path} onClose={close} wide>
+      {readOnly && <div className="note small">An earlier version from git: read-only.</div>}
+      {inDraft && !readOnly && (
+        <div className="draft-note small" data-testid="code-draft-note">
+          {planned ? PLANNED_TEXT[planned] : "Saving here plans the change in the draft."} The code folder is only written when the draft is applied.
+          <span className="spacer" />
+          {planned && (
+            <button className="small" onClick={() => act(() => api.revertCodeFile(path), planned === "added")} data-testid="code-revert">
+              {planned === "added" ? "Drop the new file" : "Revert to the code folder's version"}
+            </button>
+          )}
+          {planned !== "deleted" && planned !== "added" && (
+            <button className="small" onClick={() => window.confirm(`Plan to delete ${path}?`) && act(() => api.deleteCodeFile(path))} data-testid="code-plan-delete">
+              Plan deletion
+            </button>
+          )}
+        </div>
+      )}
       {error && (
         <div className="error" role="alert">
           {error}
@@ -146,6 +191,7 @@ export function FileEditor({ path, onClose }: { path: string; onClose(): void })
         <textarea
           className="code-editor"
           value={content}
+          readOnly={readOnly || planned === "deleted"}
           spellCheck={false}
           onChange={(e) => {
             setContent(e.target.value);
@@ -168,10 +214,10 @@ export function FileEditor({ path, onClose }: { path: string; onClose(): void })
         />
       )}
       <div className="modal-actions">
-        <span className="muted small">{saved ? "Saved." : dirty ? "Unsaved changes" : "Ctrl/Cmd+S saves to the file"}</span>
+        <span className="muted small">{saved ? (inDraft ? "Saved to the draft." : "Saved.") : dirty ? "Unsaved changes" : readOnly ? "" : inDraft ? "Ctrl/Cmd+S saves to the draft" : "Ctrl/Cmd+S saves to the file"}</span>
         <span className="spacer" />
         <button onClick={close}>Close</button>
-        <button className="primary" onClick={save} disabled={!dirty} data-testid="code-save">
+        <button className="primary" onClick={save} disabled={!dirty || readOnly} data-testid="code-save">
           Save
         </button>
       </div>

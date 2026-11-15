@@ -505,6 +505,8 @@ export type C4EdgeData = {
   onGeom(id: string, layout: EdgeLayout): void;
   onSelect(id: string): void;
   onOpen(id: string): void;
+  /** Right-click on the label (drawn in its own layer, so the line's own handler does not see it). */
+  onContextMenu(id: string, client: Pt): void;
 };
 
 export const FLOW_CURRENT = "#5ee1f5";
@@ -608,7 +610,8 @@ export function C4Edge({ id, source, target, data, selected, markerEnd, markerSt
 
   const flowPoint = (e: React.PointerEvent): Pt => rf.screenToFlowPosition({ x: e.clientX, y: e.clientY });
   const begin = (kind: Drag["kind"]) => (e: React.PointerEvent) => {
-    if (!data.editable) return;
+    // Only the main button drags; a right-click opens the menu instead.
+    if (!data.editable || e.button !== 0) return;
     e.stopPropagation();
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     data.onSelect(id);
@@ -652,7 +655,17 @@ export function C4Edge({ id, source, target, data, selected, markerEnd, markerSt
 
   const techs = data.technologies.length ? data.technologies.join(", ") : "";
   const handleStyle = (p: Pt): React.CSSProperties => ({ transform: `translate(-50%, -50%) translate(${p.x}px, ${p.y}px)` });
-  const grab = { onPointerMove: move, onPointerUp: end, onPointerCancel: end };
+  // Right-click on the label or a grip (drawn in their own layer, outside the line) opens the line's menu.
+  const grab = {
+    onPointerMove: move,
+    onPointerUp: end,
+    onPointerCancel: end,
+    onContextMenu: (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      data.onContextMenu(id, { x: e.clientX, y: e.clientY });
+    },
+  };
 
   return (
     <>

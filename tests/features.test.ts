@@ -241,6 +241,17 @@ describe("features", () => {
     expect(el.notes).toBeTruthy();
   });
 
+  test("duplicate element onto a diagram at a point", async () => {
+    const c = client();
+    const key = "containers-internet-banking-system";
+    const id = (await ok(c.post("/api/elements/api-application/duplicate", { diagramKey: key, position: { x: 900, y: 40 } }))).id;
+    const d = await ok(c.get(`/api/diagrams/${key}`));
+    expect(d.nodes.find((n: { id: string }) => n.id === id).position).toEqual({ x: 900, y: 40 });
+    // One undo removes the copy and its position together.
+    await ok(c.post("/api/undo"));
+    expect((await ok(c.get("/api/state"))).elements.some((e: { id: string }) => e.id === id)).toBe(false);
+  });
+
   test("lens sections round trip", async () => {
     const c = client();
     const lid = (await ok(c.post("/api/lenses", { name: "Lean", visibleSections: ["notes"] }))).id;

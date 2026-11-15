@@ -48,6 +48,18 @@ const P: Record<string, string> = {
   chevron: "m6 9 6 6 6-6",
   pin: "M12 21s-6-5.6-6-11a6 6 0 0 1 12 0c0 5.4-6 11-6 11Zm0-9a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z",
   fit: "M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5",
+  copy: "M9 9h11v11H9zM5 15H4V4h11v1",
+  cut: "M6 20a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm12 0a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM8.1 15.4 19 4M15.9 15.4 5 4",
+  paste: "M9 4h6v3H9zM7 5H5v16h14V5h-2",
+  edit: "M4 20h4L19 9l-4-4L4 16v4ZM13.5 6.5l4 4",
+  trash: "M4 7h16M10 11v6m4-6v6M6 7l1 13h10l1-13M9 7V4h6v3",
+  brush: "M14 4l6 6-8 8H6v-6l8-8ZM4 20h4",
+  shapes: "M4 4h7v7H4zM17.5 4.5a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7ZM13 20l3.5-6 3.5 6Z",
+  zoomIn: "M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14Zm5-2 4.5 4.5M8 11h6M11 8v6",
+  zoomOut: "M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14Zm5-2 4.5 4.5M8 11h6",
+  up: "M12 19V5m-6 6 6-6 6 6",
+  resize: "M4 14v6h6M20 10V4h-6M4 20l7-7M20 4l-7 7",
+  line: "M4 20 20 4",
 };
 
 export type IconName = keyof typeof P;

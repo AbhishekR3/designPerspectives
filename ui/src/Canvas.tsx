@@ -23,6 +23,8 @@ import type { Diagram, DiagramNode, EdgeLayout, Lens, Pt, Selection } from "./ty
 
 export interface CanvasHandle {
   freeSpot(size?: Size): Pt;
+  /** The free spot nearest to a box of this size centred on `center` (diagram coordinates): its top-left. */
+  spotAt(center: Pt, size: Size): Pt;
   relayout(): Promise<void>;
   exportImage(format: "svg" | "png"): Promise<void>;
   nudge(id: string, dx: number, dy: number): void;
@@ -67,10 +69,14 @@ interface Props {
   onPositions(positions: Record<string, Pt>, auto?: boolean): void;
   onLayout(patch: LayoutPatch): void;
   onOpenFile(path: string): void;
+  onContextMenu(target: ContextTarget, client: Pt): void;
   handleRef: Ref<CanvasHandle>;
 }
 
 type P = Record<string, Pt>;
+
+/** What was right-clicked: a box, a line, or empty canvas (with the point, in diagram coordinates). */
+export type ContextTarget = { type: "node"; id: string } | { type: "edge"; id: string } | { type: "pane"; at: Pt };
 
 /** Room for the floating bars around the canvas, so fitting the view does not put boxes under them. */
 const FIT = { padding: { top: "110px", bottom: "130px", left: "200px", right: "60px" } } as const;
@@ -78,7 +84,7 @@ const FIT = { padding: { top: "110px", bottom: "130px", left: "200px", right: "6
 const groupedIds = (d: Diagram) => (d.boundary ? d.nodes.filter((n) => n.inScope).map((n) => n.id) : []);
 const BOUNDARY_PAD = 40;
 
-export function Canvas({ diagram, lens, decorate, actions, archTypes, renameId, onRenameStarted, onDropItem, onConnectToEmpty, flowStep, showChanges, selection, onSelect, onDrill, onConnect, onPositions, onLayout, onOpenFile, handleRef }: Props) {
+export function Canvas({ diagram, lens, decorate, actions, archTypes, renameId, onRenameStarted, onDropItem, onConnectToEmpty, flowStep, showChanges, selection, onSelect, onDrill, onConnect, onPositions, onLayout, onOpenFile, onContextMenu, handleRef }: Props) {
   const rf = useReactFlow();
   const [positions, setPositions] = useState<P>({});
   const [sizeOverride, setSizeOverride] = useState<Record<string, Size>>({});
@@ -292,6 +298,7 @@ export function Canvas({ diagram, lens, decorate, actions, archTypes, renameId, 
         onGeom: (id, layout) => onLayout({ edges: { [id]: layout } }),
         onSelect: (id) => onSelect({ type: "edge", id }),
         onOpen: openEdge,
+        onContextMenu: (id, client) => onContextMenu({ type: "edge", id }, client),
       };
       return {
         id: e.id,
@@ -304,7 +311,7 @@ export function Canvas({ diagram, lens, decorate, actions, archTypes, renameId, 
         selected: selection?.type === "edge" && selection.id === e.id,
       };
     });
-  }, [diagram, nodes, decorate, flow, flowStep, step, stepRel, selection, editable, onLayout, onSelect, openEdge, showChanges]);
+  }, [diagram, nodes, decorate, flow, flowStep, step, stepRel, selection, editable, onLayout, onSelect, openEdge, showChanges, onContextMenu]);
 
   const onNodesChange = useCallback((changes: NodeChange[]) => {
     const moves = changes.filter((c) => c.type === "position" && !c.id.startsWith("boundary:"));
@@ -331,6 +338,9 @@ export function Canvas({ diagram, lens, decorate, actions, archTypes, renameId, 
         const r = wrapper.current?.getBoundingClientRect();
         const c = r ? rf.screenToFlowPosition({ x: r.left + r.width / 2, y: r.top + r.height / 2 }) : { x: 0, y: 0 };
         return findFreeSpot({ x: c.x - size.w / 2, y: c.y - size.h / 2 }, size, rects());
+      },
+      spotAt(center, size) {
+        return findFreeSpot({ x: Math.round(center.x - size.w / 2), y: Math.round(center.y - size.h / 2) }, size, rects());
       },
       async relayout() {
         const pos = await autoLayout(
@@ -414,6 +424,21 @@ export function Canvas({ diagram, lens, decorate, actions, archTypes, renameId, 
         onEdgeClick={(_, e) => onSelect({ type: "edge", id: e.id })}
         onEdgeDoubleClick={(_, e) => openEdge(e.id)}
         onPaneClick={() => onSelect(null)}
+        onNodeContextMenu={(e, n) => {
+          // Keep the browser's own menu inside a text field (e.g. while renaming).
+          if ((e.target as HTMLElement).closest("input, textarea, select")) return;
+          e.preventDefault();
+          if (n.id.startsWith("boundary:")) return;
+          onContextMenu({ type: "node", id: n.id }, { x: e.clientX, y: e.clientY });
+        }}
+        onEdgeContextMenu={(e, edge) => {
+          e.preventDefault();
+          onContextMenu({ type: "edge", id: edge.id }, { x: e.clientX, y: e.clientY });
+        }}
+        onPaneContextMenu={(e) => {
+          e.preventDefault();
+          onContextMenu({ type: "pane", at: rf.screenToFlowPosition({ x: e.clientX, y: e.clientY }) }, { x: e.clientX, y: e.clientY });
+        }}
         onConnect={(c: Connection) => {
           if (!c.source || !c.target || c.source === c.target || !canConnect) return;
           onConnect(c.source, c.target, {

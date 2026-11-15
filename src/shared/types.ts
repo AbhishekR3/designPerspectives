@@ -151,6 +151,8 @@ export interface DiagramNode extends ElementSummary {
   linkedElementName?: string | null;
   filePath?: string;
   lineCount?: number | null;
+  /** Code files: hash of the content, to tell changed files apart when comparing versions. */
+  contentHash?: string;
   /** Set when the diagram is compared with another version of the model. */
   change?: ChangeKind;
   /** Not in the shown model: drawn from the compared version (read-only). */
@@ -358,6 +360,18 @@ export interface ChangeSummary {
   removed: number;
   /** Position, size, line-shape and style changes; not counted as model changes. */
   layout: number;
+  /** Code files added, changed or removed (only for objects mapped to code). */
+  code: number;
+}
+
+export interface CodeChange {
+  /** The element or relationship whose code paths hold the files; "" for planned files no object points to. */
+  ownerId: string;
+  ownerType: "element" | "relationship" | "none";
+  ownerName: string;
+  homeKey: string | null;
+  files: { path: string; change: "added" | "changed" | "removed" }[];
+  imports: { from: string; to: string; change: "added" | "removed" }[];
 }
 
 export interface ChangeSet {
@@ -367,8 +381,10 @@ export interface ChangeSet {
   relationships: ObjectChange[];
   flows: ObjectChange[];
   settings: ObjectChange[];
-  /** Elements not changed themselves but with a changed element or relationship inside. */
+  /** Elements not changed themselves but with a changed element or relationship inside (or changed code). */
   inner: string[];
+  /** Changes to the code behind mapped objects, when both versions have code to read. */
+  code: CodeChange[];
   summary: ChangeSummary;
 }
 
@@ -382,9 +398,45 @@ export interface DraftInfo {
   title: string;
   description: string;
   created: string;
+  /** The git branch where the code for this draft is written (for the progress check). */
+  branch: string;
+  /** A link to the pull request or ticket. */
+  link: string;
+  /** Number of planned code edits in the draft. */
+  plannedFiles: number;
 }
 
 export interface ApplyPreview {
   changes: ChangeSet;
   conflicts: Conflict[];
+  /** Planned code edits that Apply writes to the code folder (when asked to). */
+  code: { path: string; change: "added" | "changed" | "deleted" }[];
+}
+
+/** One step of a draft's coding plan. */
+export interface PlanItem {
+  id: string;
+  /** System / container the step belongs to, "Flows", "Planned code edits", ... */
+  section: string;
+  kind: "build" | "change" | "remove" | "connect" | "disconnect" | "file" | "model";
+  title: string;
+  details: string[];
+  /** True when the step can be checked against the code automatically. */
+  auto: boolean;
+  /** done / open: checked; manual: check by hand; unchecked: not checked yet; info: no code work. */
+  status: "done" | "open" | "manual" | "unchecked" | "info";
+  evidence: string;
+}
+
+export interface CodingPlan {
+  draftId: string;
+  title: string;
+  description: string;
+  branch: string;
+  link: string;
+  /** What the code was checked against, e.g. "the code folder", "git feature/x (a1b2c3d)"; null: not checked. */
+  checkedAgainst: string | null;
+  items: PlanItem[];
+  summary: { done: number; open: number; manual: number; unchecked: number };
+  markdown: string;
 }
