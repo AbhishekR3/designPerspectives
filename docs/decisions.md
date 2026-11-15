@@ -42,6 +42,7 @@ Entry format: **ID — title** · date · status · who decided · what was deci
 - Decision: a local server reads and writes model files in a folder and serves the UI to the browser. No accounts, no hosted server.
 - Why: simplest way to get a usable tool without installers or accounts.
 - Trade-off: no installable desktop app for now. The UI could later be wrapped in a desktop shell or published as a static demo.
+- Amended by DEC-041.
 
 ## DEC-007 — Native model file is a Structurizr workspace plus a sidecar
 - Date: 2026-11-13 · Status: Accepted · Decided by: Owner delegated; choice is a Proposal
@@ -251,3 +252,10 @@ Entry format: **ID — title** · date · status · who decided · what was deci
 - Decision: a draft has an optional `author`. The client sends it; otherwise the server uses `git config user.name`. The author shows in the drafts list and in the `dp plan` Markdown header. A draft shows "main +N": the number of objects main changed since the draft's base. This is a diff of the base against main, cached by main's revision.
 - Why: with several drafts, a label shows who started each change. The count shows whether a draft is out of date before apply.
 - Trade-off: the author is a plain label, not an identity check, so any name can be written. The count costs one diff per main revision per draft. There is no rebase yet, so the count only reports the gap.
+
+## DEC-041 — Optional sign-in with three roles; edit rights enforced on the server
+- Date: 2026-11-15 · Status: Accepted (built in Stage P4) · Decided by: Owner [2026-11-14]
+- Decision: dp stays a local tool. Sign-in is optional and off by default. With no `.dp/users.json` in the project, nothing changes. Three roles: **Architect** does everything. **Engineer** reads everything, creates drafts and edits any draft; it cannot change the main model, write real code files or apply a draft, and it can discard only drafts it started. **Viewer** reads everything and changes nothing. The server enforces these rights on every changing route. A route with no rule is Architect-only, and a test fails for a new route with no rule. `dp users` stores passwords as scrypt hashes. Sessions use an HttpOnly, SameSite=Strict cookie, end after 12 hours idle and live in memory. Five failed sign-ins lock a name for 30 seconds. Lenses stay a default view, not data hiding. Git versions stay read-only for everyone. Drafts record the signed-in user as author.
+- Why: a shared local model needs a way to stop an engineer from changing the main model by accident. This works without a hosted server or accounts. Checks on the server hold even when the UI is bypassed.
+- Amends: DEC-001 and DEC-006. "No accounts" now reads "no accounts unless a users file exists". DEC-008 is unchanged.
+- Trade-off: not real-time. Two users editing the same thing: the last write wins, and the other sees it when the window regains focus. Undo history is per model version, not per user. Sessions are lost on restart. Passwords travel in clear text unless the server is behind HTTPS, so a network needs a TLS proxy. Lenses do not hide data: a viewer can read costs and notes through the API. `dp users` commands must not run in parallel. Roles are fixed. Open for the owner: (1) should engineers edit only their own drafts; (2) should a viewer's lens hide sensitive sections on the server (this would change DEC-008); (3) is a 12-hour idle session right.

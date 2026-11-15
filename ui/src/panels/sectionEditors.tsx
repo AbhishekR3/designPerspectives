@@ -55,12 +55,12 @@ export function Rows<T extends object>({
       {draft.map((r, i) => (
         <div className="rowed" key={i}>
           {render(r, (patch, commit) => update(i, patch, commit), () => onSave(latest.current))}
-          <button className="icon" aria-label="Remove" onClick={() => onSave(latest.current.filter((_, j) => j !== i))}>
+          <button className="icon edit-only" aria-label="Remove" onClick={() => onSave(latest.current.filter((_, j) => j !== i))}>
             ×
           </button>
         </div>
       ))}
-      <button onClick={() => setDraft([...latest.current, { ...blank }])} data-testid={`${testId}-add`}>
+      <button className="edit-only" onClick={() => setDraft([...latest.current, { ...blank }])} data-testid={`${testId}-add`}>
         {addLabel}
       </button>
     </div>
@@ -85,12 +85,12 @@ export function DetailsEditor({ tables, onSave }: { tables: DetailTable[]; onSav
   const commit = (next = draft) => !sameKeys(next, tables) && onSave(next);
   return (
     <div data-testid="details">
-      <p className="muted small">Do not store passwords or keys here; name where they are kept.</p>
+      <p className="muted small edit-only">Do not store passwords or keys here; name where they are kept.</p>
       {draft.map((t, i) => (
         <div className="detail-table" key={i} data-testid={`detail-${i}`}>
           <div className="row">
             <input className="detail-title" value={t.title} onChange={(e) => set(i, { ...t, title: e.target.value })} onBlur={() => commit()} aria-label="Table title" />
-            <button className="icon" aria-label="Remove table" onClick={() => commit(draft.filter((_, j) => j !== i))}>
+            <button className="icon edit-only" aria-label="Remove table" onClick={() => commit(draft.filter((_, j) => j !== i))}>
               ×
             </button>
           </div>
@@ -114,7 +114,7 @@ export function DetailsEditor({ tables, onSave }: { tables: DetailTable[]; onSav
                     </td>
                   ))}
                   <td>
-                    <button className="icon" aria-label="Remove row" onClick={() => commit(draft.map((x, j) => (j === i ? { ...t, rows: t.rows.filter((_, m) => m !== ri) } : x)))}>
+                    <button className="icon edit-only" aria-label="Remove row" onClick={() => commit(draft.map((x, j) => (j === i ? { ...t, rows: t.rows.filter((_, m) => m !== ri) } : x)))}>
                       ×
                     </button>
                   </td>
@@ -122,7 +122,7 @@ export function DetailsEditor({ tables, onSave }: { tables: DetailTable[]; onSav
               ))}
             </tbody>
           </table>
-          <div className="row">
+          <div className="row edit-only">
             <button onClick={() => set(i, { ...t, rows: [...t.rows, t.columns.map(() => "")] })} data-testid={`detail-${i}-add-row`}>
               + Row
             </button>
@@ -130,7 +130,7 @@ export function DetailsEditor({ tables, onSave }: { tables: DetailTable[]; onSav
           </div>
         </div>
       ))}
-      <label className="field inline">
+      <label className="field inline edit-only">
         <span>Add</span>
         <select
           value=""

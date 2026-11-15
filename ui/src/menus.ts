@@ -140,7 +140,7 @@ export function menuItems(menu: MenuState | null, c: MenuContext): MenuItem[] {
     return tidy([
       n.drillKey && { label: "Open", icon: "search", shortcut: "Double-click", testId: "ctx-open", onSelect: () => open(n.drillKey!) },
       n.filePath && { label: "Open file", icon: "file", shortcut: "Double-click", testId: "ctx-open-file", onSelect: () => setOpenFile(n.filePath!) },
-      { label: el ? "Edit details…" : "Show details", icon: "panel", testId: "ctx-details", onSelect: () => (select({ type: "node", id: n.id }), setFocusName(!!el)) },
+      { label: canEditEl ? "Edit details…" : "Show details", icon: "panel", testId: "ctx-details", onSelect: () => (select({ type: "node", id: n.id }), setFocusName(canEditEl)) },
       { sep: true },
       canEditEl && { label: "Rename", icon: "edit", shortcut: "F2", testId: "ctx-rename", onSelect: () => setRenameId(n.id) },
       canEditEl &&

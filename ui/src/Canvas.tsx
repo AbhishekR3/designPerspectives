@@ -78,6 +78,8 @@ interface Props {
   onOpenFile(path: string): void;
   onContextMenu(target: ContextTarget, client: Pt): void;
   handleRef: Ref<CanvasHandle>;
+  /** The model shown cannot be changed by this person: no dragging, resizing, connecting or dropping, and nothing is saved. */
+  readOnly: boolean;
 }
 
 type P = Record<string, Pt>;
@@ -94,7 +96,7 @@ const MULTI_KINDS = new Set(["person", "softwareSystem", "container", "component
 const groupedIds = (d: Diagram) => (d.boundary ? d.nodes.filter((n) => n.inScope).map((n) => n.id) : []);
 const BOUNDARY_PAD = 40;
 
-export function Canvas({ diagram, lens, decorate, actions, archTypes, renameId, onRenameStarted, onDropItem, onConnectToEmpty, flowStep, showChanges, selection, onSelect, onDrill, onConnect, onPositions, onLayout, onOpenFile, onContextMenu, handleRef }: Props) {
+export function Canvas({ diagram, lens, decorate, actions, archTypes, renameId, onRenameStarted, onDropItem, onConnectToEmpty, flowStep, showChanges, selection, onSelect, onDrill, onConnect, onPositions, onLayout, onOpenFile, onContextMenu, handleRef, readOnly }: Props) {
   const rf = useReactFlow();
   const [positions, setPositions] = useState<P>({});
   const [sizeOverride, setSizeOverride] = useState<Record<string, Size>>({});
@@ -128,8 +130,8 @@ export function Canvas({ diagram, lens, decorate, actions, archTypes, renameId, 
   }, [diagram]);
   const sizeOf = useCallback((id: string): Size => sizeOverride[id] ?? baseSizes[id] ?? { w: NODE_W, h: NODE_H }, [sizeOverride, baseSizes]);
   const direction = diagram.level === "connector" ? "RIGHT" : "DOWN";
-  // A diagram that only exists in the compared version is shown, not edited.
-  const frozen = !!diagram.compare?.removed;
+  // A diagram that only exists in the compared version, or a model this person cannot change, is shown, not edited.
+  const frozen = !!diagram.compare?.removed || readOnly;
   const editable = diagram.level !== "flow" && !frozen;
   const canConnect = !frozen && ["landscape", "context", "container", "component"].includes(diagram.level);
   /** Ghosts (objects of the compared version) are never saved. */

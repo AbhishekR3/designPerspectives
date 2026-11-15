@@ -8,13 +8,13 @@ import "./styles/overlays.css";
 import "./styles/canvas.css";
 import "./styles/panels.css";
 import "./styles/dialogs.css";
-import App from "./App";
+import { AuthGate } from "./SignIn";
 import { ErrorBoundary } from "./ErrorBoundary";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ErrorBoundary>
-      <App />
+      <AuthGate />
     </ErrorBoundary>
   </StrictMode>,
 );

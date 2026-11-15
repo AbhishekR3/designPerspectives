@@ -6,7 +6,9 @@ import os from "node:os";
 import path from "node:path";
 import { serve } from "@hono/node-server";
 import { test as base, expect, type Page } from "@playwright/test";
+import { hashPassword, usersPath, writeUsers } from "../src/core/users.js";
 import { initProject, staticDir } from "../src/core/store.js";
+import type { Role } from "../src/shared/types.js";
 import { createApp } from "../src/server/app.js";
 
 export interface Server {
@@ -17,13 +19,43 @@ export interface Server {
 /** Which project a test starts on: the demo (default) or an empty model. Opt in with `test.use({ project: "empty" })`. */
 export type ProjectKind = "demo" | "empty";
 
-export const test = base.extend<{ server: Server; project: ProjectKind; readOnly: boolean }>({
+export interface TestUser {
+  name: string;
+  role: Role;
+}
+/** One user of each role; `testPassword(name)` is the password of each. */
+export const ROLE_USERS: TestUser[] = [
+  { name: "architect", role: "architect" },
+  { name: "engineer", role: "engineer" },
+  { name: "viewer", role: "viewer" },
+];
+export const testPassword = (name: string) => `${name.toLowerCase()}-password`;
+/** Fast hashes, so sign-in in a test takes milliseconds (the parameters are stored in each hash). */
+const TEST_HASH = { N: 1024, r: 8, p: 1 };
+
+/** Turn sign-in on for `root`: write `.dp/users.json`. */
+export function writeTestUsers(root: string, users: TestUser[]): void {
+  writeUsers(
+    usersPath(root),
+    users.map((u) => ({ name: u.name, role: u.role, password: hashPassword(testPassword(u.name), TEST_HASH) })),
+  );
+}
+
+export interface UsersOption {
+  list: TestUser[];
+}
+
+export const test = base.extend<{ server: Server; project: ProjectKind; readOnly: boolean; users: UsersOption | null }>({
   project: ["demo", { option: true }],
   readOnly: [false, { option: true }],
-  server: async ({ project, readOnly }, use, testInfo) => {
+  /** Turn sign-in on with these users (null: off). Opt in with `test.use({ users: { list: ROLE_USERS } })`
+   *  (wrapped, because Playwright reads an array given to `use` as a fixture/options pair). */
+  users: [null, { option: true }],
+  server: async ({ project, readOnly, users }, use, testInfo) => {
     testInfo.skip(staticDir() === null, "UI not built (run `npm ci && npm run build` in ui/)");
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "dp-e2e-"));
     initProject(root, { demo: project === "demo" });
+    if (users) writeTestUsers(root, users.list);
     const app = createApp(root, { readOnly });
     const srv = await new Promise<ReturnType<typeof serve>>((resolve) => {
       const s = serve({ fetch: app.fetch, port: 0, hostname: "127.0.0.1" }, () => resolve(s));
@@ -52,6 +84,24 @@ export const test = base.extend<{ server: Server; project: ProjectKind; readOnly
 });
 
 export { expect };
+
+/** Fill in the sign-in page and wait for the app to open. */
+export async function signIn(page: Page, name: string, password = testPassword(name)): Promise<void> {
+  await page.getByTestId("sign-in-name").fill(name);
+  await page.getByTestId("sign-in-password").fill(password);
+  await page.getByTestId("sign-in-submit").click();
+  await page.getByTestId("breadcrumb").waitFor();
+}
+
+/** An API call as a signed-in user, from the test itself (not from the page): { status, json }. */
+export async function callAs(server: Server, name: string, method: string, p: string, opts: { body?: unknown; draft?: string } = {}): Promise<{ status: number; json: any }> {
+  const login = await fetch(server.url + "api/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, password: testPassword(name) }) });
+  const cookie = (login.headers.get("set-cookie") ?? "").split(";")[0] ?? "";
+  const headers: Record<string, string> = { "Content-Type": "application/json", Cookie: cookie };
+  if (opts.draft) headers["X-DP-Model"] = `draft:${opts.draft}`;
+  const r = await fetch(server.url + "api" + p, { method, headers, body: opts.body === undefined ? undefined : JSON.stringify(opts.body) });
+  return { status: r.status, json: await r.json() };
+}
 
 export async function api(server: Server, p: string): Promise<any> {
   const r = await fetch(server.url + "api" + p);

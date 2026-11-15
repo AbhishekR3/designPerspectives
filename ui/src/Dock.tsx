@@ -174,22 +174,22 @@ export function Dock({
             ))}
             {tab === "tags" && subTabs.length === 0 && <span className="muted small">No tag groups yet.</span>}
             <span className="spacer" />
-            {tab === "tags" && active?.kind === "tag" && (
+            {tab === "tags" && !state.readOnly && active?.kind === "tag" && (
               <button className="ghost icon" title="Edit this tag group" onClick={() => onEditTagGroup(groups.find((g) => g.name === active.name)!)}>
                 <Icon name="gear" size={14} />
               </button>
             )}
-            {tab === "tags" && (
+            {tab === "tags" && !state.readOnly && (
               <button className="ghost icon" title="New tag group" onClick={onNewTagGroup} data-testid="dock-new-tag-group">
                 <Icon name="plus" size={14} />
               </button>
             )}
-            {tab === "char" && (
+            {tab === "char" && !state.readOnly && (
               <button className="ghost icon" title="Edit the list of characteristics" onClick={onEditCharacteristics} data-testid="edit-characteristics">
                 <Icon name="gear" size={14} />
               </button>
             )}
-            {tab === "cost" && (
+            {tab === "cost" && !state.readOnly && (
               <button className="ghost icon" title="Currency and cost bands" onClick={onEditCost} data-testid="edit-cost">
                 <Icon name="gear" size={14} />
               </button>

@@ -34,12 +34,21 @@ const subscribe = (l: () => void) => {
 };
 const getSnapshot = () => snap;
 
+/** While the session has ended (the sign-in page is shown) the failures of the calls that ended it are not reported. */
+let suspended = false;
+
 const setError = (message: string | null, action: ErrorAction | null = null) => {
+  if (suspended && message !== null) return;
   if (snap.error !== message || snap.errorAction !== action) set({ error: message, errorAction: message === null ? null : action });
 };
 
 export const notify = {
   error: (message: string, action?: ErrorAction) => setError(message, action ?? null),
+  /** Stop (true) or resume (false) reporting errors; stopping also clears the one shown. */
+  suspend: (on: boolean) => {
+    suspended = on;
+    if (on) setError(null);
+  },
   clearError: () => setError(null),
   success: (message: string) => toast(message, "success"),
   /** A short notice that is not an error: it disappears by itself, like a success. */

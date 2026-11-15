@@ -1,4 +1,5 @@
-import type { AppState, ApplyPreview, ChangeSet, CodingPlan, Conflict, Diagram, EdgeLayout, Pt, Style } from "./types";
+import { notify } from "./notify";
+import type { AppState, ApplyPreview, ChangeSet, CodingPlan, Conflict, Diagram, EdgeLayout, MeResponse, Pt, SessionUser, Style } from "./types";
 
 export interface CodeFile {
   path: string;
@@ -29,7 +30,25 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+/** The text the sign-in page shows when a session ended while the app was open. */
+export const SESSION_ENDED = "Your session ended. Sign in again.";
+
+/**
+ * Two server answers are handled here, in one place, for every call:
+ * - 401 (no session: it expired, or the server restarted): the app goes back to the sign-in page, and the
+ *   errors of the calls that failed with it are not shown (`notify.suspend`);
+ * - 403 on a change (the role or the version no longer allows it, e.g. the role changed while the page was
+ *   open): the caller shows the server's message as usual, and the app reloads its state so the controls match.
+ */
+const handlers: { sessionEnded: (() => void) | null; forbidden: (() => void) | null } = { sessionEnded: null, forbidden: null };
+export function onSessionEnded(fn: (() => void) | null): void {
+  handlers.sessionEnded = fn;
+}
+export function onForbidden(fn: (() => void) | null): void {
+  handlers.forbidden = fn;
+}
+
+async function request<T>(method: string, path: string, body?: unknown, opts: { auth?: boolean } = {}): Promise<T> {
   const headers: Record<string, string> = { "X-DP-Model": context.model };
   if (context.compare) headers["X-DP-Compare"] = context.compare;
   if (body !== undefined) headers["Content-Type"] = "application/json";
@@ -49,6 +68,11 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     } catch {
       /* keep status text */
     }
+    // Sign-in calls answer 401 themselves ("Wrong name or password"): they are not an ended session.
+    if (res.status === 401 && !opts.auth) {
+      notify.suspend(true);
+      handlers.sessionEnded?.();
+    } else if (res.status === 403 && method !== "GET") handlers.forbidden?.();
     throw new ApiError(detail, res.status, conflicts);
   }
   return res.json() as Promise<T>;
@@ -57,6 +81,9 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 const enc = encodeURIComponent;
 
 export const api = {
+  me: () => request<MeResponse>("GET", "/me", undefined, { auth: true }),
+  login: (name: string, password: string) => request<{ user: SessionUser }>("POST", "/login", { name, password }, { auth: true }),
+  logout: () => request<{ ok: boolean }>("POST", "/logout", undefined, { auth: true }),
   state: () => request<AppState>("GET", "/state"),
   diagram: (key: string) => request<Diagram>("GET", `/diagrams/${enc(key)}`),
   positions: (key: string, positions: Record<string, { x: number; y: number }>, auto = false) =>

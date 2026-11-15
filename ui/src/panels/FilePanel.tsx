@@ -13,7 +13,7 @@ export function FilePanel({ node, ...p }: Common & { node: DiagramNode }) {
       <h2 className="panel-title">{node.name}</h2>
       <div className="muted small">{node.filePath}</div>
       <button className="primary" onClick={() => p.onOpenFile(node.filePath!)} data-testid="open-file">
-        Open file to edit
+        {p.state.readOnly ? "Open file" : "Open file to edit"}
       </button>
       <div className="connections">
         <h4>
@@ -25,9 +25,11 @@ export function FilePanel({ node, ...p }: Common & { node: DiagramNode }) {
         </h4>
         <ul>{importedBy.map((i) => <li key={i}>{name(i)}</li>)}</ul>
       </div>
-      <Section title="Appearance">
-        <StylePanel target={node.id} style={node.style} edge={false} mutate={p.mutate} />
-      </Section>
+      {!p.state.readOnly && (
+        <Section title="Appearance">
+          <StylePanel target={node.id} style={node.style} edge={false} mutate={p.mutate} />
+        </Section>
+      )}
     </div>
   );
 }

@@ -36,12 +36,43 @@ dp diff --base origin/main --exit-code   # exit code 1 when the model changed
 dp plan <draft>                    # coding plan for a draft, as Markdown
 dp plan <draft> --check            # check the plan against the working copy; exit code 1 while steps are open
 dp plan <draft> --against <branch> # check the plan against a git branch, tag or commit
+dp users init                     # sign-in: create architect, engineer and viewer (passwords printed once)
+dp users add NAME --role ROLE     # add a user; also: dp users passwd NAME, dp users remove NAME, dp users list
 dp --version
 ```
 
 The server listens on `127.0.0.1:8765` only. It answers only requests addressed to localhost and refuses changes sent from other websites. Hidden files and folders (names starting with a dot) in the code folder cannot be opened. Stop it with Ctrl+C.
 
 Model files written by the earlier Python version (0.2) open unchanged.
+
+## Sign-in and roles (optional)
+
+Sign-in is off by default. A project turns it on by having a users file at `.dp/users.json`, which `dp users init` creates. The app then asks for a name and password, and the role decides what each person can change. The server checks every change, so the browser cannot bypass the rules.
+
+```bash
+dp users init                       # create architect, engineer and viewer with random passwords (printed once)
+dp users add NAME --role engineer   # add a user; --password-stdin reads the password from standard input
+dp users passwd NAME                # set a new password
+dp users remove NAME
+dp users list
+dp serve --users FILE               # use a users file in another location
+```
+
+| Role | Can do |
+|---|---|
+| Architect | Everything: the main model, drafts, applying a draft, real code files |
+| Engineer | Reads everything; creates drafts and edits any draft; cannot change the main model, write code files or apply a draft; can discard only drafts they started |
+| Viewer | Reads everything; changes nothing |
+
+Git versions are read-only for everyone. Sessions end after 12 hours without activity and are lost when the server restarts. Five failed sign-ins lock a name for 30 seconds.
+
+What it is not:
+
+- Not real-time. Two people editing the same thing: the last write wins, and the other sees it when the window regains focus.
+- Not data hiding. Lenses choose what is shown first; a viewer can still read costs and notes through the API.
+- Not safe on a network without HTTPS. Passwords travel in clear text, so put a TLS proxy in front of the server.
+
+The users file holds password hashes and must not be committed. `.dp/` is added to `.gitignore`.
 
 ## Files
 

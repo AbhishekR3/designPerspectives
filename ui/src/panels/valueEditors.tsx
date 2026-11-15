@@ -53,12 +53,12 @@ export function CharacteristicsEditor({ rows, defs, onSave }: { rows: Rating[]; 
             >
               Driving
             </button>
-            <button className="icon" aria-label={`Remove ${r.name}`} onClick={() => onSave(rows.filter((x) => x.name !== r.name))}>
+            <button className="icon edit-only" aria-label={`Remove ${r.name}`} onClick={() => onSave(rows.filter((x) => x.name !== r.name))}>
               ×
             </button>
           </div>
           <input
-            className="small"
+            className={`small${notes[r.name] ? "" : " edit-only"}`}
             value={notes[r.name] ?? ""}
             placeholder="Why this rating? (optional)"
             onChange={(e) => setNotes({ ...notes, [r.name]: e.target.value })}
@@ -67,7 +67,7 @@ export function CharacteristicsEditor({ rows, defs, onSave }: { rows: Rating[]; 
         </div>
       ))}
       {unrated.length > 0 && (
-        <select value="" onChange={(e) => e.target.value && put(e.target.value, { rating: 3 })} data-testid="char-add-rating">
+        <select className="edit-only" value="" onChange={(e) => e.target.value && put(e.target.value, { rating: 3 })} data-testid="char-add-rating">
           <option value="">+ Rate a characteristic…</option>
           {unrated.map((d) => (
             <option key={d.name} value={d.name} title={d.description}>
@@ -76,7 +76,7 @@ export function CharacteristicsEditor({ rows, defs, onSave }: { rows: Rating[]; 
           ))}
         </select>
       )}
-      <p className="muted small">1: weak · 5: one of its strongest features. Driving: one it must be good at.</p>
+      <p className="muted small edit-only">1: weak · 5: one of its strongest features. Driving: one it must be good at.</p>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { api } from "./api";
-import { TextField } from "./fields";
+import { Fields, TextField } from "./fields";
 import type { AppState, Flow, FlowStep } from "./types";
 import { confirmDialog } from "./dialogs";
 
@@ -65,7 +65,7 @@ export function FlowPanel({
               {curRel.technologies.length > 0 && <>Carried by: {curRel.technologies.join(", ")}.</>}
             </div>
           )}
-          {cur.example ? <pre className="example" data-testid="step-example">{cur.example}</pre> : <div className="muted small">No example data for this step. Add one under the step below.</div>}
+          {cur.example ? <pre className="example" data-testid="step-example">{cur.example}</pre> : <div className="muted small">No example data for this step.{!state.readOnly && " Add one under the step below."}</div>}
           {curRel.sensitive.length > 0 && (
             <div className="small">
               Sensitive: {curRel.sensitive.map((x) => `${x.item} (${x.level})`).join("; ")}
@@ -75,8 +75,10 @@ export function FlowPanel({
         </div>
       )}
       <div className="panel-kind">Flow</div>
-      <TextField label="Name" value={flow.title} onCommit={(v) => mutate(() => api.updateFlow(flow.key, { title: v }))} />
-      <TextField label="Description" value={flow.description} multiline onCommit={(v) => mutate(() => api.updateFlow(flow.key, { description: v }))} />
+      <Fields loose>
+        <TextField label="Name" value={flow.title} onCommit={(v) => mutate(() => api.updateFlow(flow.key, { title: v }))} />
+        <TextField label="Description" value={flow.description} multiline onCommit={(v) => mutate(() => api.updateFlow(flow.key, { description: v }))} />
+      </Fields>
       {flow.warnings.length > 0 && (
         <div className="warning">
           <strong>May not open in Structurizr:</strong>
@@ -97,7 +99,7 @@ export function FlowPanel({
               <button className="link" onClick={() => setFlowStep(i)} title="Show this step">
                 {relLabel(s.relationshipId)}
               </button>
-              <span className="step-tools">
+              {!state.readOnly && <span className="step-tools">
                 <button className="icon" disabled={i === 0} onClick={() => move(i, -1)} aria-label="Move up">
                   ↑
                 </button>
@@ -107,17 +109,20 @@ export function FlowPanel({
                 <button className="icon" onClick={() => saveSteps(flow.steps.filter((_, j) => j !== i))} aria-label="Remove step">
                   ×
                 </button>
-              </span>
+              </span>}
             </div>
+            <Fields loose>
             <TextField label="Step text" value={s.description} placeholder="(uses the relationship's description)" onCommit={(v) => setStep(i, { description: v })} />
             <TextField label="Data format" value={s.format ?? ""} placeholder="e.g. JSON, SQL, event" onCommit={(v) => setStep(i, { format: v })} />
             <TextField label="Example data sent / returned" value={s.example ?? ""} multiline rows={4} placeholder='e.g. {"username": "alice"}' onCommit={(v) => setStep(i, { example: v })} testId={`step-example-${i}`} />
             <label className="check small">
               <input type="checkbox" checked={s.response} onChange={(e) => setStep(i, { response: e.target.checked })} /> Response (travels back)
             </label>
+            </Fields>
           </li>
         ))}
       </ol>
+      {!state.readOnly && (
       <div className="add-step">
         <h4>Add a step</h4>
         <input placeholder="Filter relationships…" value={filter} onChange={(e) => setFilter(e.target.value)} data-testid="step-filter" />
@@ -136,6 +141,8 @@ export function FlowPanel({
           Add step
         </button>
       </div>
+      )}
+      {!state.readOnly && (
       <div className="panel-actions">
         <button
           className="danger"
@@ -148,6 +155,7 @@ export function FlowPanel({
           Delete flow
         </button>
       </div>
+      )}
     </div>
   );
 }

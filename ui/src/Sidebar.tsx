@@ -37,6 +37,8 @@ export function Sidebar({
   /** The Drafts section (main model and planned changes). */
   draftsSection?: React.ReactNode;
 }) {
+  // Editing the model (names, lenses, tag groups, ratings): not on a git version, and not for a role that cannot change this version.
+  const canEdit = !state.readOnly;
   const visible = (d: DiagramInfo) => showAllLevels || d.level === "connector" || lens.visibleLevels.includes(d.level as Level);
   // A software system with nothing inside is one entry (not a context and an empty containers diagram), marked "(empty)".
   const emptySystems = new Set(state.elements.filter((e) => e.kind === "softwareSystem" && e.childCount === 0).map((e) => e.id));
@@ -59,9 +61,15 @@ export function Sidebar({
       <div className="brand row between">
         <div>
           <div className="product">designPerspectives</div>
-          <button className="ws-name link" onClick={onRenameWorkspace} title="Rename workspace" data-testid="ws-name">
-            {state.workspace.name}
-          </button>
+          {canEdit ? (
+            <button className="ws-name link" onClick={onRenameWorkspace} title="Rename workspace" data-testid="ws-name">
+              {state.workspace.name}
+            </button>
+          ) : (
+            <div className="ws-name" data-testid="ws-name">
+              {state.workspace.name}
+            </div>
+          )}
         </div>
         <button className="ghost icon" onClick={onClose} title="Hide the diagram list" aria-label="Hide the diagram list">
           <Icon name="panel" />
@@ -98,15 +106,19 @@ export function Sidebar({
                 {l.name}
                 {l.builtin && <span className="muted small"> built-in</span>}
               </span>
-              <button className="ghost icon" onClick={() => onEditLens(l)} title={l.builtin ? "Duplicate lens" : "Edit lens"} data-testid={l.id === lens.id ? "lens-edit" : undefined}>
-                {l.builtin ? "⧉" : "✎"}
-              </button>
+              {canEdit && (
+                <button className="ghost icon" onClick={() => onEditLens(l)} title={l.builtin ? "Duplicate lens" : "Edit lens"} data-testid={l.id === lens.id ? "lens-edit" : undefined}>
+                  {l.builtin ? "⧉" : "✎"}
+                </button>
+              )}
             </li>
           ))}
         </ul>
-        <button className="add" onClick={onNewLens} data-testid="new-lens">
-          + New lens
-        </button>
+        {canEdit && (
+          <button className="add" onClick={onNewLens} data-testid="new-lens">
+            + New lens
+          </button>
+        )}
       </section>
 
       <section>
@@ -114,28 +126,51 @@ export function Sidebar({
         <ul className="tree">
           {state.tagGroups.map((g) => (
             <li key={g.name} className="row between">
-              <button className="link" onClick={() => onEditTagGroup(g)} data-testid={`taggroup-${g.name}`}>
-                {g.name} <span className="muted">({g.values.map((v) => v.name).join(", ")})</span>
-              </button>
-              <button className="ghost icon" onClick={() => onDeleteTagGroup(g)} aria-label={`Delete ${g.name}`}>
-                ×
-              </button>
+              {canEdit ? (
+                <>
+                  <button className="link" onClick={() => onEditTagGroup(g)} data-testid={`taggroup-${g.name}`}>
+                    {g.name} <span className="muted">({g.values.map((v) => v.name).join(", ")})</span>
+                  </button>
+                  <button className="ghost icon" onClick={() => onDeleteTagGroup(g)} aria-label={`Delete ${g.name}`}>
+                    ×
+                  </button>
+                </>
+              ) : (
+                <span data-testid={`taggroup-${g.name}`}>
+                  {g.name} <span className="muted">({g.values.map((v) => v.name).join(", ")})</span>
+                </span>
+              )}
             </li>
           ))}
         </ul>
-        <button className="add" onClick={onNewTagGroup} data-testid="new-tag-group">
-          + New tag group
-        </button>
+        {canEdit && (
+          <button className="add" onClick={onNewTagGroup} data-testid="new-tag-group">
+            + New tag group
+          </button>
+        )}
       </section>
 
       <section>
         <h3>Ratings and cost</h3>
-        <button className="link" onClick={onEditCharacteristics} data-testid="sidebar-characteristics">
-          Characteristics <span className="muted">({state.characteristics.length})</span>
-        </button>
-        <button className="link" onClick={onEditCost} data-testid="sidebar-cost">
-          Cost settings <span className="muted">({state.costSettings.currency})</span>
-        </button>
+        {canEdit ? (
+          <>
+            <button className="link" onClick={onEditCharacteristics} data-testid="sidebar-characteristics">
+              Characteristics <span className="muted">({state.characteristics.length})</span>
+            </button>
+            <button className="link" onClick={onEditCost} data-testid="sidebar-cost">
+              Cost settings <span className="muted">({state.costSettings.currency})</span>
+            </button>
+          </>
+        ) : (
+          <>
+            <div>
+              Characteristics <span className="muted">({state.characteristics.length})</span>
+            </div>
+            <div>
+              Cost settings <span className="muted">({state.costSettings.currency})</span>
+            </div>
+          </>
+        )}
       </section>
 
       {state.loadErrors.length > 0 && (

@@ -7,6 +7,7 @@
  * `scrypt$<N>$<r>$<p>$<salt>$<hash>` (salt and hash in base64url). The cost parameters are part
  * of the string, so they can be raised later without breaking stored passwords.
  * The file lives in a dot folder, so the code routes never read or write it (DEC-031).
+ * The `dp users` commands read, change and rewrite the whole file without a lock: do not run two at once.
  */
 
 import { execFileSync } from "node:child_process";
@@ -55,12 +56,16 @@ interface Parsed {
 }
 
 const B64URL = /^[A-Za-z0-9_-]+$/;
+/** Largest scrypt memory a stored hash may ask for (128·N·r bytes), and the most parallel lanes:
+ *  a users file cannot make one sign-in check take gigabytes or minutes. */
+export const MAX_SCRYPT_MEM = 128 * 1024 * 1024;
+export const MAX_SCRYPT_P = 4;
 
 function parseHash(s: string): Parsed | null {
   const parts = s.split("$");
   if (parts.length !== 6 || parts[0] !== "scrypt") return null;
   const [N, r, p] = parts.slice(1, 4).map((x) => (/^\d{1,8}$/.test(x!) ? Number(x) : NaN)) as [number, number, number];
-  if (!(N >= 2 && N <= 1 << 20 && (N & (N - 1)) === 0) || !(r >= 1 && r <= 32) || !(p >= 1 && p <= 16)) return null;
+  if (!(N >= 2 && (N & (N - 1)) === 0) || !(r >= 1) || !(p >= 1 && p <= MAX_SCRYPT_P) || 128 * N * r > MAX_SCRYPT_MEM) return null;
   if (!B64URL.test(parts[4]!) || !B64URL.test(parts[5]!)) return null;
   const salt = Buffer.from(parts[4]!, "base64url");
   const hash = Buffer.from(parts[5]!, "base64url");
@@ -68,10 +73,12 @@ function parseHash(s: string): Parsed | null {
   return { N, r, p, salt, hash };
 }
 
-const scryptOpts = (q: { N: number; r: number; p: number }) => ({ N: q.N, r: q.r, p: q.p, maxmem: 256 * q.N * q.r + 1024 * 1024 });
+/** `maxmem` covers the largest accepted cost plus scrypt's small overhead. */
+const scryptOpts = (q: { N: number; r: number; p: number }) => ({ N: q.N, r: q.r, p: q.p, maxmem: MAX_SCRYPT_MEM + 1024 * 1024 });
 
 /** A new hash string for `password` (a fresh random salt each time). */
 export function hashPassword(password: string, params: { N: number; r: number; p: number } = SCRYPT_DEFAULTS): string {
+  if (!parseHash(["scrypt", params.N, params.r, params.p, "AAAAAAAAAAA", "AAAAAAAAAAAAAAAAAAAAAA"].join("$"))) throw new UsersError("These scrypt parameters are outside the accepted range.");
   const salt = crypto.randomBytes(SALT_BYTES);
   const hash = crypto.scryptSync(password.normalize("NFC"), salt, KEY_BYTES, scryptOpts(params));
   return `scrypt$${params.N}$${params.r}$${params.p}$${salt.toString("base64url")}$${hash.toString("base64url")}`;
@@ -83,8 +90,12 @@ const scryptAsync = promisify(crypto.scrypt) as (pw: string, salt: Buffer, len: 
 export async function verifyPassword(password: string, stored: string): Promise<boolean> {
   const q = parseHash(stored);
   if (!q) return false;
-  const got = await scryptAsync(password.normalize("NFC"), q.salt, q.hash.length, scryptOpts(q));
-  return crypto.timingSafeEqual(got, q.hash);
+  try {
+    const got = await scryptAsync(password.normalize("NFC"), q.salt, q.hash.length, scryptOpts(q));
+    return crypto.timingSafeEqual(got, q.hash);
+  } catch {
+    return false;
+  }
 }
 
 let dummy: string | null = null;

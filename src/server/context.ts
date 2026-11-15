@@ -16,7 +16,7 @@ import { BUILTIN_LENSES, lensData, SECTIONS, styleData, type Sidecar } from "../
 import { Project, type ModelSource } from "../core/store.js";
 import type { Workspace } from "../core/workspace.js";
 import type { AppState, DraftInfo, Lens, Permissions, SessionUser, Style } from "../shared/types.js";
-import { Auth, defaultLensFor, permissions, type Who } from "./auth.js";
+import { Auth, defaultLensFor, permissions, type AuthOptions, type Who } from "./auth.js";
 
 /** An HTTP error with a status code; the body is {"detail": message}. */
 export class HttpError extends Error {
@@ -167,6 +167,8 @@ export interface AppOptions {
   usersFile?: string | null;
   /** Clock in milliseconds for sessions and sign-in lockout (tests). */
   now?: () => number;
+  /** Caps on sessions and on names with recorded sign-in failures (tests; see AUTH_LIMITS). */
+  authLimits?: AuthOptions["limits"];
   /** Host names (as in the Host header, without the port; IPv6 in brackets) the server answers to.
    *  Default: the loopback names. null turns the check off (a server bound to another interface). */
   allowedHosts?: string[] | null;
@@ -199,7 +201,7 @@ export interface Ctx {
 export function createContext(root: string, opts: AppOptions = {}): Ctx {
   const readOnly = opts.readOnly ?? false;
   const project = new Project(root, opts.codeRoot);
-  const auth = new Auth(root, { usersFile: opts.usersFile, readOnly, codeRoot: project.codeRoot, now: opts.now });
+  const auth = new Auth(root, { usersFile: opts.usersFile, readOnly, codeRoot: project.codeRoot, now: opts.now, limits: opts.authLimits });
   const drafts = new Drafts(project, gitUserName(project.dir));
   const gitModels = new GitModels(project.dir);
   const gitCodes = new GitCodes(project.codeRoot);

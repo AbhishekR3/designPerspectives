@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { api } from "../api";
-import { CodePaths, NewPlannedFile } from "../CodeParts";
-import { Section, TagInput, TextField } from "../fields";
+import { CodePaths, NewPlannedFile, OpenCodeDiagram } from "../CodeParts";
+import { Fields, Section, TagInput, TextField } from "../fields";
 import { formatMoney, openWork } from "../overlays";
 import { ShapeIcon } from "../shapes";
 import { StylePanel } from "../StylePanel";
@@ -46,7 +46,8 @@ export function ObjectPanel({ element, ...p }: Common & { element: ElementSummar
         {KIND_LABEL[element.kind]}
         {parent && <span className="muted"> in {parent.name}</span>}
       </div>
-      <TextField label="Name" value={element.name} onCommit={(v) => p.onRename(element.id, v)} testId="field-name" autoFocus={p.focusName} />
+      <Fields loose>
+      <TextField label="Name" value={element.name} onCommit={(v) => p.onRename(element.id, v)} testId="field-name" autoFocus={p.focusName && !state.readOnly} />
       <TextField label="Description" value={element.description} multiline onCommit={(v) => save({ description: v })} testId="field-description" />
       {element.kind !== "person" && (
         <label className="field">
@@ -91,6 +92,7 @@ export function ObjectPanel({ element, ...p }: Common & { element: ElementSummar
           ))}
         </div>
       )}
+      </Fields>
 
       {has("characteristics") && element.kind !== "person" && (
         <Section title="Characteristics" count={element.characteristics.length} testId="sec-characteristics">
@@ -133,18 +135,20 @@ export function ObjectPanel({ element, ...p }: Common & { element: ElementSummar
         </Section>
       )}
       {has("code") && (
-        <Section title="Code" count={element.codePaths.length} testId="sec-code">
-          <CodePaths
-            paths={element.codePaths}
-            onSave={(paths) => save({ codePaths: paths })}
-            onOpenDiagram={element.kind === "person" ? undefined : () => p.onOpen(`code-${element.id}`)}
-          />
+        <Section
+          title="Code"
+          count={element.codePaths.length}
+          testId="sec-code"
+          footer={element.kind !== "person" && element.codePaths.length > 0 ? <OpenCodeDiagram onOpen={() => p.onOpen(`code-${element.id}`)} /> : undefined}
+        >
+          <CodePaths paths={element.codePaths} onSave={(paths) => save({ codePaths: paths })} />
           {(element.kind === "component" || element.kind === "container") && state.model.ref.startsWith("draft:") && !state.readOnly && (
             <NewPlannedFile ownerId={element.id} paths={element.codePaths} mutate={mutate} onOpenFile={p.onOpenFile} />
           )}
         </Section>
       )}
       <Section title="Links" count={element.links.length + (element.url ? 1 : 0)}>
+        <Fields>
         <TextField label="Main link (URL)" value={element.url} onCommit={(v) => save({ url: v })} placeholder="https://" />
         <ul className="links">
           {element.links.map((l, i) => (
@@ -152,13 +156,13 @@ export function ObjectPanel({ element, ...p }: Common & { element: ElementSummar
               <a href={l.url} target="_blank" rel="noreferrer">
                 {l.label || l.url}
               </a>
-              <button className="icon" aria-label="Remove link" onClick={() => save({ links: element.links.filter((_, j) => j !== i) })}>
+              <button className="icon edit-only" aria-label="Remove link" onClick={() => save({ links: element.links.filter((_, j) => j !== i) })}>
                 ×
               </button>
             </li>
           ))}
         </ul>
-        <div className="row">
+        <div className="row edit-only">
           <input placeholder="Label" value={newLink.label} onChange={(e) => setNewLink({ ...newLink, label: e.target.value })} />
           <input placeholder="https://" value={newLink.url} onChange={(e) => setNewLink({ ...newLink, url: e.target.value })} />
           <button
@@ -170,33 +174,40 @@ export function ObjectPanel({ element, ...p }: Common & { element: ElementSummar
             Add
           </button>
         </div>
+        </Fields>
       </Section>
-      <Section title="Appearance" count={Object.keys(style).length} testId="sec-style">
-        <StylePanel target={element.id} style={style} edge={false} mutate={mutate} />
-      </Section>
+      {!state.readOnly && (
+        <Section title="Appearance" count={Object.keys(style).length} testId="sec-style">
+          <StylePanel target={element.id} style={style} edge={false} mutate={mutate} />
+        </Section>
+      )}
 
       <ConnectionList title="Incoming" rels={incoming} other={(r) => r.sourceId} inside={(r) => r.destinationId} selfId={element.id} state={state} onReveal={p.onReveal} testId="incoming" />
       <ConnectionList title="Outgoing" rels={outgoing} other={(r) => r.destinationId} inside={(r) => r.sourceId} selfId={element.id} state={state} onReveal={p.onReveal} testId="outgoing" />
       <div className="panel-actions">
         {drill && <button onClick={() => p.onOpen(drill)}>Open {element.kind === "softwareSystem" ? "containers" : "components"}</button>}
         {element.kind === "softwareSystem" && <button onClick={() => p.onOpen(`context-${element.id}`)}>Open context</button>}
-        <button onClick={() => mutate(() => api.duplicate(element.id))} data-testid="duplicate-element">
-          Duplicate
-        </button>
+        {!state.readOnly && (
+          <button onClick={() => mutate(() => api.duplicate(element.id))} data-testid="duplicate-element">
+            Duplicate
+          </button>
+        )}
         {(element.kind === "container" || element.kind === "component") && !state.readOnly && !diagram.compare?.removed && !diagram.nodes.find((n) => n.id === element.id)?.ghost && (
           <button onClick={() => p.onMove(element.id)} title={`Move to another ${element.kind === "container" ? "software system" : "container"}`} data-testid="move-element">
             Move to…
           </button>
         )}
-        <button
-          className="danger"
-          data-testid="delete-element"
-          onClick={() => {
-            void confirmDeleteElement(element, { connections: true }).then((yes) => yes && mutate(() => api.deleteElement(element.id)).then((ok) => ok && p.onSelect(null)));
-          }}
-        >
-          Delete
-        </button>
+        {!state.readOnly && (
+          <button
+            className="danger"
+            data-testid="delete-element"
+            onClick={() => {
+              void confirmDeleteElement(element, { connections: true }).then((yes) => yes && mutate(() => api.deleteElement(element.id)).then((ok) => ok && p.onSelect(null)));
+            }}
+          >
+            Delete
+          </button>
+        )}
       </div>
     </div>
   );

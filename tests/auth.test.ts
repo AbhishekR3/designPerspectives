@@ -6,7 +6,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { hashPassword, parseUsers, readUsers, removeUser, setPassword, usersPath, UsersError, verifyPassword, writeUsers } from "../src/core/users.js";
 import { createApp } from "../src/server/app.js";
-import { decide, LOCK_MS, READ_ONLY_SERVER, READ_ONLY_VERSION, ROUTE_RULES, SESSION_IDLE_MS, SIGN_IN, WRONG_LOGIN, type Who } from "../src/server/auth.js";
+import { decide, LOCK_MS, readableAsCode, READ_ONLY_SERVER, READ_ONLY_VERSION, ROUTE_RULES, SESSION_IDLE_MS, SIGN_IN, USERS_UNAVAILABLE, WRONG_LOGIN, type Who } from "../src/server/auth.js";
 import { client, demoDir, ok, ROLE_USERS, TEST_HASH, testPassword, tmpDir, writeTestUsers, type Client } from "./helpers.js";
 
 const tsx = path.resolve("node_modules", ".bin", "tsx");
@@ -159,6 +159,27 @@ describe("sign-in", () => {
     expect(await ok(e.get("/api/me"))).toEqual({ loginRequired: true, user: null });
   });
 
+  it("names the session cookie after the port, so servers on one host do not sign each other out", async () => {
+    const c = client(demoDir(), { users: true });
+    const body = JSON.stringify({ name: "engineer", password: testPassword("engineer") });
+    const login = (host: string) => c.app.request("/api/login", { method: "POST", headers: { "Content-Type": "application/json", Host: host }, body });
+    const r = await login("localhost:8765");
+    const set = r.headers.get("set-cookie") ?? "";
+    expect(set).toMatch(/^dp_session_8765=[A-Za-z0-9_-]{43};/);
+    const token = /dp_session_8765=([^;]+)/.exec(set)![1];
+    const me = async (host: string, cookie: string) => (await c.app.request("/api/me", { headers: { Host: host, Cookie: cookie } })).json();
+    expect(await me("localhost:8765", `dp_session_8765=${token}`)).toMatchObject({ user: { name: "engineer" } });
+    // the same token under another port's name, or the plain name, is not a session here
+    expect(await me("localhost:8765", `dp_session_9000=${token}`)).toMatchObject({ user: null });
+    expect(await me("localhost:8765", `dp_session=${token}`)).toMatchObject({ user: null });
+    expect(await me("localhost:9000", `dp_session_8765=${token}`)).toMatchObject({ user: null });
+    expect((await login("[::1]:8766")).headers.get("set-cookie")).toMatch(/^dp_session_8766=/);
+    expect((await login("localhost")).headers.get("set-cookie")).toMatch(/^dp_session=/);
+    const out = await c.app.request("/api/logout", { method: "POST", headers: { Host: "localhost:8765", Cookie: `dp_session_8765=${token}` } });
+    expect(out.headers.get("set-cookie")).toMatch(/dp_session_8765=;.*Max-Age=0/);
+    expect(await me("localhost:8765", `dp_session_8765=${token}`)).toMatchObject({ user: null });
+  });
+
   it("ends sessions when the user's password changes, the user is removed, or after 12 hours idle", async () => {
     let now = 1_000_000;
     const dir = demoDir();
@@ -184,26 +205,164 @@ describe("sign-in", () => {
     expect((await a.get("/api/state")).status).toBe(401);
   });
 
-  it("a users file that breaks while running lets nobody in; removing it does not turn sign-in off", async () => {
-    const dir = demoDir();
-    const c = client(dir, { users: true });
-    const a = await c.as("architect");
-    fs.writeFileSync(usersPath(dir), "{ broken");
+  /** Run `fn` with console.error collected (the server logs users-file problems). */
+  async function quietly(fn: () => Promise<void>): Promise<unknown[]> {
     const errs: unknown[] = [];
     const orig = console.error;
     console.error = (...x: unknown[]) => void errs.push(x);
     try {
-      expect((await a.get("/api/state")).status).toBe(401);
-      expect((await c.post("/api/login", { name: "architect", password: testPassword("architect") })).status).toBe(503);
-      fs.rmSync(usersPath(dir));
-      expect(await ok(c.get("/api/me"))).toEqual({ loginRequired: true, user: null });
-      expect((await c.get("/api/state")).status).toBe(401);
+      await fn();
     } finally {
       console.error = orig;
     }
+    return errs;
+  }
+
+  it("a users file that goes missing or invalid while running: 503 for everyone, sessions kept until a valid file drops them", async () => {
+    const dir = demoDir();
+    const c = client(dir, { users: true });
+    const a = await c.as("architect");
+    const e = await c.as("engineer");
+    const good = fs.readFileSync(usersPath(dir), "utf-8");
+    const errs = await quietly(async () => {
+      fs.writeFileSync(usersPath(dir), '{ "users": [ { "na'); // a half-written save
+      for (const r of [await a.get("/api/state"), await a.patch("/api/elements/atm", { description: "x" }), await c.get("/api/state")]) {
+        expect(r.status).toBe(503);
+        expect(r.json().detail).toBe(USERS_UNAVAILABLE);
+      }
+      expect((await c.post("/api/login", { name: "architect", password: testPassword("architect") })).status).toBe(503);
+      expect(await ok(a.get("/api/me"))).toEqual({ loginRequired: true, user: { name: "architect", role: "architect" } });
+      fs.rmSync(usersPath(dir));
+      expect((await a.get("/api/state")).status).toBe(503);
+      expect(await ok(c.get("/api/me"))).toEqual({ loginRequired: true, user: null }); // still on
+    });
     expect(errs.length).toBeGreaterThan(0);
+    fs.writeFileSync(usersPath(dir), good);
+    expect((await a.get("/api/state")).status).toBe(200); // the session survived
+    expect((await e.get("/api/state")).status).toBe(200);
+    removeUser(usersPath(dir), "engineer"); // a valid file without the user ends that session only
+    expect((await e.get("/api/state")).status).toBe(401);
+    expect((await a.get("/api/state")).status).toBe(200);
+  });
+
+  it("a users file that appears while running turns sign-in on, even when it is not valid", async () => {
+    const dir = demoDir();
+    const c = client(dir);
+    expect((await c.get("/api/state")).status).toBe(200);
+    await quietly(async () => {
+      fs.mkdirSync(path.join(dir, ".dp"));
+      fs.writeFileSync(usersPath(dir), '{"users": [{"name": "x"}]}');
+      expect(await ok(c.get("/api/me"))).toEqual({ loginRequired: true, user: null });
+      expect((await c.get("/api/state")).status).toBe(503);
+      expect((await c.post("/api/elements", { kind: "person", name: "Sneaky" })).status).toBe(503);
+      expect((await c.post("/api/login", { name: "x", password: "whatever1" })).status).toBe(503);
+    });
     writeTestUsers(dir);
-    expect((await c.post("/api/login", { name: "architect", password: testPassword("architect") })).status).toBe(200);
+    expect((await c.get("/api/state")).status).toBe(401);
+    expect((await c.as("viewer")).headers.Cookie).toBeTruthy();
+  });
+
+  it("parallel guesses cannot get past the limit", async () => {
+    const c = client(demoDir(), { users: true });
+    const res = await Promise.all(Array.from({ length: 12 }, (_, i) => c.post("/api/login", { name: "engineer", password: `parallel-${i}` })));
+    const codes = res.map((r) => r.status).sort();
+    expect(codes.filter((x) => x === 401)).toHaveLength(5);
+    expect(codes.filter((x) => x === 429)).toHaveLength(7);
+  });
+
+  it("a lock that ends starts a fresh count, so one guess per 30 seconds cannot keep a name locked", async () => {
+    let now = 9_000_000;
+    const c = client(demoDir(), { users: true, now: () => now });
+    for (let i = 0; i < 5; i++) expect((await c.post("/api/login", { name: "engineer", password: `wrong-${i}-xx` })).status).toBe(401);
+    expect((await c.post("/api/login", { name: "engineer", password: "wrong-again" })).status).toBe(429);
+    for (let round = 0; round < 6; round++) {
+      now += LOCK_MS + 1;
+      expect((await c.post("/api/login", { name: "engineer", password: "one-guess-each-time" })).status, `round ${round}`).toBe(401);
+    }
+    expect((await c.post("/api/login", { name: "engineer", password: testPassword("engineer") })).status).toBe(200);
+  });
+
+  it("a full failure table never forgets a live lock; new names wait instead", async () => {
+    let now = 7_000_000;
+    const c = client(demoDir(), { users: true, now: () => now, authLimits: { names: 2 } });
+    const fail = (name: string) => c.post("/api/login", { name, password: "wrong-password" });
+    for (let i = 0; i < 5; i++) await fail("engineer");
+    expect((await fail("someone")).status).toBe(401); // {engineer (locked), someone}
+    expect((await fail("other")).status).toBe(401); // evicts "someone" (not locked)
+    for (let i = 0; i < 4; i++) await fail("other"); // now locked too
+    const full = await fail("third");
+    expect(full.status).toBe(429);
+    expect(full.json().detail).toBe("Too many failed sign-ins right now. Try again in a minute.");
+    expect((await c.post("/api/login", { name: "engineer", password: testPassword("engineer") })).status).toBe(429); // still locked
+    now += LOCK_MS + 1;
+    expect((await c.post("/api/login", { name: "viewer", password: testPassword("viewer") })).status).toBe(200); // room again
+    expect((await c.post("/api/login", { name: "engineer", password: testPassword("engineer") })).status).toBe(200);
+  });
+
+  it("sessions are capped per user, and the global cap drops the idlest session", async () => {
+    let now = 1_000;
+    const c = client(demoDir(), { users: true, now: () => now, authLimits: { sessionsPerUser: 2, sessions: 3 } });
+    const e1 = await c.as("engineer");
+    now += 1000;
+    const e2 = await c.as("engineer");
+    now += 1000;
+    const e3 = await c.as("engineer");
+    expect((await e1.get("/api/state")).status).toBe(401); // that user's oldest
+    now += 1000;
+    const v = await c.as("viewer");
+    now += 1000;
+    expect((await e2.get("/api/state")).status).toBe(200);
+    expect((await e3.get("/api/state")).status).toBe(200);
+    now += 1000;
+    const a = await c.as("architect"); // global cap: the viewer's session is the idlest
+    expect((await v.get("/api/state")).status).toBe(401);
+    for (const s of [e2, e3, a]) expect((await s.get("/api/state")).status).toBe(200);
+  });
+
+  it("unknown API paths answer 404 for every role and on a read-only server", async () => {
+    const s = await setup();
+    for (const r of ROLES) {
+      expect((await s.as[r].post("/api/nope", {})).status, r).toBe(404);
+      expect((await s.as[r].delete("/api/nope/deeper")).status, r).toBe(404);
+    }
+    const ro = await setup({ readOnly: true });
+    expect((await ro.as.viewer.post("/api/nope", {})).status).toBe(404);
+    expect((await client(demoDir(), { readOnly: true }).post("/api/nope", {})).status).toBe(404);
+    expect((await client().put("/api/nope", {})).status).toBe(404);
+  });
+
+  it("the code-folder check on the users file follows symlinks and letter case", () => {
+    const dir = demoDir();
+    const outside = tmpDir();
+    const inside = writeTestUsers(dir, ROLE_USERS, path.join(dir, "team", "users.json"));
+    const link = path.join(outside, "users.json");
+    fs.symlinkSync(inside, link);
+    expect(() => createApp(dir, { usersFile: link })).toThrow(/inside the code folder/);
+    fs.symlinkSync(path.join(dir, "team"), path.join(outside, "team-link"));
+    expect(() => createApp(dir, { usersFile: path.join(outside, "team-link", "users.json") })).toThrow(/inside the code folder/);
+    const hiddenLink = path.join(dir, ".private");
+    fs.symlinkSync(path.join(dir, "team"), hiddenLink); // a hidden name for a visible folder: still readable as team/
+    expect(() => createApp(dir, { usersFile: path.join(hiddenLink, "users.json") })).toThrow(/inside the code folder/);
+    const upper = dir.toUpperCase();
+    if (upper !== dir && fs.existsSync(upper)) {
+      expect(readableAsCode(dir, path.join(upper, "team", "users.json"))).toBe(true);
+      expect(readableAsCode(upper, path.join(dir, ".dp", "users.json"))).toBe(false);
+    }
+    expect(readableAsCode(dir, path.join(path.dirname(dir), "..x", "users.json"))).toBe(false);
+    expect(readableAsCode(dir, path.join(dir, "..notes", "users.json"))).toBe(false); // a dot name: hidden
+    expect(readableAsCode(dir, path.join(dir, "not-yet", "users.json"))).toBe(true);
+  });
+
+  it("stored hashes cannot ask for huge scrypt costs, and a failing check is just a mismatch", async () => {
+    const h = hashPassword("password1", TEST_HASH).split("$");
+    const withParams = (N: number, r: number, p: number) => ["scrypt", N, r, p, h[4], h[5]].join("$");
+    const file = (pw: string) => JSON.stringify({ users: [{ name: "a", role: "architect", password: pw }] });
+    expect(() => parseUsers(file(withParams(1 << 20, 8, 1)))).toThrow(/valid "password"/); // 1 GB
+    expect(() => parseUsers(file(withParams(1 << 14, 128, 1)))).toThrow(/valid "password"/); // 256 MB
+    expect(() => parseUsers(file(withParams(1024, 8, 5)))).toThrow(/valid "password"/);
+    expect(parseUsers(file(withParams(1 << 17, 8, 4)))).toHaveLength(1); // exactly 128 MB
+    expect(() => hashPassword("password1", { N: 1 << 20, r: 8, p: 1 })).toThrow(UsersError);
+    expect(await verifyPassword(undefined as unknown as string, hashPassword("password1", TEST_HASH))).toBe(false);
   });
 
   it("locks a name for 30 seconds after 5 failures in 5 minutes", async () => {

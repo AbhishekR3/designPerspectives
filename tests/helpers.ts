@@ -61,9 +61,9 @@ export class Client {
   async as(name: string, password = testPassword(name)): Promise<Client> {
     const r = await this.post("/api/login", { name, password });
     expect(r.status, r.text).toBe(200);
-    const cookie = /dp_session=([^;]+)/.exec(r.headers.get("set-cookie") ?? "")?.[1];
-    expect(cookie).toBeTruthy();
-    return new Client("", {}, this.app, { ...this.headers, Cookie: `dp_session=${cookie}` });
+    const m = /(dp_session(?:_\d+)?)=([^;]+)/.exec(r.headers.get("set-cookie") ?? "");
+    expect(m?.[2]).toBeTruthy();
+    return new Client("", {}, this.app, { ...this.headers, Cookie: `${m![1]}=${m![2]}` });
   }
 
   async req(method: string, url: string, body?: unknown, query?: Record<string, string>): Promise<Res> {

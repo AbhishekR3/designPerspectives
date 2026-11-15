@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type RefObject, type SetStateAction } from "react";
-import { api, ApiError, setContext } from "./api";
+import { api, ApiError, onForbidden, setContext } from "./api";
 import { dialogOpen, isTyping } from "./fields";
 import { inLens, lensOverlay, pickLens, savedLens } from "./useLens";
 import { lensKey, storage } from "./storage";
@@ -87,11 +87,11 @@ export function useModel(p: {
   /** Fix the lens, overlay and start diagram from the first state that loads. */
   const start = (s: AppState, v: Version) => {
     started.current = true;
-    const l = pickLens(s, savedLens(s.root));
+    const l = pickLens(s, savedLens(s.root, s.me?.name));
     // Fix the choice now and remember it for this project: the default (Architect for an empty
     // model) must not flip to another lens when the first container is added and the page reloads.
     setLensId(l.id);
-    storage.set(lensKey(s.root), l.id);
+    storage.set(lensKey(s.root, s.me?.name), l.id);
     setOverlay(v.compare ? { kind: "changes" } : lensOverlay(l, s));
     if (!keyRef.current) {
       const first = s.diagrams.find((d) => inLens(l, d.level)) ?? s.diagrams[0];
@@ -267,6 +267,13 @@ export function useModel(p: {
     void firstLoad();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // A change the server refused (403: the role or the version no longer allows it): the caller shows the
+  // server's message; reloading the state here makes the controls match what is allowed now.
+  useEffect(() => {
+    onForbidden(() => void refresh().catch(() => undefined));
+    return () => onForbidden(null);
+  }, [refresh]);
 
   /** Undo or redo the last edit of this model version. */
   const doHistory = useCallback(

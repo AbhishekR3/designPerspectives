@@ -28,7 +28,7 @@ export function BehindBadge({ n }: { n: number }) {
 }
 
 /** One draft in the sidebar: title, author and date, and a "⋯" menu (also on right-click). */
-function DraftRow({ d, active, readOnly, onOpen, onRename, onEditDescription, onDiscard }: { d: DraftInfo; active: boolean; readOnly: boolean; onOpen(): void; onRename(): void; onEditDescription(): void; onDiscard(): void }) {
+function DraftRow({ d, active, canEditDraft, onOpen, onRename, onEditDescription, onDiscard }: { d: DraftInfo; active: boolean; canEditDraft: boolean; onOpen(): void; onRename(): void; onEditDescription(): void; onDiscard(): void }) {
   const [open, setOpen] = useState(false);
   const wrap = useRef<HTMLSpanElement>(null);
   const toggle = useRef<HTMLButtonElement>(null);
@@ -39,9 +39,12 @@ function DraftRow({ d, active, readOnly, onOpen, onRename, onEditDescription, on
     setOpen(false);
     fn();
   };
+  // Rename and Edit description are draft edits (engineers and architects); Discard is for the author or an architect.
+  const canDiscard = d.canDiscard ?? canEditDraft;
+  const hasMenu = canEditDraft || canDiscard;
   const by = [d.author, d.created].filter(Boolean).join(" · ");
   return (
-    <li className="draft-row" onContextMenu={readOnly ? undefined : (e) => (e.preventDefault(), setOpen(true))}>
+    <li className="draft-row" onContextMenu={!hasMenu ? undefined : (e) => (e.preventDefault(), setOpen(true))}>
       <button
         className={`link draft-title ${active ? "active" : ""}`}
         onClick={onOpen}
@@ -50,7 +53,7 @@ function DraftRow({ d, active, readOnly, onOpen, onRename, onEditDescription, on
       >
         {d.title}
       </button>
-      {!readOnly && (
+      {hasMenu && (
         <span
           className="draft-menu-wrap"
           ref={wrap}
@@ -68,15 +71,21 @@ function DraftRow({ d, active, readOnly, onOpen, onRename, onEditDescription, on
           </button>
           {open && (
             <div className="pop-menu right" role="menu" data-testid={`draft-menu-popup-${d.id}`}>
-              <button role="menuitem" onClick={pick(onRename)} data-testid="draft-rename">
-                Rename…
-              </button>
-              <button role="menuitem" onClick={pick(onEditDescription)} data-testid="draft-edit-description">
-                Edit description…
-              </button>
-              <button role="menuitem" className="danger-text" onClick={pick(onDiscard)} data-testid="draft-discard">
-                Discard…
-              </button>
+              {canEditDraft && (
+                <>
+                  <button role="menuitem" onClick={pick(onRename)} data-testid="draft-rename">
+                    Rename…
+                  </button>
+                  <button role="menuitem" onClick={pick(onEditDescription)} data-testid="draft-edit-description">
+                    Edit description…
+                  </button>
+                </>
+              )}
+              {canDiscard && (
+                <button role="menuitem" className="danger-text" onClick={pick(onDiscard)} data-testid="draft-discard">
+                  Discard…
+                </button>
+              )}
             </div>
           )}
         </span>
@@ -128,7 +137,7 @@ export function DraftList({
             key={d.id}
             d={d}
             active={state.model.ref === `draft:${d.id}`}
-            readOnly={state.readOnly}
+            canEditDraft={state.can.createDraft}
             onOpen={() => state.model.ref !== `draft:${d.id}` && onSwitch(`draft:${d.id}`)}
             onRename={() => onRename(d)}
             onEditDescription={() => onEditDescription(d)}
@@ -136,7 +145,7 @@ export function DraftList({
           />
         ))}
       </ul>
-      {!state.readOnly && (
+      {state.can.createDraft && (
         <button className="add" onClick={onNewDraft} data-testid="new-draft">
           + New draft
         </button>
@@ -226,15 +235,20 @@ export function VersionStrip({
           Coding plan…
         </button>
       )}
-      {isDraft && !state.readOnly && (
-        <>
-          <button className="primary small" onClick={onApply} data-testid="draft-apply">
-            Apply…
-          </button>
-          <button className="small" onClick={onDiscard} data-testid="draft-discard">
-            Discard
-          </button>
-        </>
+      {isDraft && state.can.applyDraft && (
+        <button className="primary small" onClick={onApply} data-testid="draft-apply">
+          Apply…
+        </button>
+      )}
+      {isDraft && !state.can.applyDraft && state.can.createDraft && (
+        <span className="muted small" data-testid="draft-apply-note">
+          An architect applies drafts.
+        </span>
+      )}
+      {isDraft && state.can.discardDraft && (
+        <button className="small" onClick={onDiscard} data-testid="draft-discard">
+          Discard
+        </button>
       )}
       <span className="spacer" />
       {comparingOther && (
@@ -575,7 +589,7 @@ export function PlanDialog({ state, draftId, onClose, onSaved }: { state: AppSta
       <div className="row plan-controls">
         <label className="field inline">
           <span>Branch</span>
-          <input value={branch} placeholder="e.g. feature/audit-log" onChange={(e) => setBranch(e.target.value)} onBlur={() => void saveBranch()} onKeyDown={(e) => e.key === "Enter" && void saveBranch()} disabled={state.readOnly} data-testid="plan-branch" />
+          <input value={branch} placeholder="e.g. feature/audit-log" onChange={(e) => setBranch(e.target.value)} onBlur={() => void saveBranch()} onKeyDown={(e) => e.key === "Enter" && void saveBranch()} disabled={!state.can.createDraft} data-testid="plan-branch" />
         </label>
         <label className="field inline">
           <span>Check against</span>

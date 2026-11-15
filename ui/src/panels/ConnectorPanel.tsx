@@ -1,6 +1,6 @@
 import { api } from "../api";
 import { CodePaths } from "../CodeParts";
-import { Section, TagInput } from "../fields";
+import { Fields, Section, TagInput } from "../fields";
 import type { Common } from "./common";
 import { promptDialog } from "../dialogs";
 
@@ -15,6 +15,7 @@ export function ConnectorPanel(p: Common) {
       <div className="panel-kind">Connector detail</div>
       <h2 className="panel-title">{c.name}</h2>
       <p className="muted">{rel.description}</p>
+      <Fields loose>
       <label className="field">
         <span>Kind</span>
         <select value={rel.kind} onChange={(e) => save({ kind: e.target.value })}>
@@ -27,6 +28,7 @@ export function ConnectorPanel(p: Common) {
         </select>
       </label>
       <TagInput label="Technology / protocol" value={rel.technologies} suggestions={state.technologies} onChange={(v) => save({ technology: v })} />
+      </Fields>
       <h4>
         Stages <span className="count">{rel.stages.length}</span>
       </h4>
@@ -39,16 +41,18 @@ export function ConnectorPanel(p: Common) {
           </li>
         ))}
       </ol>
-      <button
-        className="primary"
-        data-testid="add-stage"
-        onClick={async () => {
-          const name = await promptDialog({ title: "Name of the new stage", label: "A step inside this connector", confirmLabel: "Add" });
-          if (name) save({ stages: [...rel.stages, { id: "", name }] });
-        }}
-      >
-        + Add stage
-      </button>
+      {!state.readOnly && (
+        <button
+          className="primary"
+          data-testid="add-stage"
+          onClick={async () => {
+            const name = await promptDialog({ title: "Name of the new stage", label: "A step inside this connector", confirmLabel: "Add" });
+            if (name) save({ stages: [...rel.stages, { id: "", name }] });
+          }}
+        >
+          + Add stage
+        </button>
+      )}
       {c.codeKey && <button onClick={() => p.onOpen(c.codeKey!)}>Open code of this connector</button>}
       {!c.codeKey && (
         <Section title="Code of this connector">

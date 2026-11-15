@@ -1,6 +1,6 @@
 # Future plans and backlog
 
-Last updated: 2026-11-14. Baseline: release 0.3.0 (TypeScript rewrite, feature parity with 0.2.0; see `reviews/rewrite-ts_review.md`).
+Last updated: 2026-11-15. Baseline: release 0.3.0 (TypeScript rewrite, feature parity with 0.2.0; see `reviews/rewrite-ts_review.md`).
 
 This file collects work that is not built yet. Nothing here is scheduled or rejected; items are revisited after feedback on the current stage.
 
@@ -100,6 +100,14 @@ Open questions for the owner [Proposal]:
 - GitLab Code Quality JSON; SonarQube/SonarCloud metrics (needs a server or account); complexity per module (e.g. radon [Training]).
 - Issue links with live status from GitHub or a tracker (needs tokens); linked work synced from GitHub issues, PRs and security alerts for named repositories (needs a token and network access) [Review, release-0.2]; create issues from a draft; ADR links on objects (Markdown ADRs).
 - Infrastructure-as-code import (Terraform, compose, Kubernetes), network and deployment views, isometric rendering, OpenTelemetry runtime traces, live cloud inventory.
+
+### Sign-in and roles (after Stage P4) [Review, prod-p4]
+- Real-time collaboration: two people editing the same thing see each other's changes live. Deferred by the owner [Owner, 2026-11-14]; today the last write wins and the other sees it on focus.
+- Per-user undo. Undo history is per model version today, so one architect can undo another's edit.
+- Server-side lens filtering for viewers, so sensitive sections are not sent to a viewer at all. This would change DEC-008 and is an open question for the owner.
+- Custom roles. Roles are fixed at Architect, Engineer and Viewer (DEC-041).
+- Draft ownership rules: whether engineers may edit only drafts they started (open question for the owner).
+- Rebase a draft onto a newer main, so "main +N" can be resolved rather than only shown (also open in Stage P3).
 
 ### Permissions and scale
 - Permissions beyond lenses: decision-rights matrix per role, signed approvals, encrypted files; approval rules (cost threshold, cross-team, security) [Notes].

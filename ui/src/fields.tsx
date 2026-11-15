@@ -1,4 +1,20 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useId, useRef, useState } from "react";
+
+/** True in the side panel when the model shown cannot be changed by this person (see `state.readOnly`). */
+export const ReadOnlyContext = createContext(false);
+export const useReadOnly = () => useContext(ReadOnlyContext);
+
+/**
+ * A group of editing controls. When the panel is read-only every control inside is disabled (so the fields show
+ * their values and cannot be changed), and the controls that add or remove something (marked `edit-only`) are hidden.
+ */
+export function Fields({ loose = false, className = "", children }: { loose?: boolean; className?: string; children: React.ReactNode }) {
+  return (
+    <fieldset className={`fields${loose ? " loose" : ""}${className ? ` ${className}` : ""}`} disabled={useReadOnly()}>
+      {children}
+    </fieldset>
+  );
+}
 
 /** Text input that saves on blur or Enter (Escape reverts). */
 export function TextField({
@@ -173,13 +189,13 @@ export function TagInput({
         {value.map((t) => (
           <span className="chip" key={t}>
             {t}
-            <button className="icon" aria-label={`Remove ${t}`} onClick={() => onChange(value.filter((x) => x !== t))}>
+            <button className="icon edit-only" aria-label={`Remove ${t}`} onClick={() => onChange(value.filter((x) => x !== t))}>
               ×
             </button>
           </span>
         ))}
         <input
-          className="chip-input"
+          className="chip-input edit-only"
           list={listId}
           value={text}
           placeholder={value.length ? "Add…" : "Add a technology…"}
@@ -209,7 +225,7 @@ export function TagInput({
 }
 
 /** A collapsible group in the object panel. */
-export function Section({ title, count, children, defaultOpen = false, testId }: { title: string; count?: number; children: React.ReactNode; defaultOpen?: boolean; testId?: string }) {
+export function Section({ title, count, children, footer, defaultOpen = false, testId }: { title: string; count?: number; children: React.ReactNode; /** Shown below the controls, and usable also when the panel is read-only (a button that opens something). */ footer?: React.ReactNode; defaultOpen?: boolean; testId?: string }) {
   const [open, setOpen] = useState(defaultOpen || (count ?? 0) > 0);
   return (
     <section className="p-section" data-testid={testId}>
@@ -217,7 +233,12 @@ export function Section({ title, count, children, defaultOpen = false, testId }:
         <span>{open ? "▾" : "▸"}</span> {title}
         {count ? <span className="count">{count}</span> : null}
       </button>
-      {open && <div className="p-section-body">{children}</div>}
+      {open && (
+        <div className="p-section-body">
+          <Fields>{children}</Fields>
+          {footer}
+        </div>
+      )}
     </section>
   );
 }

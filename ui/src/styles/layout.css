@@ -363,3 +363,150 @@
 .draft-form .field textarea {
   resize: vertical;
 }
+
+/* Sign-in page and the user chip (Stage P4). */
+.signin-page {
+  min-height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+  background: var(--bg);
+}
+.signin-card {
+  width: min(340px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 22px 22px 20px;
+  box-sizing: border-box;
+}
+.signin-card h1 {
+  margin: 0;
+  font-size: 20px;
+}
+.signin-product {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+.signin-card .error {
+  color: var(--danger);
+  font-size: 12px;
+}
+.signin-card .note {
+  color: #fbbf24;
+}
+.user-chip-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.user-chip {
+  max-width: 170px;
+  min-width: 0;
+}
+.user-chip .user-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  max-width: 90px;
+}
+.role-badge {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  color: var(--muted);
+  flex: none;
+}
+.role-badge.architect {
+  color: var(--accent);
+  border-color: #1e5670;
+}
+.role-badge.engineer {
+  color: var(--link);
+  border-color: #2b4b66;
+}
+.view-only-badge {
+  font-size: 11px;
+  color: var(--muted);
+  padding: 0 4px;
+  white-space: nowrap;
+}
+.user-menu {
+  width: 260px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  right: 0;
+  top: calc(100% + 6px);
+  position: absolute;
+  z-index: var(--z-pop-menu);
+}
+.user-menu p {
+  margin: 0;
+}
+.role-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 12px;
+  background: #142a31;
+  border-bottom: 1px solid #1e5670;
+  color: #c7d2fe;
+  min-width: 0;
+}
+.role-banner .spacer {
+  flex: 1;
+}
+.role-banner > span:first-of-type {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Read-only panels: inside <Fields>, controls are disabled and the ones that add or remove are hidden. */
+.fields {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.fields.loose {
+  gap: 10px;
+}
+.fields[disabled] .edit-only {
+  display: none !important;
+}
+.fields[disabled] :is(input, textarea, select) {
+  opacity: 1;
+  color: var(--text);
+  background: transparent;
+  border-color: var(--line);
+  cursor: default;
+}
+.fields[disabled] select {
+  appearance: none;
+}
+.fields[disabled] button:disabled {
+  opacity: 0.75;
+  cursor: default;
+}
+.fields[disabled] input[type="checkbox"] {
+  opacity: 0.7;
+}
+.panel-note {
+  color: var(--muted);
+  font-size: 12px;
+}

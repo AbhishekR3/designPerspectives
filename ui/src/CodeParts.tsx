@@ -65,15 +65,22 @@ export function NewPlannedFile({ ownerId, paths, mutate, onOpenFile }: { ownerId
   );
 }
 
+/** "Open code diagram": a Section footer, so it also works while the panel is read-only. */
+export function OpenCodeDiagram({ onOpen }: { onOpen(): void }) {
+  return (
+    <button onClick={onOpen} data-testid="open-code-diagram">
+      Open code diagram
+    </button>
+  );
+}
+
 /** The code paths of an element or connector, with a picker. */
 export function CodePaths({
   paths,
   onSave,
-  onOpenDiagram,
 }: {
   paths: string[];
   onSave(paths: string[]): void;
-  onOpenDiagram?(): void;
 }) {
   const [picking, setPicking] = useState(false);
   const [text, setText] = useState("");
@@ -88,13 +95,13 @@ export function CodePaths({
         {paths.map((p) => (
           <li key={p}>
             <code>{p}</code>
-            <button className="icon" aria-label={`Remove ${p}`} onClick={() => onSave(paths.filter((x) => x !== p))}>
+            <button className="icon edit-only" aria-label={`Remove ${p}`} onClick={() => onSave(paths.filter((x) => x !== p))}>
               ×
             </button>
           </li>
         ))}
       </ul>
-      <div className="row">
+      <div className="row edit-only">
         <input placeholder="path/to/file or folder" value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && add(text)} data-testid="code-path-input" />
         <button onClick={() => add(text)} disabled={!text.trim()}>
           Add
@@ -103,11 +110,6 @@ export function CodePaths({
           Browse…
         </button>
       </div>
-      {onOpenDiagram && paths.length > 0 && (
-        <button onClick={onOpenDiagram} data-testid="open-code-diagram">
-          Open code diagram
-        </button>
-      )}
       {picking && (
         <CodePicker
           onClose={() => setPicking(false)}
@@ -128,7 +130,7 @@ const PLANNED_TEXT: Record<string, string> = {
 };
 
 /** Edit one source file. Saves back to the file on disk; in a draft, to the draft's planned edits. */
-export function FileEditor({ path, onClose, inDraft = false, onChanged }: { path: string; onClose(): void; inDraft?: boolean; onChanged?(): void }) {
+export function FileEditor({ path, onClose, inDraft = false, onChanged, readOnlyNote = "Read-only." }: { path: string; onClose(): void; inDraft?: boolean; onChanged?(): void; /** Why the server says the file cannot be saved here (a git version, or the person's role). */ readOnlyNote?: string }) {
   const [content, setContent] = useState<string | null>(null);
   const [orig, setOrig] = useState("");
   const [mtime, setMtime] = useState(0);
@@ -187,7 +189,21 @@ export function FileEditor({ path, onClose, inDraft = false, onChanged }: { path
   };
   return (
     <Modal title={path} onClose={close} wide>
-      {readOnly && <div className="note small">An earlier version from git: read-only.</div>}
+      {readOnly && (
+        <div className="note small" data-testid="code-readonly-note">
+          {readOnlyNote}
+        </div>
+      )}
+      {!readOnly && planned === "deleted" && (
+        <div className="note small" data-testid="code-readonly-note">
+          Read-only: this file is planned for deletion in this draft.
+        </div>
+      )}
+      {inDraft && readOnly && planned && (
+        <div className="draft-note small" data-testid="code-draft-note">
+          {PLANNED_TEXT[planned]}
+        </div>
+      )}
       {inDraft && !readOnly && (
         <div className="draft-note small" data-testid="code-draft-note">
           {planned ? PLANNED_TEXT[planned] : "Saving here plans the change in the draft."} The code folder is only written when the draft is applied.
@@ -240,9 +256,11 @@ export function FileEditor({ path, onClose, inDraft = false, onChanged }: { path
         <span className="muted small">{saved ? (inDraft ? "Saved to the draft." : "Saved.") : dirty ? "Unsaved changes" : readOnly ? "" : inDraft ? "Ctrl/Cmd+S saves to the draft" : "Ctrl/Cmd+S saves to the file"}</span>
         <span className="spacer" />
         <button onClick={close}>Close</button>
-        <button className="primary" onClick={save} disabled={!canSave} data-testid="code-save">
-          Save
-        </button>
+        {!readOnly && (
+          <button className="primary" onClick={save} disabled={!canSave} data-testid="code-save">
+            Save
+          </button>
+        )}
       </div>
     </Modal>
   );

@@ -10,12 +10,14 @@ import { CharacteristicsEditor, CostSettingsEditor, LensEditor, TagGroupEditor }
 import { FlowCard } from "./FlowCard";
 import { FlowPanel } from "./FlowPanel";
 import { Icon } from "./icons";
+import { UserChip } from "./UserChip";
 import { diagramEditable, menuItems, useContextMenu } from "./menus";
 import { canMove, MoveDialog } from "./MoveDialog";
 import { EmptyStart, emptyHint } from "./EmptyState";
 import { Palette, paletteItems } from "./Palette";
 import { formatMoney, overlayable } from "./overlays";
 import { FileEditor } from "./CodeParts";
+import { ReadOnlyContext } from "./fields";
 import { CodeDiagramPanel, ConnectorPanel, EdgePanel, FilePanel, MultiPanel, ObjectPanel, StagePanel } from "./panels";
 import { SearchBox } from "./SearchBox";
 import { Sidebar } from "./Sidebar";
@@ -33,7 +35,7 @@ import { notify, Toasts } from "./notify";
 
 type ModalState = { type: "tag"; group: TagGroup | null } | { type: "lens"; lens: Lens | null } | { type: "chars" } | { type: "cost" } | { type: "apply"; draftId: string; title: string } | { type: "plan"; draftId: string } | { type: "draft"; mode: "new" } | { type: "draft"; mode: "rename" | "description"; draftId: string } | null;
 
-export default function App() {
+export default function App({ onSignOut }: { onSignOut(): void }) {
   // State. Hook order matters only for effects, which run in this order: first load (useModel),
   // URL/history sync (useHashSync), flow autoplay, keyboard shortcuts.
   const { selection, setSelection, focusName, setFocusName, renameId, setRenameId, clearRename, select, startRename, fresh } = useSelection();
@@ -126,6 +128,16 @@ export default function App() {
     setFocusName,
     openChoiceMenu: (at: Pt, items: MenuItem[]) => setChoiceMenu({ x: at.x, y: at.y, items, seq: ++choiceSeq.current }),
   });
+  // A server that is read-only for everyone (dp serve --read-only): nobody can change anything, signed in or not.
+  const serverReadOnly = state.readOnly && !state.can.createDraft && state.me?.role !== "viewer" && !state.model.ref.startsWith("ref:");
+  // Why a code file cannot be saved here (the server decides; this says why).
+  const codeNote = state.model.ref.startsWith("ref:")
+    ? "An earlier version from git: read-only."
+    : serverReadOnly
+      ? "This server is read-only: code files cannot be changed."
+      : state.me?.role === "engineer" && state.model.ref === "main"
+        ? "Your role cannot change code files on the main model: read-only. Open a draft to plan code edits."
+        : "Your role cannot change code files here: read-only.";
   const canDeleteHere = !!nodeActions && diagramEditable(state, diagram);
 
   const shownMenu = menu
@@ -144,6 +156,12 @@ export default function App() {
   const diagramCost = diagram ? overlayable(diagram).reduce((sum, n) => sum + (n.costRollup ?? 0), 0) : 0;
   const tools = (
     <div className="float bar tools">
+      {state.me && (
+        <>
+          <UserChip me={state.me} role={state.can.createDraft ? state.me.role : "viewer"} onSignOut={onSignOut} />
+          <span className="divider" />
+        </>
+      )}
       {diagramEditable(state, diagram) && (
         <>
         <button className="ghost icon" onClick={() => doHistory("undo")} disabled={!state.canUndo} title="Undo (Ctrl/Cmd+Z)" aria-label="Undo" data-testid="undo">
@@ -230,6 +248,16 @@ export default function App() {
         <div />
       )}
       <main className="main">
+        {state.me?.role === "engineer" && state.model.ref === "main" && state.can.createDraft && (
+          <div className="role-banner" data-testid="role-banner">
+            <Icon name="layers" size={14} />
+            <span>You are viewing the main model. Engineers propose changes in a draft.</span>
+            <span className="spacer" />
+            <button className="primary small" onClick={() => setModal({ type: "draft", mode: "new" })} data-testid="role-start-draft">
+              Start a draft
+            </button>
+          </div>
+        )}
         {(version.model !== "main" || version.compare) && (
           <VersionStrip
             state={state}
@@ -267,6 +295,7 @@ export default function App() {
                 onOpenFile={setOpenFile}
                 onContextMenu={openMenu}
                 handleRef={canvasRef}
+                readOnly={state.readOnly}
               />
             </ReactFlowProvider>
           )}
@@ -357,7 +386,7 @@ export default function App() {
           </div>
 
           <Toasts>
-            {state.readOnly && !version.model.startsWith("ref:") && (
+            {serverReadOnly && (
               <div className="float toast info" data-testid="readonly-banner">
                 Viewer role: this server is read-only. Changes are refused.
               </div>
@@ -396,6 +425,7 @@ export default function App() {
 
       <div className="resizer" onPointerDown={startDrag("right")} onDoubleClick={resetRight} role="separator" aria-orientation="vertical" title="Drag to resize the panel (double-click: reset)" data-testid="resize-right" />
       <aside className="panel">
+        <ReadOnlyContext.Provider value={state.readOnly}>
         {showGhost && (
           <GhostPanel node={selectedNode} edge={selectedEdge} change={selectedChange} against={againstLabel} />
         )}
@@ -449,6 +479,7 @@ export default function App() {
             )}
           </div>
         )}
+        </ReadOnlyContext.Provider>
       </aside>
 
       {menu && shownMenu.length > 0 && <ContextMenu key={menu.seq} x={menu.x} y={menu.y} items={shownMenu} keyboard={menu.keyboard} onClose={closeMenu} />}
@@ -466,7 +497,7 @@ export default function App() {
           }}
         />
       )}
-      {openFile && <FileEditor path={openFile} onClose={() => setOpenFile(null)} inDraft={!!draftId} onChanged={() => void refresh().catch(() => undefined)} />}
+      {openFile && <FileEditor path={openFile} onClose={() => setOpenFile(null)} inDraft={!!draftId} onChanged={() => void refresh().catch(() => undefined)} readOnlyNote={codeNote} />}
       {modal?.type === "plan" && <PlanDialog state={state} draftId={modal.draftId} onClose={() => setModal(null)} onSaved={() => void refresh().catch(() => undefined)} />}
       {searchOpen && (
         <SearchBox

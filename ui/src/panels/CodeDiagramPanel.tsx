@@ -1,5 +1,6 @@
 import { api } from "../api";
 import { CodePaths, NewPlannedFile } from "../CodeParts";
+import { Fields } from "../fields";
 import type { Common } from "./common";
 
 export function CodeDiagramPanel(p: Common) {
@@ -15,7 +16,9 @@ export function CodeDiagramPanel(p: Common) {
       <h2 className="panel-title">{diagram.code.ownerName}</h2>
       <p className="muted small">Files appear as boxes; lines are imports found by scanning the code. Double-click a file to open and edit it.</p>
       {!diagram.code.hasRoot && <p className="error">No code folder is set. Start with --code-root.</p>}
-      <CodePaths paths={diagram.code.paths} onSave={save} />
+      <Fields>
+        <CodePaths paths={diagram.code.paths} onSave={save} />
+      </Fields>
       {diagram.code.missing.length > 0 && <p className="warning">Not found in the code folder: {diagram.code.missing.join(", ")}</p>}
       {diagram.code.truncated && <p className="muted small">Only the first files are shown.</p>}
       {state.model.ref.startsWith("draft:") && !state.readOnly && diagram.code.hasRoot && <NewPlannedFile ownerId={ownerId} paths={diagram.code.paths} mutate={mutate} onOpenFile={p.onOpenFile} />}

@@ -33,6 +33,7 @@ import { dummyHash, MAX_PASSWORD, readUsers, usersPath, UsersError, verifyPasswo
 import type { MeResponse, Permissions, Role, SessionUser } from "../shared/types.js";
 import type { Ctx } from "./context.js";
 
+/** Cookie name stem; the name used is `dp_session_<port>`, see sessionCookie(). */
 export const SESSION_COOKIE = "dp_session";
 /** A session ends after this long without a request. */
 export const SESSION_IDLE_MS = 12 * 60 * 60 * 1000;
@@ -40,10 +41,11 @@ export const SESSION_IDLE_MS = 12 * 60 * 60 * 1000;
 export const MAX_FAILURES = 5;
 export const FAIL_WINDOW_MS = 5 * 60 * 1000;
 export const LOCK_MS = 30 * 1000;
-const MAX_SESSIONS = 10_000;
-const MAX_TRACKED_NAMES = 1_000;
+/** Defaults for AuthOptions.limits. */
+export const AUTH_LIMITS = { sessions: 10_000, sessionsPerUser: 10, names: 1_000 };
 
 export const WRONG_LOGIN = "Wrong name or password.";
+export const USERS_UNAVAILABLE = "Sign-in is not available: the users file on the server is missing or not valid. See the server log.";
 export const SIGN_IN = "Sign in to continue.";
 export const READ_ONLY_SERVER = "This server is read-only (viewer role).";
 export const READ_ONLY_VERSION = "This version of the model is read-only.";
@@ -181,9 +183,20 @@ interface Session {
   key: string;
   /** The user's entry when the session started; any change to it ends the session. */
   fp: string;
+  /** Name and role when the session started (shown by /api/me while the users file is unreadable). */
+  user: SessionUser;
   seen: number;
 }
 
+/**
+ * Sign-in attempts for one name. Each attempt is recorded before its password check (so parallel
+ * guesses count at once); a correct one clears the record. The 5th attempt in the window locks the
+ * name for LOCK_MS. When the lock ends the count starts afresh, so a name cannot be kept locked for
+ * good by one wrong guess every 30 seconds. Trade-off: a guesser gets 5 tries per lock period
+ * (about 10 a minute) instead of fewer; with generated 16-character passwords that is harmless.
+ * The count is per name, not per client address: behind a proxy, and in this local tool, every
+ * request comes from the same address, so an address would not tell guessers apart.
+ */
 interface Failures {
   times: number[];
   until: number;
@@ -201,6 +214,32 @@ function stampOf(file: string): string {
   }
 }
 
+/** A path with every existing part resolved to its real name (symlinks, and letter case on
+ *  case-insensitive disks); the parts that do not exist yet are kept as given. */
+function realLoose(p: string): string {
+  const loose = path.resolve(p);
+  const rest: string[] = [];
+  let cur = loose;
+  for (;;) {
+    try {
+      const real = fs.realpathSync.native(cur);
+      return rest.length ? path.join(real, ...rest.reverse()) : real;
+    } catch {
+      const parent = path.dirname(cur);
+      if (parent === cur) return loose;
+      rest.push(path.basename(cur));
+      cur = parent;
+    }
+  }
+}
+
+/** True if `file` is inside `root` but not in a hidden folder, so the code routes could read it. */
+export function readableAsCode(root: string, file: string): boolean {
+  const rel = path.relative(realLoose(root), realLoose(file));
+  if (rel === "" || path.isAbsolute(rel) || rel === ".." || rel.startsWith(`..${path.sep}`)) return false;
+  return !isHidden(rel);
+}
+
 export interface AuthOptions {
   /** Users file (default `<root>/.dp/users.json`). A given file must exist. */
   usersFile?: string | null;
@@ -209,6 +248,8 @@ export interface AuthOptions {
   codeRoot: string;
   /** Clock in milliseconds (tests). */
   now?: () => number;
+  /** Caps on sessions and on names with recorded failures (tests). */
+  limits?: Partial<typeof AUTH_LIMITS>;
 }
 
 export class Auth {
@@ -217,20 +258,21 @@ export class Auth {
   private on: boolean;
   private users = new Map<string, UserEntry>();
   private stamp: string;
-  /** Why sign-in is unavailable right now (a users file that stopped being valid), or null. */
+  /** Why sign-in is unavailable right now (the users file is missing or not valid), or null. */
   private broken: string | null = null;
   private sessions = new Map<string, Session>();
   private failures = new Map<string, Failures>();
   private readonly now: () => number;
+  private readonly limits: typeof AUTH_LIMITS;
 
   /** Throws UsersError for a users file that is not valid (the server must not start without its login). */
   constructor(root: string, opts: AuthOptions) {
     this.file = path.resolve(opts.usersFile ?? usersPath(root));
     this.readOnly = opts.readOnly ?? false;
     this.now = opts.now ?? Date.now;
+    this.limits = { ...AUTH_LIMITS, ...opts.limits };
     if (opts.usersFile && !fs.existsSync(this.file)) throw new UsersError(`There is no users file at ${this.file}.`);
-    const rel = path.relative(path.resolve(opts.codeRoot), this.file);
-    if (rel && !rel.startsWith("..") && !path.isAbsolute(rel) && !isHidden(rel)) {
+    if (readableAsCode(opts.codeRoot, this.file)) {
       throw new UsersError(`The users file ${this.file} is inside the code folder, where the app could read it. Keep it in .dp/ or outside the code folder.`);
     }
     this.stamp = stampOf(this.file);
@@ -254,8 +296,12 @@ export class Auth {
     this.users = new Map(users.map((u) => [u.name.toLowerCase(), u]));
   }
 
-  /** Re-read the users file when it changed on disk. Sign-in never turns off while the server runs:
-   *  a removed or broken file leaves nobody able to sign in. */
+  /**
+   * Re-read the users file when it changed on disk. A file that exists always turns sign-in on,
+   * valid or not, and sign-in never turns off while the server runs. While the file is missing or
+   * not valid nobody can sign in or use a session, but sessions are kept: a half-written save must
+   * not sign everyone out. They are checked again against the next valid file.
+   */
   private refresh(): void {
     const st = stampOf(this.file);
     if (st === this.stamp) return;
@@ -263,35 +309,43 @@ export class Auth {
     try {
       const users = readUsers(this.file);
       if (users === null) {
-        if (this.on) console.error(`designPerspectives: ${this.file} was removed; nobody can sign in until it is back.`);
-        this.users = new Map();
-        this.broken = null;
+        if (this.on) {
+          this.broken = `${this.file} is missing.`;
+          console.error(`designPerspectives: ${this.broken} Nobody can sign in until it is back.`);
+        }
         return;
       }
       this.on = true;
       this.broken = null;
       this.setUsers(users);
     } catch (e) {
-      this.users = new Map();
+      this.on = true;
       this.broken = (e as Error).message;
       console.error(`designPerspectives: ${this.broken} Nobody can sign in until it is fixed.`);
     }
   }
 
-  /** The user of the request's session cookie, or null; ends sessions that are idle or whose user changed. */
-  private sessionUser(c: Context): { token: string; user: SessionUser } | null {
-    const token = getCookie(c, SESSION_COOKIE);
+  /** The request's session, or null; ends sessions that are idle, or whose user a valid users file
+   *  no longer has (or has with another role or password). */
+  private session(c: Context): { token: string; s: Session } | null {
+    const token = getCookie(c, sessionCookie(c));
     if (!token || !TOKEN_RE.test(token)) return null;
     const s = this.sessions.get(token);
     if (!s) return null;
     const now = this.now();
-    const u = this.users.get(s.key);
-    if (now - s.seen > SESSION_IDLE_MS || !u || fingerprint(u) !== s.fp) {
+    if (now - s.seen > SESSION_IDLE_MS) {
       this.sessions.delete(token);
       return null;
     }
-    s.seen = now;
-    return { token, user: { name: u.name, role: u.role } };
+    if (!this.broken) {
+      const u = this.users.get(s.key);
+      if (!u || fingerprint(u) !== s.fp) {
+        this.sessions.delete(token);
+        return null;
+      }
+      s.seen = now;
+    }
+    return { token, s };
   }
 
   private who(user: SessionUser | null): Who {
@@ -299,12 +353,16 @@ export class Auth {
     return { user, role, loginRequired: this.on, readOnlyServer: this.readOnly };
   }
 
-  /** Middleware (before the version is selected): finds the session; 401 without one when sign-in is on. */
+  /** Middleware (before the version is selected): finds the session; 401 without one when sign-in is
+   *  on, 503 while the users file is missing or not valid. */
   authenticate: MiddlewareHandler = async (c, next) => {
     this.refresh();
-    const s = this.on ? this.sessionUser(c) : null;
-    if (this.on && !s && !OPEN_PATHS.has(c.req.path)) return c.json({ detail: SIGN_IN }, 401);
-    c.set("dpWho", this.who(s?.user ?? null));
+    const found = this.on ? this.session(c) : null;
+    if (this.on && !OPEN_PATHS.has(c.req.path)) {
+      if (this.broken) return c.json({ detail: USERS_UNAVAILABLE }, 503);
+      if (!found) return c.json({ detail: SIGN_IN }, 401);
+    }
+    c.set("dpWho", this.who(found ? { ...found.s.user } : null));
     await next();
   };
 
@@ -315,29 +373,57 @@ export class Auth {
 
   // ------------------------------------------------------------ lockout
 
-  private lockedFor(key: string): number {
-    const f = this.failures.get(key);
-    return f && f.until > this.now() ? f.until - this.now() : 0;
-  }
-
-  private recordFailure(key: string): Failures {
+  /** The failure record for `key`, made room for if needed; null when every tracked name is locked. */
+  private failuresOf(key: string): Failures | null {
     const now = this.now();
     let f = this.failures.get(key);
-    if (!f) {
-      if (this.failures.size >= MAX_TRACKED_NAMES) {
-        for (const [k, v] of this.failures) if (v.until <= now && v.times.every((t) => now - t > FAIL_WINDOW_MS)) this.failures.delete(k);
-        while (this.failures.size >= MAX_TRACKED_NAMES) this.failures.delete(this.failures.keys().next().value!);
+    if (f) return f;
+    if (this.failures.size >= this.limits.names) {
+      const unlocked = [...this.failures].filter(([, v]) => v.until <= now);
+      // Names with no recent failure first, then the other unlocked ones, oldest first; never a locked one.
+      const stale = unlocked.filter(([, v]) => v.times.every((t) => now - t > FAIL_WINDOW_MS));
+      for (const [k] of [...stale, ...unlocked.filter((e) => !stale.includes(e))]) {
+        if (this.failures.size < this.limits.names) break;
+        this.failures.delete(k);
       }
-      f = { times: [], until: 0 };
-      this.failures.set(key, f);
+      if (this.failures.size >= this.limits.names) return null;
     }
-    f.times = [...f.times.filter((t) => now - t <= FAIL_WINDOW_MS), now].slice(-MAX_FAILURES * 2);
+    f = { times: [], until: 0 };
+    this.failures.set(key, f);
     return f;
+  }
+
+  /** Record an attempt before its password check. Returns the milliseconds to wait (the name is locked) or 0. */
+  private startAttempt(f: Failures): number {
+    const now = this.now();
+    if (f.until > now) return f.until - now;
+    if (f.until) f.times = []; // the lock has ended: a fresh count
+    f.until = 0;
+    f.times = [...f.times.filter((t) => now - t <= FAIL_WINDOW_MS), now];
+    if (f.times.length >= MAX_FAILURES) f.until = now + LOCK_MS; // this attempt still runs; the next ones wait
+    return 0;
+  }
+
+  // ------------------------------------------------------------ sessions
+
+  private addSession(key: string, user: UserEntry): string {
+    const mine = [...this.sessions].filter(([, s]) => s.key === key).sort((a, b) => a[1].seen - b[1].seen);
+    for (const [t] of mine.slice(0, Math.max(0, mine.length - this.limits.sessionsPerUser + 1))) this.sessions.delete(t);
+    if (this.sessions.size >= this.limits.sessions) {
+      const now = this.now();
+      for (const [t, s] of this.sessions) if (now - s.seen > SESSION_IDLE_MS) this.sessions.delete(t);
+      const idlest = [...this.sessions].sort((a, b) => a[1].seen - b[1].seen);
+      for (const [t] of idlest.slice(0, Math.max(0, this.sessions.size - this.limits.sessions + 1))) this.sessions.delete(t);
+    }
+    const token = crypto.randomBytes(32).toString("base64url");
+    this.sessions.set(token, { key, fp: fingerprint(user), user: { name: user.name, role: user.role }, seen: this.now() });
+    return token;
   }
 
   // ------------------------------------------------------------ routes
 
   private async login(c: Context): Promise<Response> {
+    this.refresh();
     if (!this.on) return c.json({ detail: "Sign-in is off on this server." }, 400);
     let b: unknown;
     try {
@@ -346,41 +432,36 @@ export class Auth {
       return c.json({ detail: "The request body is not valid JSON." }, 422);
     }
     if (!isObj(b) || typeof b.name !== "string" || typeof b.password !== "string") return c.json({ detail: '"name" and "password" are required.' }, 422);
-    if (this.broken) return c.json({ detail: "Sign-in is not available: the users file on the server is not valid. See the server log." }, 503);
+    if (this.broken) return c.json({ detail: USERS_UNAVAILABLE }, 503);
     const name = b.name.trim();
     const key = name.toLowerCase().slice(0, 64);
-    const wait = this.lockedFor(key);
+    const f = this.failuresOf(key);
+    if (!f) return c.json({ detail: "Too many failed sign-ins right now. Try again in a minute." }, 429);
+    // Counted (and the lock set) before the check, with nothing awaited in between, so parallel
+    // guesses cannot get past the limit; a correct password clears the count.
+    const wait = this.startAttempt(f);
     if (wait > 0) {
       const s = Math.ceil(wait / 1000);
       return c.json({ detail: `Too many failed sign-ins for this name. Try again in ${s} second${s === 1 ? "" : "s"}.` }, 429);
     }
-    // Counted before the check, so parallel guesses cannot get past the limit; a success clears it.
-    const f = this.recordFailure(key);
     const user = this.users.get(key);
-    const password = b.password.length > MAX_PASSWORD ? "" : b.password;
+    const tooLong = b.password.length > MAX_PASSWORD;
     // An unknown name is checked against a dummy hash, so the time taken does not tell which names exist.
-    const match = await verifyPassword(password, user?.password ?? dummyHash());
+    const match = await verifyPassword(tooLong ? "" : b.password, user?.password ?? dummyHash());
     const current = this.users.get(key);
-    if (!user || !match || !current || fingerprint(current) !== fingerprint(user) || b.password.length > MAX_PASSWORD) {
-      if (f.times.length >= MAX_FAILURES) f.until = this.now() + LOCK_MS;
-      return c.json({ detail: WRONG_LOGIN }, 401);
+    if (!user || !match || tooLong || this.broken || !current || fingerprint(current) !== fingerprint(user)) {
+      return c.json({ detail: this.broken ? USERS_UNAVAILABLE : WRONG_LOGIN }, this.broken ? 503 : 401);
     }
     this.failures.delete(key);
-    if (this.sessions.size >= MAX_SESSIONS) {
-      const now = this.now();
-      for (const [t, s] of this.sessions) if (now - s.seen > SESSION_IDLE_MS) this.sessions.delete(t);
-      while (this.sessions.size >= MAX_SESSIONS) this.sessions.delete(this.sessions.keys().next().value!);
-    }
-    const token = crypto.randomBytes(32).toString("base64url");
-    this.sessions.set(token, { key, fp: fingerprint(user), seen: this.now() });
-    setCookie(c, SESSION_COOKIE, token, { httpOnly: true, sameSite: "Strict", path: "/", secure: isHttps(c) });
+    const token = this.addSession(key, user);
+    setCookie(c, sessionCookie(c), token, { httpOnly: true, sameSite: "Strict", path: "/", secure: isHttps(c) });
     return c.json({ user: { name: user.name, role: user.role } satisfies SessionUser });
   }
 
   private logout(c: Context): Response {
-    const token = getCookie(c, SESSION_COOKIE);
+    const token = getCookie(c, sessionCookie(c));
     if (token) this.sessions.delete(token);
-    deleteCookie(c, SESSION_COOKIE, { httpOnly: true, sameSite: "Strict", path: "/", secure: isHttps(c) });
+    deleteCookie(c, sessionCookie(c), { httpOnly: true, sameSite: "Strict", path: "/", secure: isHttps(c) });
     return c.json({ ok: true });
   }
 
@@ -389,6 +470,17 @@ export class Auth {
     app.post("/api/logout", (c) => this.logout(c));
     app.get("/api/me", (c) => c.json(this.me(c)));
   }
+}
+
+/**
+ * The session cookie's name for the server this request was addressed to. Browsers do not keep
+ * cookies apart by port, so two servers on localhost would sign each other out with one shared
+ * name; the port from the Host header makes the name differ (no port: the plain name).
+ */
+export function sessionCookie(c: Context): string {
+  const host = c.req.header("host") ?? "";
+  const port = /:(\d{1,5})$/.exec(host)?.[1];
+  return port ? `${SESSION_COOKIE}_${port}` : SESSION_COOKIE;
 }
 
 /** The request came over https (directly, or through a proxy that says so). */
@@ -408,7 +500,8 @@ export function authorize(ctx: Ctx): MiddlewareHandler {
       .slice(c.req.routeIndex + 1)
       .find((r) => r.method === method || r.method === "ALL");
     if (!route) return next(); // nothing answers: Hono's own 404
-    const action = ROUTE_RULES[`${method} ${route.path}`];
+    // Keyed on the matched route's own method, so an "ALL" route (the 404 answer) finds its rule.
+    const action = ROUTE_RULES[`${route.method} ${route.path}`];
     const who = c.get("dpWho");
     let author: string | null = null;
     if (action === "draft.discard" && who.role === "engineer") {

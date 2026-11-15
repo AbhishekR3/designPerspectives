@@ -1,5 +1,5 @@
 import { api } from "../api";
-import { Section, TagInput, TextField } from "../fields";
+import { Fields, Section, TagInput, TextField } from "../fields";
 import { StylePanel } from "../StylePanel";
 import { KIND_LABEL, type DiagramNode, type Stage } from "../types";
 import type { Common } from "./common";
@@ -24,6 +24,7 @@ export function StagePanel({ node, ...p }: Common & { node: DiagramNode }) {
   return (
     <div className="panel-body" data-testid="stage-panel">
       <div className="panel-kind">Stage {idx + 1} of {stages.length}</div>
+      <Fields loose>
       <TextField label="Name" value={st.name} onCommit={(v) => patch({ name: v })} testId="stage-name" />
       <TextField label="Description" value={st.description ?? ""} multiline onCommit={(v) => patch({ description: v })} />
       <TagInput label="Technology" value={st.technologies ?? []} suggestions={state.technologies} onChange={(v) => patch({ technologies: v })} testId="stage-tech" />
@@ -48,21 +49,26 @@ export function StagePanel({ node, ...p }: Common & { node: DiagramNode }) {
           ))}
         </select>
       </label>
+      </Fields>
       {node.drillKey && <button onClick={() => p.onOpen(node.drillKey!)}>Open what implements this stage</button>}
-      <Section title="Appearance" testId="sec-style">
-        <StylePanel target={node.id} style={node.style} edge={false} mutate={mutate} />
-      </Section>
-      <div className="panel-actions">
-        <button disabled={idx === 0} onClick={() => move(-1)}>
-          Move earlier
-        </button>
-        <button disabled={idx === stages.length - 1} onClick={() => move(1)}>
-          Move later
-        </button>
-        <button className="danger" onClick={() => saveStages(stages.filter((_, i) => i !== idx)).then((ok) => ok && p.onSelect(null))}>
-          Delete stage
-        </button>
-      </div>
+      {!state.readOnly && (
+        <>
+          <Section title="Appearance" testId="sec-style">
+            <StylePanel target={node.id} style={node.style} edge={false} mutate={mutate} />
+          </Section>
+          <div className="panel-actions">
+            <button disabled={idx === 0} onClick={() => move(-1)}>
+              Move earlier
+            </button>
+            <button disabled={idx === stages.length - 1} onClick={() => move(1)}>
+              Move later
+            </button>
+            <button className="danger" onClick={() => saveStages(stages.filter((_, i) => i !== idx)).then((ok) => ok && p.onSelect(null))}>
+              Delete stage
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }

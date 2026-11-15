@@ -47,6 +47,11 @@
 - "+ New planned file" in the element panel for a component or container in a draft. It creates the file and maps the path in one request (`POST /api/code/file` with `mapTo`); both happen or neither.
 - Success toasts for apply and discard.
 - The state response carries a `version`. When the window regains focus, the UI reloads only if the model changed (git checkout, another tab, the CLI).
+- Optional sign-in. A project with a `.dp/users.json` file shows a sign-in page. Three roles: Architect, Engineer and Viewer (DEC-041). Without the file nothing changes.
+- Role rules enforced on the server for every changing route. Engineers create and edit drafts but cannot change the main model, write code files or apply drafts. Viewers change nothing.
+- User chip with role and Sign out. Default lens by role (Architect, Engineer, Overview for viewers), remembered per user and project; anyone can still switch lens. "View only" badge for viewers and a "Start a draft" banner for engineers on the main model.
+- `dp users init`, `add`, `passwd`, `remove` and `list`, and `dp serve --users <file>`.
+- Side panels have a real read-only mode, and controls a role cannot use are hidden.
 
 ### Changed
 - API clients must send `Content-Type: application/json` with a request body (415 otherwise).
@@ -96,6 +101,8 @@
 - An edit that saved but whose reload failed says "Saved, but the view could not be refreshed", with Retry. Follow-ups (select, rename) still run.
 - Back and Forward across a version switch land on the right diagram and add no stray history entries.
 - Ctrl/Cmd+S on a file planned for deletion no longer drops the planned deletion silently.
+- Side panels looked editable on git versions and in read-only views. They now have a real read-only mode.
+- Boxes could be dragged or resized in read-only views. They can no longer be there.
 
 ### Security
 - Requests must be addressed to a loopback host (`localhost`, `127.0.0.1`, `[::1]`) when the server
@@ -109,6 +116,15 @@
 - Hidden files and folders (names starting with a dot, such as `.git` and `.env`) are never read,
   written, listed or planned through dp, in the code folder, in drafts or in git versions. Symlinks to
   them are refused. Code file writes are capped at 1 MB.
+- Sign-in lockout (5 failed sign-ins lock a name for 30 seconds) cannot be bypassed with parallel requests.
+- A locked name cannot be kept locked by repeated attempts, and failures on other names cannot reset it.
+- A users file made invalid while the server runs no longer switches sign-in off.
+- A half-saved users file no longer signs everyone out for good.
+- One user signing in repeatedly no longer evicts other users' sessions.
+- Unknown API paths return 404 instead of 403.
+- The check that the users file is outside the code folder cannot be bypassed with a symlink.
+- Oversized password-hash parameters are refused, so they cannot exhaust memory.
+- Users file: scrypt hashes, owner-only file permissions, and `.dp/` is added to `.gitignore`. It must not be committed. A malformed file stops `dp serve`.
 
 ## 0.3.0 — 2026-11-14
 

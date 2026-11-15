@@ -19,8 +19,8 @@ export function pickLens(s: AppState, saved: string | null): Lens {
   return s.lenses.find((l) => l.id === saved) ?? s.lenses.find((l) => l.id === s.defaultLens) ?? s.lenses[0];
 }
 
-/** The lens remembered for this project, else the one remembered before lenses were kept per project. */
-export const savedLens = (root: string): string | null => storage.get(lensKey(root)) ?? storage.get(LENS_KEY);
+/** The lens remembered for this project (and this person, with sign-in); without sign-in, else the one remembered before lenses were kept per project. */
+export const savedLens = (root: string, user?: string | null): string | null => storage.get(lensKey(root, user)) ?? (user ? null : storage.get(LENS_KEY));
 
 /** The chosen lens (remembered in localStorage per project), the colour overlay and the Focus/Hide filters. */
 export function useLensState() {
@@ -53,7 +53,7 @@ export function useLens(p: {
     const l = state.lenses.find((x) => x.id === id);
     if (!l) return;
     setLensId(id);
-    storage.set(lensKey(state.root), id);
+    storage.set(lensKey(state.root, state.me?.name), id);
     setOverlay(lensOverlay(l, state));
     if (diagram && !inLens(l, diagram.level)) {
       const first = state.diagrams.find((d) => inLens(l, d.level));
@@ -97,7 +97,7 @@ export function useLens(p: {
       const l = s?.lenses.find((x) => x.id === id);
       if (!s || !l) return;
       setLensId(id);
-      storage.set(lensKey(s.root), id);
+      storage.set(lensKey(s.root, s.me?.name), id);
       setOverlay(lensOverlay(l, s));
     });
   }

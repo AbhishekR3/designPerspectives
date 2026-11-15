@@ -84,16 +84,18 @@ export function FlowCard({
               <Icon name="flows" size={13} /> {f.title} <span className="muted">{f.steps.length} steps</span>
             </button>
           ))}
-          <button
-            role="menuitem"
-            onClick={() => {
-              setOpen(false);
-              onNewFlow();
-            }}
-            data-testid="new-flow"
-          >
-            <Icon name="plus" size={13} /> New flow
-          </button>
+          {!state.readOnly && (
+            <button
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                onNewFlow();
+              }}
+              data-testid="new-flow"
+            >
+              <Icon name="plus" size={13} /> New flow
+            </button>
+          )}
         </div>
       )}
       {flow && (

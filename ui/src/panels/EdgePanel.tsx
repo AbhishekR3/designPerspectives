@@ -1,6 +1,6 @@
 import { api } from "../api";
-import { CodePaths } from "../CodeParts";
-import { Section, TagInput, TextField } from "../fields";
+import { CodePaths, OpenCodeDiagram } from "../CodeParts";
+import { Fields, Section, TagInput, TextField } from "../fields";
 import { openWork } from "../overlays";
 import { StylePanel } from "../StylePanel";
 import { type EdgeLayout, type Relationship } from "../types";
@@ -19,7 +19,7 @@ export function EdgePanel({ edgeId, ...p }: Common & { edgeId: string }) {
   const style = edge.style;
   const setLayout = (layout: EdgeLayout) => mutate(() => api.layout(diagram.key, { edges: { [edge.id]: layout } }));
   const has = (s: (typeof lens.visibleSections)[number]) => lens.visibleSections.includes(s);
-  const lineControls = diagram.level !== "flow" && (
+  const lineControls = diagram.level !== "flow" && !state.readOnly && (
     <>
       <label className="field inline">
         <span>Line shape</span>
@@ -55,9 +55,11 @@ export function EdgePanel({ edgeId, ...p }: Common & { edgeId: string }) {
         <p>
           {name(edge.source)} imports {name(edge.target)}.
         </p>
-        <Section title="Appearance">
-          <StylePanel target={edge.id} style={style} edge mutate={mutate} />
-        </Section>
+        {!state.readOnly && (
+          <Section title="Appearance">
+            <StylePanel target={edge.id} style={style} edge mutate={mutate} />
+          </Section>
+        )}
         {lineControls}
       </div>
     );
@@ -95,9 +97,11 @@ export function EdgePanel({ edgeId, ...p }: Common & { edgeId: string }) {
             );
           })}
         </ul>
-        <Section title="Appearance">
-          <StylePanel target={edge.id} style={style} edge mutate={mutate} />
-        </Section>
+        {!state.readOnly && (
+          <Section title="Appearance">
+            <StylePanel target={edge.id} style={style} edge mutate={mutate} />
+          </Section>
+        )}
         {lineControls}
       </div>
     );
@@ -118,7 +122,8 @@ export function EdgePanel({ edgeId, ...p }: Common & { edgeId: string }) {
           {name(r.destinationId)}
         </button>
       </p>
-      <TextField label="Description" value={r.description} onCommit={(v) => save({ description: v })} testId="field-rel-description" autoFocus={p.focusName} />
+      <Fields loose>
+      <TextField label="Description" value={r.description} onCommit={(v) => save({ description: v })} testId="field-rel-description" autoFocus={p.focusName && !state.readOnly} />
       {has("technology") && <TagInput label="Technology / protocol" value={r.technologies} suggestions={state.technologies} onChange={(v) => save({ technology: v })} testId="field-rel-technology" />}
       <label className="field">
         <span>Kind</span>
@@ -131,6 +136,7 @@ export function EdgePanel({ edgeId, ...p }: Common & { edgeId: string }) {
           ))}
         </select>
       </label>
+      </Fields>
       <button className="primary" onClick={() => p.onOpen(detailKey)} data-testid="open-connector">
         Open connector detail{r.stages.length ? ` (${r.stages.length} stages)` : ""}
       </button>
@@ -150,24 +156,28 @@ export function EdgePanel({ edgeId, ...p }: Common & { edgeId: string }) {
         </Section>
       )}
       {has("code") && (
-        <Section title="Code" count={r.codePaths.length}>
-          <CodePaths paths={r.codePaths} onSave={(v) => save({ codePaths: v })} onOpenDiagram={() => p.onOpen(`code-${r.id}`)} />
+        <Section title="Code" count={r.codePaths.length} footer={r.codePaths.length > 0 ? <OpenCodeDiagram onOpen={() => p.onOpen(`code-${r.id}`)} /> : undefined}>
+          <CodePaths paths={r.codePaths} onSave={(v) => save({ codePaths: v })} />
         </Section>
       )}
-      <Section title="Appearance" count={Object.keys(style).length}>
-        <StylePanel target={edge.id.startsWith("conn:") ? r.id : edge.id} style={style} edge mutate={mutate} />
-      </Section>
+      {!state.readOnly && (
+        <Section title="Appearance" count={Object.keys(style).length}>
+          <StylePanel target={edge.id.startsWith("conn:") ? r.id : edge.id} style={style} edge mutate={mutate} />
+        </Section>
+      )}
       {lineControls}
-      <div className="panel-actions">
-        <button
-          className="danger"
-          onClick={() => {
-            void confirmDeleteRelationship().then((yes) => yes && mutate(() => api.deleteRelationship(r.id)).then((ok) => ok && p.onSelect(null)));
-          }}
-        >
-          Delete
-        </button>
-      </div>
+      {!state.readOnly && (
+        <div className="panel-actions">
+          <button
+            className="danger"
+            onClick={() => {
+              void confirmDeleteRelationship().then((yes) => yes && mutate(() => api.deleteRelationship(r.id)).then((ok) => ok && p.onSelect(null)));
+            }}
+          >
+            Delete
+          </button>
+        </div>
+      )}
     </div>
   );
 }
