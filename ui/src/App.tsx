@@ -1,5 +1,7 @@
 import { ReactFlowProvider } from "@xyflow/react";
 import { useEffect, useRef, useState } from "react";
+import { useElementSize, useInsetVars } from "./insets";
+import { PALETTE_KEY, storage } from "./storage";
 import { draftActions, diagramActions, useElementActions } from "./actions";
 import { api } from "./api";
 import { ApplyDialog, ChangeDetails, ChangeList, DraftDialog, DraftList, GhostPanel, PlanDialog, VersionStrip } from "./ChangesPanel";
@@ -9,6 +11,7 @@ import { Dock } from "./Dock";
 import { CharacteristicsEditor, CostSettingsEditor, LensEditor, TagGroupEditor } from "./editors";
 import { FlowCard } from "./FlowCard";
 import { FlowPanel } from "./FlowPanel";
+import { HelpCard } from "./HelpCard";
 import { Icon } from "./icons";
 import { UserChip } from "./UserChip";
 import { diagramEditable, menuItems, useContextMenu } from "./menus";
@@ -35,6 +38,9 @@ import { notify, Toasts } from "./notify";
 
 type ModalState = { type: "tag"; group: TagGroup | null } | { type: "lens"; lens: Lens | null } | { type: "chars" } | { type: "cost" } | { type: "apply"; draftId: string; title: string } | { type: "plan"; draftId: string } | { type: "draft"; mode: "new" } | { type: "draft"; mode: "rename" | "description"; draftId: string } | null;
 
+/** The Add palette starts collapsed on a canvas narrower than this (until the person opens it). */
+const PALETTE_OPEN_FROM = 720;
+
 export default function App({ onSignOut }: { onSignOut(): void }) {
   // State. Hook order matters only for effects, which run in this order: first load (useModel),
   // URL/history sync (useHashSync), flow autoplay, keyboard shortcuts.
@@ -42,7 +48,7 @@ export default function App({ onSignOut }: { onSignOut(): void }) {
   const lensState = useLensState();
   const { overlay, setOverlay, filters, setFilters } = lensState;
   const { key, setKey, keyRef, open, pickChange } = useNavigation(setSelection);
-  const { state, diagram, version, versionRef, changes, loadError, retryLoad, loadDiagram, refresh, switchVersion, mutate, doHistory } = useModel({
+  const { state, diagram, version, versionRef, loading, changes, loadError, retryLoad, loadDiagram, refresh, switchVersion, mutate, doHistory } = useModel({
     keyRef,
     setKey,
     setSelection,
@@ -67,8 +73,25 @@ export default function App({ onSignOut }: { onSignOut(): void }) {
   const { menu, setMenu, closeMenu, openMenu } = useContextMenu({ setFocusName, setSelection, setExportOpen });
   const player = useFlowPlayer();
   const { flowStep, setFlowStep, playing, setPlaying } = player;
-  const { leftOpen, toggleLeft, startDrag, resetLeft, resetRight, gridTemplateColumns } = usePanels();
+  const { leftOpen, rightOpen, toggleLeft, toggleRight, startDrag, resetLeft, resetRight, gridTemplateColumns } = usePanels();
   const canvasRef = useRef<CanvasHandle>(null);
+  // F2 on a line asks the panel to focus its name field: show the panel if it is collapsed.
+  useEffect(() => {
+    if (focusName && !rightOpen) toggleRight();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only a new request for the name field matters
+  }, [focusName]);
+  // The canvas area: its width decides how the controls on it lay out (data-cw) and whether the Add palette starts open.
+  const [wrapEl, setWrapEl] = useState<HTMLDivElement | null>(null);
+  const wrapSize = useElementSize(wrapEl);
+  useInsetVars(wrapEl);
+  const [palettePref, setPalettePref] = useState(() => storage.get(PALETTE_KEY));
+  const paletteOpen = palettePref === null ? !wrapSize || wrapSize.w >= PALETTE_OPEN_FROM : palettePref === "1";
+  const togglePalette = () => {
+    const next = paletteOpen ? "0" : "1";
+    storage.set(PALETTE_KEY, next);
+    setPalettePref(next);
+  };
+  const cw = !wrapSize ? "md" : wrapSize.w < 560 ? "xs" : wrapSize.w < 800 ? "sm" : "md";
 
   // A box waiting to be renamed that is not on this diagram must not pop open later on another one.
   useEffect(() => {
@@ -155,7 +178,7 @@ export default function App({ onSignOut }: { onSignOut(): void }) {
 
   const diagramCost = diagram ? overlayable(diagram).reduce((sum, n) => sum + (n.costRollup ?? 0), 0) : 0;
   const tools = (
-    <div className="float bar tools">
+    <div className="float bar tools" data-testid="bar-tools">
       {state.me && (
         <>
           <UserChip me={state.me} role={state.can.createDraft ? state.me.role : "viewer"} onSignOut={onSignOut} />
@@ -252,7 +275,6 @@ export default function App({ onSignOut }: { onSignOut(): void }) {
           <div className="role-banner" data-testid="role-banner">
             <Icon name="layers" size={14} />
             <span>You are viewing the main model. Engineers propose changes in a draft.</span>
-            <span className="spacer" />
             <button className="primary small" onClick={() => setModal({ type: "draft", mode: "new" })} data-testid="role-start-draft">
               Start a draft
             </button>
@@ -271,7 +293,8 @@ export default function App({ onSignOut }: { onSignOut(): void }) {
             onExit={() => switchVersion("main", null)}
           />
         )}
-        <div className="canvas-wrap">
+        <div className={`canvas-wrap${loading ? " loading-diagram" : ""}`} ref={setWrapEl} data-cw={cw} aria-busy={loading || undefined} data-testid="canvas-wrap">
+          {loading && <div className="load-bar" role="progressbar" aria-label="Loading" data-testid="loading-bar" />}
           {diagram && (
             <ReactFlowProvider key={diagram.key}>
               <Canvas
@@ -300,131 +323,146 @@ export default function App({ onSignOut }: { onSignOut(): void }) {
             </ReactFlowProvider>
           )}
 
-          <div className="hud top-left">
-            <div className="float bar nav">
-              <button className="ghost icon" onClick={() => open("landscape")} title="System landscape" aria-label="Home" data-testid="nav-home">
-                <Icon name="home" />
-              </button>
-              <button className="ghost icon" onClick={() => window.history.back()} title="Back to the previous diagram (Alt+Left)" aria-label="Back" data-testid="nav-back">
-                <Icon name="back" />
-              </button>
-              <button className="ghost icon" onClick={() => window.history.forward()} title="Forward (Alt+Right)" aria-label="Forward" data-testid="nav-forward">
-                <Icon name="forward" />
-              </button>
-              <span className="divider" />
-              <button className={`ghost${leftOpen ? " on" : ""}`} onClick={toggleLeft} title="Show or hide the diagram list" data-testid="toggle-diagrams">
-                Diagrams
-              </button>
-              <span className="divider" />
-              <nav className="breadcrumb" data-testid="breadcrumb">
-                <Icon name="layers" size={14} className="muted" />
-                {diagram?.breadcrumb.map((c, i) => (
-                  <span key={c.key} className="crumb">
-                    {i > 0 && <span className="sep">/</span>}
-                    <button className={`link ${c.key === key ? "active" : ""}`} onClick={() => open(c.key)} data-testid={`crumb-${c.key}`}>
-                      {c.c4 && <span className={`level-tag c4-${c.c4}`}>{c.c4}</span>} {c.label}
-                    </button>
-                  </span>
-                ))}
-              </nav>
-            </div>
-            {diagram && !inLens(lens, diagram.level) && <div className="float note small">This level is not in the {lens.name} lens.</div>}
-            <FlowCard
-              state={state}
-              diagram={diagram}
-              flow={flow}
-              flowStep={flowStep}
-              setFlowStep={setFlowStep}
-              playing={playing}
-              setPlaying={setPlaying}
-              onOpen={open}
-              onNewFlow={newFlow}
-            />
-          </div>
-
-          <div className="hud top-right">
-            <div className="float bar">
-              <button className="ghost search-btn" onClick={() => setSearchOpen(true)} title="Find an object (Ctrl/Cmd+K)" data-testid="search">
-                <Icon name="search" /> <span className="kbd">⌘K</span>
-              </button>
-              <span className="divider" />
-              <label className="lens-pick" title="Lens: what this audience sees by default">
-                <Icon name="eye" size={14} />
-                <select value={lens.id} onChange={(e) => chooseLens(e.target.value)} data-testid="lens-select" aria-label="Lens">
-                  {state.lenses.map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.name}
-                    </option>
+          <div className="topbar" data-testid="topbar" data-occludes="top">
+            <div className="topbar-main">
+              <div className="float bar nav" data-testid="bar-nav">
+                <div className="nav-controls">
+                  <button className="ghost icon" onClick={() => open("landscape")} title="System landscape" aria-label="Home" data-testid="nav-home">
+                    <Icon name="home" />
+                  </button>
+                  <button className="ghost icon" onClick={() => window.history.back()} title="Back to the previous diagram (Alt+Left)" aria-label="Back" data-testid="nav-back">
+                    <Icon name="back" />
+                  </button>
+                  <button className="ghost icon" onClick={() => window.history.forward()} title="Forward (Alt+Right)" aria-label="Forward" data-testid="nav-forward">
+                    <Icon name="forward" />
+                  </button>
+                  <span className="divider" />
+                  <button className={`ghost diagrams-btn${leftOpen ? " on" : ""}`} onClick={toggleLeft} title="Show or hide the diagram list" aria-label="Diagrams" aria-pressed={leftOpen} data-testid="toggle-diagrams">
+                    <Icon name="panel" size={14} /> <span className="diagrams-label">Diagrams</span>
+                  </button>
+                  <span className="divider" />
+                </div>
+                <nav className="breadcrumb" data-testid="breadcrumb" aria-label="Breadcrumb">
+                  <Icon name="layers" size={14} className="muted" />
+                  {diagram?.breadcrumb.map((c, i, all) => (
+                    <span key={c.key} className={`crumb${i === all.length - 1 ? " last" : ""}`}>
+                      {i > 0 && <span className="sep">/</span>}
+                      <button className={`link ${c.key === key ? "active" : ""}`} onClick={() => open(c.key)} title={c.label} data-testid={`crumb-${c.key}`}>
+                        {c.c4 && <span className={`level-tag c4-${c.c4}`}>{c.c4}</span>}
+                        <span className="crumb-label">{c.label}</span>
+                      </button>
+                    </span>
                   ))}
-                </select>
-              </label>
-              <span className="divider" />
-              <button className={`ghost icon${helpOpen ? " on" : ""}`} onClick={() => setHelpOpen(!helpOpen)} aria-label="Help" title="Help" data-testid="help">
-                <Icon name="help" />
-              </button>
-            </div>
-            {tools}
-            {helpOpen && (
-              <div className="float help-card small" data-testid="help-card">
-                <ul className="hints">
-                  <li>Click a box or line to see and edit it in the panel on the right.</li>
-                  <li>Right-click a box, a line or empty space for a menu of what you can do there (open, rename, copy and paste, symbol, line shape, arrows, style, add here, layout, zoom).</li>
-                  <li>Double-click a system or container to open the next level.</li>
-                  <li>Add: drag a database, queue, pipeline, service and more from the palette on the left onto the diagram, or click it.</li>
-                  <li>Drag from a dot on any side of a box to another box to connect them, or to empty space to pick a kind and add a connected box.</li>
-                  <li>Shift+click boxes, or Shift+drag over empty canvas, to select several: drag or use the arrow keys to move them together, Delete removes them (one undo step).</li>
-                  <li>On a context, container or component diagram a new person or system is connected to the system, or to the box you selected. Right-click a container or component, then Move to…, to put it in another parent.</li>
-                  <li>Rename on the canvas: select a box, then click its name (or press F2). The bar above a selected box also changes its symbol, opens it, duplicates or deletes it.</li>
-                  <li>Select a box to resize it; select a line to drag its ends, bend it, or slide its label along it.</li>
-                  <li>Double-click a line to open the connector behind it.</li>
-                  <li>Dashed lines are derived from relationships between elements inside the boxes.</li>
-                  <li>Bottom left: colour boxes by a tag group, technology, characteristic or cost; click a value to focus on or hide those boxes.</li>
-                  <li>Ctrl/Cmd+K: find an object. Delete: remove the selection. F2: rename.</li>
-                </ul>
+                </nav>
               </div>
+              <div className="topbar-right">
+                <div className="float bar" data-testid="bar-actions">
+                  <button className="ghost search-btn" onClick={() => setSearchOpen(true)} title="Find an object (Ctrl/Cmd+K)" aria-label="Find an object" data-testid="search">
+                    <Icon name="search" /> <span className="kbd">⌘K</span>
+                  </button>
+                  <span className="divider" />
+                  <label className="lens-pick" title={`Lens: ${lens.name}. What this audience sees by default`}>
+                    <Icon name="eye" size={14} />
+                    <select value={lens.id} onChange={(e) => chooseLens(e.target.value)} data-testid="lens-select" aria-label="Lens">
+                      {state.lenses.map((l) => (
+                        <option key={l.id} value={l.id}>
+                          {l.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <span className="divider" />
+                  <button className={`ghost icon${helpOpen ? " on" : ""}`} onClick={() => setHelpOpen(!helpOpen)} aria-label="Help" aria-expanded={helpOpen} title="Help and keyboard shortcuts (?)" data-testid="help">
+                    <Icon name="help" />
+                  </button>
+                </div>
+              </div>
+              <Toasts>
+                {serverReadOnly && (
+                  <div className="float toast info" data-testid="readonly-banner">
+                    Viewer role: this server is read-only. Changes are refused.
+                  </div>
+                )}
+              </Toasts>
+            </div>
+            <div className="topbar-sub">
+              <div className="topbar-left">
+                {diagram && !inLens(lens, diagram.level) && <div className="float note small">This level is not in the {lens.name} lens.</div>}
+                <FlowCard
+                  state={state}
+                  diagram={diagram}
+                  flow={flow}
+                  flowStep={flowStep}
+                  setFlowStep={setFlowStep}
+                  playing={playing}
+                  setPlaying={setPlaying}
+                  onOpen={open}
+                  onNewFlow={newFlow}
+                />
+              </div>
+              {tools}
+            </div>
+          </div>
+          {helpOpen && <HelpCard onClose={() => setHelpOpen(false)} />}
+
+          <div className="left-stack">
+            {diagram && !state.readOnly && !diagram.compare?.removed && diagram.level !== "flow" && diagram.level !== "code" && <Palette diagram={diagram} open={paletteOpen} onToggle={togglePalette} onAdd={(it) => addItem(it)} />}
+            {diagram && diagram.level !== "code" && diagram.level !== "connector" && (
+              <Dock
+                state={state}
+                diagram={diagram}
+                groups={visibleGroups}
+                overlay={activeOverlay}
+                setOverlay={setOverlay}
+                filters={filters}
+                setFilters={setFilters}
+                onEditTagGroup={(g) => setModal({ type: "tag", group: g })}
+                onNewTagGroup={() => setModal({ type: "tag", group: null })}
+                onEditCharacteristics={() => setModal({ type: "chars" })}
+                onEditCost={() => setModal({ type: "cost" })}
+              />
             )}
           </div>
 
-          <Toasts>
-            {serverReadOnly && (
-              <div className="float toast info" data-testid="readonly-banner">
-                Viewer role: this server is read-only. Changes are refused.
-              </div>
-            )}
-          </Toasts>
-
-          {diagram && diagram.level !== "code" && diagram.level !== "connector" && (
-            <Dock
-              state={state}
-              diagram={diagram}
-              groups={visibleGroups}
-              overlay={activeOverlay}
-              setOverlay={setOverlay}
-              filters={filters}
-              setFilters={setFilters}
-              onEditTagGroup={(g) => setModal({ type: "tag", group: g })}
-              onNewTagGroup={() => setModal({ type: "tag", group: null })}
-              onEditCharacteristics={() => setModal({ type: "chars" })}
-              onEditCost={() => setModal({ type: "cost" })}
-            />
+          {diagram && diagram.nodes.length === 0 && (
+            <div className="free-area">
+              {diagram.level === "landscape" && !state.readOnly && !diagram.compare?.removed ? (
+                <EmptyStart
+                  onAdd={(testId) => {
+                    const item = paletteItems(diagram).find((it) => it.testId === testId);
+                    if (item) void addItem(item);
+                  }}
+                />
+              ) : (
+                <div className="empty-hint" data-testid="empty-hint">
+                  {emptyHint(diagram.level, state.readOnly)}
+                </div>
+              )}
+            </div>
           )}
-
-          {diagram && !state.readOnly && !diagram.compare?.removed && diagram.level !== "flow" && diagram.level !== "code" && <Palette diagram={diagram} onAdd={(it) => addItem(it)} />}
-
-          {diagram && diagram.nodes.length === 0 &&
-            (diagram.level === "landscape" && !state.readOnly && !diagram.compare?.removed ? (
-              <EmptyStart onAdd={(testId) => {
-                const item = paletteItems(diagram).find((it) => it.testId === testId);
-                if (item) void addItem(item);
-              }} />
-            ) : (
-              <div className="empty-hint" data-testid="empty-hint">{emptyHint(diagram.level, state.readOnly)}</div>
-            ))}
         </div>
       </main>
 
-      <div className="resizer" onPointerDown={startDrag("right")} onDoubleClick={resetRight} role="separator" aria-orientation="vertical" title="Drag to resize the panel (double-click: reset)" data-testid="resize-right" />
-      <aside className="panel">
+      {rightOpen ? (
+        <div className="resizer" onPointerDown={startDrag("right")} onDoubleClick={resetRight} role="separator" aria-orientation="vertical" title="Drag to resize the panel (double-click: reset)" data-testid="resize-right" />
+      ) : (
+        <div />
+      )}
+      {!rightOpen && (
+        <aside className="panel rail" data-testid="panel-rail">
+          <button className="ghost icon" onClick={toggleRight} aria-label="Show the details panel" title="Show the details panel" aria-expanded={false} data-testid="panel-open">
+            <Icon name="panel" className="flip" />
+          </button>
+          {selection && <span className="rail-dot" title="Something is selected: open the details panel to see it" data-testid="panel-selected" />}
+        </aside>
+      )}
+      <aside className="panel" hidden={!rightOpen} data-testid="panel">
+        <div className="panel-head">
+          <span className="muted small">Details</span>
+          <button className="ghost icon" onClick={toggleRight} aria-label="Hide the details panel" title="Hide the details panel" aria-expanded={true} data-testid="panel-close">
+            <Icon name="panel" className="flip" />
+          </button>
+        </div>
         <ReadOnlyContext.Provider value={state.readOnly}>
         {showGhost && (
           <GhostPanel node={selectedNode} edge={selectedEdge} change={selectedChange} against={againstLabel} />

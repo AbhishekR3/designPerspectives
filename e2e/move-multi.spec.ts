@@ -140,7 +140,8 @@ test("Shift+drag draws a selection box; the menu offers Delete and Auto-layout; 
   const canvas = (await page.getByTestId("canvas").boundingBox())!;
   await page.keyboard.down("Shift");
   // From just below the lowest box at the right edge (empty canvas) to the top left corner.
-  await page.mouse.move(canvas.x + canvas.width - 4, canvas.y + canvas.height - 125);
+  const lowest = Math.max(...(await Promise.all(d.nodes.map(async (n: { id: string }) => (await node(page, n.id).boundingBox())!))).map((b) => b.y + b.height));
+  await page.mouse.move(canvas.x + canvas.width - 4, lowest + 8);
   await page.mouse.down();
   await page.mouse.move(canvas.x + 3, canvas.y + 3, { steps: 10 });
   await page.mouse.up();

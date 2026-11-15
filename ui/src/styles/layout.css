@@ -9,7 +9,36 @@
 .panel {
   background: var(--panel);
   overflow-y: auto;
+  overflow-x: hidden;
   min-width: 0;
+}
+/* The right panel: a thin header with the collapse button, then the panel for what is selected. */
+.panel-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 2px var(--space-3) 2px 14px;
+  background: var(--panel);
+}
+/* Collapsed: a slim rail with the button that opens it, and a dot when something is selected. */
+.panel.rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  overflow: hidden;
+  border-left: 1px solid var(--line);
+}
+.rail-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--amber);
 }
 .sidebar {
   padding: 12px 14px;
@@ -23,10 +52,20 @@
   letter-spacing: 0.08em;
   color: var(--muted);
 }
+.brand {
+  align-items: flex-start;
+}
+.brand-name {
+  min-width: 0;
+}
 .brand .ws-name {
   font-size: 16px;
   font-weight: 600;
   color: var(--text);
+  overflow-wrap: anywhere;
+}
+.brand > button {
+  flex: none;
 }
 .sidebar section {
   border-top: 1px solid var(--line);
@@ -56,7 +95,49 @@
 }
 .tree li {
   margin: 1px 0;
+  min-width: 0;
+}
+/* A row of the sidebar: the label gives way (ellipsis, full text in the tooltip); marks and buttons stay. */
+.tree li.tree-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.tree li.tree-row > .tree-label,
+.tree li.tree-row > button.link {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.tree li.tree-row > button.ghost {
+  flex: none;
+}
+.tree-label {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
+}
+button.link.tree-link {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+  text-align: left;
+}
+button.link.tree-link .tree-label {
+  flex: 0 1 auto;
+}
+button.link.tree-link .tree-mark {
+  flex: none;
+  white-space: nowrap;
+}
+.sidebar .check {
+  align-items: flex-start;
+}
+.sidebar .check input {
+  margin-top: 2px;
 }
 .level-tag {
   display: inline-block;
@@ -119,49 +200,106 @@
   padding-left: 18px;
 }
 .empty-hint {
-  position: absolute;
-  top: 45%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  max-width: min(460px, 100%);
   color: var(--muted);
   background: var(--float);
   border: 1px dashed var(--line-strong);
   padding: 14px 18px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   pointer-events: none;
+  text-align: center;
+  overflow-wrap: anywhere;
 }
-.hud {
+/* The part of the canvas that no floating control covers (--inset-* are measured, see insets.ts): cards that
+   should sit in the middle of what can be seen are centred here. */
+.free-area {
   position: absolute;
-  z-index: var(--z-hud);
+  top: var(--inset-top, 0);
+  left: var(--inset-left, 0);
+  right: var(--inset-right, 0);
+  bottom: var(--inset-bottom, 0);
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  overflow: hidden;
+}
+/* Palette above the dock on the left: one column, so a tall dock panel and the palette share the height
+   (each scrolls inside itself) instead of covering each other. The zoom buttons keep the right edge. */
+.left-stack {
+  position: absolute;
+  left: var(--gutter);
+  right: 56px;
+  top: var(--inset-top, 100px);
+  bottom: var(--gutter);
+  z-index: var(--z-palette);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
   pointer-events: none;
 }
-.hud > * {
+.left-stack > * {
   pointer-events: auto;
 }
-.hud.top-left {
-  top: 10px;
-  left: 10px;
-  align-items: flex-start;
-  max-width: calc(100% - 380px);
+.left-stack > .dock {
+  margin-top: auto;
 }
-.hud.top-right {
-  top: 10px;
-  right: 10px;
-  align-items: flex-end;
-}
-.hud.top-center {
-  top: 64px;
+/* Toasts hang below the first row of the top area. */
+.toasts {
+  position: absolute;
+  top: calc(100% + var(--space-3));
   left: 50%;
   transform: translateX(-50%);
+  width: max-content;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
   align-items: center;
+  gap: var(--space-3);
+  pointer-events: none;
+  z-index: var(--z-help);
+}
+.toasts > * {
+  pointer-events: auto;
+}
+/* A thin bar while another diagram or version loads; the old diagram dims a little after a moment. */
+.load-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  z-index: var(--z-loading);
+  overflow: hidden;
+  pointer-events: none;
+  background: rgba(94, 225, 245, 0.18);
+}
+.load-bar::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 35%;
+  background: var(--accent);
+  animation: dp-load 1s ease-in-out infinite;
+}
+@keyframes dp-load {
+  from {
+    left: -35%;
+  }
+  to {
+    left: 100%;
+  }
+}
+.canvas-wrap.loading-diagram .canvas {
+  opacity: 0.55;
+  transition: opacity 0.2s 0.15s;
 }
 .float {
   background: var(--float);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow);
 }
 .bar {
@@ -169,7 +307,7 @@
   align-items: center;
   gap: 2px;
   padding: 4px;
-  min-height: 40px;
+  min-height: var(--bar-h);
 }
 .bar .divider {
   width: 1px;
@@ -180,7 +318,8 @@
 .bar.tools {
   flex-wrap: wrap;
   justify-content: flex-end;
-  max-width: 520px;
+  max-width: 100%;
+  min-width: 0;
 }
 .float-btn {
   background: var(--float);
@@ -198,34 +337,116 @@
   padding: 4px 10px;
   color: #fbbf24;
 }
+/* The top area: a row with the breadcrumb bar and the search/lens/help bar, and a second row with the flows
+   button and the tools. Nothing is positioned over anything else; what does not fit shrinks (breadcrumb crumbs,
+   the lens label) or wraps (the second row), in that order. */
+.topbar {
+  position: absolute;
+  top: var(--gutter);
+  left: var(--gutter);
+  right: var(--gutter);
+  z-index: var(--z-hud);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  pointer-events: none;
+}
+.topbar > * > *,
+.topbar-left > * {
+  pointer-events: auto;
+}
+.topbar-main {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.topbar-sub {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.topbar-left {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  min-width: 0;
+  max-width: 100%;
+}
+.topbar-sub > .bar.tools {
+  margin-left: auto;
+}
+.topbar-right {
+  flex: none;
+  min-width: 0;
+  max-width: 55%;
+}
+.topbar-right .bar {
+  min-width: 0;
+}
+.bar.nav {
+  flex: 1 1 0;
+  min-width: 0;
+  flex-wrap: wrap;
+  row-gap: 0;
+}
+.nav-controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+}
 .breadcrumb {
   display: flex;
   align-items: center;
   gap: 2px;
-  padding: 0 6px;
+  padding: 0 var(--space-2);
   min-width: 0;
+  flex: 1 1 140px;
+  min-height: var(--control-h);
   white-space: nowrap;
 }
-.bar.nav {
-  max-width: 100%;
-  min-width: 0;
+.breadcrumb .icon-svg {
+  flex: none;
 }
+/* Narrowing order: the crumbs in the middle shrink first (down to a short ellipsis), then the current crumb. */
 .breadcrumb .crumb {
   display: inline-flex;
   align-items: center;
   min-width: 0;
+  flex: 0 1 auto;
+}
+.breadcrumb .crumb:not(.last) {
+  min-width: 3.4em;
+  flex-shrink: 20;
+}
+.breadcrumb .crumb.last {
+  flex-shrink: 1;
 }
 .breadcrumb .crumb button {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
 }
-.breadcrumb .crumb:not(:last-child) button {
-  max-width: 130px;
+.breadcrumb .crumb-label {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.breadcrumb .level-tag {
+  flex: none;
 }
 .breadcrumb .sep {
+  flex: none;
   color: var(--muted);
-  margin: 0 6px;
+  margin: 0 var(--space-2);
 }
 .breadcrumb button.link {
   color: var(--muted);
@@ -243,8 +464,12 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  padding-left: 6px;
+  padding-left: var(--space-2);
   color: var(--muted);
+  min-width: 0;
+}
+.lens-pick .icon-svg {
+  flex: none;
 }
 .lens-pick select {
   background: transparent;
@@ -252,53 +477,98 @@
   color: var(--text);
   font-weight: 500;
   padding: 4px 2px;
+  max-width: 150px;
+  min-width: 0;
+  text-overflow: ellipsis;
 }
-.draft-strip {
+/* A narrow canvas: the search button is just its icon, the lens label is shorter, "Diagrams" is just its icon. */
+.canvas-wrap[data-cw="sm"] .search-btn .kbd,
+.canvas-wrap[data-cw="xs"] .search-btn .kbd,
+.canvas-wrap[data-cw="sm"] .diagrams-label,
+.canvas-wrap[data-cw="xs"] .diagrams-label,
+.canvas-wrap[data-cw="sm"] .breadcrumb .level-tag,
+.canvas-wrap[data-cw="xs"] .breadcrumb .level-tag {
+  display: none;
+}
+.canvas-wrap[data-cw="sm"] .lens-pick select {
+  max-width: 120px;
+}
+.canvas-wrap[data-cw="xs"] .lens-pick select {
+  max-width: 90px;
+}
+.canvas-wrap[data-cw="xs"] .topbar-right {
+  max-width: 60%;
+}
+/* The strip for a draft or a compared version, and the banner for an engineer on main: one row when it fits;
+   when it does not, the buttons drop to a second row (they never scroll out of view). */
+.draft-strip,
+.role-banner {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
-  padding: 5px 12px;
+  column-gap: var(--space-4);
+  row-gap: var(--space-1);
+  padding: 5px var(--space-4);
   background: #142a31;
   border-bottom: 1px solid #1e5670;
   color: #c7d2fe;
-  white-space: nowrap;
   min-width: 0;
-  overflow-x: auto;
 }
-.draft-strip strong {
+.draft-strip > .icon-svg,
+.role-banner > .icon-svg {
+  flex: none;
+}
+.draft-strip .strip-title {
+  flex: 1 1 120px;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  min-width: 40px;
+  white-space: nowrap;
+}
+.strip-meta,
+.strip-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex: none;
+  max-width: 100%;
+  white-space: nowrap;
+}
+.strip-meta {
+  flex-wrap: wrap;
+}
+.strip-actions {
+  margin-left: auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 .draft-strip .check {
   margin: 0;
 }
-.draft-strip .spacer {
-  flex: 1;
-}
 .change-summary {
   display: inline-flex;
-  gap: 10px;
+  gap: var(--space-2);
   align-items: center;
-  flex-wrap: wrap;
+  white-space: nowrap;
 }
 .change-count {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.18);
 }
 .empty-start {
-  position: absolute;
-  top: 45%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: min(380px, calc(100% - 32px));
+  width: min(380px, 100%);
   box-sizing: border-box;
   background: var(--float);
   border: 1px solid var(--line-strong);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow);
   padding: 20px 22px;
+  pointer-events: auto;
 }
 .empty-start h2 {
   margin: 0 0 10px;
@@ -453,24 +723,13 @@
 .user-menu p {
   margin: 0;
 }
-.role-banner {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 5px 12px;
-  background: #142a31;
-  border-bottom: 1px solid #1e5670;
-  color: #c7d2fe;
-  min-width: 0;
-}
-.role-banner .spacer {
-  flex: 1;
-}
 .role-banner > span:first-of-type {
+  flex: 1 1 200px;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+}
+.role-banner button {
+  margin-left: auto;
+  flex: none;
 }
 
 /* Read-only panels: inside <Fields>, controls are disabled and the ones that add or remove are hidden. */
@@ -509,4 +768,62 @@
 .panel-note {
   color: var(--muted);
   font-size: 12px;
+}
+
+/* Breakpoints. The width of the canvas column itself (which also depends on the side panels) is handled by
+   data-cw on .canvas-wrap; these are for the window. */
+@media (max-width: 1100px) {
+  .palette {
+    width: 152px;
+  }
+  .dock-tabs .float-btn {
+    padding: 5px 8px;
+  }
+  .user-chip {
+    max-width: 140px;
+  }
+  .flow-name {
+    max-width: 160px;
+  }
+}
+@media (max-width: 900px) {
+  .palette {
+    width: 140px;
+  }
+  .palette-item {
+    padding: 4px 6px;
+  }
+  .help-card {
+    width: min(360px, calc(100% - 2 * var(--gutter)));
+  }
+  .sidebar {
+    padding: var(--space-4) var(--space-3);
+  }
+}
+/* A short window: tighter controls, so the palette and the dock leave room for the diagram. */
+@media (max-height: 720px) {
+  :root {
+    --control-h: 26px;
+    --bar-h: 36px;
+    --gutter: 8px;
+  }
+  .palette-item {
+    padding: 3px 8px;
+  }
+  .palette-hint {
+    display: none;
+  }
+  .help-card {
+    font-size: 12px;
+  }
+}
+/* Out of scope below this width, but it must not break: the canvas, with the side panels collapsed. */
+@media (max-width: 759px) {
+  .sidebar,
+  .resizer {
+    display: none;
+  }
+  .topbar-right {
+    max-width: 70%;
+  }
 }

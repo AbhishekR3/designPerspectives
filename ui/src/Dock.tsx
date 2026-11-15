@@ -60,7 +60,8 @@ export function Dock({
   onEditCost(): void;
 }) {
   const [tab, setTab] = useState<Tab | null>(tabOf(overlay));
-  const [menu, setMenu] = useState<{ key: string; label: string } | null>(null);
+  // The Focus / Hide menu of a value chip. It is fixed to the window (placed from the chip), so the dock panel's own scrolling does not clip it.
+  const [menu, setMenu] = useState<{ key: string; label: string; style: React.CSSProperties } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (overlay) setTab(tabOf(overlay));
@@ -115,7 +116,11 @@ export function Dock({
         <button
           className={`dock-chip${f ? ` ${f.mode}` : ""}${n === 0 ? " zero" : ""}`}
           style={color ? { ["--chip" as string]: color } : undefined}
-          onClick={() => setMenu(menu?.key === key ? null : { key, label })}
+          onClick={(e) => {
+            const r = e.currentTarget.getBoundingClientRect();
+            const place: React.CSSProperties = r.top > 150 ? { bottom: window.innerHeight - r.top + 4 } : { top: r.bottom + 4 };
+            setMenu(menu?.key === key ? null : { key, label, style: { position: "fixed", left: Math.max(8, Math.min(r.left, window.innerWidth - 180)), margin: 0, ...place } });
+          }}
           title={title ?? "Focus on or hide the objects with this value"}
           data-testid={`chip-${key}`}
         >
@@ -125,7 +130,7 @@ export function Dock({
           {f && <Icon name={f.mode === "focus" ? "focus" : "eyeOff"} size={11} />}
         </button>
         {menu?.key === key && (
-          <div className="pop-menu" ref={menuRef} role="menu">
+          <div className="pop-menu" ref={menuRef} role="menu" style={menu.style}>
             <button role="menuitem" onClick={() => addFilter(key, label, "focus")} data-testid="filter-focus">
               <Icon name="focus" size={14} /> Focus
             </button>
@@ -144,7 +149,7 @@ export function Dock({
   };
 
   return (
-    <div className="dock" data-testid="dock">
+    <div className="dock" data-testid="dock" data-occludes="bottom">
       <div className="dock-tabs">
         {(state.compare ? [CHANGES_TAB, ...TABS] : TABS).map((t) => (
           <button
@@ -172,25 +177,25 @@ export function Dock({
                 {s.label} <span className="n">{s.count}</span>
               </button>
             ))}
-            {tab === "tags" && subTabs.length === 0 && <span className="muted small">No tag groups yet.</span>}
+            {tab === "tags" && subTabs.length === 0 && <span className="empty-note">No tag groups yet.</span>}
             <span className="spacer" />
             {tab === "tags" && !state.readOnly && active?.kind === "tag" && (
-              <button className="ghost icon" title="Edit this tag group" onClick={() => onEditTagGroup(groups.find((g) => g.name === active.name)!)}>
+              <button className="ghost icon" title="Edit this tag group" aria-label="Edit this tag group" onClick={() => onEditTagGroup(groups.find((g) => g.name === active.name)!)}>
                 <Icon name="gear" size={14} />
               </button>
             )}
             {tab === "tags" && !state.readOnly && (
-              <button className="ghost icon" title="New tag group" onClick={onNewTagGroup} data-testid="dock-new-tag-group">
+              <button className="ghost icon" title="New tag group" aria-label="New tag group" onClick={onNewTagGroup} data-testid="dock-new-tag-group">
                 <Icon name="plus" size={14} />
               </button>
             )}
             {tab === "char" && !state.readOnly && (
-              <button className="ghost icon" title="Edit the list of characteristics" onClick={onEditCharacteristics} data-testid="edit-characteristics">
+              <button className="ghost icon" title="Edit the list of characteristics" aria-label="Edit the list of characteristics" onClick={onEditCharacteristics} data-testid="edit-characteristics">
                 <Icon name="gear" size={14} />
               </button>
             )}
             {tab === "cost" && !state.readOnly && (
-              <button className="ghost icon" title="Currency and cost bands" onClick={onEditCost} data-testid="edit-cost">
+              <button className="ghost icon" title="Currency and cost bands" aria-label="Currency and cost bands" onClick={onEditCost} data-testid="edit-cost">
                 <Icon name="gear" size={14} />
               </button>
             )}
@@ -217,7 +222,7 @@ export function Dock({
           {filters.map((f, i) => (
             <span className={`filter-pill ${f.mode}`} key={i}>
               <Icon name={f.mode === "focus" ? "focus" : "eyeOff"} size={12} /> {f.mode === "focus" ? "Focus" : "Hidden"}: {f.label}
-              <button className="ghost icon" aria-label="Remove filter" onClick={() => setFilters(filters.filter((_, j) => j !== i))}>
+              <button className="ghost icon" aria-label="Remove filter" title="Remove filter" onClick={() => setFilters(filters.filter((_, j) => j !== i))}>
                 <Icon name="close" size={11} />
               </button>
             </span>

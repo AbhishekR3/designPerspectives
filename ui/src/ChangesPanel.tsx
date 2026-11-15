@@ -215,52 +215,57 @@ export function VersionStrip({
   return (
     <div className="draft-strip" data-testid={isDraft ? "draft-banner" : "version-strip"}>
       <Icon name="layers" size={14} />
-      <strong title={state.model.title}>{state.model.title}</strong>
-      {state.model.ref.startsWith("ref:") && <span className="muted small">read-only</span>}
-      {comparingOther && (
-        <span className="small" data-testid="compare-title">
-          compared with <strong>{state.compare!.title}</strong>
-        </span>
-      )}
-      {isDraft && !comparingOther && (
-        <label className="check small" title="Colour what this draft adds, changes and removes">
-          <input type="checkbox" checked={showChanges} onChange={(e) => setShowChanges(e.target.checked)} data-testid="show-changes" />
-          Show changes
-        </label>
-      )}
-      {s && <SummaryChips s={s} compact />}
-      {isDraft && <BehindBadge n={state.drafts.find((d) => `draft:${d.id}` === state.model.ref)?.behind ?? 0} />}
-      {isDraft && (
-        <button className="small" onClick={onPlan} title="What to build, and how much of it the code already does" data-testid="draft-plan">
-          Coding plan…
-        </button>
-      )}
-      {isDraft && state.can.applyDraft && (
-        <button className="primary small" onClick={onApply} data-testid="draft-apply">
-          Apply…
-        </button>
-      )}
-      {isDraft && !state.can.applyDraft && state.can.createDraft && (
-        <span className="muted small" data-testid="draft-apply-note">
-          An architect applies drafts.
-        </span>
-      )}
-      {isDraft && state.can.discardDraft && (
-        <button className="small" onClick={onDiscard} data-testid="draft-discard">
-          Discard
-        </button>
-      )}
-      <span className="spacer" />
-      {comparingOther && (
-        <button className="ghost small" onClick={onStopCompare} data-testid="stop-compare">
-          Stop comparing
-        </button>
-      )}
-      {state.model.ref !== "main" && (
-        <button className="ghost small" onClick={onExit} data-testid="draft-exit">
-          Back to main
-        </button>
-      )}
+      <strong className="strip-title" title={state.model.title} data-testid="strip-title">
+        {state.model.title}
+      </strong>
+      <div className="strip-meta">
+        {state.model.ref.startsWith("ref:") && <span className="muted small">read-only</span>}
+        {comparingOther && (
+          <span className="small truncate" data-testid="compare-title" title={`compared with ${state.compare!.title}`}>
+            compared with <strong>{state.compare!.title}</strong>
+          </span>
+        )}
+        {isDraft && !comparingOther && (
+          <label className="check small" title="Colour what this draft adds, changes and removes">
+            <input type="checkbox" checked={showChanges} onChange={(e) => setShowChanges(e.target.checked)} data-testid="show-changes" />
+            Show changes
+          </label>
+        )}
+        {s && <SummaryChips s={s} compact />}
+        {isDraft && <BehindBadge n={state.drafts.find((d) => `draft:${d.id}` === state.model.ref)?.behind ?? 0} />}
+      </div>
+      <div className="strip-actions">
+        {isDraft && (
+          <button className="small" onClick={onPlan} title="What to build, and how much of it the code already does" data-testid="draft-plan">
+            Coding plan…
+          </button>
+        )}
+        {isDraft && state.can.applyDraft && (
+          <button className="primary small" onClick={onApply} data-testid="draft-apply">
+            Apply…
+          </button>
+        )}
+        {isDraft && !state.can.applyDraft && state.can.createDraft && (
+          <span className="muted small" data-testid="draft-apply-note">
+            An architect applies drafts.
+          </span>
+        )}
+        {isDraft && state.can.discardDraft && (
+          <button className="small" onClick={onDiscard} data-testid="draft-discard">
+            Discard
+          </button>
+        )}
+        {comparingOther && (
+          <button className="ghost small" onClick={onStopCompare} data-testid="stop-compare">
+            Stop comparing
+          </button>
+        )}
+        {state.model.ref !== "main" && (
+          <button className="ghost small" onClick={onExit} data-testid="draft-exit">
+            Back to main
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -367,7 +372,7 @@ export function ApplyDialog({ draftId, title, onClose, onApplied }: { draftId: s
       )}
       <div className="modal-actions">
         <button onClick={onClose}>Cancel</button>
-        <button className="primary" onClick={apply} disabled={!preview || conflicts.length > 0 || busy} data-testid="apply-confirm">
+        <button className="primary" onClick={apply} disabled={!preview || conflicts.length > 0 || busy} aria-busy={busy} data-testid="apply-confirm">
           Apply
         </button>
       </div>
@@ -380,7 +385,7 @@ const TYPE_LABEL: Record<string, string> = { elements: "Elements", relationships
 /** Every change, grouped by type. Clicking one opens the diagram that shows it. */
 export function ChangeList({ changes, onPick }: { changes: ChangeSet; onPick?(c: ObjectChange): void }) {
   const groups = (["elements", "relationships", "flows", "settings"] as const).filter((g) => changes[g].length);
-  if (!groups.length && !changes.code.length) return <p className="muted small">No changes{changes.summary.layout ? ` (only ${changes.summary.layout} layout changes)` : ""}.</p>;
+  if (!groups.length && !changes.code.length) return <p className="empty-note">No changes{changes.summary.layout ? ` (only ${changes.summary.layout} layout changes)` : ""}.</p>;
   return (
     <div className="change-list" data-testid="change-list">
       {groups.map((g) => (
@@ -615,7 +620,7 @@ export function PlanDialog({ state, draftId, onClose, onSaved }: { state: AppSta
           Checked against {plan.checkedAgainst}: <strong>{plan.summary.done} done</strong> · {plan.summary.open} open · {plan.summary.manual} to check by hand
         </p>
       )}
-      {plan && !work.length && <p className="muted">No code work: the draft changes only the model's documentation.</p>}
+      {plan && !work.length && <p className="empty-note">No code work: the draft changes only the model's documentation.</p>}
       {plan && !showMd && (
         <div className="plan-list" data-testid="plan-list">
           {sections.map((s) => (
@@ -742,7 +747,7 @@ export function DraftDialog({
           <button type="button" onClick={onClose}>
             Cancel
           </button>
-          <button type="submit" className="primary" disabled={!canSubmit} data-testid={mode === "new" ? "draft-create" : "draft-save"}>
+          <button type="submit" className="primary" disabled={!canSubmit} aria-busy={busy} data-testid={mode === "new" ? "draft-create" : "draft-save"}>
             {mode === "new" ? "Create" : "Save"}
           </button>
         </div>

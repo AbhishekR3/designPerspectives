@@ -156,7 +156,7 @@ export function ObjectPanel({ element, ...p }: Common & { element: ElementSummar
               <a href={l.url} target="_blank" rel="noreferrer">
                 {l.label || l.url}
               </a>
-              <button className="icon edit-only" aria-label="Remove link" onClick={() => save({ links: element.links.filter((_, j) => j !== i) })}>
+              <button className="icon edit-only" aria-label="Remove link" title="Remove link" onClick={() => save({ links: element.links.filter((_, j) => j !== i) })}>
                 ×
               </button>
             </li>

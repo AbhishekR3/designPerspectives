@@ -14,6 +14,11 @@ export function useFlowAutoplay(diagram: Diagram | null, player: ReturnType<type
   const flow = diagram?.level === "flow" ? diagram.flow : undefined;
   useEffect(() => {
     if (!playing || !flow) return;
+    // A flow without steps has nothing to play: no step is set on it.
+    if (flow.steps.length === 0) {
+      setPlaying(false);
+      return;
+    }
     const t = window.setTimeout(() => {
       if (flowStep === null) setFlowStep(0);
       else if (flowStep < flow.steps.length) setFlowStep(flowStep + 1);

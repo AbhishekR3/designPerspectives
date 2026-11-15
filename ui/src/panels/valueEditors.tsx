@@ -39,6 +39,7 @@ export function CharacteristicsEditor({ rows, defs, onSave }: { rows: Rating[]; 
                   role="radio"
                   aria-checked={r.rating === v}
                   aria-label={`${v} of 5`}
+                  title={`${v} of 5`}
                   data-testid={`rate-${r.name}-${v}`}
                 >
                   ★
@@ -53,7 +54,7 @@ export function CharacteristicsEditor({ rows, defs, onSave }: { rows: Rating[]; 
             >
               Driving
             </button>
-            <button className="icon edit-only" aria-label={`Remove ${r.name}`} onClick={() => onSave(rows.filter((x) => x.name !== r.name))}>
+            <button className="icon edit-only" aria-label={`Remove ${r.name}`} title={`Remove ${r.name}`} onClick={() => onSave(rows.filter((x) => x.name !== r.name))}>
               ×
             </button>
           </div>

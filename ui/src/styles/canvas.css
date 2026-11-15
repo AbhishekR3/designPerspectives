@@ -23,15 +23,19 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  /* "safe": when the text is taller than the box it starts at the top instead of being cut off at both ends */
+  justify-content: safe center;
   gap: 4px;
   overflow: hidden;
+  min-width: 0;
 }
 .c4-title {
   display: flex;
   align-items: center;
   gap: 7px;
   max-width: 100%;
+  min-width: 0;
+  flex: none;
 }
 .c4-icon {
   display: inline-flex;
@@ -39,16 +43,23 @@
 .c4-name {
   font-weight: 600;
   line-height: 1.2;
+  min-width: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
 }
 .c4-desc {
   line-height: 1.3;
   color: #a8afb8;
+  max-width: 100%;
+  overflow-wrap: anywhere;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  flex: none;
 }
 .c4-type {
   font-size: 10px;
@@ -69,6 +80,13 @@
   gap: 4px;
   flex-wrap: wrap;
   justify-content: center;
+  max-width: 100%;
+  flex: none;
+}
+.c4-badges .badge {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .c4-badges:empty {
   display: none;
@@ -220,22 +238,40 @@
   position: absolute;
   top: 8px;
   left: 12px;
+  right: 12px;
   font-size: 11px;
   font-weight: 600;
   color: #b6bdc6;
   display: flex;
   align-items: center;
   gap: 5px;
+  min-width: 0;
+}
+.boundary-label .icon-svg {
+  flex: none;
+}
+.boundary-label span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .boundary-foot {
   position: absolute;
   bottom: 8px;
-  left: 0;
-  right: 0;
+  left: 12px;
+  right: 12px;
   text-align: center;
   font-size: 10px;
   color: var(--muted);
   line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.boundary-foot > div {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 .react-flow__edge-path.c4-edge {
   stroke: #6b727c;
@@ -270,6 +306,13 @@
   text-align: center;
   pointer-events: all;
   line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.edge-label .edge-text {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
 }
 .edge-label.derived {
   color: #8b929b;
@@ -293,6 +336,8 @@
   cursor: grabbing;
 }
 .edge-tech {
+  max-width: 100%;
+  overflow-wrap: anywhere;
   font-size: 9.5px;
   color: #7b838d;
   display: flex;
@@ -343,16 +388,15 @@
 .react-flow__controls-button svg {
   fill: var(--text);
 }
+/* The Add palette: one button when collapsed; open, its list scrolls inside it (it shrinks to the height it is given). */
 .palette {
-  position: absolute;
-  left: 10px;
-  top: 128px;
-  z-index: var(--z-palette);
+  /* When the column is short the palette gives way first (it scrolls), so an open dock panel keeps its height. */
+  flex: 0 20 auto;
+  min-height: 120px;
   width: 168px;
-  max-height: calc(100% - 300px);
   display: flex;
   flex-direction: column;
-  padding: 4px;
+  padding: var(--space-1);
   overflow: hidden;
 }
 .palette.closed {
@@ -361,12 +405,21 @@
 .palette-head {
   font-weight: 600;
   justify-content: flex-start;
+  flex: none;
+}
+.palette-head .icon-svg:last-child {
+  margin-left: auto;
+}
+.palette-scroll {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
 }
 .palette-items {
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
-  min-height: 0;
 }
 .palette-item {
   justify-content: flex-start;
@@ -398,6 +451,8 @@
   border: 1px solid var(--line-strong);
   border-radius: 8px;
   box-shadow: var(--shadow);
+  width: max-content;
+  max-width: calc(100vw - 16px);
 }
 .quick-bar select {
   max-width: 150px;

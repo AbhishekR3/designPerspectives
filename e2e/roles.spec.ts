@@ -397,9 +397,9 @@ test.describe("a long name", () => {
     await openDiagram(page, KEY);
     await node(page, "api-application").click();
     const chip = (await page.getByTestId("user-chip").boundingBox())!;
-    const bar = (await page.locator(".hud.top-right .bar").first().boundingBox())!;
-    const tools = (await page.locator(".hud.top-right .bar.tools").boundingBox())!;
-    const nav = (await page.locator(".hud.top-left .bar.nav").boundingBox())!;
+    const bar = (await page.getByTestId("bar-actions").boundingBox())!;
+    const tools = (await page.getByTestId("bar-tools").boundingBox())!;
+    const nav = (await page.getByTestId("bar-nav").boundingBox())!;
     const main = (await page.locator(".canvas-wrap").boundingBox())!;
     expect(chip.width).toBeLessThanOrEqual(175);
     for (const b of [chip, bar, tools]) {

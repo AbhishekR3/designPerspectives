@@ -65,7 +65,7 @@ export function FlowPanel({
               {curRel.technologies.length > 0 && <>Carried by: {curRel.technologies.join(", ")}.</>}
             </div>
           )}
-          {cur.example ? <pre className="example" data-testid="step-example">{cur.example}</pre> : <div className="muted small">No example data for this step.{!state.readOnly && " Add one under the step below."}</div>}
+          {cur.example ? <pre className="example" data-testid="step-example">{cur.example}</pre> : <div className="empty-note">No example data for this step.{!state.readOnly && " Add one under the step below."}</div>}
           {curRel.sensitive.length > 0 && (
             <div className="small">
               Sensitive: {curRel.sensitive.map((x) => `${x.item} (${x.level})`).join("; ")}
@@ -100,13 +100,13 @@ export function FlowPanel({
                 {relLabel(s.relationshipId)}
               </button>
               {!state.readOnly && <span className="step-tools">
-                <button className="icon" disabled={i === 0} onClick={() => move(i, -1)} aria-label="Move up">
+                <button className="icon" disabled={i === 0} onClick={() => move(i, -1)} aria-label="Move up" title="Move up">
                   ↑
                 </button>
-                <button className="icon" disabled={i === flow.steps.length - 1} onClick={() => move(i, 1)} aria-label="Move down">
+                <button className="icon" disabled={i === flow.steps.length - 1} onClick={() => move(i, 1)} aria-label="Move down" title="Move down">
                   ↓
                 </button>
-                <button className="icon" onClick={() => saveSteps(flow.steps.filter((_, j) => j !== i))} aria-label="Remove step">
+                <button className="icon" onClick={() => saveSteps(flow.steps.filter((_, j) => j !== i))} aria-label="Remove step" title="Remove step">
                   ×
                 </button>
               </span>}

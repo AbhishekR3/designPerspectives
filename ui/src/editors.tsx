@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { api } from "./api";
-import { Modal } from "./fields";
+import { Modal, useBusy } from "./fields";
 import { bandRange } from "./overlays";
 import { LEVELS, LEVEL_LABEL, SECTIONS, SECTION_LABEL, type CharacteristicDef, type CostSettings, type Lens, type Level, type Section, type TagGroup } from "./types";
 import { confirmDialog } from "./dialogs";
@@ -16,11 +16,13 @@ export function TagGroupEditor({ group, onClose, mutate }: { group: TagGroup | n
     group ? group.values.map((v) => ({ ...v, previousName: v.name })) : [{ name: "", color: PALETTE[0], previousName: null as string | null }],
   );
   const set = (i: number, patch: object) => setValues(values.map((v, j) => (j === i ? { ...v, ...patch } : v)));
-  const save = async () => {
-    const body = { name, values: values.filter((v) => v.name.trim()) };
-    const ok = await mutate(() => (group ? api.updateTagGroup(group.name, body) : api.createTagGroup(body)));
-    if (ok) onClose();
-  };
+  const [busy, guard] = useBusy();
+  const save = () =>
+    guard(async () => {
+      const body = { name, values: values.filter((v) => v.name.trim()) };
+      const ok = await mutate(() => (group ? api.updateTagGroup(group.name, body) : api.createTagGroup(body)));
+      if (ok) onClose();
+    });
   return (
     <Modal title={group ? `Edit tag group` : "New tag group"} onClose={onClose}>
       <label className="field">
@@ -33,7 +35,7 @@ export function TagGroupEditor({ group, onClose, mutate }: { group: TagGroup | n
         <div className="row" key={i}>
           <input type="color" value={v.color} onChange={(e) => set(i, { color: e.target.value })} aria-label="Colour" />
           <input value={v.name} onChange={(e) => set(i, { name: e.target.value })} placeholder="Value" data-testid={`tg-value-${i}`} />
-          <button className="icon" onClick={() => setValues(values.filter((_, j) => j !== i))} aria-label="Remove value">
+          <button className="icon" onClick={() => setValues(values.filter((_, j) => j !== i))} aria-label="Remove value" title="Remove value">
             ×
           </button>
         </div>
@@ -47,7 +49,7 @@ export function TagGroupEditor({ group, onClose, mutate }: { group: TagGroup | n
       {group && <p className="muted small">Removing a value clears it from every object that has it.</p>}
       <div className="modal-actions">
         <button onClick={onClose}>Cancel</button>
-        <button className="primary" onClick={save} disabled={!name.trim()} data-testid="tg-save">
+        <button className="primary" onClick={save} disabled={!name.trim()} aria-busy={busy} data-testid="tg-save">
           Save
         </button>
       </div>
@@ -85,17 +87,19 @@ export function LensEditor({
         },
   );
   const toggle = <T,>(list: T[], v: T) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
-  const save = async () => {
-    let id = lens && !readOnly ? lens.id : "";
-    const ok = await mutate(async () => {
-      if (lens && !readOnly) await api.updateLens(lens.id, draft);
-      else id = (await api.createLens(draft)).id;
+  const [busy, guard] = useBusy();
+  const save = () =>
+    guard(async () => {
+      let id = lens && !readOnly ? lens.id : "";
+      const ok = await mutate(async () => {
+        if (lens && !readOnly) await api.updateLens(lens.id, draft);
+        else id = (await api.createLens(draft)).id;
+      });
+      if (ok) {
+        onSaved(id);
+        onClose();
+      }
     });
-    if (ok) {
-      onSaved(id);
-      onClose();
-    }
-  };
   return (
     <Modal title={readOnly ? `Duplicate "${lens!.name}"` : lens ? "Edit lens" : "New lens"} onClose={onClose}>
       {readOnly && <p className="muted small">Built-in lenses cannot be changed. Saving creates your own copy.</p>}
@@ -208,7 +212,7 @@ export function LensEditor({
         )}
         <span className="spacer" />
         <button onClick={onClose}>Cancel</button>
-        <button className="primary" onClick={save} disabled={!draft.name.trim() || draft.visibleLevels.length === 0} data-testid="lens-save">
+        <button className="primary" onClick={save} disabled={!draft.name.trim() || draft.visibleLevels.length === 0} aria-busy={busy} data-testid="lens-save">
           {readOnly ? "Save copy" : "Save"}
         </button>
       </div>
@@ -220,9 +224,11 @@ export function LensEditor({
 export function CharacteristicsEditor({ items, onClose, mutate }: { items: CharacteristicDef[]; onClose(): void; mutate: Mutate }) {
   const [rows, setRows] = useState(items.map((c) => ({ ...c, previousName: c.name as string | null })));
   const set = (i: number, patch: object) => setRows(rows.map((r, j) => (j === i ? { ...r, ...patch } : r)));
-  const save = async () => {
-    if (await mutate(() => api.setCharacteristics(rows.filter((r) => r.name.trim())))) onClose();
-  };
+  const [busy, guard] = useBusy();
+  const save = () =>
+    guard(async () => {
+      if (await mutate(() => api.setCharacteristics(rows.filter((r) => r.name.trim())))) onClose();
+    });
   return (
     <Modal title="Architecture characteristics" onClose={onClose}>
       <p className="muted small">
@@ -235,7 +241,7 @@ export function CharacteristicsEditor({ items, onClose, mutate }: { items: Chara
             <input value={r.name} onChange={(e) => set(i, { name: e.target.value })} placeholder="Name, e.g. Observability" data-testid={`char-name-${i}`} />
             <input value={r.description} onChange={(e) => set(i, { description: e.target.value })} placeholder="What it means here (optional)" className="small" />
           </div>
-          <button className="icon" aria-label="Remove" onClick={() => setRows(rows.filter((_, j) => j !== i))}>
+          <button className="icon" aria-label="Remove" title="Remove" onClick={() => setRows(rows.filter((_, j) => j !== i))}>
             ×
           </button>
         </div>
@@ -245,7 +251,7 @@ export function CharacteristicsEditor({ items, onClose, mutate }: { items: Chara
       </button>
       <div className="modal-actions">
         <button onClick={onClose}>Cancel</button>
-        <button className="primary" onClick={save} data-testid="char-save">
+        <button className="primary" onClick={save} aria-busy={busy} data-testid="char-save">
           Save
         </button>
       </div>
@@ -257,9 +263,11 @@ export function CharacteristicsEditor({ items, onClose, mutate }: { items: Chara
 export function CostSettingsEditor({ settings, onClose, mutate }: { settings: CostSettings; onClose(): void; mutate: Mutate }) {
   const [draft, setDraft] = useState<CostSettings>(structuredClone(settings));
   const setBand = (i: number, patch: object) => setDraft({ ...draft, bands: draft.bands.map((b, j) => (j === i ? { ...b, ...patch } : b)) });
-  const save = async () => {
-    if (await mutate(() => api.setCostSettings(draft))) onClose();
-  };
+  const [busy, guard] = useBusy();
+  const save = () =>
+    guard(async () => {
+      if (await mutate(() => api.setCostSettings(draft))) onClose();
+    });
   return (
     <Modal title="Cost settings" onClose={onClose}>
       <label className="field">
@@ -291,7 +299,7 @@ export function CostSettingsEditor({ settings, onClose, mutate }: { settings: Co
           </span>
           <button
             className="icon"
-            aria-label="Remove band"
+            aria-label="Remove band" title="Remove band"
             disabled={draft.bands.length <= 1}
             onClick={() => {
               const bands = draft.bands.filter((_, j) => j !== i);
@@ -317,7 +325,7 @@ export function CostSettingsEditor({ settings, onClose, mutate }: { settings: Co
       </button>
       <div className="modal-actions">
         <button onClick={onClose}>Cancel</button>
-        <button className="primary" onClick={save} data-testid="cost-save">
+        <button className="primary" onClick={save} aria-busy={busy} data-testid="cost-save">
           Save
         </button>
       </div>

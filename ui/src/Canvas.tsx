@@ -15,6 +15,7 @@ import {
   type NodeSelectionChange,
 } from "@xyflow/react";
 import { toPng, toSvg } from "html-to-image";
+import { canvasInsets } from "./insets";
 import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type Ref } from "react";
 import { CUSTOM_HEADS, FLOW_CURRENT, MarkerDefs, edgeColor, edgeTypes, nodeTypes, type C4EdgeData, type C4NodeData, type NodeActions, type OverlayInfo, type Rect4 } from "./canvasParts";
 import { errorMessage, notify, run } from "./notify";
@@ -87,8 +88,18 @@ type P = Record<string, Pt>;
 /** What was right-clicked: a box, a line, or empty canvas (with the point, in diagram coordinates). */
 export type ContextTarget = { type: "node"; id: string } | { type: "edge"; id: string } | { type: "pane"; at: Pt };
 
-/** Room for the floating bars around the canvas, so fitting the view does not put boxes under them. */
-const FIT = { padding: { top: "110px", bottom: "130px", left: "200px", right: "60px" } } as const;
+/** Room kept around the diagram, beyond the floating controls that cover the edges of the canvas. */
+const FIT_PAD = 20;
+const motion = (ms: number) => (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? 0 : ms);
+/**
+ * Fit-to-view options: the diagram is fitted into the part of the canvas that the top bars, the Add palette,
+ * the dock and the zoom buttons do not cover (measured now, so it follows the palette being open or collapsed).
+ */
+function fitOptions(canvas: HTMLElement | null, duration: number) {
+  const i = canvasInsets(canvas?.closest<HTMLElement>(".canvas-wrap") ?? canvas);
+  const px = (v: number): `${number}px` => `${Math.max(FIT_PAD, v + FIT_PAD)}px`;
+  return { padding: { top: px(i.top), bottom: px(i.bottom), left: px(i.left), right: px(i.right) }, duration: motion(duration) };
+}
 
 /** Kinds of box that can be part of a selection of several. */
 const MULTI_KINDS = new Set(["person", "softwareSystem", "container", "component"]);
@@ -188,11 +199,35 @@ export function Canvas({ diagram, lens, decorate, actions, archTypes, renameId, 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [diagram]);
 
+  // Until the person moves or zooms the view themselves, a change of the canvas size (a side panel opened or
+  // resized, a strip shown above the canvas, the window resized) fits the diagram into the new free area again.
+  const touched = useRef(false);
+  useEffect(() => {
+    const el = wrapper.current;
+    if (!el) return;
+    let last = `${el.clientWidth}x${el.clientHeight}`;
+    let frame = 0;
+    const ro = new ResizeObserver(() => {
+      const now = `${el.clientWidth}x${el.clientHeight}`;
+      if (now === last) return;
+      last = now;
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        if (!touched.current && fitFor.current === diagram.key) rf.fitView(fitOptions(el, 0));
+      });
+    });
+    ro.observe(el);
+    return () => {
+      cancelAnimationFrame(frame);
+      ro.disconnect();
+    };
+  }, [rf, diagram.key]);
+
   // Fit the view once per diagram, after positions exist.
   useEffect(() => {
     if (fitFor.current !== diagram.key && Object.keys(positions).length >= diagram.nodes.length) {
       fitFor.current = diagram.key;
-      requestAnimationFrame(() => rf.fitView({ ...FIT, duration: 0 }));
+      requestAnimationFrame(() => rf.fitView(fitOptions(wrapper.current, 0)));
     }
   }, [positions, diagram, rf]);
 
@@ -413,7 +448,7 @@ export function Canvas({ diagram, lens, decorate, actions, archTypes, renameId, 
         setPositions(pos);
         const keep = savable(pos);
         if (Object.keys(keep).length) onPositions(keep);
-        requestAnimationFrame(() => rf.fitView({ ...FIT, duration: 300 }));
+        requestAnimationFrame(() => rf.fitView(fitOptions(wrapper.current, 300)));
       },
       nudge(ids, dx, dy) {
         if (!editable) return;
@@ -427,11 +462,11 @@ export function Canvas({ diagram, lens, decorate, actions, archTypes, renameId, 
         onPositions(moved);
       },
       fit() {
-        rf.fitView({ ...FIT, duration: 200 });
+        rf.fitView(fitOptions(wrapper.current, 200));
       },
       zoom(dir) {
-        if (dir > 0) rf.zoomIn({ duration: 150 });
-        else rf.zoomOut({ duration: 150 });
+        if (dir > 0) rf.zoomIn({ duration: motion(150) });
+        else rf.zoomOut({ duration: motion(150) });
       },
       menuSpot(selection) {
         const box = wrapper.current?.getBoundingClientRect();
@@ -574,6 +609,10 @@ export function Canvas({ diagram, lens, decorate, actions, archTypes, renameId, 
         onSelectionEnd={() => {
           boxing.current = false;
         }}
+        onMoveStart={(event) => {
+          // A move with an event is the person's (drag, wheel, pinch); fitting the view has none.
+          if (event) touched.current = true;
+        }}
         zoomOnDoubleClick={false}
         minZoom={0.1}
         maxZoom={2.5}
@@ -581,7 +620,7 @@ export function Canvas({ diagram, lens, decorate, actions, archTypes, renameId, 
       >
         <MarkerDefs />
         <Background gap={22} size={1.2} color="#262a30" />
-        <Controls showInteractive={false} position="bottom-right" />
+        <Controls showInteractive={false} position="bottom-right" onFitView={() => rf.fitView(fitOptions(wrapper.current, 200))} />
       </ReactFlow>
     </div>
   );

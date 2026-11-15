@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "./api";
-import { Modal } from "./fields";
+import { Modal, useBusy } from "./fields";
 import { confirmDialog, promptDialog } from "./dialogs";
 
 /** Browse the code folder and pick a file or folder. */
@@ -35,7 +35,7 @@ export function CodePicker({ onPick, onClose }: { onPick(path: string): void; on
             <button className="link" onClick={() => (e.type === "dir" ? setPath(e.path) : onPick(e.path))} data-testid={`pick-${e.path}`}>
               {e.type === "dir" ? "📁" : "📄"} {e.name}
             </button>
-            <button onClick={() => onPick(e.path)} aria-label={`Select ${e.name}`}>
+            <button onClick={() => onPick(e.path)} aria-label={`Select ${e.name}`} title={`Select ${e.name}`}>
               Select
             </button>
           </li>
@@ -75,13 +75,7 @@ export function OpenCodeDiagram({ onOpen }: { onOpen(): void }) {
 }
 
 /** The code paths of an element or connector, with a picker. */
-export function CodePaths({
-  paths,
-  onSave,
-}: {
-  paths: string[];
-  onSave(paths: string[]): void;
-}) {
+export function CodePaths({ paths, onSave }: { paths: string[]; onSave(paths: string[]): void }) {
   const [picking, setPicking] = useState(false);
   const [text, setText] = useState("");
   const add = (p: string) => {
@@ -95,7 +89,7 @@ export function CodePaths({
         {paths.map((p) => (
           <li key={p}>
             <code>{p}</code>
-            <button className="icon edit-only" aria-label={`Remove ${p}`} onClick={() => onSave(paths.filter((x) => x !== p))}>
+            <button className="icon edit-only" aria-label={`Remove ${p}`} title={`Remove ${p}`} onClick={() => onSave(paths.filter((x) => x !== p))}>
               ×
             </button>
           </li>
@@ -130,7 +124,19 @@ const PLANNED_TEXT: Record<string, string> = {
 };
 
 /** Edit one source file. Saves back to the file on disk; in a draft, to the draft's planned edits. */
-export function FileEditor({ path, onClose, inDraft = false, onChanged, readOnlyNote = "Read-only." }: { path: string; onClose(): void; inDraft?: boolean; onChanged?(): void; /** Why the server says the file cannot be saved here (a git version, or the person's role). */ readOnlyNote?: string }) {
+export function FileEditor({
+  path,
+  onClose,
+  inDraft = false,
+  onChanged,
+  readOnlyNote = "Read-only.",
+}: {
+  path: string;
+  onClose(): void;
+  inDraft?: boolean;
+  onChanged?(): void;
+  /** Why the server says the file cannot be saved here (a git version, or the person's role). */ readOnlyNote?: string;
+}) {
   const [content, setContent] = useState<string | null>(null);
   const [orig, setOrig] = useState("");
   const [mtime, setMtime] = useState(0);
@@ -167,22 +173,24 @@ export function FileEditor({ path, onClose, inDraft = false, onChanged, readOnly
   const dirty = content !== null && content !== orig;
   const frozen = readOnly || planned === "deleted";
   const canSave = dirty && !readOnly && planned !== "deleted";
-  const save = async () => {
-    if (content === null || !canSave) return;
-    try {
-      const r = await api.saveCodeFile(path, content, mtime);
-      setMtime(r.mtime);
-      setOrig(content);
-      setSaved(true);
-      setError(null);
-      if (inDraft) {
-        onChanged?.();
-        await load();
+  const [saving, guard] = useBusy();
+  const save = () =>
+    guard(async () => {
+      if (content === null || !canSave) return;
+      try {
+        const r = await api.saveCodeFile(path, content, mtime);
+        setMtime(r.mtime);
+        setOrig(content);
+        setSaved(true);
+        setError(null);
+        if (inDraft) {
+          onChanged?.();
+          await load();
+        }
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
       }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    }
-  };
+    });
   const close = async () => {
     if (dirty && !(await confirmDialog({ title: "Close without saving your changes?", confirmLabel: "Close without saving", danger: true }))) return;
     onClose();
@@ -214,7 +222,11 @@ export function FileEditor({ path, onClose, inDraft = false, onChanged, readOnly
             </button>
           )}
           {planned !== "deleted" && planned !== "added" && (
-            <button className="small" onClick={async () => (await confirmDialog({ title: `Plan to delete ${path}?`, confirmLabel: "Plan deletion", danger: true })) && act(() => api.deleteCodeFile(path))} data-testid="code-plan-delete">
+            <button
+              className="small"
+              onClick={async () => (await confirmDialog({ title: `Plan to delete ${path}?`, confirmLabel: "Plan deletion", danger: true })) && act(() => api.deleteCodeFile(path))}
+              data-testid="code-plan-delete"
+            >
               Plan deletion
             </button>
           )}
@@ -225,7 +237,11 @@ export function FileEditor({ path, onClose, inDraft = false, onChanged, readOnly
           {error}
         </div>
       )}
-      {content === null && !error && <p className="muted" data-testid="code-loading">Loading…</p>}
+      {content === null && !error && (
+        <p className="muted" data-testid="code-loading">
+          Loading…
+        </p>
+      )}
       {content !== null && (
         <textarea
           className="code-editor"
@@ -253,11 +269,13 @@ export function FileEditor({ path, onClose, inDraft = false, onChanged, readOnly
         />
       )}
       <div className="modal-actions">
-        <span className="muted small">{saved ? (inDraft ? "Saved to the draft." : "Saved.") : dirty ? "Unsaved changes" : readOnly ? "" : inDraft ? "Ctrl/Cmd+S saves to the draft" : "Ctrl/Cmd+S saves to the file"}</span>
+        <span className="muted small">
+          {saved ? (inDraft ? "Saved to the draft." : "Saved.") : dirty ? "Unsaved changes" : readOnly ? "" : inDraft ? "Ctrl/Cmd+S saves to the draft" : "Ctrl/Cmd+S saves to the file"}
+        </span>
         <span className="spacer" />
         <button onClick={close}>Close</button>
         {!readOnly && (
-          <button className="primary" onClick={save} disabled={!canSave} data-testid="code-save">
+          <button className="primary" onClick={() => void save()} disabled={!canSave} aria-busy={saving} data-testid="code-save">
             Save
           </button>
         )}

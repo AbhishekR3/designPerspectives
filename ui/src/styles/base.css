@@ -20,8 +20,9 @@ button {
   font: inherit;
   border: 1px solid var(--line-strong);
   background: var(--raise);
-  border-radius: 6px;
+  border-radius: var(--radius);
   padding: 4px 10px;
+  min-height: var(--control-h);
   cursor: pointer;
   color: var(--text);
   display: inline-flex;
@@ -63,6 +64,7 @@ button.float-btn.on {
 button.link {
   border: none;
   background: none;
+  min-height: 0;
   padding: 2px 0;
   color: var(--link);
   text-align: left;
@@ -79,17 +81,19 @@ button.link.active {
 button.icon {
   padding: 3px 5px;
   line-height: 18px;
-  min-width: 26px;
+  min-width: var(--control-h);
   justify-content: center;
 }
 button.add {
   border: none;
   background: none;
   color: var(--link);
+  min-height: 0;
   padding: 4px 0;
 }
 button.tiny {
   font-size: 11px;
+  min-height: 0;
   padding: 1px 6px;
   border: 1px solid var(--line-strong);
   color: var(--muted);
@@ -104,17 +108,81 @@ select,
 textarea {
   font: inherit;
   border: 1px solid var(--line-strong);
-  border-radius: 6px;
+  border-radius: var(--radius);
   padding: 5px 8px;
   background: var(--raise);
   color: var(--text);
   min-width: 0;
 }
+input:not([type="checkbox"], [type="radio"], [type="color"]),
+select {
+  min-height: var(--control-h);
+}
 input:focus,
 select:focus,
 textarea:focus {
-  outline: 1px solid #0e7490;
   border-color: #0e7490;
+}
+/* One focus ring for every control, native or custom (tree rows, chips, palette items, menu rows). */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.chips:focus-within,
+.search-input:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.chips .chip-input:focus-visible,
+.search-input input:focus-visible {
+  outline: none;
+}
+.modal:focus-visible,
+.react-flow__node:focus-visible {
+  outline: none;
+}
+/* A button that started a request: a small spinner, and no second click. */
+button[aria-busy="true"] {
+  position: relative;
+  pointer-events: none;
+}
+button[aria-busy="true"]::after {
+  content: "";
+  width: 11px;
+  height: 11px;
+  margin-left: 2px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: dp-spin 0.7s linear infinite;
+}
+@keyframes dp-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+/* A muted one-line empty state, the same in every panel and list. */
+.empty-note {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 0;
+  padding: var(--space-2) 0;
+  overflow-wrap: anywhere;
+}
+.panel-body,
+.modal,
+.pop-menu,
+.help-card {
+  overflow-wrap: anywhere;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+    scroll-behavior: auto !important;
+  }
 }
 textarea {
   resize: vertical;
@@ -156,4 +224,13 @@ a {
 .loading {
   padding: 40px;
   color: var(--muted);
+}
+.truncate {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+[hidden] {
+  display: none !important;
 }

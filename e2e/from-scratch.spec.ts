@@ -182,7 +182,8 @@ test("a line dragged to empty canvas: pick a kind, get one connected box (one un
   const box = (await page.getByTestId("canvas").boundingBox())!;
   await page.mouse.move(h.x + h.width / 2, h.y + h.height / 2);
   await page.mouse.down();
-  await page.mouse.move(box.x + box.width - 150, box.y + box.height / 2 + 60, { steps: 12 });
+  // Well clear of the box (a connection snaps to a point within 90 px of a dot).
+  await page.mouse.move(box.x + box.width - 40, box.y + box.height / 2 + 120, { steps: 12 });
   await page.mouse.up();
   await expect(page.getByTestId("context-menu")).toBeVisible();
   await page.getByTestId("connect-kind-softwareSystem").click();

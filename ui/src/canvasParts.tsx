@@ -6,13 +6,16 @@ import {
   NodeToolbar,
   Position,
   useInternalNode,
+  useNodeId,
   useReactFlow,
+  useStore,
   type EdgeProps,
   type InternalNode,
   type Node,
   type NodeProps,
 } from "@xyflow/react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { canvasInsets } from "./insets";
 import { NODE_H, NODE_W } from "./layout";
 import { Icon, iconFor } from "./icons";
 import { Shape, shapeInset } from "./shapes";
@@ -191,6 +194,53 @@ function InlineName({ value, fontSize, onDone }: { value: string; fontSize: numb
   );
 }
 
+/** Space between a box and the bar above (or below) it, and between the bar and the canvas edge. */
+const BAR_OFFSET = 14;
+const BAR_MARGIN = 8;
+
+/**
+ * The bar of quick edits next to the selected box. It sits above the box; when that would put it under the
+ * top bars (or off the canvas) it goes below the box, and it is moved sideways when the box is near the left or
+ * right edge, so it is always whole and inside the canvas.
+ */
+function QuickBar({ visible, children }: { visible: boolean; children: React.ReactNode }) {
+  const id = useNodeId();
+  const node = useInternalNode(id ?? "");
+  const dom = useStore((s) => s.domNode);
+  const [vx, vy, zoom] = useStore((s) => s.transform);
+  const bar = useRef<HTMLDivElement>(null);
+  const [place, setPlace] = useState<{ pos: Position; dx: number }>({ pos: Position.Top, dx: 0 });
+  const nx = node?.internals.positionAbsolute.x;
+  const ny = node?.internals.positionAbsolute.y;
+  const nw = node?.measured.width ?? node?.width ?? 0;
+  const nh = node?.measured.height ?? node?.height ?? 0;
+  useLayoutEffect(() => {
+    const el = bar.current;
+    if (!visible || !el || !dom || nx === undefined || ny === undefined) return;
+    const area = dom.closest<HTMLElement>(".canvas-wrap") ?? dom;
+    const canvas = dom.getBoundingClientRect();
+    const ins = canvasInsets(area);
+    const [W, H] = [el.offsetWidth, el.offsetHeight];
+    const left = nx * zoom + vx;
+    const top = ny * zoom + vy;
+    const cx = left + (nw * zoom) / 2;
+    const fitsAbove = top - BAR_OFFSET - H >= ins.top - BAR_MARGIN * 2;
+    const fitsBelow = top + nh * zoom + BAR_OFFSET + H <= canvas.height - BAR_MARGIN;
+    const pos = fitsAbove || !fitsBelow ? Position.Top : Position.Bottom;
+    const lo = BAR_MARGIN;
+    const hi = Math.max(lo, canvas.width - BAR_MARGIN - W);
+    const dx = Math.round(Math.min(hi, Math.max(lo, cx - W / 2)) - (cx - W / 2));
+    setPlace((p) => (p.pos === pos && p.dx === dx ? p : { pos, dx }));
+  }, [visible, dom, nx, ny, nw, nh, vx, vy, zoom, children]);
+  return (
+    <NodeToolbar isVisible={visible} position={place.pos} offset={BAR_OFFSET} className="quick-bar-wrap nodrag nopan" align="center">
+      <div className="quick-bar nodrag nopan" ref={bar} style={place.dx ? { transform: `translateX(${place.dx}px)` } : undefined}>
+        {children}
+      </div>
+    </NodeToolbar>
+  );
+}
+
 export function C4Node({ data, selected }: NodeProps<C4NodeType>) {
   const { el, overlay, w, h } = data;
   const [renaming, setRenaming] = useState(false);
@@ -250,7 +300,7 @@ export function C4Node({ data, selected }: NodeProps<C4NodeType>) {
       data-testid={`node-${el.id}`}
       data-change={el.change}
       data-shape={type}
-      title={el.drillKey ? "Double-click to open the next level" : undefined}
+      title={[el.name.length > 28 ? el.name : "", el.drillKey ? "Double-click to open the next level" : ""].filter(Boolean).join("\n") || undefined}
     >
       {outline ? (
         <Shape type={type} w={w} h={h} s={{ fill: bg, stroke, strokeWidth: sw, dash }} />
@@ -313,7 +363,7 @@ export function C4Node({ data, selected }: NodeProps<C4NodeType>) {
                 e.stopPropagation();
                 setRenaming(true);
               }}
-              title={act ? (selected ? "Click to rename" : el.drillKey ? "Double-click to open; select, then click the name to rename" : "Double-click to rename") : undefined}
+              title={[el.name.length > 28 ? el.name : "", act ? (selected ? "Click to rename" : el.drillKey ? "Double-click to open; select, then click the name to rename" : "Double-click to rename") : ""].filter(Boolean).join("\n") || undefined}
             >
               {el.name}
             </span>
@@ -351,7 +401,7 @@ export function C4Node({ data, selected }: NodeProps<C4NodeType>) {
         </div>
       </div>
       {act && (
-        <NodeToolbar isVisible={selected && !renaming && !data.multi} position={Position.Top} offset={14} className="quick-bar nodrag nopan" align="center">
+        <QuickBar visible={selected && !renaming && !data.multi}>
           <button className="ghost icon" onClick={() => setRenaming(true)} title="Rename (or double-click the name)" aria-label="Rename" data-testid="qb-rename">
             ✎
           </button>
@@ -375,7 +425,7 @@ export function C4Node({ data, selected }: NodeProps<C4NodeType>) {
           <button className="ghost icon danger-text" onClick={() => act.remove(el.id)} title="Delete" aria-label="Delete" data-testid="qb-delete">
             <Icon name="close" size={14} />
           </button>
-        </NodeToolbar>
+        </QuickBar>
       )}
       <NodeResizer
         isVisible={selected && data.editable && !data.multi}
@@ -407,7 +457,7 @@ export function BoundaryNode({ data }: NodeProps<BoundaryNodeType>) {
   return (
     <div className="boundary" style={{ width: data.width, height: data.height }} data-testid="boundary">
       <div className="boundary-label">
-        <Icon name={data.kind === "container" ? "container" : "system"} size={12} /> {data.name}
+        <Icon name={data.kind === "container" ? "container" : "system"} size={12} /> <span title={data.name}>{data.name}</span>
       </div>
       <div className="boundary-foot">
         {data.description && <div>{data.description}</div>}
@@ -699,9 +749,9 @@ export function C4Edge({ id, source, target, data, selected, markerEnd, markerSt
           onClick={() => data.onSelect(id)}
           onDoubleClick={() => data.onOpen(id)}
           {...grab}
-          title={data.hasDetail ? "Double-click to open the connector detail" : data.editable ? "Drag to slide the label along the line" : undefined}
+          title={[data.label.length > 40 ? data.label : "", data.hasDetail ? "Double-click to open the connector detail" : data.editable ? "Drag to slide the label along the line" : ""].filter(Boolean).join("\n") || undefined}
         >
-          <div>{data.label}</div>
+          <div className="edge-text">{data.label}</div>
           {techs && (
             <div className="edge-tech">
               <Icon name="code" size={10} /> {techs}

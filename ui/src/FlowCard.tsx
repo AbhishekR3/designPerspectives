@@ -50,7 +50,7 @@ export function FlowCard({
     <div className="flowbox" ref={ref}>
       <div className="row">
         <button className={`float-btn${flow ? " on" : ""}`} onClick={() => setOpen(!open)} aria-haspopup="menu" aria-expanded={open} data-testid="flows-menu">
-          <Icon name="flows" size={15} /> <span className="flow-name">{flow ? flow.title : "Flows"}</span> <Icon name="chevron" size={13} />
+          <Icon name="flows" size={15} /> <span className="flow-name" title={flow ? flow.title : undefined}>{flow ? flow.title : "Flows"}</span> <Icon name="chevron" size={13} />
         </button>
         {flow && (
           <button
@@ -61,43 +61,44 @@ export function FlowCard({
             }}
             disabled={!n}
             title={playing ? "Pause" : "Play the flow"}
+            aria-label={playing ? "Pause" : "Play the flow"}
             data-testid="play"
           >
             <Icon name={playing ? "pause" : "play"} size={14} />
           </button>
         )}
+        {open && (
+          <div className="pop-menu wide" role="menu" data-testid="flow-list">
+            {state.flows.length === 0 && <div className="empty-note pad">No flows yet.</div>}
+            {state.flows.map((f) => (
+              <button
+                key={f.key}
+                role="menuitem"
+                className={f.key === flow?.key ? "on" : ""}
+                onClick={() => {
+                  setOpen(false);
+                  onOpen(f.key);
+                }}
+                data-testid={`flow-${f.key}`}
+              >
+                <Icon name="flows" size={13} /> <span className="truncate" title={f.title}>{f.title}</span> <span className="muted">{f.steps.length} steps</span>
+              </button>
+            ))}
+            {!state.readOnly && (
+              <button
+                role="menuitem"
+                onClick={() => {
+                  setOpen(false);
+                  onNewFlow();
+                }}
+                data-testid="new-flow"
+              >
+                <Icon name="plus" size={13} /> New flow
+              </button>
+            )}
+          </div>
+        )}
       </div>
-      {open && (
-        <div className="pop-menu wide" role="menu" data-testid="flow-list">
-          {state.flows.length === 0 && <div className="muted small pad">No flows yet.</div>}
-          {state.flows.map((f) => (
-            <button
-              key={f.key}
-              role="menuitem"
-              className={f.key === flow?.key ? "on" : ""}
-              onClick={() => {
-                setOpen(false);
-                onOpen(f.key);
-              }}
-              data-testid={`flow-${f.key}`}
-            >
-              <Icon name="flows" size={13} /> {f.title} <span className="muted">{f.steps.length} steps</span>
-            </button>
-          ))}
-          {!state.readOnly && (
-            <button
-              role="menuitem"
-              onClick={() => {
-                setOpen(false);
-                onNewFlow();
-              }}
-              data-testid="new-flow"
-            >
-              <Icon name="plus" size={13} /> New flow
-            </button>
-          )}
-        </div>
-      )}
       {flow && (
         <div className="flow-card float" data-testid="player">
           <div className="flow-card-head">
@@ -129,7 +130,7 @@ export function FlowCard({
             <button onClick={() => go(flowStep === null ? null : flowStep === 0 ? null : flowStep - 1)} disabled={flowStep === null} data-testid="step-prev">
               <Icon name="back" size={13} /> Back
             </button>
-            <button onClick={() => go(flowStep === null ? 0 : Math.min(n, flowStep + 1))} disabled={phase === "end" || (!n && phase !== "intro")} data-testid="step-next">
+            <button onClick={() => go(flowStep === null ? 0 : Math.min(n, flowStep + 1))} disabled={phase === "end" || !n} data-testid="step-next">
               Next <Icon name="forward" size={13} />
             </button>
           </div>

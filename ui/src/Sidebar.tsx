@@ -59,19 +59,19 @@ export function Sidebar({
   return (
     <aside className="sidebar">
       <div className="brand row between">
-        <div>
+        <div className="brand-name">
           <div className="product">designPerspectives</div>
           {canEdit ? (
-            <button className="ws-name link" onClick={onRenameWorkspace} title="Rename workspace" data-testid="ws-name">
+            <button className="ws-name link" onClick={onRenameWorkspace} title={`${state.workspace.name}: rename the workspace`} data-testid="ws-name">
               {state.workspace.name}
             </button>
           ) : (
-            <div className="ws-name" data-testid="ws-name">
+            <div className="ws-name" title={state.workspace.name} data-testid="ws-name">
               {state.workspace.name}
             </div>
           )}
         </div>
-        <button className="ghost icon" onClick={onClose} title="Hide the diagram list" aria-label="Hide the diagram list">
+        <button className="ghost icon" onClick={onClose} title="Hide the diagram list" aria-label="Hide the diagram list" data-testid="sidebar-close">
           <Icon name="panel" />
         </button>
       </div>
@@ -81,10 +81,13 @@ export function Sidebar({
         <ul className="tree" data-testid="diagram-list">
           {rows.map(({ d, empty }) => (
             <li key={d.key} style={{ paddingLeft: d.depth * 14 }}>
-              <button className={`link ${d.key === currentKey ? "active" : ""}`} onClick={() => onOpen(d.key)} data-testid={`diagram-${d.key}`} title={empty ? `${d.title}: nothing inside yet` : d.title}>
-                <span className={`level-tag c4-${d.c4}`} data-testid={`level-${d.key}`}>{d.c4}</span> {d.level === "connector" ? "⇢ " : ""}
-                {d.level === "landscape" ? "System landscape" : d.level === "context" ? `${d.label} (context)` : d.label}
-                {empty && <span className="muted"> (empty)</span>}
+              <button className={`link tree-link ${d.key === currentKey ? "active" : ""}`} onClick={() => onOpen(d.key)} data-testid={`diagram-${d.key}`} title={empty ? `${d.title}: nothing inside yet` : d.title}>
+                <span className={`level-tag c4-${d.c4}`} data-testid={`level-${d.key}`}>{d.c4}</span>
+                <span className="tree-label">
+                  {d.level === "connector" ? "⇢ " : ""}
+                  {d.level === "landscape" ? "System landscape" : d.level === "context" ? `${d.label} (context)` : d.label}
+                </span>
+                {empty && <span className="muted tree-mark">(empty)</span>}
               </button>
             </li>
           ))}
@@ -101,13 +104,13 @@ export function Sidebar({
         <h3>Lenses</h3>
         <ul className="tree">
           {state.lenses.map((l) => (
-            <li key={l.id} className="row between">
-              <span className={l.id === lens.id ? "strong" : ""}>
+            <li key={l.id} className="tree-row">
+              <span className={`tree-label${l.id === lens.id ? " strong" : ""}`} title={l.name}>
                 {l.name}
                 {l.builtin && <span className="muted small"> built-in</span>}
               </span>
               {canEdit && (
-                <button className="ghost icon" onClick={() => onEditLens(l)} title={l.builtin ? "Duplicate lens" : "Edit lens"} data-testid={l.id === lens.id ? "lens-edit" : undefined}>
+                <button className="ghost icon" onClick={() => onEditLens(l)} title={l.builtin ? "Duplicate lens" : "Edit lens"} aria-label={`${l.builtin ? "Duplicate" : "Edit"} the lens ${l.name}`} data-testid={l.id === lens.id ? "lens-edit" : undefined}>
                   {l.builtin ? "⧉" : "✎"}
                 </button>
               )}
@@ -125,18 +128,20 @@ export function Sidebar({
         <h3>Tag groups</h3>
         <ul className="tree">
           {state.tagGroups.map((g) => (
-            <li key={g.name} className="row between">
+            <li key={g.name} className="tree-row">
               {canEdit ? (
                 <>
-                  <button className="link" onClick={() => onEditTagGroup(g)} data-testid={`taggroup-${g.name}`}>
-                    {g.name} <span className="muted">({g.values.map((v) => v.name).join(", ")})</span>
+                  <button className="link tree-link" onClick={() => onEditTagGroup(g)} title={`${g.name} (${g.values.map((v) => v.name).join(", ")})`} data-testid={`taggroup-${g.name}`}>
+                    <span className="tree-label">
+                      {g.name} <span className="muted">({g.values.map((v) => v.name).join(", ")})</span>
+                    </span>
                   </button>
-                  <button className="ghost icon" onClick={() => onDeleteTagGroup(g)} aria-label={`Delete ${g.name}`}>
+                  <button className="ghost icon" onClick={() => onDeleteTagGroup(g)} aria-label={`Delete ${g.name}`} title={`Delete the tag group ${g.name}`}>
                     ×
                   </button>
                 </>
               ) : (
-                <span data-testid={`taggroup-${g.name}`}>
+                <span className="tree-label" title={`${g.name} (${g.values.map((v) => v.name).join(", ")})`} data-testid={`taggroup-${g.name}`}>
                   {g.name} <span className="muted">({g.values.map((v) => v.name).join(", ")})</span>
                 </span>
               )}

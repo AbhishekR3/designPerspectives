@@ -65,7 +65,7 @@ export function MoveDialog({ state, element, onMove, onClose }: { state: AppStat
         Pick the {word} this {KIND_LABEL[element.kind].toLowerCase()} should sit in. Its connections stay.
       </p>
       {targets.length === 0 ? (
-        <p className="muted">There is no other {word} to move it to.</p>
+        <p className="empty-note">There is no other {word} to move it to.</p>
       ) : (
         <>
           {targets.length >= FILTER_FROM && (
@@ -74,7 +74,7 @@ export function MoveDialog({ state, element, onMove, onClose }: { state: AppStat
             </label>
           )}
           <div className="move-list" role="listbox" aria-label={`Move to a ${word}`}>
-            {shown.length === 0 && <div className="muted small">Nothing matches.</div>}
+            {shown.length === 0 && <div className="empty-note">Nothing matches.</div>}
             {groups.map((g) => (
               <div key={g ?? ""} className="move-group">
                 {g !== null && <div className="move-group-name muted small">{g}</div>}
@@ -110,7 +110,7 @@ export function MoveDialog({ state, element, onMove, onClose }: { state: AppStat
         <button onClick={onClose} data-testid="move-cancel">
           Cancel
         </button>
-        <button className="primary" disabled={!picked || busy} onClick={() => void confirm()} data-testid="move-confirm">
+        <button className="primary" disabled={!picked || busy} aria-busy={busy} onClick={() => void confirm()} data-testid="move-confirm">
           Move
         </button>
       </div>

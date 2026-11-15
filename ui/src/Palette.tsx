@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { addBlockedReason, needsConnection } from "./connectRequired";
 import { Icon, iconFor } from "./icons";
 import type { Diagram } from "./types";
@@ -51,17 +50,17 @@ export function paletteItems(d: Diagram): PaletteItem[] {
  * Left-hand palette: drag an item onto the canvas to place it there, or click it to add it in the
  * nearest free spot. Lines dragged from a box's dot onto empty canvas create a connected box.
  */
-export function Palette({ diagram, onAdd }: { diagram: Diagram; onAdd(item: PaletteItem): void }) {
-  const [open, setOpen] = useState(true);
+export function Palette({ diagram, open, onToggle, onAdd }: { diagram: Diagram; open: boolean; onToggle(): void; onAdd(item: PaletteItem): void }) {
   const items = paletteItems(diagram);
   if (!items.length) return null;
   return (
-    <div className={`palette float${open ? "" : " closed"}`} data-testid="palette">
-      <button className="palette-head ghost" onClick={() => setOpen(!open)} aria-expanded={open} title={open ? "Collapse" : "Add objects"}>
-        <Icon name="plus" size={14} /> {open && <span>Add</span>}
+    <div className={`palette float${open ? "" : " closed"}`} data-testid="palette" data-occludes="left">
+      <button className="palette-head ghost" onClick={onToggle} aria-expanded={open} aria-label={open ? "Collapse the Add palette" : "Open the Add palette"} title={open ? "Collapse the Add palette" : "Add objects to the diagram"} data-testid="palette-toggle">
+        <Icon name="plus" size={14} /> <span>Add</span>
+        <Icon name="chevron" size={12} className={open ? "flip" : ""} />
       </button>
       {open && (
-        <>
+        <div className="palette-scroll">
           <div className="palette-items">
             {items.map((it) => {
               // A person or system that must connect to a box inside is off while the boundary is empty.
@@ -91,7 +90,7 @@ export function Palette({ diagram, onAdd }: { diagram: Diagram; onAdd(item: Pale
             Drag onto the diagram, or click. Drag from a box's dot to empty space to add a connected box.
             {(diagram.connectRequired ?? []).length > 0 && diagram.level !== "context" && " A person or system is connected to the selected box."}
           </div>
-        </>
+        </div>
       )}
     </div>
   );

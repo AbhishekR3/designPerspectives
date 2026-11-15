@@ -86,7 +86,7 @@ export function Toasts({ children }: { children?: ReactNode }) {
   const { error, errorAction, successes } = useSyncExternalStore(subscribe, getSnapshot);
   if (!children && !error && successes.length === 0) return null;
   return (
-    <div className="hud top-center">
+    <div className="toasts">
       {children}
       {successes.map((s) => (
         <div className={`float toast ${s.kind}`} role="status" key={s.id} data-testid={`toast-${s.kind}`}>
@@ -101,7 +101,7 @@ export function Toasts({ children }: { children?: ReactNode }) {
               {errorAction.label}
             </button>
           )}
-          <button className="ghost icon" onClick={() => notify.clearError()} aria-label="Dismiss">
+          <button className="ghost icon" onClick={() => notify.clearError()} aria-label="Dismiss" title="Dismiss">
             <Icon name="close" size={13} />
           </button>
         </div>

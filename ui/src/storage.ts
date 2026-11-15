@@ -1,4 +1,4 @@
-/** Browser preferences kept in localStorage (lens, sidebar and panel widths, sidebar open). */
+/** Browser preferences kept in localStorage (lens, sidebar and panel widths, sidebar and panel open, Add palette open). */
 /** The lens used to be remembered once per browser; it is now remembered per project (`lensKey`), and this key is only read as a fallback. */
 export const LENS_KEY = "dp.lens";
 /**
@@ -10,6 +10,9 @@ export const lensKey = (root: string, user?: string | null) => `${LENS_KEY}:${ro
 export const LEFT_KEY = "dp.leftWidth";
 export const RIGHT_KEY = "dp.rightWidth";
 export const LEFT_OPEN_KEY = "dp.leftOpen";
+export const RIGHT_OPEN_KEY = "dp.rightOpen";
+/** Whether the Add palette is open ("1") or collapsed to its button ("0"). Not set: open when the canvas is wide enough. */
+export const PALETTE_KEY = "dp.paletteOpen";
 
 export const storage = {
   get(k: string) {

@@ -19,7 +19,7 @@ function ColorField({ label, value, onCommit, testId }: { label: string; value?:
       </span>
       <div className="swatches">
         {SWATCHES.map((c) => (
-          <button key={c} className={`sw${value === c ? " on" : ""}`} style={{ background: c }} aria-label={`${label} ${c}`} onClick={() => onCommit(c)} />
+          <button key={c} className={`sw${value === c ? " on" : ""}`} style={{ background: c }} aria-label={`${label} ${c}`} title={`${label} ${c}`} onClick={() => onCommit(c)} />
         ))}
         <input type="color" value={draft} onChange={(e) => setDraft(e.target.value)} onBlur={() => draft !== value && onCommit(draft)} data-testid={testId} aria-label={`${label} custom`} />
       </div>

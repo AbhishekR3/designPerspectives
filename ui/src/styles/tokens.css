@@ -19,6 +19,20 @@
   font-size: 13px;
   color: var(--text);
   color-scheme: dark;
+  /* spacing, radius, control sizes */
+  --space-1: 4px;
+  --space-2: 6px;
+  --space-3: 8px;
+  --space-4: 12px;
+  --space-5: 16px;
+  --radius-sm: 5px;
+  --radius: 6px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+  --control-h: 28px;
+  --bar-h: 40px;
+  --gutter: 10px; /* distance of floating bars from the canvas edge */
+  --focus: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
   /* z-index scale */
   --z-person-badge: 2;
   --z-drill-mark: 2;
@@ -28,6 +42,8 @@
   --z-edge-grip: 10;
   --z-palette: 19;
   --z-hud: 20;
+  --z-loading: 25;
+  --z-help: 30;
   --z-dock: 20;
   --z-pop-menu: 40;
   --z-modal: 100;

@@ -55,7 +55,7 @@ export function Rows<T extends object>({
       {draft.map((r, i) => (
         <div className="rowed" key={i}>
           {render(r, (patch, commit) => update(i, patch, commit), () => onSave(latest.current))}
-          <button className="icon edit-only" aria-label="Remove" onClick={() => onSave(latest.current.filter((_, j) => j !== i))}>
+          <button className="icon edit-only" aria-label="Remove" title="Remove" onClick={() => onSave(latest.current.filter((_, j) => j !== i))}>
             ×
           </button>
         </div>
@@ -90,7 +90,7 @@ export function DetailsEditor({ tables, onSave }: { tables: DetailTable[]; onSav
         <div className="detail-table" key={i} data-testid={`detail-${i}`}>
           <div className="row">
             <input className="detail-title" value={t.title} onChange={(e) => set(i, { ...t, title: e.target.value })} onBlur={() => commit()} aria-label="Table title" />
-            <button className="icon edit-only" aria-label="Remove table" onClick={() => commit(draft.filter((_, j) => j !== i))}>
+            <button className="icon edit-only" aria-label="Remove table" title="Remove table" onClick={() => commit(draft.filter((_, j) => j !== i))}>
               ×
             </button>
           </div>
@@ -114,7 +114,7 @@ export function DetailsEditor({ tables, onSave }: { tables: DetailTable[]; onSav
                     </td>
                   ))}
                   <td>
-                    <button className="icon edit-only" aria-label="Remove row" onClick={() => commit(draft.map((x, j) => (j === i ? { ...t, rows: t.rows.filter((_, m) => m !== ri) } : x)))}>
+                    <button className="icon edit-only" aria-label="Remove row" title="Remove row" onClick={() => commit(draft.map((x, j) => (j === i ? { ...t, rows: t.rows.filter((_, m) => m !== ri) } : x)))}>
                       ×
                     </button>
                   </td>
@@ -248,7 +248,7 @@ export function ConnectionList({
       <h4>
         {title} <span className="count">{rels.length}</span>
       </h4>
-      {rels.length === 0 && <div className="muted">None</div>}
+      {rels.length === 0 && <div className="empty-note">None</div>}
       <ul>
         {rels.map((r) => {
           const o = byId.get(other(r));

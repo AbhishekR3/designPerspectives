@@ -49,14 +49,14 @@ export function SearchBox({ state, onClose, onPick, onOpen }: { state: AppState;
         <ul className="search-results">
           {items.map((it, i) => (
             <li key={`${it.type}-${it.id}`}>
-              <button className={i === cur ? "on" : ""} onMouseEnter={() => setCur(i)} onClick={() => pick(i)} data-testid={`result-${it.id}`}>
+              <button className={i === cur ? "on" : ""} onMouseEnter={() => setCur(i)} onClick={() => pick(i)} title={`${it.label}: ${it.sub}`} data-testid={`result-${it.id}`}>
                 <Icon name={it.icon} size={15} />
-                <span>{it.label}</span>
-                <span className="muted small">{it.sub}</span>
+                <span className="truncate">{it.label}</span>
+                <span className="muted small truncate">{it.sub}</span>
               </button>
             </li>
           ))}
-          {items.length === 0 && <li className="muted small pad">Nothing found.</li>}
+          {items.length === 0 && <li className="empty-note pad">Nothing found.</li>}
         </ul>
       </div>
     </div>

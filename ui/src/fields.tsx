@@ -1,5 +1,28 @@
 import { createContext, useContext, useEffect, useId, useRef, useState } from "react";
 
+/**
+ * For a button that starts a request: `busy` is true while it runs (show it with aria-busy, which draws a spinner and
+ * ignores clicks), and a second call while it runs does nothing. The component may be gone when the request ends.
+ */
+export function useBusy(): [boolean, <T>(work: () => Promise<T>) => Promise<T | undefined>] {
+  const [busy, setBusy] = useState(false);
+  const running = useRef(false);
+  const alive = useRef(true);
+  useEffect(() => () => void (alive.current = false), []);
+  const guard = async <T,>(work: () => Promise<T>): Promise<T | undefined> => {
+    if (running.current) return undefined;
+    running.current = true;
+    setBusy(true);
+    try {
+      return await work();
+    } finally {
+      running.current = false;
+      if (alive.current) setBusy(false);
+    }
+  };
+  return [busy, guard];
+}
+
 /** True in the side panel when the model shown cannot be changed by this person (see `state.readOnly`). */
 export const ReadOnlyContext = createContext(false);
 export const useReadOnly = () => useContext(ReadOnlyContext);
@@ -151,7 +174,7 @@ export function Modal({ title, onClose, children, wide = false, testId }: { titl
           <h2 id={titleId} data-testid={testId ? `${testId}-title` : undefined}>
             {title}
           </h2>
-          <button className="icon" onClick={onClose} aria-label="Close">
+          <button className="icon" onClick={onClose} aria-label="Close" title="Close">
             ×
           </button>
         </div>
@@ -189,7 +212,7 @@ export function TagInput({
         {value.map((t) => (
           <span className="chip" key={t}>
             {t}
-            <button className="icon edit-only" aria-label={`Remove ${t}`} onClick={() => onChange(value.filter((x) => x !== t))}>
+            <button className="icon edit-only" aria-label={`Remove ${t}`} title={`Remove ${t}`} onClick={() => onChange(value.filter((x) => x !== t))}>
               ×
             </button>
           </span>

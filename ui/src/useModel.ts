@@ -69,6 +69,16 @@ export function useModel(p: {
   const [error, setError] = useErrorSlot();
   // The first load failed (shown full-screen, with Retry).
   const [loadError, setLoadError] = useState<string | null>(null);
+  // Diagram and version switches in flight (edits are not counted: they have their own feedback). Shown as a thin loading bar.
+  const [pending, setPending] = useState(0);
+  const track = useCallback(async <T,>(work: () => Promise<T>): Promise<T> => {
+    setPending((n) => n + 1);
+    try {
+      return await work();
+    } finally {
+      setPending((n) => n - 1);
+    }
+  }, []);
 
   // Request tickets (see above), the version whose state last loaded (a diagram that fails to load only
   // sends the user to the landscape when its version itself loads), edits in flight, and the started flag.
@@ -115,7 +125,7 @@ export function useModel(p: {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- keyRef, setKey are stable (state setters or refs), so it is safe to leave out of the dependencies
   }, []);
 
-  const loadDiagram = useCallback((k: string) => fetchDiagram(k, epoch.current), [fetchDiagram]);
+  const loadDiagram = useCallback((k: string) => track(() => fetchDiagram(k, epoch.current)), [fetchDiagram, track]);
 
   /**
    * Reload the state, the changes and the diagram of the current version. Resolves with the state it
@@ -166,7 +176,7 @@ export function useModel(p: {
    * with `key` another diagram too (a changed URL). If it cannot be loaded, everything goes back to the
    * version shown before (request headers, overlay, filters, diagram and URL) and the error says why.
    */
-  const switchVersion = useCallback(
+  const switchRaw = useCallback(
     async (model: string, compare: string | null, opts: { key?: string | null } = {}) => {
       const my = ++switchSeq.current;
       restorePoint.current ??= { v: versionRef.current, key: keyRef.current, overlay: overlayRef.current, filters: filtersRef.current };
@@ -208,6 +218,7 @@ export function useModel(p: {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- keyRef, setError, setFilters, setKey, setOverlay, setSelection are stable (state setters or refs), so it is safe to leave out of the dependencies
     [refresh],
   );
+  const switchVersion = useCallback((model: string, compare: string | null, opts: { key?: string | null } = {}) => track(() => switchRaw(model, compare, opts)), [switchRaw, track]);
 
   /** Run an edit, then reload. True when the edit was made (even if the reload after it failed). */
   const mutate = useCallback(
@@ -335,5 +346,5 @@ export function useModel(p: {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- setError is stable (a state setter or ref), so it is safe to leave out of the dependencies
   }, [refresh, switchVersion, retryRefresh]);
 
-  return { state, diagram, version, versionRef, changes, error, loadError, retryLoad: firstLoad, setError, loadDiagram, refresh, switchVersion, mutate, doHistory };
+  return { state, diagram, version, versionRef, loading: pending > 0, changes, error, loadError, retryLoad: firstLoad, setError, loadDiagram, refresh, switchVersion, mutate, doHistory };
 }
