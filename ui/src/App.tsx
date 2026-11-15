@@ -1,787 +1,84 @@
 import { ReactFlowProvider } from "@xyflow/react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { api, ApiError, setContext } from "./api";
+import { useRef, useState } from "react";
+import { draftActions, diagramActions, useElementActions } from "./actions";
+import { api } from "./api";
 import { ApplyDialog, ChangeDetails, ChangeList, DraftList, GhostPanel, PlanDialog, VersionStrip } from "./ChangesPanel";
-import { Canvas, type CanvasHandle, type ContextTarget, type NodeDecor } from "./Canvas";
-import { ContextMenu, keys, tidy, type MenuItem } from "./ContextMenu";
+import { Canvas, type CanvasHandle } from "./Canvas";
+import { ContextMenu } from "./ContextMenu";
 import { Dock } from "./Dock";
 import { CharacteristicsEditor, CostSettingsEditor, LensEditor, TagGroupEditor } from "./editors";
 import { FlowCard } from "./FlowCard";
 import { FlowPanel } from "./FlowPanel";
-import { Icon, iconFor } from "./icons";
-import { Palette, paletteItems, type PaletteItem } from "./Palette";
-import type { NodeActions } from "./canvasParts";
-import { decodeSpec, formatMoney, matchesFilter, overlayOf, overlayable, specExists, specLabel, techColors, type Filter, type OverlaySpec } from "./overlays";
+import { Icon } from "./icons";
+import { menuItems, useContextMenu } from "./menus";
+import { Palette } from "./Palette";
+import { formatMoney, overlayable } from "./overlays";
 import { FileEditor } from "./CodeParts";
-import { CodeDiagramPanel, ConnectorPanel, EdgePanel, FilePanel, ObjectPanel, StagePanel, homeDiagramOf } from "./ObjectPanel";
-import { defaultSize } from "./layout";
+import { CodeDiagramPanel, ConnectorPanel, EdgePanel, FilePanel, ObjectPanel, StagePanel } from "./ObjectPanel";
+import { SearchBox } from "./SearchBox";
 import { Sidebar } from "./Sidebar";
-import { KIND_LABEL, LEVEL_LABEL, type AppState, type ChangeSet, type Diagram, type DiagramLevel, type DiagramEdge, type DiagramNode, type EdgeLayout, type Level, type Lens, type Pt, type Selection, type Style, type TagGroup } from "./types";
-
-const inLens = (lens: Lens, level: DiagramLevel) => level === "flow" || level === "connector" || lens.visibleLevels.includes(level as Level);
-
-const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
-
-/** Style keys that apply to boxes and to lines (Paste style keeps only the ones that fit). */
-const NODE_STYLE_KEYS: (keyof Style)[] = ["fill", "text", "stroke", "strokeStyle", "strokeWidth", "fontSize"];
-const EDGE_STYLE_KEYS: (keyof Style)[] = ["text", "stroke", "strokeStyle", "strokeWidth", "fontSize", "arrow", "arrowHead"];
-/** Choices in the line menus; labels match the panel. */
-const LINE_SHAPES: ["auto" | NonNullable<EdgeLayout["routing"]>, string][] = [
-  ["auto", "Automatic"],
-  ["straight", "Straight"],
-  ["curved", "Curved"],
-  ["smooth", "Smooth S-curve"],
-  ["orthogonal", "Right angles (elbow)"],
-  ["rounded", "Rounded right angles"],
-];
-const ARROWS: [NonNullable<Style["arrow"]>, string][] = [
-  ["end", "Arrow at the end"],
-  ["start", "Arrow at the start"],
-  ["both", "Arrows at both ends"],
-  ["none", "No arrows"],
-];
-const ARROW_HEADS: [NonNullable<Style["arrowHead"]>, string][] = [
-  ["filled", "Filled arrowhead"],
-  ["open", "Open arrowhead"],
-  ["diamond", "Diamond"],
-  ["diamond-open", "Open diamond"],
-  ["circle", "Circle"],
-  ["bar", "Bar"],
-];
-
-const LENS_KEY = "dp.lens";
-const LEFT_KEY = "dp.leftWidth";
-const RIGHT_KEY = "dp.rightWidth";
-const LEFT_OPEN_KEY = "dp.leftOpen";
-const storage = {
-  get(k: string) {
-    try {
-      return window.localStorage.getItem(k);
-    } catch {
-      return null;
-    }
-  },
-  set(k: string, v: string) {
-    try {
-      window.localStorage.setItem(k, v);
-    } catch {
-      /* storage unavailable: lens choice is not remembered */
-    }
-  },
-};
-
-/** The URL hash: `#/d/<diagram>`, plus `?m=<model version>&c=<compared version>` when not the main model. */
-interface HashState {
-  key: string | null;
-  model: string;
-  compare: string | null;
-}
-function fromHash(): HashState {
-  const m = /^#\/d\/([^?]+)(?:\?(.*))?$/.exec(window.location.hash);
-  const q = new URLSearchParams(m?.[2] ?? "");
-  return { key: m ? decodeURIComponent(m[1]) : null, model: q.get("m") || "main", compare: q.get("c") || null };
-}
-function keyFromHash(): string | null {
-  return fromHash().key;
-}
-function hashFor(key: string, model: string, compare: string | null): string {
-  const q = new URLSearchParams();
-  if (model !== "main") q.set("m", model);
-  if (compare) q.set("c", compare);
-  const qs = q.toString();
-  return `#/d/${encodeURIComponent(key)}${qs ? `?${qs}` : ""}`;
-}
+import { LEVEL_LABEL, type Lens, type TagGroup } from "./types";
+import { useClipboard } from "./useClipboard";
+import { useFlowAutoplay, useFlowPlayer } from "./useFlowPlayer";
+import { inLens, useLens, useLensState } from "./useLens";
+import { useModel } from "./useModel";
+import { useHashSync, useNavigation, useReveal } from "./useNavigation";
+import { usePanels } from "./usePanels";
+import { useSelection } from "./useSelection";
+import { useShortcuts } from "./useShortcuts";
 
 type ModalState = { type: "tag"; group: TagGroup | null } | { type: "lens"; lens: Lens | null } | { type: "chars" } | { type: "cost" } | { type: "apply"; draftId: string; title: string } | { type: "plan"; draftId: string } | null;
 
-/** The overlay a lens turns on by default, if it still exists. */
-function lensOverlay(l: Lens, s: AppState): OverlaySpec | null {
-  const spec = decodeSpec(l.defaultOverlay);
-  const groups = s.tagGroups.filter((g) => !l.hiddenTagGroups.includes(g.name));
-  return spec && specExists(spec, s, groups) ? spec : null;
-}
-
 export default function App() {
-  const [state, setState] = useState<AppState | null>(null);
-  const [diagram, setDiagram] = useState<Diagram | null>(null);
-  const [key, setKey] = useState<string | null>(keyFromHash());
-  // Model version shown (main or a draft) and the version it is compared with; sent with every request.
-  const [version, setVersion] = useState<{ model: string; compare: string | null }>(() => {
-    const h = fromHash();
-    setContext(h.model, h.compare);
-    return { model: h.model, compare: h.compare };
+  // State. Hook order matters only for effects, which run in this order: first load (useModel),
+  // URL/history sync (useHashSync), flow autoplay, keyboard shortcuts.
+  const { selection, setSelection, focusName, setFocusName, renameId, setRenameId, clearRename, select, startRename } = useSelection();
+  const lensState = useLensState();
+  const { overlay, setOverlay, filters, setFilters } = lensState;
+  const { key, setKey, keyRef, open, pickChange } = useNavigation(setSelection);
+  const { state, setState, diagram, version, versionRef, changes, error, setError, loadDiagram, refresh, switchVersion, mutate, doHistory } = useModel({
+    keyRef,
+    setKey,
+    setSelection,
+    lensId: lensState.lensId,
+    setOverlay,
+    setFilters,
   });
-  const versionRef = useRef(version);
-  versionRef.current = version;
-  const [changes, setChanges] = useState<ChangeSet | null>(null);
-  const [selection, setSelection] = useState<Selection>(null);
-  const [focusName, setFocusName] = useState(false);
-  const [lensId, setLensId] = useState<string>(storage.get(LENS_KEY) ?? "engineer");
-  const [overlay, setOverlay] = useState<OverlaySpec | null>(null);
-  const [filters, setFilters] = useState<Filter[]>([]);
-  const [leftOpen, setLeftOpen] = useState(storage.get(LEFT_OPEN_KEY) !== "0");
+  const [showAllLevels, setShowAllLevels] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
-  const [renameId, setRenameId] = useState<string | null>(null);
-  const clearRename = useCallback(() => setRenameId(null), []);
-  const [showAllLevels, setShowAllLevels] = useState(false);
-  const navStarted = useRef(false);
-  const clipboard = useRef<string | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
-  /** The open right-click menu: where it was opened and on what. */
-  const [menu, setMenu] = useState<{ x: number; y: number; target: ContextTarget; seq: number } | null>(null);
-  const menuSeq = useRef(0);
-  const closeMenu = useCallback(() => setMenu(null), []);
-  /** Right-click: a box or line is selected too (as a click would), then the menu opens at the pointer. */
-  const openMenu = useCallback((target: ContextTarget, at: Pt) => {
-    if (target.type !== "pane") {
-      setFocusName(false);
-      setSelection(target);
-    }
-    setExportOpen(false);
-    setMenu({ x: at.x, y: at.y, target, seq: ++menuSeq.current });
-  }, []);
-  /** Copy style / Paste style (like a format painter), kept for the session. */
-  const styleClip = useRef<Style | null>(null);
-  const [flowStep, setFlowStep] = useState<number | null>(null);
-  const [playing, setPlaying] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [modal, setModal] = useState<ModalState>(null);
   const [openFile, setOpenFile] = useState<string | null>(null);
-  const [leftW, setLeftW] = useState(() => clamp(Number(storage.get(LEFT_KEY)) || 250, 180, 560));
-  const [rightW, setRightW] = useState(() => clamp(Number(storage.get(RIGHT_KEY)) || 320, 240, 720));
+  const { menu, setMenu, closeMenu, openMenu } = useContextMenu({ setFocusName, setSelection, setExportOpen });
+  const player = useFlowPlayer();
+  const { flowStep, setFlowStep, playing, setPlaying } = player;
+  const { leftOpen, toggleLeft, startDrag, resetLeft, resetRight, gridTemplateColumns } = usePanels();
   const canvasRef = useRef<CanvasHandle>(null);
-  const keyRef = useRef(key);
-  keyRef.current = key;
 
-  const lens: Lens | null = useMemo(
-    () => state?.lenses.find((l) => l.id === lensId) ?? state?.lenses.find((l) => l.id === "engineer") ?? null,
-    [state, lensId],
-  );
-
-  const loadDiagram = useCallback(async (k: string) => {
-    try {
-      const d = await api.diagram(k);
-      if (keyRef.current === k) setDiagram(d);
-    } catch {
-      if (keyRef.current === k) setKey("landscape");
-    }
-  }, []);
-
-  const refresh = useCallback(async () => {
-    const s = await api.state();
-    setState(s);
-    setChanges(versionRef.current.compare ? await api.changes() : null);
-    if (keyRef.current) await loadDiagram(keyRef.current);
-  }, [loadDiagram]);
-
-  /** Show another model version (main or a draft), optionally compared with another one. */
-  const switchVersion = useCallback(
-    async (model: string, compare: string | null) => {
-      setContext(model, compare);
-      const v = { model, compare };
-      versionRef.current = v;
-      setVersion(v);
-      setSelection(null);
-      setFilters((fs) => fs.filter((f) => f.spec !== "@changes"));
-      setOverlay((o) => (compare ? { kind: "changes" } : o?.kind === "changes" ? null : o));
-      if (keyRef.current) window.history.replaceState(null, "", hashFor(keyRef.current, model, compare));
-      try {
-        await refresh();
-        setError(null);
-      } catch (e) {
-        // The draft is gone (discarded elsewhere, or an old link): fall back to the main model.
-        if (model !== "main" && e instanceof ApiError && e.status === 404) await switchVersion("main", null);
-        else setError(e instanceof Error ? e.message : String(e));
-      }
-    },
-    [refresh],
-  );
-
-  const mutate = useCallback(
-    async (fn: () => Promise<unknown>) => {
-      try {
-        await fn();
-        setError(null);
-        await refresh();
-        return true;
-      } catch (e) {
-        setError(e instanceof Error ? e.message : String(e));
-        await refresh().catch(() => undefined);
-        return false;
-      }
-    },
-    [refresh],
-  );
-
-  // First load: pick the starting diagram and overlay from the lens.
-  useEffect(() => {
-    api
-      .state()
-      .then(async (s) => {
-        setState(s);
-        if (versionRef.current.compare) setChanges(await api.changes());
-        const l = s.lenses.find((x) => x.id === lensId) ?? s.lenses[0];
-        setOverlay(versionRef.current.compare ? { kind: "changes" } : lensOverlay(l, s));
-        if (!keyRef.current) {
-          const first = s.diagrams.find((d) => inLens(l, d.level)) ?? s.diagrams[0];
-          setKey(first?.key ?? "landscape");
-        }
-      })
-      .catch((e) => {
-        if (versionRef.current.model !== "main" && e instanceof ApiError && e.status === 404) switchVersion("main", null);
-        else setError(String(e));
-      });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    if (!key) return;
-    if (keyFromHash() !== key) {
-      // A new diagram is a new history entry, so the browser Back/Forward buttons walk through diagrams.
-      const first = !navStarted.current;
-      const h = hashFor(key, versionRef.current.model, versionRef.current.compare);
-      if (first) window.history.replaceState(null, "", h);
-      else window.history.pushState(null, "", h);
-    }
-    navStarted.current = true;
-    setMenu(null);
-    setFlowStep(null);
-    setPlaying(false);
-    loadDiagram(key);
-  }, [key, loadDiagram]);
-
-  useEffect(() => {
-    const onHash = () => {
-      const h = fromHash();
-      const v = versionRef.current;
-      if (h.model !== v.model || h.compare !== v.compare) void switchVersion(h.model, h.compare);
-      const k = h.key;
-      if (k && k !== keyRef.current) {
-        setSelection(null);
-        setKey(k);
-      }
-    };
-    window.addEventListener("hashchange", onHash);
-    return () => window.removeEventListener("hashchange", onHash);
-  }, [switchVersion]);
-
-  // Flow player
-  const flow = diagram?.level === "flow" ? diagram.flow : undefined;
-  useEffect(() => {
-    if (!playing || !flow) return;
-    const t = window.setTimeout(() => {
-      if (flowStep === null) setFlowStep(0);
-      else if (flowStep < flow.steps.length) setFlowStep(flowStep + 1);
-      if (flowStep !== null && flowStep >= flow.steps.length - 1) setPlaying(false);
-    }, flowStep === null ? 0 : 1600);
-    return () => window.clearTimeout(t);
-  }, [playing, flowStep, flow]);
-
-  const open = useCallback((k: string) => {
-    setSelection(null);
-    setKey(k);
-  }, []);
-
-  const reveal = useCallback(
-    (id: string) => {
-      if (!state) return;
-      if (diagram?.nodes.some((n) => n.id === id)) {
-        setSelection({ type: "node", id });
-        return;
-      }
-      const el = state.elements.find((e) => e.id === id);
-      if (!el) return;
-      setKey(homeDiagramOf(el));
-      setSelection({ type: "node", id });
-    },
-    [state, diagram],
-  );
-
-  const chooseLens = (id: string) => {
-    if (!state) return;
-    const l = state.lenses.find((x) => x.id === id);
-    if (!l) return;
-    setLensId(id);
-    storage.set(LENS_KEY, id);
-    setOverlay(lensOverlay(l, state));
-    if (diagram && !inLens(l, diagram.level)) {
-      const first = state.diagrams.find((d) => inLens(l, d.level));
-      if (first) open(first.key);
-    }
-  };
-
-  const doHistory = useCallback(
-    async (dir: "undo" | "redo") => {
-      try {
-        await (dir === "undo" ? api.undo() : api.redo());
-        setError(null);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : String(e));
-      }
-      await refresh().catch(() => undefined);
-    },
-    [refresh],
-  );
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
-      const t = e.target as HTMLElement;
-      if (t.closest("input, textarea, select, [contenteditable]")) return;
-      const k = e.key.toLowerCase();
-      if (k === "z" && !e.shiftKey) doHistory("undo");
-      else if ((k === "z" && e.shiftKey) || k === "y") doHistory("redo");
-      else return;
-      e.preventDefault();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [doHistory]);
-
-  // Editor-style shortcuts: copy/cut/paste/duplicate, select-all is not offered; arrows nudge; zoom; escape.
-  /** Add a copy of an element; with `at`, at that point of the current diagram. */
-  const pasteFrom = useCallback(
-    async (id: string, at?: Pt) => {
-      let newId = "";
-      const k = keyRef.current;
-      const ok = await mutate(async () => {
-        newId = (await api.duplicate(id, at && k ? { diagramKey: k, position: at } : undefined)).id;
-      });
-      if (ok) setSelection({ type: "node", id: newId });
-    },
-    [mutate],
-  );
-  /** Cut: remember the element, then delete it (Paste adds a copy of it back). */
-  const cutElement = useCallback(
-    (id: string) => {
-      const el = state?.elements.find((x) => x.id === id);
-      if (!el) return;
-      clipboard.current = id;
-      if (window.confirm(`Cut "${el.name}"? It is removed now; Paste adds a copy of it.`)) mutate(() => api.deleteElement(el.id)).then((ok) => ok && setSelection(null));
-    },
-    [state, mutate],
-  );
-  const deleteRelationship = useCallback(
-    (relId: string) => {
-      if (window.confirm("Delete this relationship? Flow steps that use it are removed too."))
-        mutate(() => api.deleteRelationship(relId)).then((ok) => ok && setSelection(null));
-    },
-    [mutate],
-  );
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const t = e.target as HTMLElement;
-      if (t.closest("input, textarea, select, [contenteditable], .cm-editor")) return;
-      if (state?.readOnly) return;
-      const mod = e.metaKey || e.ctrlKey;
-      const k = e.key.toLowerCase();
-      const nodeId = selection?.type === "node" ? selection.id : null;
-      const isElement = nodeId ? state?.elements.some((x) => x.id === nodeId) : false;
-      if (mod && !e.altKey) {
-        if (k === "c" && isElement) clipboard.current = nodeId;
-        else if (k === "x" && isElement) cutElement(nodeId!);
-        else if (k === "v" && clipboard.current && state?.elements.some((x) => x.id === clipboard.current)) pasteFrom(clipboard.current);
-        else if (k === "d" && isElement) pasteFrom(nodeId!);
-        else if (k === "0") canvasRef.current?.fit();
-        else if (k === "=" || k === "+") canvasRef.current?.zoom(1);
-        else if (k === "-") canvasRef.current?.zoom(-1);
-        else return;
-        e.preventDefault();
-        return;
-      }
-      if (e.key === "Escape") setSelection(null);
-      else if (e.key.startsWith("Arrow") && nodeId) {
-        const step = e.shiftKey ? 40 : 10;
-        const d = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[e.key] as number[];
-        canvasRef.current?.nudge(nodeId, d[0], d[1]);
-      } else if (e.key === "F2" && nodeId) {
-        // Rename on the canvas.
-        setRenameId(nodeId);
-      } else if (e.key === "F2" && selection) setFocusName(true);
-      else return;
-      e.preventDefault();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [selection, state, pasteFrom, cutElement]);
-
-  // Delete key removes the selection (not while typing).
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Delete" && e.key !== "Backspace") return;
-      const t = e.target as HTMLElement;
-      if (t.closest("input, textarea, select, [contenteditable]")) return;
-      if (!selection || !state) return;
-      const ghost = selection.type === "node" ? diagram?.nodes.find((n) => n.id === selection.id)?.ghost : diagram?.edges.find((x) => x.id === selection.id)?.ghost;
-      if (ghost || diagram?.compare?.removed) return;
-      if (selection.type === "node") {
-        const el = state.elements.find((x) => x.id === selection.id);
-        if (el && window.confirm(`Delete "${el.name}"${el.childCount ? ` and the ${el.childCount} element(s) inside it` : ""}?`))
-          mutate(() => api.deleteElement(el.id)).then((ok) => ok && setSelection(null));
-      } else if (!selection.id.startsWith("derived:") && diagram?.level !== "flow") deleteRelationship(selection.id);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [selection, state, diagram, mutate, deleteRelationship]);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        setSearchOpen(true);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
-
-  // Overlay colour, Focus/Hide filters and cost label of each element on the canvas.
-  const techs = useMemo(() => (diagram ? techColors(diagram) : new Map<string, string>()), [diagram]);
-  const activeOverlay = useMemo(() => {
-    if (!state || !lens || !overlay) return null;
-    const groups = state.tagGroups.filter((g) => !lens.hiddenTagGroups.includes(g.name));
-    return specExists(overlay, state, groups) ? overlay : null;
-  }, [state, lens, overlay]);
-  const decorate = useCallback(
-    (n: DiagramNode): NodeDecor => {
-      const isEl = n.kind !== "stage" && n.kind !== "file";
-      if (!state || !isEl) return { overlay: null, hidden: false, focused: false, outOfFocus: false, costLabel: null };
-      let ov: NodeDecor["overlay"] = null;
-      if (activeOverlay) {
-        const o = overlayOf(activeOverlay, n, state, techs);
-        ov = { group: specLabel(activeOverlay), value: o.key, chip: o.chip, color: o.color };
-      }
-      const focusFs = filters.filter((f) => f.mode === "focus");
-      const focused = focusFs.some((f) => matchesFilter(f, n, state, techs));
-      return {
-        overlay: ov,
-        hidden: filters.some((f) => f.mode === "hide" && matchesFilter(f, n, state, techs)),
-        focused,
-        outOfFocus: focusFs.length > 0 && !focused,
-        costLabel: n.cost?.length || n.costRollup > 0 ? `${formatMoney(n.costRollup, state.costSettings.currency)}/mo` : null,
-      };
-    },
-    [state, activeOverlay, filters, techs],
-  );
-
-  const nodeActions = useMemo<NodeActions | null>(
-    () =>
-      state?.readOnly
-        ? null
-        : {
-            rename: (id, name) => void mutate(() => api.updateElement(id, { name })),
-            setArchType: (id, archType) => void mutate(() => api.updateElement(id, { archType })),
-            duplicate: (id) => void pasteFrom(id),
-            remove: (id) => {
-              const el = state?.elements.find((x) => x.id === id);
-              if (el && window.confirm(`Delete "${el.name}"${el.childCount ? ` and the ${el.childCount} element(s) inside it` : ""}? Its connections are deleted too.`))
-                mutate(() => api.deleteElement(id)).then((ok) => ok && setSelection(null));
-            },
-            open: (k) => open(k),
-          },
-    [state, mutate, pasteFrom, open],
-  );
+  useHashSync({ key, keyRef, setKey, versionRef, loadDiagram, switchVersion, setSelection, setMenu, setFlowStep, setPlaying });
+  const flow = useFlowAutoplay(diagram, player);
+  const reveal = useReveal(state, diagram, setKey, setSelection);
+  const { lens, chooseLens, chooseLensAfterSave, activeOverlay, decorate } = useLens({ state, setState, diagram, open, lensState });
+  const clip = useClipboard({ state, keyRef, mutate, setSelection });
+  const { pasteFrom, cutElement } = clip;
+  const { deleteRelationship, nodeActions } = useElementActions({ state, mutate, pasteFrom, open, setSelection });
+  useShortcuts({ state, diagram, selection, setSelection, setFocusName, setRenameId, setSearchOpen, doHistory, mutate, clipboard: clip.clipboard, pasteFrom, cutElement, deleteRelationship, canvasRef });
 
   if (!state || !lens) {
     return <div className="loading">{error ? `Could not load: ${error}` : "Loading…"}</div>;
   }
 
   const visibleGroups = state.tagGroups.filter((g) => !lens.hiddenTagGroups.includes(g.name));
-  const toggleLeft = () => {
-    storage.set(LEFT_OPEN_KEY, leftOpen ? "0" : "1");
-    setLeftOpen(!leftOpen);
-  };
   const draftId = version.model.startsWith("draft:") ? version.model.slice(6) : null;
-  const newDraft = async () => {
-    const title = window.prompt("Name of the new draft (a planned change, edited on a copy of the model)");
-    if (!title?.trim()) return;
-    try {
-      const { id } = await api.createDraft({ title });
-      await switchVersion(`draft:${id}`, "base");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    }
-  };
-  const discardDraft = async () => {
-    if (!draftId || !window.confirm(`Discard "${state.model.title.replace(/^Draft: /, "")}"? The draft and all its changes are deleted.`)) return;
-    try {
-      await api.deleteDraft(draftId);
-      await switchVersion("main", null);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    }
-  };
-  const pickChange = (c: { id: string; type: string; homeKey: string | null }) => {
-    if (!c.homeKey) return;
-    if (c.homeKey !== key) setKey(c.homeKey);
-    if (c.type === "element") setSelection({ type: "node", id: c.id });
-    else if (c.type === "relationship") setSelection({ type: "edge", id: c.id });
-    else setSelection(null);
-  };
+  const { newDraft, discardDraft } = draftActions({ state, draftId, switchVersion, setError });
   const changeOf = (id: string) => (changes ? [...changes.elements, ...changes.relationships].find((c) => c.id === id) : undefined);
   const againstLabel = state.compare?.title ?? "the compared version";
+  const { newFlow, addItem, connectToEmpty, connect, savePositions } = diagramActions({ state, diagram, key, mutate, open, canvasRef, startRename, setSelection, setFocusName });
 
-  const newFlow = async () => {
-    const title = window.prompt("Name of the new flow");
-    if (!title) return;
-    let k = "";
-    if (await mutate(async () => (k = (await api.createFlow({ title })).key))) open(k);
-  };
-
-  /** Add an object from the palette: at `at` (dropped there) or in the nearest free spot. */
-  const addItem = async (item: PaletteItem, at?: Pt) => {
-    if (!diagram || !key) return;
-    if (item.kind === "stage") {
-      const rel = state.relationships.find((r) => r.id === diagram.scope);
-      const name = window.prompt("Name of the new stage (a step inside this connector)");
-      if (rel && name) await mutate(() => api.updateRelationship(rel.id, { stages: [...rel.stages, { id: "", name }] }));
-      return;
-    }
-    const parentId = (item.kind === "container" && diagram.level === "container") || (item.kind === "component" && diagram.level === "component") ? diagram.scope : null;
-    const position = at ?? canvasRef.current?.freeSpot(defaultSize(item.kind)) ?? { x: 0, y: 0 };
-    let newId = "";
-    const ok = await mutate(async () => {
-      newId = (
-        await api.createElement({ kind: item.kind, name: item.name, archType: item.archType, external: !!item.external, uniqueName: true, parentId, diagramKey: key, position })
-      ).id;
-    });
-    if (ok) startRename(newId);
-    return ok ? newId : null;
-  };
-
-  /** Select a new object and let the user type its name straight on the canvas. */
-  function startRename(id: string) {
-    setFocusName(false);
-    setSelection({ type: "node", id });
-    setRenameId(id); // consumed by the box when it opens its name field
-  }
-
-  /** A line dragged from a box onto empty canvas: add a box of the usual kind there and connect it. */
-  const connectToEmpty = async (sourceId: string, at: Pt, sourceAnchor?: Pt) => {
-    if (!diagram || !key) return;
-    const src = diagram.nodes.find((n) => n.id === sourceId);
-    const kind = diagram.level === "container" ? "container" : diagram.level === "component" ? "component" : "softwareSystem";
-    if (!diagram.addable.includes(kind)) return;
-    const sz = defaultSize(kind);
-    const item: PaletteItem = { kind, label: "", name: kind === "softwareSystem" ? "New system" : `New ${kind}`, testId: "" };
-    let newId = "";
-    const ok = await mutate(async () => {
-      const parentId = kind === "softwareSystem" ? null : diagram.scope;
-      newId = (await api.createElement({ kind, name: item.name, uniqueName: true, parentId, diagramKey: key, position: { x: Math.round(at.x - sz.w / 2), y: Math.round(at.y - sz.h / 2) } })).id;
-      const rel = (await api.createRelationship({ sourceId, destinationId: newId })).id;
-      if (sourceAnchor) await api.layout(key, { edges: { [rel]: { sourceAnchor } } });
-    });
-    if (ok && src) startRename(newId);
-  };
-
-  const connect = async (source: string, target: string, anchors: { sourceAnchor?: Pt; targetAnchor?: Pt }) => {
-    let newId = "";
-    const ok = await mutate(async () => {
-      newId = (await api.createRelationship({ sourceId: source, destinationId: target })).id;
-      // Remember which sides of the two boxes the line was drawn between.
-      if (key && (anchors.sourceAnchor || anchors.targetAnchor)) await api.layout(key, { edges: { [newId]: anchors } });
-    });
-    if (ok) {
-      setSelection({ type: "edge", id: newId });
-      setFocusName(true);
-    }
-  };
-
-  const savePositions = (p: Record<string, Pt>, auto = false) => {
-    if (!key || !Object.keys(p).length || state.readOnly) return;
-    if (diagram?.level === "connector" || diagram?.level === "code") mutate(() => api.layout(key, { positions: p }));
-    else mutate(() => api.positions(key, p, auto));
-  };
-
-  const select = (s: Selection) => {
-    setFocusName(false);
-    setSelection(s);
-  };
-
-  // ---------------------------------------------------------------- right-click menus
-  // The same actions as the quick bar, keyboard shortcuts, toolbar and panel, gathered where the user clicked.
-  const frozen = !!diagram?.compare?.removed;
-  const pasteStyle = (target: string, kind: "node" | "edge") => {
-    const s = styleClip.current;
-    if (!s) return;
-    const picked = Object.fromEntries(Object.entries(s).filter(([k]) => (kind === "node" ? NODE_STYLE_KEYS : EDGE_STYLE_KEYS).includes(k as keyof Style)));
-    void mutate(() => api.style(target, Object.keys(picked).length ? (picked as Style) : null));
-  };
-  const styleItems = (target: string, style: Style, kind: "node" | "edge", canEdit: boolean): MenuItem[] => [
-    { label: "Copy style", icon: "brush", testId: "ctx-copy-style", onSelect: () => (styleClip.current = { ...style }) },
-    canEdit && { label: "Paste style", icon: "brush", testId: "ctx-paste-style", disabled: !styleClip.current, onSelect: () => pasteStyle(target, kind) },
-    canEdit && { label: "Reset style", testId: "ctx-reset-style", disabled: Object.keys(style).length === 0, onSelect: () => void mutate(() => api.style(target, null)) },
-  ].filter(Boolean) as MenuItem[];
-
-  const nodeMenu = (n: DiagramNode): MenuItem[] => {
-    const el = state.elements.find((x) => x.id === n.id);
-    const canEdit = !state.readOnly && !frozen && !n.ghost;
-    const canEditEl = !!el && canEdit;
-    const clip = clipboard.current && state.elements.some((x) => x.id === clipboard.current) ? clipboard.current : null;
-    return tidy([
-      n.drillKey && { label: "Open", icon: "search", shortcut: "Double-click", testId: "ctx-open", onSelect: () => open(n.drillKey!) },
-      n.filePath && { label: "Open file", icon: "file", shortcut: "Double-click", testId: "ctx-open-file", onSelect: () => setOpenFile(n.filePath!) },
-      { label: el ? "Edit details…" : "Show details", icon: "panel", testId: "ctx-details", onSelect: () => (select({ type: "node", id: n.id }), setFocusName(!!el)) },
-      { sep: true },
-      canEditEl && { label: "Rename", icon: "edit", shortcut: "F2", testId: "ctx-rename", onSelect: () => setRenameId(n.id) },
-      canEditEl &&
-        n.kind !== "person" && {
-          label: "Symbol",
-          icon: "shapes",
-          testId: "ctx-symbol",
-          submenu: state.enums.archTypes.map((a) => ({
-            label: a.label,
-            checked: (n.archType || "box") === a.id,
-            testId: `ctx-symbol-${a.id}`,
-            onSelect: () => void mutate(() => api.updateElement(n.id, { archType: a.id })),
-          })),
-        },
-      canEditEl &&
-        (n.kind === "person" || n.kind === "softwareSystem") && {
-          label: "External",
-          checked: n.external,
-          testId: "ctx-external",
-          onSelect: () => void mutate(() => api.updateElement(n.id, { external: !n.external })),
-        },
-      { sep: true },
-      canEditEl && { label: "Cut", icon: "cut", shortcut: keys("Mod+X"), testId: "ctx-cut", onSelect: () => cutElement(n.id) },
-      el && { label: "Copy", icon: "copy", shortcut: keys("Mod+C"), testId: "ctx-copy", onSelect: () => (clipboard.current = n.id) },
-      el && canEdit && { label: "Paste", icon: "paste", shortcut: keys("Mod+V"), testId: "ctx-paste", disabled: !clip, onSelect: () => clip && void pasteFrom(clip) },
-      canEditEl && { label: "Duplicate", icon: "copy", shortcut: keys("Mod+D"), testId: "ctx-duplicate", onSelect: () => void pasteFrom(n.id) },
-      { sep: true },
-      ...styleItems(n.id, n.style ?? {}, "node", canEdit),
-      canEdit && diagram?.level !== "flow" && { label: "Reset size", icon: "resize", testId: "ctx-reset-size", disabled: !n.size, onSelect: () => key && void mutate(() => api.layout(key, { sizes: { [n.id]: null } })) },
-      { sep: true },
-      canEditEl && {
-        label: n.childCount ? `Delete (and ${n.childCount} inside)` : "Delete",
-        icon: "trash",
-        shortcut: "Del",
-        danger: true,
-        testId: "ctx-delete",
-        onSelect: () => nodeActions?.remove(n.id),
-      },
-    ]);
-  };
-
-  const edgeMenu = (e: DiagramEdge): MenuItem[] => {
-    const canEdit = !state.readOnly && !frozen && !e.ghost;
-    const real = !e.derived && !e.id.startsWith("file:");
-    const relId = real ? e.relationshipIds[0] : null;
-    const styleTarget = e.id.startsWith("conn:") && relId ? relId : e.id;
-    // Relationships are deleted from the diagrams they are drawn on (not flows, connectors or code).
-    const deletable = canEdit && !!relId && !e.id.startsWith("conn:") && ["landscape", "context", "container", "component"].includes(diagram?.level ?? "");
-    const lineEditable = canEdit && diagram?.level !== "flow";
-    const setLine = (layout: EdgeLayout) => key && void mutate(() => api.layout(key, { edges: { [e.id]: layout } }));
-    const setStyle = (patch: Partial<Style>) => void mutate(() => api.style(styleTarget, { ...e.style, ...patch }));
-    const routing = e.layout.routing ?? "auto";
-    const arrow = e.style.arrow ?? "end";
-    const head = e.style.arrowHead ?? "filled";
-    return tidy([
-      e.detailKey && { label: "Open connector", icon: "search", shortcut: "Double-click", testId: "ctx-open", onSelect: () => open(e.detailKey!) },
-      !e.detailKey &&
-        e.drillTargets.length === 1 && { label: "Open where it is drawn", icon: "search", shortcut: "Double-click", testId: "ctx-open", onSelect: () => open(e.drillTargets[0].key) },
-      !e.detailKey &&
-        e.drillTargets.length > 1 && {
-          label: "Open where it is drawn",
-          icon: "search",
-          testId: "ctx-open",
-          submenu: e.drillTargets.map((t) => ({ label: t.title, onSelect: () => open(t.key) })),
-        },
-      { label: relId && canEdit ? "Edit label…" : "Show details", icon: relId && canEdit ? "edit" : "panel", testId: "ctx-details", onSelect: () => (select({ type: "edge", id: e.id }), setFocusName(!!relId && canEdit)) },
-      { sep: true },
-      lineEditable && {
-        label: "Line shape",
-        icon: "line",
-        testId: "ctx-line-shape",
-        submenu: LINE_SHAPES.map(([v, label]) => ({
-          label,
-          checked: routing === v,
-          testId: `ctx-line-${v}`,
-          onSelect: () => {
-            const next = { ...e.layout };
-            if (v === "auto") delete next.routing;
-            else next.routing = v;
-            setLine(next);
-          },
-        })),
-      },
-      canEdit && {
-        label: "Arrows",
-        icon: "forward",
-        testId: "ctx-arrows",
-        submenu: [
-          ...ARROWS.map(([v, label]): MenuItem => ({ label, checked: arrow === v, testId: `ctx-arrow-${v}`, onSelect: () => setStyle({ arrow: v }) })),
-          { sep: true },
-          ...ARROW_HEADS.map(([v, label]): MenuItem => ({ label, checked: head === v, testId: `ctx-head-${v}`, onSelect: () => setStyle({ arrowHead: v }) })),
-        ],
-      },
-      lineEditable && { label: "Reset line position", icon: "restart", testId: "ctx-reset-line", disabled: Object.keys(e.layout).length === 0, onSelect: () => setLine({}) },
-      { sep: true },
-      ...styleItems(styleTarget, e.style, "edge", canEdit),
-      { sep: true },
-      deletable && { label: "Delete", icon: "trash", shortcut: "Del", danger: true, testId: "ctx-delete", onSelect: () => deleteRelationship(relId!) },
-    ]);
-  };
-
-  const paneMenu = (at: Pt): MenuItem[] => {
-    if (!diagram) return [];
-    const canEdit = !state.readOnly && !frozen;
-    const addable = canEdit && diagram.level !== "flow" && diagram.level !== "code" ? paletteItems(diagram) : [];
-    const clip = clipboard.current ? state.elements.find((x) => x.id === clipboard.current) : undefined;
-    // A copy lands where the original's parent is drawn, so only place it here when the original is on this diagram.
-    const clipHere = clip && diagram.nodes.some((n) => n.id === clip.id);
-    const up = diagram.breadcrumb.length > 1 ? diagram.breadcrumb[diagram.breadcrumb.length - 2] : null;
-    return tidy([
-      addable.length > 0 && {
-        label: "Add here",
-        icon: "plus",
-        testId: "ctx-add",
-        submenu: addable.map((it) => ({
-          label: it.label,
-          icon: it.kind === "stage" ? "stage" : iconFor(it.kind, it.archType),
-          testId: `ctx-${it.testId}`,
-          onSelect: () => void addItem(it, canvasRef.current?.spotAt(at, defaultSize(it.kind))),
-        })),
-      },
-      canEdit && {
-        label: clipHere ? "Paste here" : "Paste",
-        icon: "paste",
-        shortcut: keys("Mod+V"),
-        testId: "ctx-paste",
-        disabled: !clip,
-        onSelect: () => clip && void pasteFrom(clip.id, clipHere ? canvasRef.current?.spotAt(at, defaultSize(clip.kind)) : undefined),
-      },
-      { sep: true },
-      canEdit && { label: "Undo", icon: "undo", shortcut: keys("Mod+Z"), testId: "ctx-undo", disabled: !state.canUndo, onSelect: () => void doHistory("undo") },
-      canEdit && { label: "Redo", icon: "redo", shortcut: keys("Mod+Shift+Z"), testId: "ctx-redo", disabled: !state.canRedo, onSelect: () => void doHistory("redo") },
-      { sep: true },
-      canEdit && diagram.nodes.length > 0 && { label: "Auto-layout", icon: "layout", testId: "ctx-auto-layout", onSelect: () => void canvasRef.current?.relayout() },
-      { label: "Fit to screen", icon: "fit", shortcut: keys("Mod+0"), testId: "ctx-fit", onSelect: () => canvasRef.current?.fit() },
-      { label: "Zoom in", icon: "zoomIn", shortcut: keys("Mod++"), onSelect: () => canvasRef.current?.zoom(1) },
-      { label: "Zoom out", icon: "zoomOut", shortcut: keys("Mod+-"), onSelect: () => canvasRef.current?.zoom(-1) },
-      { sep: true },
-      up && { label: `Up to ${up.label}`, icon: "up", testId: "ctx-up", onSelect: () => open(up.key) },
-      {
-        label: "Download",
-        icon: "download",
-        testId: "ctx-download",
-        submenu: (["png", "svg"] as const).map((f) => ({ label: f.toUpperCase(), testId: `ctx-download-${f}`, onSelect: () => void canvasRef.current?.exportImage(f) })),
-      },
-    ]);
-  };
-
-  const menuItems = (): MenuItem[] => {
-    if (!menu) return [];
-    const t = menu.target;
-    if (t.type === "pane") return paneMenu(t.at);
-    if (t.type === "node") {
-      const n = diagram?.nodes.find((x) => x.id === t.id);
-      return n ? nodeMenu(n) : [];
-    }
-    const e = diagram?.edges.find((x) => x.id === t.id);
-    return e ? edgeMenu(e) : [];
-  };
-  const shownMenu = menu ? menuItems() : [];
+  const shownMenu = menu
+    ? menuItems(menu, { state, diagram, key, mutate, open, select, setFocusName, setRenameId, setOpenFile, clip, nodeActions, deleteRelationship, addItem, doHistory, canvasRef })
+    : [];
 
   const selectedNode = selection?.type === "node" ? diagram?.nodes.find((n) => n.id === selection.id) : undefined;
   const selectedEdge = selection?.type === "edge" ? diagram?.edges.find((e) => e.id === selection.id) : undefined;
@@ -789,25 +86,6 @@ export default function App() {
   const showGhost = !!(selectedNode?.ghost || selectedEdge?.ghost || (selection && diagram?.compare?.removed));
   const selectedElement = selection?.type === "node" ? state.elements.find((e) => e.id === selection.id) : undefined;
   const panelProps = { state, diagram: diagram!, lens, mutate, onSelect: select, onOpen: open, onReveal: reveal, onOpenFile: setOpenFile, focusName };
-  const startDrag = (side: "left" | "right") => (e: React.PointerEvent) => {
-    e.preventDefault();
-    const startX = e.clientX;
-    const start = side === "left" ? leftW : rightW;
-    const set = side === "left" ? setLeftW : setRightW;
-    const [lo, hi, k] = side === "left" ? [180, 560, LEFT_KEY] : [240, 720, RIGHT_KEY];
-    let last = start;
-    const move = (ev: PointerEvent) => {
-      last = clamp(start + (side === "left" ? ev.clientX - startX : startX - ev.clientX), lo, hi);
-      set(last);
-    };
-    const up = () => {
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", up);
-      storage.set(k, String(Math.round(last)));
-    };
-    window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", up);
-  };
 
   const diagramCost = diagram ? overlayable(diagram).reduce((sum, n) => sum + (n.costRollup ?? 0), 0) : 0;
   const tools = (
@@ -847,7 +125,7 @@ export default function App() {
   );
 
   return (
-    <div className={`app${leftOpen ? "" : " left-closed"}`} style={{ gridTemplateColumns: `${leftOpen ? `${leftW}px 5px` : "0 0"} minmax(0, 1fr) 5px ${rightW}px` }}>
+    <div className={`app${leftOpen ? "" : " left-closed"}`} style={{ gridTemplateColumns }}>
       {leftOpen ? (
         <Sidebar
           state={state}
@@ -884,7 +162,7 @@ export default function App() {
         <div />
       )}
       {leftOpen ? (
-        <div className="resizer" onPointerDown={startDrag("left")} onDoubleClick={() => { setLeftW(250); storage.set(LEFT_KEY, "250"); }} role="separator" aria-orientation="vertical" title="Drag to resize the sidebar (double-click: reset)" data-testid="resize-left" />
+        <div className="resizer" onPointerDown={startDrag("left")} onDoubleClick={resetLeft} role="separator" aria-orientation="vertical" title="Drag to resize the sidebar (double-click: reset)" data-testid="resize-left" />
       ) : (
         <div />
       )}
@@ -1061,7 +339,7 @@ export default function App() {
         </div>
       </main>
 
-      <div className="resizer" onPointerDown={startDrag("right")} onDoubleClick={() => { setRightW(320); storage.set(RIGHT_KEY, "320"); }} role="separator" aria-orientation="vertical" title="Drag to resize the panel (double-click: reset)" data-testid="resize-right" />
+      <div className="resizer" onPointerDown={startDrag("right")} onDoubleClick={resetRight} role="separator" aria-orientation="vertical" title="Drag to resize the panel (double-click: reset)" data-testid="resize-right" />
       <aside className="panel">
         {showGhost && (
           <GhostPanel node={selectedNode} edge={selectedEdge} change={selectedChange} against={againstLabel} />
@@ -1151,81 +429,6 @@ export default function App() {
           onSaved={(id) => chooseLensAfterSave(id)}
         />
       )}
-    </div>
-  );
-
-  function chooseLensAfterSave(id: string) {
-    // State is refreshed by mutate before this runs; re-read lenses on the next tick.
-    window.setTimeout(() => {
-      api.state().then((s) => {
-        setState(s);
-        const l = s.lenses.find((x) => x.id === id);
-        if (!l) return;
-        setLensId(id);
-        storage.set(LENS_KEY, id);
-        setOverlay(lensOverlay(l, s));
-      });
-    }, 0);
-  }
-}
-
-/** Ctrl/Cmd+K: find an object or a diagram by name, description or technology. */
-function SearchBox({ state, onClose, onPick, onOpen }: { state: AppState; onClose(): void; onPick(id: string): void; onOpen(key: string): void }) {
-  const [q, setQ] = useState("");
-  const [cur, setCur] = useState(0);
-  const t = q.trim().toLowerCase();
-  const els = state.elements
-    .filter((e) => !t || e.name.toLowerCase().includes(t) || e.description.toLowerCase().includes(t) || e.technologies.some((x) => x.toLowerCase().includes(t)))
-    .slice(0, 10)
-    .map((e) => ({ type: "el" as const, id: e.id, label: e.name, sub: `${KIND_LABEL[e.kind]}${e.technologies.length ? ` · ${e.technologies.join(", ")}` : ""}`, icon: iconFor(e.kind, e.archType) }));
-  const ds = state.diagrams
-    .filter((d) => t && (d.title.toLowerCase().includes(t) || d.label.toLowerCase().includes(t)))
-    .slice(0, 5)
-    .map((d) => ({ type: "d" as const, id: d.key, label: d.title, sub: `${d.c4 ? `${d.c4} · ` : ""}${LEVEL_LABEL[d.level]} diagram`, icon: "layers" }));
-  const items = [...els, ...ds];
-  const pick = (i: number) => {
-    const it = items[i];
-    if (!it) return;
-    if (it.type === "el") onPick(it.id);
-    else onOpen(it.id);
-  };
-  return (
-    <div className="modal-backdrop top" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="search-box" role="dialog" aria-label="Search">
-        <div className="search-input">
-          <Icon name="search" />
-          <input
-            autoFocus
-            value={q}
-            placeholder="Find an object or diagram…"
-            onChange={(e) => {
-              setQ(e.target.value);
-              setCur(0);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") onClose();
-              else if (e.key === "ArrowDown") setCur(Math.min(items.length - 1, cur + 1));
-              else if (e.key === "ArrowUp") setCur(Math.max(0, cur - 1));
-              else if (e.key === "Enter") pick(cur);
-              else return;
-              e.preventDefault();
-            }}
-            data-testid="search-input"
-          />
-        </div>
-        <ul className="search-results">
-          {items.map((it, i) => (
-            <li key={`${it.type}-${it.id}`}>
-              <button className={i === cur ? "on" : ""} onMouseEnter={() => setCur(i)} onClick={() => pick(i)} data-testid={`result-${it.id}`}>
-                <Icon name={it.icon} size={15} />
-                <span>{it.label}</span>
-                <span className="muted small">{it.sub}</span>
-              </button>
-            </li>
-          ))}
-          {items.length === 0 && <li className="muted small pad">Nothing found.</li>}
-        </ul>
-      </div>
     </div>
   );
 }

@@ -1,0 +1,234 @@
+/** What the route modules share: the project, drafts and git readers, the model version a request
+ *  selects, and the small request-parsing helpers. */
+
+import { AsyncLocalStorage } from "node:async_hooks";
+import type { Context, MiddlewareHandler } from "hono";
+import * as diagrams from "../core/diagrams.js";
+import { diffModels } from "../core/diff.js";
+import { Drafts } from "../core/drafts.js";
+import { DiskCode, NO_CODE, type CodeSource } from "../core/codefs.js";
+import { currentBranch, GitCodes, GitModels, listRefs } from "../core/git.js";
+import * as flows from "../core/flows.js";
+import { isObj, type Obj } from "../core/json.js";
+import * as ops from "../core/ops.js";
+import { buildIndex, elementSummary, relationshipSummary } from "../core/ops.js";
+import { BUILTIN_LENSES, lensData, SECTIONS, styleData, type Sidecar } from "../core/sidecar.js";
+import { Project, type ModelSource } from "../core/store.js";
+import type { Workspace } from "../core/workspace.js";
+import type { AppState, Lens, Style } from "../shared/types.js";
+
+/** An HTTP error with a status code; the body is {"detail": message}. */
+export class HttpError extends Error {
+  constructor(
+    readonly status: number,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
+/** The model version a request works on (header X-DP-Model) and the one it is compared with
+ *  (header X-DP-Compare). */
+export interface Selection {
+  src: ModelSource;
+  ref: string;
+  title: string;
+  cmp: ModelSource | null;
+  cmpRef: string | null;
+  cmpTitle: string | null;
+  /** Where each version reads source files from. */
+  code: CodeSource;
+  cmpCode: CodeSource | null;
+  /** Files the shown draft plans to edit. */
+  planned: string[];
+}
+
+/** The two code sources of a comparison, for `diffModels`. */
+export function codePair(sel: Selection) {
+  return sel.cmpCode ? { before: sel.cmpCode, after: sel.code, planned: sel.planned } : undefined;
+}
+
+export function state(project: Project, readOnly = false, sel?: Selection, drafts?: Drafts, gitModels?: GitModels): AppState {
+  const src = sel?.src ?? project;
+  const ws = src.workspace;
+  const sc = src.sidecar;
+  const editable = src instanceof Project ? src : null;
+  const idx = buildIndex(ws);
+  return {
+    workspace: { name: ws.name, description: ws.description || "" },
+    root: project.root,
+    elements: [...idx.elements.keys()].map((e) => elementSummary(idx, e)),
+    relationships: [...idx.relationships.values()].map(relationshipSummary),
+    diagrams: diagrams.diagramList(ws),
+    tagGroups: sc.tagGroups.map((g) => ({ name: g.name, values: g.values.map((v) => ({ name: v.name, color: v.color })) })),
+    characteristics: sc.characteristics.map((c) => ({ name: c.name, description: c.description })),
+    costSettings: { currency: sc.cost.currency, bands: sc.cost.bands.map((b) => ({ name: b.name, max: b.max ?? null, color: b.color })) },
+    lenses: [...BUILTIN_LENSES, ...sc.lenses].map((l) => ({ ...lensData(l), defaultOverlay: l.defaultOverlay ?? null, builtin: l.builtin }) as unknown as Lens),
+    flows: flows.listFlows(ws),
+    loadErrors: src.loadErrors,
+    enums: ops.ENUMS,
+    technologies: ops.technologyCatalog(idx),
+    styles: Object.fromEntries(Object.entries(sc.styles).map(([k, v]) => [k, styleData(v) as Style])),
+    canUndo: (editable?.undoStack.length ?? 0) > 0,
+    canRedo: (editable?.redoStack.length ?? 0) > 0,
+    codeRoot: project.codeRoot,
+    sections: [...SECTIONS],
+    readOnly: readOnly || src.readOnly,
+    model: { ref: sel?.ref ?? "main", title: sel?.title ?? "Main model" },
+    drafts: drafts?.list() ?? [],
+    git: (() => {
+      const repo = gitModels?.get();
+      return repo ? { branch: currentBranch(repo), refs: listRefs(repo) } : null;
+    })(),
+    compare:
+      sel?.cmp && sel.cmpRef
+        ? { against: sel.cmpRef, title: sel.cmpTitle ?? sel.cmpRef, summary: diffModels(sel.cmp, src, sel.cmpRef, codePair(sel)).summary }
+        : null,
+  };
+}
+
+// ---------------------------------------------------------------- request body helpers
+
+export async function body(c: Context): Promise<unknown> {
+  const text = await c.req.text();
+  if (!text.trim()) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new HttpError(422, "The request body is not valid JSON.");
+  }
+}
+
+export async function objBody(c: Context): Promise<Obj> {
+  const b = await body(c);
+  if (!isObj(b)) throw new HttpError(422, "The request body must be a JSON object.");
+  return b;
+}
+
+export function needStr(o: Obj, key: string): string {
+  if (typeof o[key] !== "string") throw new HttpError(422, `"${key}" is required and must be text.`);
+  return o[key] as string;
+}
+
+export function optStr(o: Obj, key: string): string | null {
+  const v = o[key];
+  if (v === undefined || v === null) return null;
+  if (typeof v !== "string") throw new HttpError(422, `"${key}" must be text.`);
+  return v;
+}
+
+export function num(v: unknown, what: string): number {
+  const n = typeof v === "number" ? v : typeof v === "string" && v.trim() ? Number(v) : NaN;
+  if (!Number.isFinite(n)) throw new HttpError(422, `${what} must be a number.`);
+  return n;
+}
+
+export function point(v: unknown, what: string): { x: number; y: number } {
+  if (!isObj(v)) throw new HttpError(422, `${what} must be an object with x and y.`);
+  return { x: num(v.x, `${what}.x`), y: num(v.y, `${what}.y`) };
+}
+
+export function strList(v: unknown, what: string): string[] {
+  if (!Array.isArray(v) || v.some((x) => typeof x !== "string")) throw new HttpError(422, `${what} must be a list of text.`);
+  return v as string[];
+}
+
+// ---------------------------------------------------------------- the shared context
+
+export interface AppOptions {
+  codeRoot?: string | null;
+  readOnly?: boolean;
+  /** Host names (as in the Host header, without the port; IPv6 in brackets) the server answers to.
+   *  Default: the loopback names. null turns the check off (a server bound to another interface). */
+  allowedHosts?: string[] | null;
+}
+
+/** Everything the route modules work with, built once per app by `createContext`. */
+export interface Ctx {
+  readOnly: boolean;
+  project: Project;
+  drafts: Drafts;
+  gitModels: GitModels;
+  gitCodes: GitCodes;
+  disk: DiskCode;
+  ok: (c: Context) => Response;
+  /** The model version and comparison the current request selected. */
+  sel: () => Selection;
+  /** The editable model of the selected version (403 for a read-only version). */
+  writable: () => Project;
+  edit: <T>(fn: (ws: Workspace, sc: Sidecar) => T, record?: boolean) => T;
+  draftId: (ref: string) => string;
+  /** Middleware: reads X-DP-Model / X-DP-Compare and runs the rest of the request with that selection. */
+  selectVersion: MiddlewareHandler;
+}
+
+export function createContext(root: string, opts: AppOptions = {}): Ctx {
+  const readOnly = opts.readOnly ?? false;
+  const project = new Project(root, opts.codeRoot);
+  const drafts = new Drafts(project);
+  const gitModels = new GitModels(project.dir);
+  const gitCodes = new GitCodes(project.codeRoot);
+  const disk = new DiskCode(project.codeRoot);
+  const ok = (c: Context) => c.json({ ok: true });
+
+  // Each request selects a model version; handlers read it from here (requests interleave at
+  // `await`, so this cannot be a plain variable).
+  const selection = new AsyncLocalStorage<Selection>();
+  const sel = (): Selection =>
+    selection.getStore() ?? { src: project, ref: "main", title: "Main model", cmp: null, cmpRef: null, cmpTitle: null, code: disk, cmpCode: null, planned: [] };
+  const src = () => sel().src;
+  const writable = (): Project => {
+    const s = src();
+    if (!(s instanceof Project)) throw new HttpError(403, "This version of the model is read-only.");
+    return s;
+  };
+  const edit = <T>(fn: (ws: Workspace, sc: Sidecar) => T, record = true) => writable().edit(fn, record);
+
+  const draftId = (ref: string) => ref.slice("draft:".length);
+  /** A version's model, title and code. */
+  const resolve = (ref: string): [ModelSource, string, CodeSource] => {
+    if (ref === "main") return [project, "Main model", disk];
+    if (ref.startsWith("draft:")) {
+      const id = draftId(ref);
+      return [drafts.get(id), `Draft: ${drafts.info(id).title}`, drafts.code(id)];
+    }
+    if (ref.startsWith("ref:")) {
+      const name = ref.slice("ref:".length);
+      const snap = gitModels.at(name);
+      let code: CodeSource;
+      try {
+        code = gitCodes.at(name);
+      } catch {
+        code = NO_CODE; // the code folder is in another repository without that ref
+      }
+      return [snap, `Git: ${name} (${snap.sha.slice(0, 7)})${snap.present ? "" : ", no model"}`, code];
+    }
+    throw new HttpError(422, `Unknown model version "${ref}".`);
+  };
+  const resolveCompare = (ref: string, against: string): [ModelSource, string, CodeSource] => {
+    if (against === "base") {
+      if (!ref.startsWith("draft:")) throw new HttpError(422, "Only a draft has a base to compare with.");
+      // A draft's planned code edits are compared with the code folder as it is now.
+      return [drafts.base(draftId(ref)), "Main model when the draft was made", disk];
+    }
+    return resolve(against);
+  };
+
+  const selectVersion: MiddlewareHandler = async (c, next) => {
+    const ref = c.req.header("x-dp-model")?.trim() || "main";
+    const [s, title, code] = resolve(ref);
+    s.reloadIfChanged();
+    const against = c.req.header("x-dp-compare")?.trim() || null;
+    let cmp: ModelSource | null = null;
+    let cmpTitle: string | null = null;
+    let cmpCode: CodeSource | null = null;
+    if (against) {
+      [cmp, cmpTitle, cmpCode] = resolveCompare(ref, against);
+      cmp.reloadIfChanged();
+    }
+    const planned = ref.startsWith("draft:") ? [...drafts.codePlan(draftId(ref)).files().keys()] : [];
+    await selection.run({ src: s, ref, title, cmp, cmpRef: against, cmpTitle, code, cmpCode, planned }, next);
+  };
+
+  return { readOnly, project, drafts, gitModels, gitCodes, disk, ok, sel, writable, edit, draftId, selectVersion };
+}

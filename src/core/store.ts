@@ -18,6 +18,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { prune, syncViews } from "./diagrams.js";
 import { syncFlows } from "./flows.js";
+import { atomicWrite } from "./fsutil.js";
 import { stableJson } from "./json.js";
 import { ModelError } from "./ops.js";
 import { emptySidecar, parseSidecar, sidecarData, type Sidecar } from "./sidecar.js";
@@ -31,17 +32,8 @@ export const SIDECAR_FILE = "designperspectives.json";
 /** The package's root folder (holds package.json, demo/ and static/), from src/ or dist/. */
 export const PACKAGE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 
-export function atomicWrite(file: string, text: string): void {
-  fs.mkdirSync(path.dirname(file), { recursive: true });
-  const tmp = path.join(path.dirname(file), `.${path.basename(file)}.${process.pid}.${Date.now()}.tmp`);
-  try {
-    fs.writeFileSync(tmp, text, "utf-8");
-    fs.renameSync(tmp, file);
-  } catch (e) {
-    fs.rmSync(tmp, { force: true });
-    throw e;
-  }
-}
+// Kept here as a re-export: drafts.ts and others import it from the store.
+export { atomicWrite };
 
 type Snapshot = [Workspace, Sidecar];
 type Stamp = string;

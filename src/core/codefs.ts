@@ -12,23 +12,11 @@ import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { atomicWrite } from "./fsutil.js";
 import { isObj, stableJson } from "./json.js";
 import { ModelError, normpath } from "./ops.js";
 
 export const MAX_BYTES = 1_000_000;
-
-/** Write via a temporary file and rename (no half-written files). */
-function atomicWrite(file: string, text: string): void {
-  fs.mkdirSync(path.dirname(file), { recursive: true });
-  const tmp = path.join(path.dirname(file), `.${path.basename(file)}.${process.pid}.${Date.now()}.tmp`);
-  try {
-    fs.writeFileSync(tmp, text, "utf-8");
-    fs.renameSync(tmp, file);
-  } catch (e) {
-    fs.rmSync(tmp, { force: true });
-    throw e;
-  }
-}
 
 export interface CodeEntry {
   name: string;
