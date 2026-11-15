@@ -1,6 +1,7 @@
 import { useCallback, useRef, type Dispatch, type RefObject, type SetStateAction } from "react";
 import { api } from "./api";
 import type { AppState, Pt, Selection, Style } from "./types";
+import { confirmDialog } from "./dialogs";
 
 /** Style keys that apply to boxes and to lines (Paste style keeps only the ones that fit). */
 const NODE_STYLE_KEYS: (keyof Style)[] = ["fill", "text", "stroke", "strokeStyle", "strokeWidth", "fontSize"];
@@ -41,7 +42,9 @@ export function useClipboard(p: {
       const el = state?.elements.find((x) => x.id === id);
       if (!el) return;
       clipboard.current = id;
-      if (window.confirm(`Cut "${el.name}"? It is removed now; Paste adds a copy of it.`)) mutate(() => api.deleteElement(el.id)).then((ok) => ok && setSelection(null));
+      void confirmDialog({ title: `Cut "${el.name}"?`, message: "It is removed now; Paste adds a copy of it.", confirmLabel: "Cut", danger: true }).then(
+        (yes) => yes && mutate(() => api.deleteElement(el.id)).then((ok) => ok && setSelection(null)),
+      );
     },
     [state, mutate],
   );

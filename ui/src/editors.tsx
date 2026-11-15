@@ -3,6 +3,7 @@ import { api } from "./api";
 import { Modal } from "./fields";
 import { bandRange } from "./overlays";
 import { LEVELS, LEVEL_LABEL, SECTIONS, SECTION_LABEL, type CharacteristicDef, type CostSettings, type Lens, type Level, type Section, type TagGroup } from "./types";
+import { confirmDialog } from "./dialogs";
 
 // Palette chosen so neighbouring values differ in lightness as well as hue.
 const PALETTE = ["#d62728", "#ff7f0e", "#2ca02c", "#1f77b4", "#9467bd", "#8c564b", "#e377c2", "#17becf"];
@@ -196,7 +197,7 @@ export function LensEditor({
           <button
             className="danger"
             onClick={async () => {
-              if (window.confirm(`Delete the lens "${lens.name}"?`) && (await mutate(() => api.deleteLens(lens.id)))) {
+              if ((await confirmDialog({ title: `Delete the lens "${lens.name}"?`, confirmLabel: "Delete", danger: true })) && (await mutate(() => api.deleteLens(lens.id)))) {
                 onSaved("engineer");
                 onClose();
               }

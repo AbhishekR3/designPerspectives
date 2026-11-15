@@ -2,6 +2,8 @@ import { useEffect, type Dispatch, type RefObject, type SetStateAction } from "r
 import { api } from "./api";
 import type { CanvasHandle } from "./Canvas";
 import type { AppState, Diagram, Selection } from "./types";
+import { confirmDeleteElement } from "./dialogs";
+import { dialogOpen } from "./fields";
 
 /**
  * The global keyboard shortcuts, as four window listeners (registered in this order):
@@ -10,7 +12,7 @@ import type { AppState, Diagram, Selection } from "./types";
  *   Escape clears the selection; arrows nudge the selected box; F2 renames;
  * - Delete/Backspace removes the selection;
  * - Ctrl/Cmd+K opens the search box.
- * None of them act while typing (the conditions on the event target differ slightly per listener).
+ * None of them act while a dialog is open or while typing (the conditions on the event target differ slightly per listener).
  */
 export function useShortcuts(p: {
   state: AppState | null;
@@ -32,6 +34,7 @@ export function useShortcuts(p: {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (dialogOpen()) return;
       if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
       const t = e.target as HTMLElement;
       if (t.closest("input, textarea, select, [contenteditable]")) return;
@@ -48,6 +51,7 @@ export function useShortcuts(p: {
   // Editor-style shortcuts: copy/cut/paste/duplicate, select-all is not offered; arrows nudge; zoom; escape.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (dialogOpen()) return;
       const t = e.target as HTMLElement;
       if (t.closest("input, textarea, select, [contenteditable], .cm-editor")) return;
       if (state?.readOnly) return;
@@ -87,6 +91,7 @@ export function useShortcuts(p: {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Delete" && e.key !== "Backspace") return;
+      if (dialogOpen()) return;
       const t = e.target as HTMLElement;
       if (t.closest("input, textarea, select, [contenteditable]")) return;
       if (!selection || !state) return;
@@ -94,8 +99,8 @@ export function useShortcuts(p: {
       if (ghost || diagram?.compare?.removed) return;
       if (selection.type === "node") {
         const el = state.elements.find((x) => x.id === selection.id);
-        if (el && window.confirm(`Delete "${el.name}"${el.childCount ? ` and the ${el.childCount} element(s) inside it` : ""}?`))
-          mutate(() => api.deleteElement(el.id)).then((ok) => ok && setSelection(null));
+        if (el)
+          void confirmDeleteElement(el).then((yes) => yes && mutate(() => api.deleteElement(el.id)).then((ok) => ok && setSelection(null)));
       } else if (!selection.id.startsWith("derived:") && diagram?.level !== "flow") deleteRelationship(selection.id);
     };
     window.addEventListener("keydown", onKey);
@@ -104,6 +109,7 @@ export function useShortcuts(p: {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (dialogOpen()) return;
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setSearchOpen(true);

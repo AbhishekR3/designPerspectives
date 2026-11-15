@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 /** Text input that saves on blur or Enter (Escape reverts). */
 export function TextField({
@@ -58,17 +58,80 @@ export function TextField({
   );
 }
 
-export function Modal({ title, onClose, children, wide = false }: { title: string; onClose(): void; children: React.ReactNode; wide?: boolean }) {
+/** True while any modal dialog is open. The global keyboard shortcuts check this and do nothing. */
+export const dialogOpen = (): boolean => document.querySelector('[aria-modal="true"]') !== null;
+
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"]), [contenteditable="true"]';
+
+/** Open dialogs, oldest first; only the last one reacts to Escape and Tab. */
+const modalStack: object[] = [];
+
+/**
+ * A modal dialog: labelled for screen readers, focus moves in on open (to the element marked data-autofocus
+ * or autoFocus, else the first control) and back to the previous element on close, Tab stays inside, and
+ * Escape closes only the top dialog (the event stops there, so it does not also clear the canvas selection).
+ */
+export function Modal({ title, onClose, children, wide = false, testId }: { title: string; onClose(): void; children: React.ReactNode; wide?: boolean; testId?: string }) {
+  const titleId = useId();
+  const box = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  // Read while rendering, before any child effect (such as an autoFocus) moves the focus.
+  const [opener] = useState(() => document.activeElement);
+
   useEffect(() => {
-    const k = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", k);
-    return () => window.removeEventListener("keydown", k);
-  }, [onClose]);
+    const token = {};
+    modalStack.push(token);
+    const root = box.current!;
+    const controls = () => [...root.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((el) => el.offsetParent !== null);
+    if (!root.contains(document.activeElement)) {
+      const all = controls();
+      const target = root.querySelector<HTMLElement>("[data-autofocus]") ?? all.find((el) => !el.closest(".modal-head")) ?? all[0] ?? root;
+      target.focus();
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (modalStack[modalStack.length - 1] !== token) return;
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        onCloseRef.current();
+      } else if (e.key === "Tab") {
+        const all = controls();
+        if (all.length === 0) {
+          e.preventDefault();
+          root.focus();
+          return;
+        }
+        const first = all[0];
+        const last = all[all.length - 1];
+        const active = document.activeElement;
+        if (!root.contains(active) || active === root) {
+          e.preventDefault();
+          (e.shiftKey ? last : first).focus();
+        } else if (e.shiftKey && active === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && active === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => {
+      window.removeEventListener("keydown", onKey, true);
+      modalStack.splice(modalStack.indexOf(token), 1);
+      if (opener instanceof HTMLElement && opener !== document.body && opener.isConnected) opener.focus();
+    };
+  }, [opener]);
+
   return (
     <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className={`modal${wide ? " wide" : ""}`} role="dialog" aria-label={title}>
+      <div className={`modal${wide ? " wide" : ""}`} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} ref={box} data-testid={testId}>
         <div className="modal-head">
-          <h2>{title}</h2>
+          <h2 id={titleId} data-testid={testId ? `${testId}-title` : undefined}>
+            {title}
+          </h2>
           <button className="icon" onClick={onClose} aria-label="Close">
             ×
           </button>

@@ -26,6 +26,8 @@ import { useHashSync, useNavigation, useReveal } from "./useNavigation";
 import { usePanels } from "./usePanels";
 import { useSelection } from "./useSelection";
 import { useShortcuts } from "./useShortcuts";
+import { confirmDialog, DialogHost, promptDialog } from "./dialogs";
+import { Toasts } from "./notify";
 
 type ModalState = { type: "tag"; group: TagGroup | null } | { type: "lens"; lens: Lens | null } | { type: "chars" } | { type: "cost" } | { type: "apply"; draftId: string; title: string } | { type: "plan"; draftId: string } | null;
 
@@ -36,7 +38,7 @@ export default function App() {
   const lensState = useLensState();
   const { overlay, setOverlay, filters, setFilters } = lensState;
   const { key, setKey, keyRef, open, pickChange } = useNavigation(setSelection);
-  const { state, setState, diagram, version, versionRef, changes, error, setError, loadDiagram, refresh, switchVersion, mutate, doHistory } = useModel({
+  const { state, setState, diagram, version, versionRef, changes, error, loadDiagram, refresh, switchVersion, mutate, doHistory } = useModel({
     keyRef,
     setKey,
     setSelection,
@@ -71,7 +73,7 @@ export default function App() {
 
   const visibleGroups = state.tagGroups.filter((g) => !lens.hiddenTagGroups.includes(g.name));
   const draftId = version.model.startsWith("draft:") ? version.model.slice(6) : null;
-  const { newDraft, discardDraft } = draftActions({ state, draftId, switchVersion, setError });
+  const { newDraft, discardDraft } = draftActions({ state, draftId, switchVersion });
   const changeOf = (id: string) => (changes ? [...changes.elements, ...changes.relationships].find((c) => c.id === id) : undefined);
   const againstLabel = state.compare?.title ?? "the compared version";
   const { newFlow, addItem, connectToEmpty, connect, savePositions } = diagramActions({ state, diagram, key, mutate, open, canvasRef, startRename, setSelection, setFocusName });
@@ -140,8 +142,9 @@ export default function App() {
           onEditTagGroup={(g) => setModal({ type: "tag", group: g })}
           onNewTagGroup={() => setModal({ type: "tag", group: null })}
           onDeleteTagGroup={(g) => {
-            if (window.confirm(`Delete the tag group "${g.name}"? Its values are removed from every object.`))
-              mutate(() => api.deleteTagGroup(g.name)).then((ok) => ok && overlay?.kind === "tag" && overlay.name === g.name && setOverlay(null));
+            void confirmDialog({ title: `Delete the tag group "${g.name}"?`, message: "Its values are removed from every object.", confirmLabel: "Delete", danger: true }).then(
+              (yes) => yes && mutate(() => api.deleteTagGroup(g.name)).then((ok) => ok && overlay?.kind === "tag" && overlay.name === g.name && setOverlay(null)),
+            );
           }}
           onEditCharacteristics={() => setModal({ type: "chars" })}
           onEditCost={() => setModal({ type: "cost" })}
@@ -154,8 +157,9 @@ export default function App() {
             />
           }
           onRenameWorkspace={() => {
-            const name = window.prompt("Workspace name", state.workspace.name);
-            if (name && name !== state.workspace.name) mutate(() => api.workspace({ name }));
+            void promptDialog({ title: "Workspace name", initial: state.workspace.name, confirmLabel: "Rename" }).then((name) => {
+              if (name && name !== state.workspace.name) void mutate(() => api.workspace({ name }));
+            });
           }}
         />
       ) : (
@@ -291,23 +295,13 @@ export default function App() {
             )}
           </div>
 
-          {(error || state.readOnly) && (
-            <div className="hud top-center">
-              {state.readOnly && !version.model.startsWith("ref:") && (
-                <div className="float toast info" data-testid="readonly-banner">
-                  Viewer role: this server is read-only. Changes are refused.
-                </div>
-              )}
-              {error && (
-                <div className="float toast error" role="alert" data-testid="error">
-                  {error}
-                  <button className="ghost icon" onClick={() => setError(null)} aria-label="Dismiss">
-                    <Icon name="close" size={13} />
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
+          <Toasts>
+            {state.readOnly && !version.model.startsWith("ref:") && (
+              <div className="float toast info" data-testid="readonly-banner">
+                Viewer role: this server is read-only. Changes are refused.
+              </div>
+            )}
+          </Toasts>
 
           {diagram && diagram.level !== "code" && diagram.level !== "connector" && (
             <Dock
@@ -429,6 +423,7 @@ export default function App() {
           onSaved={(id) => chooseLensAfterSave(id)}
         />
       )}
+      <DialogHost />
     </div>
   );
 }

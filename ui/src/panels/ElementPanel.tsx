@@ -16,6 +16,7 @@ import {
   ConnectionList,
 } from "./sectionEditors";
 import { CharacteristicsEditor, CostEditor, WorkEditor } from "./valueEditors";
+import { confirmDeleteElement } from "../dialogs";
 
 export function ObjectPanel({ element, ...p }: Common & { element: ElementSummary }) {
   const { state, lens, mutate } = p;
@@ -183,9 +184,7 @@ export function ObjectPanel({ element, ...p }: Common & { element: ElementSummar
           className="danger"
           data-testid="delete-element"
           onClick={() => {
-            const n = element.childCount;
-            const msg = n ? `Delete "${element.name}" and the ${n} element(s) inside it?` : `Delete "${element.name}"?`;
-            if (window.confirm(`${msg} Its connections are deleted too.`)) mutate(() => api.deleteElement(element.id)).then((ok) => ok && p.onSelect(null));
+            void confirmDeleteElement(element, { connections: true }).then((yes) => yes && mutate(() => api.deleteElement(element.id)).then((ok) => ok && p.onSelect(null)));
           }}
         >
           Delete

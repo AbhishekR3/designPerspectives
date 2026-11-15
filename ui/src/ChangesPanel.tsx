@@ -4,6 +4,7 @@
  */
 import { useEffect, useState } from "react";
 import { api, ApiError } from "./api";
+import { promptDialog } from "./dialogs";
 import { Modal } from "./fields";
 import { Icon } from "./icons";
 import { CHANGE_COLORS, CHANGE_LABEL } from "./overlays";
@@ -25,10 +26,9 @@ export function DraftList({
   onCompareRef(ref: string): void;
 }) {
   const [gitRef, setGitRef] = useState(state.git?.branch ?? "HEAD");
-  const pickRef = (): string | null => {
+  const pickRef = async (): Promise<string | null> => {
     if (gitRef !== OTHER_REF) return gitRef;
-    const typed = window.prompt("Branch, tag or commit (e.g. main, v1.0, HEAD~3, a1b2c3d)");
-    return typed?.trim() || null;
+    return promptDialog({ title: "Branch, tag or commit", placeholder: "e.g. main, v1.0, HEAD~3, a1b2c3d", confirmLabel: "Use" });
   };
   const items = [{ ref: "main", label: "Main model", sub: "" }, ...state.drafts.map((d) => ({ ref: `draft:${d.id}`, label: d.title, sub: d.created }))];
   return (
@@ -66,8 +66,8 @@ export function DraftList({
           </select>
           <button
             className="small"
-            onClick={() => {
-              const r = pickRef();
+            onClick={async () => {
+              const r = await pickRef();
               if (r) onCompareRef(r);
             }}
             data-testid="git-compare"
@@ -76,8 +76,8 @@ export function DraftList({
           </button>
           <button
             className="small ghost"
-            onClick={() => {
-              const r = pickRef();
+            onClick={async () => {
+              const r = await pickRef();
               if (r) onSwitch(`ref:${r}`);
             }}
             data-testid="git-open"

@@ -16,6 +16,7 @@ import {
 import { toPng, toSvg } from "html-to-image";
 import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type Ref } from "react";
 import { CUSTOM_HEADS, FLOW_CURRENT, MarkerDefs, edgeColor, edgeTypes, nodeTypes, type C4EdgeData, type C4NodeData, type NodeActions, type OverlayInfo, type Rect4 } from "./canvasParts";
+import { errorMessage, notify, run } from "./notify";
 import { CHANGE_COLORS } from "./overlays";
 import { DRAG_TYPE, type PaletteItem } from "./Palette";
 import { NODE_H, NODE_W, autoLayout, defaultSize, findFreeSpot, placeMissing, type Rect, type Size } from "./layout";
@@ -125,16 +126,27 @@ export function Canvas({ diagram, lens, decorate, actions, archTypes, renameId, 
       return;
     }
     (async () => {
-      const add =
-        Object.keys(saved).length === 0
-          ? await autoLayout(
-              diagram.nodes.map((n) => ({ id: n.id, size: baseSizes[n.id] })),
-              diagram.edges,
-              groupedIds(diagram),
-              direction,
-            )
-          : placeMissing({ ...saved }, baseSizes, missing, diagram.edges);
+      const place = () => placeMissing({ ...saved }, baseSizes, missing, diagram.edges);
+      let add: P | undefined;
+      try {
+        add =
+          Object.keys(saved).length === 0
+            ? await autoLayout(
+                diagram.nodes.map((n) => ({ id: n.id, size: baseSizes[n.id] })),
+                diagram.edges,
+                groupedIds(diagram),
+                direction,
+              )
+            : place();
+      } catch (e) {
+        if (!cancelled) notify.error(`Could not lay out the diagram: ${errorMessage(e)}`);
+      }
       if (cancelled) return;
+      if (!add) {
+        // Layout failed: still show every box, placed one by one; nothing is saved.
+        setPositions({ ...saved, ...place() });
+        return;
+      }
       setPositions({ ...saved, ...add });
       const keep = savable(add);
       if (Object.keys(keep).length) onPositions(keep, true);
@@ -343,12 +355,15 @@ export function Canvas({ diagram, lens, decorate, actions, archTypes, renameId, 
         return findFreeSpot({ x: Math.round(center.x - size.w / 2), y: Math.round(center.y - size.h / 2) }, size, rects());
       },
       async relayout() {
-        const pos = await autoLayout(
-          diagram.nodes.map((n) => ({ id: n.id, size: sizeOf(n.id) })),
-          diagram.edges,
-          groupedIds(diagram),
-          direction,
+        const pos = await run(() =>
+          autoLayout(
+            diagram.nodes.map((n) => ({ id: n.id, size: sizeOf(n.id) })),
+            diagram.edges,
+            groupedIds(diagram),
+            direction,
+          ),
         );
+        if (!pos) return; // the error is shown; the boxes stay where they are
         setPositions(pos);
         const keep = savable(pos);
         if (Object.keys(keep).length) onPositions(keep);
@@ -369,25 +384,27 @@ export function Canvas({ diagram, lens, decorate, actions, archTypes, renameId, 
         else rf.zoomOut({ duration: 150 });
       },
       async exportImage(format) {
-        const viewport = wrapper.current?.querySelector<HTMLElement>(".react-flow__viewport");
-        if (!viewport) return;
-        const bounds = getNodesBounds(nodes);
-        const pad = 40;
-        const width = Math.ceil(bounds.width + pad * 2);
-        const height = Math.ceil(bounds.height + pad * 2);
-        const vp = getViewportForBounds(bounds, width, height, 1, 1, 0);
-        const opts = {
-          backgroundColor: "#121417",
-          width,
-          height,
-          style: { width: `${width}px`, height: `${height}px`, transform: `translate(${vp.x}px, ${vp.y}px) scale(1)` },
-          filter: (el: HTMLElement) => !el.classList?.contains("react-flow__handle") && !el.classList?.contains("edge-grip"),
-        };
-        const url = format === "svg" ? await toSvg(viewport, opts) : await toPng(viewport, { ...opts, pixelRatio: 2 });
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `${diagram.key}.${format}`;
-        a.click();
+        await run(async () => {
+          const viewport = wrapper.current?.querySelector<HTMLElement>(".react-flow__viewport");
+          if (!viewport) return;
+          const bounds = getNodesBounds(nodes);
+          const pad = 40;
+          const width = Math.ceil(bounds.width + pad * 2);
+          const height = Math.ceil(bounds.height + pad * 2);
+          const vp = getViewportForBounds(bounds, width, height, 1, 1, 0);
+          const opts = {
+            backgroundColor: "#121417",
+            width,
+            height,
+            style: { width: `${width}px`, height: `${height}px`, transform: `translate(${vp.x}px, ${vp.y}px) scale(1)` },
+            filter: (el: HTMLElement) => !el.classList?.contains("react-flow__handle") && !el.classList?.contains("edge-grip"),
+          };
+          const url = format === "svg" ? await toSvg(viewport, opts) : await toPng(viewport, { ...opts, pixelRatio: 2 });
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `${diagram.key}.${format}`;
+          a.click();
+        });
       },
     }),
     [rf, diagram, nodes, onPositions, rects, sizeOf, direction, editable, ghosts, savable],

@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { api } from "./api";
 import { TextField } from "./fields";
 import type { AppState, Flow, FlowStep } from "./types";
+import { confirmDialog } from "./dialogs";
 
 export function FlowPanel({
   flow,
@@ -139,7 +140,9 @@ export function FlowPanel({
         <button
           className="danger"
           onClick={() => {
-            if (window.confirm(`Delete the flow "${flow.title}"?`)) mutate(() => api.deleteFlow(flow.key)).then((ok) => ok && onDeleted());
+            void confirmDialog({ title: `Delete the flow "${flow.title}"?`, confirmLabel: "Delete", danger: true }).then(
+              (yes) => yes && mutate(() => api.deleteFlow(flow.key)).then((ok) => ok && onDeleted()),
+            );
           }}
         >
           Delete flow

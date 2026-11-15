@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "./api";
 import { Modal } from "./fields";
+import { confirmDialog } from "./dialogs";
 
 /** Browse the code folder and pick a file or folder. */
 export function CodePicker({ onPick, onClose }: { onPick(path: string): void; onClose(): void }) {
@@ -159,8 +160,8 @@ export function FileEditor({ path, onClose, inDraft = false, onChanged }: { path
       setError(e instanceof Error ? e.message : String(e));
     }
   };
-  const close = () => {
-    if (dirty && !window.confirm("Close without saving your changes?")) return;
+  const close = async () => {
+    if (dirty && !(await confirmDialog({ title: "Close without saving your changes?", confirmLabel: "Close without saving", danger: true }))) return;
     onClose();
   };
   return (
@@ -176,7 +177,7 @@ export function FileEditor({ path, onClose, inDraft = false, onChanged }: { path
             </button>
           )}
           {planned !== "deleted" && planned !== "added" && (
-            <button className="small" onClick={() => window.confirm(`Plan to delete ${path}?`) && act(() => api.deleteCodeFile(path))} data-testid="code-plan-delete">
+            <button className="small" onClick={async () => (await confirmDialog({ title: `Plan to delete ${path}?`, confirmLabel: "Plan deletion", danger: true })) && act(() => api.deleteCodeFile(path))} data-testid="code-plan-delete">
               Plan deletion
             </button>
           )}

@@ -1,6 +1,6 @@
 /** Stage C1: drafts — edit a copy of the model, see what it changes, apply it. */
 
-import { api, clickEmptyCanvas, expect, node, openDiagram, test, waitUntil, type Server } from "./fixtures.js";
+import { api, confirmDialog, clickEmptyCanvas, expect, node, openDiagram, test, waitUntil, type Server } from "./fixtures.js";
 
 async function createDraft(server: Server, title: string): Promise<string> {
   const r = await fetch(server.url + "api/drafts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title }) });
@@ -22,6 +22,7 @@ test("a draft shows added and removed objects, and applying it changes the main 
   // Delete one: it stays on the diagram as a removed ghost.
   await node(page, "mobile-app").click();
   await page.keyboard.press("Delete");
+  await confirmDialog(page);
   await expect(node(page, "mobile-app")).toHaveAttribute("data-change", "removed");
   await expect(node(page, "mobile-app")).toHaveClass(/ghost/);
   await expect(page.getByTestId("change-summary").locator('[data-count="added"]')).toHaveAttribute("title", "1 added");
@@ -57,6 +58,7 @@ test("discard a draft", async ({ page, server }) => {
   await openDiagram(page, "landscape");
   await page.getByTestId(`draft-${id}`).click();
   await page.getByTestId("draft-discard").click();
+  await confirmDialog(page);
   await expect(page.getByTestId("draft-banner")).toHaveCount(0);
   await waitUntil(async () => (await api(server, "/state")).drafts.length === 0);
 });

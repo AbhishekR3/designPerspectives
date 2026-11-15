@@ -1,6 +1,7 @@
 import { api } from "../api";
 import { CodePaths } from "../CodeParts";
 import type { Common } from "./common";
+import { promptDialog } from "../dialogs";
 
 export function CodeDiagramPanel(p: Common) {
   const { state, diagram, mutate } = p;
@@ -22,9 +23,8 @@ export function CodeDiagramPanel(p: Common) {
         <button
           onClick={async () => {
             const folder = diagram.code!.paths.find((x) => !/\.[A-Za-z0-9]+$/.test(x)) ?? diagram.code!.paths[0]?.replace(/[^/]*$/, "") ?? "";
-            const rel = window.prompt("Path of the new file (relative to the code folder)", folder ? `${folder.replace(/\/$/, "")}/` : "");
-            if (!rel?.trim()) return;
-            const path = rel.trim();
+            const path = await promptDialog({ title: "Path of the new file", label: "Relative to the code folder", initial: folder ? `${folder.replace(/\/$/, "")}/` : "", confirmLabel: "Create" });
+            if (!path) return;
             const covered = diagram.code!.paths.some((x) => path === x || path.startsWith(x.replace(/\/$/, "") + "/"));
             const done = await mutate(async () => {
               await api.newCodeFile(path);

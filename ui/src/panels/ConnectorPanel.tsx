@@ -2,6 +2,7 @@ import { api } from "../api";
 import { CodePaths } from "../CodeParts";
 import { Section, TagInput } from "../fields";
 import type { Common } from "./common";
+import { promptDialog } from "../dialogs";
 
 export function ConnectorPanel(p: Common) {
   const { state, diagram, mutate } = p;
@@ -41,8 +42,8 @@ export function ConnectorPanel(p: Common) {
       <button
         className="primary"
         data-testid="add-stage"
-        onClick={() => {
-          const name = window.prompt("Name of the new stage (a step inside this connector)");
+        onClick={async () => {
+          const name = await promptDialog({ title: "Name of the new stage", label: "A step inside this connector", confirmLabel: "Add" });
           if (name) save({ stages: [...rel.stages, { id: "", name }] });
         }}
       >

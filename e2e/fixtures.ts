@@ -25,16 +25,24 @@ export const test = base.extend<{ server: Server }>({
     });
     const { port } = srv.address() as AddressInfo;
     await use({ url: `http://127.0.0.1:${port}/`, root });
+    // Browsers keep connections open; without this, close() can wait on them until the test times out.
+    (srv as { closeAllConnections?: () => void }).closeAllConnections?.();
     await new Promise((r) => srv.close(r));
     fs.rmSync(root, { recursive: true, force: true });
   },
   page: async ({ page, server }, use) => {
-    page.on("dialog", (d) => void d.accept());
+    // The app has its own dialogs; a native one (alert, confirm, prompt) is a regression.
+    const native: string[] = [];
+    page.on("dialog", (d) => {
+      native.push(`${d.type()}: ${d.message()}`);
+      void d.dismiss();
+    });
     const errors: string[] = [];
     page.on("pageerror", (e) => errors.push(String(e)));
     await page.goto(server.url);
     await use(page);
     expect(errors).toEqual([]);
+    expect(native).toEqual([]);
   },
 });
 
@@ -82,4 +90,17 @@ export async function waitUntil<T>(check: () => Promise<T>, timeout = 5000): Pro
 export async function center(page: Page, testId: string): Promise<{ x: number; y: number }> {
   const b = (await page.getByTestId(testId).boundingBox())!;
   return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+}
+
+/** Confirm the in-app dialog that is open (Delete, Discard, OK ...); wait until it is gone. */
+export async function confirmDialog(page: Page): Promise<void> {
+  const dialog = page.getByTestId("dialog");
+  await dialog.getByTestId("dialog-confirm").click();
+  await expect(dialog).toHaveCount(0);
+}
+
+/** Type into the in-app prompt dialog that is open and confirm it. */
+export async function fillDialog(page: Page, text: string): Promise<void> {
+  await page.getByTestId("dialog-input").fill(text);
+  await confirmDialog(page);
 }

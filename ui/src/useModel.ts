@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type Dispatch, type RefObject, type SetStateAction } from "react";
 import { api, ApiError, setContext } from "./api";
 import { inLens, lensOverlay } from "./useLens";
+import { errorMessage, useErrorSlot } from "./notify";
 import { fromHash, hashFor } from "./useNavigation";
 import type { Filter, OverlaySpec } from "./overlays";
 import type { AppState, ChangeSet, Diagram, Selection } from "./types";
@@ -30,7 +31,7 @@ export function useModel(p: {
   const versionRef = useRef(version);
   versionRef.current = version;
   const [changes, setChanges] = useState<ChangeSet | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useErrorSlot();
 
   const loadDiagram = useCallback(async (k: string) => {
     try {
@@ -65,7 +66,7 @@ export function useModel(p: {
       } catch (e) {
         // The draft is gone (discarded elsewhere, or an old link): fall back to the main model.
         if (model !== "main" && e instanceof ApiError && e.status === 404) await switchVersion("main", null);
-        else setError(e instanceof Error ? e.message : String(e));
+        else setError(errorMessage(e));
       }
     },
     [refresh],
@@ -79,7 +80,7 @@ export function useModel(p: {
         await refresh();
         return true;
       } catch (e) {
-        setError(e instanceof Error ? e.message : String(e));
+        setError(errorMessage(e));
         await refresh().catch(() => undefined);
         return false;
       }
@@ -115,7 +116,7 @@ export function useModel(p: {
         await (dir === "undo" ? api.undo() : api.redo());
         setError(null);
       } catch (e) {
-        setError(e instanceof Error ? e.message : String(e));
+        setError(errorMessage(e));
       }
       await refresh().catch(() => undefined);
     },

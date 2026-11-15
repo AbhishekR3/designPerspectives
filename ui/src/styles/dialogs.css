@@ -238,3 +238,31 @@
 .search-results button .muted {
   margin-left: auto;
 }
+.modal:focus {
+  outline: none;
+}
+.dialog-message {
+  margin: 0;
+  color: var(--muted);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.dialog-error {
+  color: var(--danger);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.toast {
+  max-width: min(560px, 90vw);
+  max-height: 30vh;
+  overflow-y: auto;
+}
+.toast-msg {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.toast.success {
+  border-color: #1f5a3a;
+  color: #bbf7d0;
+}

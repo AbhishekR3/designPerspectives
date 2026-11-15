@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState, type Dispatch, type SetStateAction } fr
 import { api } from "./api";
 import type { NodeDecor } from "./Canvas";
 import { decodeSpec, formatMoney, matchesFilter, overlayOf, specExists, specLabel, techColors, type Filter, type OverlaySpec } from "./overlays";
+import { run } from "./notify";
 import { LENS_KEY, storage } from "./storage";
 import type { AppState, Diagram, DiagramLevel, DiagramNode, Lens, Level } from "./types";
 
@@ -83,7 +84,8 @@ export function useLens(p: {
   function chooseLensAfterSave(id: string) {
     // State is refreshed by mutate before this runs; re-read lenses on the next tick.
     window.setTimeout(() => {
-      api.state().then((s) => {
+      void run(async () => {
+        const s = await api.state();
         setState(s);
         const l = s.lenses.find((x) => x.id === id);
         if (!l) return;

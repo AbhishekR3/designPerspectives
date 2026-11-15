@@ -2,7 +2,7 @@
  *  labels that slide only along their line, line shapes and arrowheads, linked work. */
 
 import type { Page } from "@playwright/test";
-import { api, expect, openDiagram, test, waitUntil, type Server } from "./fixtures.js";
+import { api, confirmDialog, expect, openDiagram, test, waitUntil, type Server } from "./fixtures.js";
 
 const elements = async (server: Server) => (await api(server, "/state")).elements as any[];
 
@@ -45,6 +45,7 @@ test("click a palette item, and the quick bar", async ({ page, server }) => {
   await page.getByTestId("qb-symbol").selectOption("pipeline");
   await waitUntil(async () => (await elements(server)).find((e) => e.id === el.id)?.archType === "pipeline");
   await page.getByTestId("qb-delete").click();
+  await confirmDialog(page);
   await waitUntil(async () => !(await elements(server)).some((e) => e.id === el.id));
 });
 

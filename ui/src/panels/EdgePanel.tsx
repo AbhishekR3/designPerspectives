@@ -7,6 +7,7 @@ import { type EdgeLayout, type Relationship } from "../types";
 import type { Common } from "./common";
 import { NotesEditor, SensitiveEditor } from "./sectionEditors";
 import { WorkEditor } from "./valueEditors";
+import { confirmDeleteRelationship } from "../dialogs";
 
 export function EdgePanel({ edgeId, ...p }: Common & { edgeId: string }) {
   const { state, diagram, mutate, lens } = p;
@@ -161,7 +162,7 @@ export function EdgePanel({ edgeId, ...p }: Common & { edgeId: string }) {
         <button
           className="danger"
           onClick={() => {
-            if (window.confirm("Delete this relationship? Flow steps that use it are removed too.")) mutate(() => api.deleteRelationship(r.id)).then((ok) => ok && p.onSelect(null));
+            void confirmDeleteRelationship().then((yes) => yes && mutate(() => api.deleteRelationship(r.id)).then((ok) => ok && p.onSelect(null)));
           }}
         >
           Delete

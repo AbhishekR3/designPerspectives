@@ -1,7 +1,7 @@
 /** Right-click menus on boxes, lines and empty canvas. */
 
 import type { Page } from "@playwright/test";
-import { api, expect, node, openDiagram, test, waitUntil, type Server } from "./fixtures.js";
+import { api, confirmDialog, expect, node, openDiagram, test, waitUntil, type Server } from "./fixtures.js";
 
 const KEY = "containers-internet-banking-system";
 const EDGE = "web-application--single-page-application";
@@ -32,6 +32,7 @@ test("right-click a box: symbol, duplicate, delete", async ({ page, server }) =>
 
   await node(page, copy.id).click({ button: "right" });
   await page.getByTestId("ctx-delete").click();
+  await confirmDialog(page);
   await waitUntil(async () => !(await elements(server)).some((e) => e.id === copy.id));
 });
 
