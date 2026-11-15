@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type Dispatch, type RefObject, type SetStateAction } from "react";
-import { homeDiagramOf } from "./ObjectPanel";
+import { homeDiagramOf } from "./types";
 import type { AppState, Diagram, Selection } from "./types";
 
 /** The URL hash: `#/d/<diagram>`, plus `?m=<model version>&c=<compared version>` when not the main model. */

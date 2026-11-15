@@ -14,7 +14,7 @@ import { menuItems, useContextMenu } from "./menus";
 import { Palette } from "./Palette";
 import { formatMoney, overlayable } from "./overlays";
 import { FileEditor } from "./CodeParts";
-import { CodeDiagramPanel, ConnectorPanel, EdgePanel, FilePanel, ObjectPanel, StagePanel } from "./ObjectPanel";
+import { CodeDiagramPanel, ConnectorPanel, EdgePanel, FilePanel, ObjectPanel, StagePanel } from "./panels";
 import { SearchBox } from "./SearchBox";
 import { Sidebar } from "./Sidebar";
 import { LEVEL_LABEL, type Lens, type TagGroup } from "./types";
