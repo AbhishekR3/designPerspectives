@@ -44,27 +44,51 @@ export function registerModel(app: Hono, ctx: Ctx): void {
     const kind = needStr(b, "kind");
     const diagramKey = optStr(b, "diagramKey");
     const position = b.position === null || b.position === undefined ? null : point(b.position, "position");
-    const id = edit((ws) => {
-      const newId = ops.createElement(ws, {
-        kind,
-        name: optStr(b, "name"),
-        parentId: optStr(b, "parentId"),
-        description: optStr(b, "description"),
-        technology: b.technology,
-        external: Boolean(b.external),
-        archType: optStr(b, "archType"),
-        uniqueName: Boolean(b.uniqueName),
-      });
-      if (diagramKey && position) diagrams.setPositions(ws, diagramKey, { [newId]: position });
-      return newId;
+    // connectTo / connectFrom: also create a relationship from / to that element (same undo step),
+    // so a person or system added on a context, container or component diagram shows there.
+    const connect = { to: optStr(b, "connectTo"), from: optStr(b, "connectFrom"), description: optStr(b, "connectDescription") };
+    const made = edit((ws) => {
+      const r = ops.createConnectedElement(
+        ws,
+        {
+          kind,
+          name: optStr(b, "name"),
+          parentId: optStr(b, "parentId"),
+          description: optStr(b, "description"),
+          technology: b.technology,
+          external: Boolean(b.external),
+          archType: optStr(b, "archType"),
+          uniqueName: Boolean(b.uniqueName),
+        },
+        connect,
+      );
+      if (diagramKey && position) diagrams.setPositions(ws, diagramKey, { [r.id]: position });
+      return r;
     });
-    return c.json({ id });
+    return c.json(made.relationshipId ? made : { id: made.id });
   });
 
   app.patch("/api/elements/:id", async (c) => {
-    const patch = await objBody(c);
-    edit((ws, sc) => ops.updateElement(ws, sc, c.req.param("id"), patch));
-    return ok(c);
+    const { reslug, ...patch } = await objBody(c);
+    const elementId = c.req.param("id");
+    // reslug: the first rename right after creating the element; the ID follows the new name.
+    // Never for an element that the main model (or, in a draft, the draft's base) already has:
+    // there the new ID would show as a removal plus an addition.
+    const { ref } = ctx.sel();
+    const known =
+      ref !== "main" &&
+      (ops.buildIndex(ctx.project.workspace).elements.has(elementId) || (ref.startsWith("draft:") && ops.buildIndex(ctx.drafts.base(ctx.draftId(ref)).workspace).elements.has(elementId)));
+    const id = edit((ws, sc) => ops.updateElement(ws, sc, elementId, patch, { reslug: reslug === true && !known }));
+    return c.json({ ok: true, id });
+  });
+
+  /** Move a container to another software system, or a component to another container. */
+  app.post("/api/elements/:id/move", async (c) => {
+    const b = await objBody(c);
+    const parentId = needStr(b, "parentId");
+    const elementId = c.req.param("id");
+    edit((ws, sc) => diagrams.moveWithLayout(ws, sc, elementId, parentId));
+    return c.json({ ok: true, id: elementId, parentId });
   });
 
   app.delete("/api/elements/:id", (c) => {

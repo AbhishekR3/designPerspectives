@@ -8,6 +8,10 @@
  *   among components of one container (structurizr-core Model.hydrate).
  * - Relationship descriptions must be unique per source/destination pair.
  * - Technology is a list of tags, stored in Structurizr's `technology` field as "A, B, C".
+ * - IDs do not change on rename, except on request (`reslug`) for an element whose ID is still the
+ *   slug of its old name: the first rename right after creation (`reslugElement`).
+ * - Containers and components can move to another parent of the right kind (`moveElement`); they
+ *   keep their ID, children and relationships.
  *
  * designPerspectives data stored on elements (and relationships) as Structurizr properties:
  *   dp.owner         owner (free text)                          elements
@@ -667,16 +671,43 @@ export function createElement(ws: Workspace, spec: NewElement): string {
   return newId;
 }
 
+/** Who a new element is connected to as it is created: `to` = a relationship from the new element
+ *  to that one, `from` = a relationship from that one to the new element. */
+export interface Connect {
+  to?: string | null;
+  from?: string | null;
+  description?: string | null;
+}
+
+/** Create an element and, with `connect`, a relationship to or from an existing one, in one edit. */
+export function createConnectedElement(ws: Workspace, spec: NewElement, connect: Connect = {}): { id: string; relationshipId: string | null } {
+  if (connect.to && connect.from) throw new ModelError("Connect the new element to one element only (either to or from).");
+  const other = connect.to || connect.from;
+  if (other) buildIndex(ws).el(other);
+  const id = createElement(ws, spec);
+  if (!other) return { id, relationshipId: null };
+  const [sourceId, destinationId] = connect.to ? [id, other] : [other, id];
+  return { id, relationshipId: createRelationship(ws, { sourceId, destinationId, description: connect.description }) };
+}
+
 function setArch(el: Element, arch: unknown): void {
   const a = blank(arch) ? null : str(arch);
   if (a && !ARCH_TYPES.some(([id]) => id === a)) throw new ModelError(`Unknown type "${a}".`);
   setProp(el, ARCH_KEY, a === null || a === "box" ? null : a);
 }
 
-export function updateElement(ws: Workspace, sidecar: Sidecar, elementId: string, patch: Obj): void {
+export interface UpdateOptions {
+  /** Give the element a new ID from its new name if it still has the ID made from its old name
+   *  (see `reslugElement`). Meant for the first rename right after creation. */
+  reslug?: boolean;
+}
+
+/** Change an element's fields. Returns the element's ID: a new one if `opts.reslug` re-slugged it. */
+export function updateElement(ws: Workspace, sidecar: Sidecar, elementId: string, patch: Obj, opts: UpdateOptions = {}): string {
   const idx = buildIndex(ws);
   const el = idx.el(elementId);
   const kind = idx.kindOf(elementId);
+  const oldName = el.name;
 
   if ("name" in patch) {
     const name = str(patch.name).trim();
@@ -727,6 +758,164 @@ export function updateElement(ws: Workspace, sidecar: Sidecar, elementId: string
       setProp(el, TAG_PREFIX + group, value === null || value === undefined ? null : str(value));
     }
   }
+  if (opts.reslug && el.name !== oldName && isAutoId(elementId, oldName)) return reslugElement(ws, sidecar, elementId, el.name);
+  return elementId;
+}
+
+// --------------------------------------------------------------------------- re-slugging a new element
+
+/** Whether `id` is the ID `createElement` makes from `name` (its slug, possibly numbered: "database-2"). */
+export function isAutoId(id: string, name: string): boolean {
+  return numberedFrom(id, slugify(name));
+}
+
+/** `id` is `base`, or `base` with a number added by `unique` ("base-2"). */
+function numberedFrom(id: string, base: string): boolean {
+  return id === base || (id.startsWith(`${base}-`) && /^\d+$/.test(id.slice(base.length + 1)));
+}
+
+const ELEMENT_KEY_PREFIXES = ["context-", "containers-", "components-", "code-"];
+const RELATIONSHIP_KEY_PREFIXES = ["connector-", "code-"];
+
+/**
+ * Give an element the ID made from `name` and rewrite every reference to the old one, so a box
+ * created as "New system" and renamed right away does not keep the ID "new-system" for good.
+ *
+ * Relationship IDs made from the old ID (`<source>--<destination>`, possibly numbered) are renamed
+ * too. References rewritten: relationship ends, connector stage links (`dp.stages`), every diagram
+ * and flow view (key, scope, element and relationship lists), sidecar styles and layouts (diagram
+ * keys and the IDs inside: elements, relationships, `derived:a->b`, `stage:`/`conn:` boxes).
+ * If an old ID is still found anywhere afterwards (e.g. a deployment instance or another tool's
+ * view refers to it), nothing is changed and the old ID is kept. Returns the element's ID.
+ */
+export function reslugElement(ws: Workspace, sidecar: Sidecar, oldId: string, name: string): string {
+  const idx = buildIndex(ws);
+  idx.el(oldId);
+  const taken = new Set([...idx.elements.keys(), ...idx.relationships.keys()]);
+  taken.delete(oldId);
+  const newId = unique(slugify(name), taken);
+  if (newId === oldId) return oldId;
+  taken.add(newId);
+  const ids = new Map([[oldId, newId]]);
+  const swap = (x: string) => (x === oldId ? newId : x);
+  for (const r of idx.relationships.values()) {
+    if (r.sourceId !== oldId && r.destinationId !== oldId) continue;
+    if (numberedFrom(r.id, `${r.sourceId}--${r.destinationId}`)) taken.delete(r.id);
+  }
+  for (const r of idx.relationships.values()) {
+    if (r.sourceId !== oldId && r.destinationId !== oldId) continue;
+    if (!numberedFrom(r.id, `${r.sourceId}--${r.destinationId}`)) continue;
+    const next = unique(`${swap(r.sourceId)}--${swap(r.destinationId)}`, taken);
+    taken.add(next);
+    if (next !== r.id) ids.set(r.id, next);
+  }
+
+  const w = structuredClone(ws);
+  const sc = structuredClone(sidecar);
+  const mapId = (x: string) => ids.get(x) ?? x;
+  const mapKey = (key: string) => {
+    for (const p of new Set([...ELEMENT_KEY_PREFIXES, ...RELATIONSHIP_KEY_PREFIXES])) {
+      if (key.startsWith(p) && ids.has(key.slice(p.length))) return p + mapId(key.slice(p.length));
+    }
+    return key;
+  };
+  const mapNode = (n: string) => {
+    if (ids.has(n)) return mapId(n);
+    if (n.startsWith("derived:") && n.includes("->")) {
+      const rest = n.slice("derived:".length);
+      const i = rest.indexOf("->");
+      return `derived:${mapId(rest.slice(0, i))}->${mapId(rest.slice(i + 2))}`;
+    }
+    if (n.startsWith("stage:") || n.startsWith("conn:")) {
+      const parts = n.split(":");
+      parts[1] = mapId(parts[1] ?? "");
+      return parts.join(":");
+    }
+    return n;
+  };
+  const mapRecord = <T>(rec: Record<string, T>, f: (k: string) => string) => Object.fromEntries(Object.entries(rec).map(([k, v]) => [f(k), v]));
+
+  for (const el of buildIndex(w).elements.values()) {
+    el.id = mapId(el.id);
+    for (const r of el.relationships) {
+      r.id = mapId(r.id);
+      r.sourceId = mapId(r.sourceId);
+      r.destinationId = mapId(r.destinationId);
+      const stages = getJson<Stage>(r, STAGES_KEY);
+      if (stages.some((st) => st.elementId === oldId)) {
+        for (const st of stages) if (st.elementId === oldId) st.elementId = newId;
+        setJson(r, STAGES_KEY, stages);
+      }
+    }
+  }
+  for (const list of VIEW_LISTS) {
+    for (const v of w.views[list]) {
+      v.key = mapKey(v.key);
+      for (const f of ["softwareSystemId", "containerId", "elementId"] as const) if (typeof v[f] === "string") v[f] = mapId(v[f]);
+      for (const e of v.elements) e.id = mapId(e.id);
+      for (const r of v.relationships) r.id = mapId(r.id);
+    }
+  }
+  sc.styles = mapRecord(sc.styles, mapNode);
+  sc.layouts = mapRecord(sc.layouts, mapKey);
+  for (const lay of Object.values(sc.layouts)) {
+    lay.sizes = mapRecord(lay.sizes, mapNode);
+    lay.positions = mapRecord(lay.positions, mapNode);
+    lay.edges = mapRecord(lay.edges, mapNode);
+  }
+
+  // Anything still naming an old ID is a reference this function does not know: keep the old IDs.
+  const text = JSON.stringify(w) + JSON.stringify(sc);
+  for (const old of ids.keys()) if (text.includes(JSON.stringify(old))) return oldId;
+  replaceContents(ws, w);
+  replaceContents(sidecar, sc);
+  return newId;
+}
+
+function replaceContents<T extends object>(target: T, source: T): void {
+  for (const k of Object.keys(target)) delete (target as Record<string, unknown>)[k];
+  Object.assign(target, source);
+}
+
+// --------------------------------------------------------------------------- moving an element
+
+/**
+ * Move a container to another software system, or a component to another container. The element
+ * keeps its ID, children, properties and relationships. Refused when the new parent is of the wrong
+ * kind, is the current parent, already has a child with the same name, or when a relationship of the
+ * element (or of anything inside it) would then join an element and its own parent.
+ *
+ * Views are brought up to date by `syncViews` afterwards (as after every edit); stored positions and
+ * sizes that no longer fit are dropped by `diagrams.moveWithLayout`, which the server uses.
+ */
+export function moveElement(ws: Workspace, elementId: string, parentId: string): void {
+  const idx = buildIndex(ws);
+  const el = idx.el(elementId);
+  const kind = idx.kindOf(elementId);
+  if (kind !== "container" && kind !== "component") throw new ModelError("Only containers and components can be moved to another parent.");
+  const target = idx.elements.get(parentId);
+  if (!target) throw new ModelError(`No element with ID "${parentId}".`);
+  if (CHILD_KIND[idx.kindOf(parentId)] !== kind) {
+    throw new ModelError(`A ${kind} must sit inside a ${kind === "container" ? "software system" : "container"}.`);
+  }
+  const oldParent = idx.parentOf(elementId)!;
+  if (oldParent === parentId) throw new ModelError(`"${el.name}" is already inside "${target.name}".`);
+  if (siblingNames(idx, kind, parentId).has(el.name)) throw new ModelError(`"${target.name}" already has a ${kind} named "${el.name}".`);
+  const moving = new Set([elementId, ...idx.descendants(elementId)]);
+  const above = new Set(idx.ancestors(parentId));
+  for (const r of idx.relationships.values()) {
+    const [a, b] = [r.sourceId, r.destinationId];
+    if ((moving.has(a) && above.has(b)) || (moving.has(b) && above.has(a))) {
+      const name = (id: string) => idx.elements.get(id)?.name ?? id;
+      throw new ModelError(
+        `"${el.name}" cannot move into "${target.name}": the relationship "${r.description || "(no description)"}" from "${name(a)}" to "${name(b)}" would then join an element and its own parent. Remove that relationship first.`,
+      );
+    }
+  }
+  const list = kind === "container" ? "containers" : "components";
+  const from = idx.el(oldParent);
+  from[list] = (from[list] ?? []).filter((x) => x.id !== elementId);
+  (target[list] ??= []).push(el);
 }
 
 /** Copy one element (not its children or connections) next to the original. The copy keeps cost, tags

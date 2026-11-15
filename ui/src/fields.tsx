@@ -61,6 +61,9 @@ export function TextField({
 /** True while any modal dialog is open. The global keyboard shortcuts check this and do nothing. */
 export const dialogOpen = (): boolean => document.querySelector('[aria-modal="true"]') !== null;
 
+/** True when the keyboard event is aimed at something the user types into (input, textarea, select, contenteditable, the code editor). */
+export const isTyping = (target: EventTarget | null): boolean => target instanceof Element && target.closest("input, textarea, select, [contenteditable], .cm-editor") !== null;
+
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"]), [contenteditable="true"]';
 
 /** Open dialogs, oldest first; only the last one reacts to Escape and Tab. */

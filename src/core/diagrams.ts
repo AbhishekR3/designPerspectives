@@ -25,7 +25,7 @@
 import { codeDiagram, type CodeInput } from "./code.js";
 import { connectorDiagram } from "./connectors.js";
 import { roundHalfEven } from "./json.js";
-import { buildIndex, CODE_KEY, elementSummary, getJson, idStillValid, relationshipSummary, STAGES_KEY, type Index } from "./ops.js";
+import { buildIndex, CODE_KEY, elementSummary, getJson, idStillValid, moveElement, relationshipSummary, STAGES_KEY, type Index } from "./ops.js";
 import { edgeLayoutData, styleData, type Sidecar } from "./sidecar.js";
 import { allViews, VIEW_LISTS, type View, type ViewList, type Workspace } from "./workspace.js";
 import type { Crumb, Diagram, DiagramEdge, DiagramInfo, DiagramNode, DrillTarget, Pt, Style } from "../shared/types.js";
@@ -337,6 +337,15 @@ export function addableKinds(r: DiagramRef): string[] {
   return [];
 }
 
+/** The addable kinds that only show on this diagram when created together with a relationship to
+ *  an element drawn in scope here (the system on a context diagram, a container or component inside
+ *  the boundary on a container or component diagram): a person or software system sits at the top
+ *  level, and these diagrams show only the scope's insides plus what is connected to them. */
+export function connectRequiredKinds(r: DiagramRef): string[] {
+  if (r.level === "context" || r.level === "container" || r.level === "component") return ["person", "softwareSystem"];
+  return [];
+}
+
 // --------------------------------------------------------------------------- diagram payload
 
 export function diagram(ws: Workspace, key: string, sidecar?: Sidecar | null, codeRoot?: CodeInput): Diagram | null {
@@ -351,6 +360,7 @@ export function diagram(ws: Workspace, key: string, sidecar?: Sidecar | null, co
   d.breadcrumb = breadcrumb(idx, r, drawn);
   d.c4 = C4_OF_LEVEL[r.level] ?? "";
   d.addable = addableKinds(r);
+  d.connectRequired = connectRequiredKinds(r);
   return decorate(d, sidecar ?? null);
 }
 
@@ -444,12 +454,21 @@ export function diagramRefs(idx: Index): DiagramRef[] {
   return refs;
 }
 
-/** The sidebar tree: C1 landscape and contexts, C2 containers, C3 components, C4 code. */
+/** The sidebar tree: C1 landscape and contexts, C2 containers, C3 components, C4 code.
+ *  Every software system is listed with its context and containers diagrams (the one that opens
+ *  when the system is double-clicked), even before it has containers; only those stored as views
+ *  (`diagramRefs`) are written to the workspace. */
 export function diagramList(ws: Workspace): DiagramInfo[] {
   const idx = buildIndex(ws);
   const drawn = drawnInMap(idx);
-  const refs = new Map(diagramRefs(idx).map((r) => [r.key, r]));
+  const refs = new Map<string, DiagramRef>();
   const put = (r: DiagramRef) => refs.set(r.key, r);
+  put(ref("landscape", null));
+  for (const s of idx.ws.model.softwareSystems) {
+    put(ref("context", s.id));
+    put(ref("container", s.id));
+  }
+  for (const r of diagramRefs(idx)) put(r);
   // Code diagrams for mapped elements; connector details for connectors with stages or code.
   for (const [elId, el] of idx.elements) if (getJson(el, CODE_KEY).length) put(ref("code", elId));
   for (const [rid, rel] of idx.relationships) {
@@ -575,4 +594,68 @@ export function prune(ws: Workspace, sidecar: Sidecar): void {
     layouts[key] = lay;
   }
   sidecar.layouts = layouts;
+}
+
+// --------------------------------------------------------------------------- moving an element
+
+/** Where elements and lines are drawn on a static diagram: node ID -> in scope?, and the line IDs. */
+type Placement = Map<string, { nodes: Map<string, boolean>; edges: Set<string> }>;
+
+/** Static diagrams that keep layout data (a stored view or a sidecar layout). */
+function laidOutRefs(ws: Workspace, idx: Index, sc: Sidecar): DiagramRef[] {
+  const keys = new Set([...allViews(ws).map((v) => v.key), ...Object.keys(sc.layouts)]);
+  const out: DiagramRef[] = [];
+  for (const k of keys) {
+    const r = parseKey(k);
+    if (r && r.level in VIEW_LIST_OF_LEVEL && validRef(idx, r)) out.push(r);
+  }
+  return out;
+}
+
+function placement(ws: Workspace, sc: Sidecar): Placement {
+  const idx = buildIndex(ws);
+  const out: Placement = new Map();
+  for (const r of laidOutRefs(ws, idx, sc)) {
+    const [nodeIds, edges] = compute(idx, r);
+    const inScope = new Set(mapper(idx, r)[0]);
+    out.set(r.key, { nodes: new Map(nodeIds.map((n) => [n, inScope.has(n)])), edges: new Set(edges.map((e) => e.id)) });
+  }
+  return out;
+}
+
+/**
+ * Move an element to another parent (`ops.moveElement`) and forget layout that no longer fits:
+ * on every laid-out diagram, a box that is no longer drawn there, or is now drawn on the other side
+ * of the boundary (a container that moved out of the system becomes an outside box), loses its
+ * stored position and size; a line that is no longer drawn loses its stored shape. `syncViews` (run
+ * after every edit) then drops view entries of elements a diagram no longer shows. Nothing else
+ * refers to an element's place: its ID, relationships, styles, flows and connector stages stay.
+ */
+export function moveWithLayout(ws: Workspace, sc: Sidecar, elementId: string, parentId: string): void {
+  const before = placement(ws, sc);
+  moveElement(ws, elementId, parentId);
+  const after = placement(ws, sc);
+  const moved = (key: string, id: string) => {
+    const a = before.get(key)?.nodes.get(id);
+    return a !== undefined && a !== after.get(key)?.nodes.get(id);
+  };
+  for (const list of VIEW_LISTS) {
+    for (const v of ws.views[list]) {
+      if (!before.has(v.key)) continue;
+      for (const e of v.elements) {
+        if (moved(v.key, e.id)) {
+          delete e.x;
+          delete e.y;
+        }
+      }
+    }
+  }
+  for (const [key, lay] of Object.entries(sc.layouts)) {
+    if (!before.has(key)) continue;
+    for (const id of Object.keys(lay.sizes)) if (moved(key, id)) delete lay.sizes[id];
+    for (const id of Object.keys(lay.positions)) if (moved(key, id)) delete lay.positions[id];
+    const was = before.get(key)!.edges;
+    const now = after.get(key)?.edges ?? new Set<string>();
+    for (const id of Object.keys(lay.edges)) if (was.has(id) && !now.has(id)) delete lay.edges[id];
+  }
 }

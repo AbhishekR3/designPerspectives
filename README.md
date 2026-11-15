@@ -15,13 +15,14 @@ npm install -g github:AbhishekR3/designPerspectives
 # or, from a clone:  npm ci && npm link
 
 mkdir my-architecture && cd my-architecture
-dp serve            # creates architecture/ with the demo model if none exists, opens the browser
+dp serve            # creates architecture/ with an empty model if none exists, opens the browser
+dp serve --demo     # same, but a new folder gets the sample model and its sample code
 ```
 
 Other commands:
 
 ```bash
-dp init --empty     # start an empty model instead of the demo
+dp init             # create an empty model without starting the server (dp init --demo for the sample model)
 dp serve PATH       # serve a model in another folder (PATH/architecture/)
 dp serve --code-root SRC   # folder holding the source code components point to (default: the project folder)
 dp serve --read-only       # viewer role: nothing can be changed

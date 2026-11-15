@@ -65,6 +65,22 @@ export function useContextMenu(p: {
   return { menu, setMenu, closeMenu, openMenu };
 }
 
+/** False in read-only mode and in views that are frozen (the removed side of a comparison). */
+export function diagramEditable(state: AppState, diagram: Diagram | null): boolean {
+  return !state.readOnly && !diagram?.compare?.removed;
+}
+
+/**
+ * The relationship a line stands for, when it may be deleted from here: not derived, not a file or stage
+ * (`conn:`) line, and only on the diagrams the relationship is drawn on (not flows, connectors or code).
+ * Shared by the right-click menu and the Delete key.
+ */
+export function relationshipToDelete(e: DiagramEdge, diagram: Diagram | null): string | null {
+  if (e.ghost || e.derived || e.id.startsWith("file:") || e.id.startsWith("conn:")) return null;
+  if (!["landscape", "context", "container", "component"].includes(diagram?.level ?? "")) return null;
+  return e.relationshipIds[0] ?? null;
+}
+
 /** What the menus act on and with. */
 export interface MenuContext {
   state: AppState;
@@ -87,7 +103,7 @@ export interface MenuContext {
 /** The items of the open menu (empty when none is open or its box or line is gone). */
 export function menuItems(menu: MenuState | null, c: MenuContext): MenuItem[] {
   const { state, diagram, key, mutate, open, select, setFocusName, setRenameId, setOpenFile, nodeActions, deleteRelationship, addItem, doHistory, canvasRef } = c;
-  const { clipboard, styleClip, cutElement, pasteFrom, pasteStyle } = c.clip;
+  const { clipboard, styleClip, pasteFrom, pasteStyle } = c.clip;
   const frozen = !!diagram?.compare?.removed;
 
   const styleItems = (target: string, style: Style, kind: "node" | "edge", canEdit: boolean): MenuItem[] => [
@@ -127,7 +143,6 @@ export function menuItems(menu: MenuState | null, c: MenuContext): MenuItem[] {
           onSelect: () => void mutate(() => api.updateElement(n.id, { external: !n.external })),
         },
       { sep: true },
-      canEditEl && { label: "Cut", icon: "cut", shortcut: keys("Mod+X"), testId: "ctx-cut", onSelect: () => cutElement(n.id) },
       el && { label: "Copy", icon: "copy", shortcut: keys("Mod+C"), testId: "ctx-copy", onSelect: () => (clipboard.current = n.id) },
       el && canEdit && { label: "Paste", icon: "paste", shortcut: keys("Mod+V"), testId: "ctx-paste", disabled: !clip, onSelect: () => clip && void pasteFrom(clip) },
       canEditEl && { label: "Duplicate", icon: "copy", shortcut: keys("Mod+D"), testId: "ctx-duplicate", onSelect: () => void pasteFrom(n.id) },
@@ -151,8 +166,7 @@ export function menuItems(menu: MenuState | null, c: MenuContext): MenuItem[] {
     const real = !e.derived && !e.id.startsWith("file:");
     const relId = real ? e.relationshipIds[0] : null;
     const styleTarget = e.id.startsWith("conn:") && relId ? relId : e.id;
-    // Relationships are deleted from the diagrams they are drawn on (not flows, connectors or code).
-    const deletable = canEdit && !!relId && !e.id.startsWith("conn:") && ["landscape", "context", "container", "component"].includes(diagram?.level ?? "");
+    const deletable = canEdit && !!relationshipToDelete(e, diagram);
     const lineEditable = canEdit && diagram?.level !== "flow";
     const setLine = (layout: EdgeLayout) => key && void mutate(() => api.layout(key, { edges: { [e.id]: layout } }));
     const setStyle = (patch: Partial<Style>) => void mutate(() => api.style(styleTarget, { ...e.style, ...patch }));
@@ -202,7 +216,7 @@ export function menuItems(menu: MenuState | null, c: MenuContext): MenuItem[] {
       { sep: true },
       ...styleItems(styleTarget, e.style, "edge", canEdit),
       { sep: true },
-      deletable && { label: "Delete", icon: "trash", shortcut: "Del", danger: true, testId: "ctx-delete", onSelect: () => deleteRelationship(relId!) },
+      deletable && { label: "Delete", icon: "trash", shortcut: "Del", danger: true, testId: "ctx-delete", onSelect: () => deleteRelationship(relationshipToDelete(e, diagram)!) },
     ]);
   };
 

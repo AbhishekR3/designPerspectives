@@ -226,6 +226,9 @@ export interface Diagram {
   nodes: DiagramNode[];
   edges: DiagramEdge[];
   addable: string[];
+  /** Kinds in `addable` that only show on this diagram when created connected to an element drawn
+   *  in scope here (POST /api/elements with `connectTo` or `connectFrom`). Missing means none. */
+  connectRequired?: string[];
   flow?: Flow;
   connector?: {
     relationshipId: string;
@@ -312,6 +315,8 @@ export interface AppState {
   characteristics: CharacteristicDef[];
   costSettings: CostSettings;
   lenses: Lens[];
+  /** Lens to start in when the browser has no saved choice: "architect" while the model has no containers, else "engineer". */
+  defaultLens: string;
   flows: Flow[];
   loadErrors: string[];
   enums: Enums;

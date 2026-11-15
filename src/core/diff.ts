@@ -1,7 +1,8 @@
 /**
  * What changed between two versions of a model: elements, relationships, flows and settings,
  * each added / changed / removed, with the fields that differ. Objects are matched by ID (IDs do
- * not change on rename, and elements cannot move to another parent).
+ * not change on rename or move). An element moved to another parent is "changed", with a "parent"
+ * field (old and new parent by name).
  *
  * Fields are compared on the summaries the UI shows (`elementSummary`, `relationshipSummary`),
  * so a change is reported in the same terms the property panel uses. Positions, sizes, line
@@ -104,6 +105,9 @@ export function diffModels(before: Snapshot, after: Snapshot, against: string, c
       const sa = elementSummary(ia, id) as unknown as Record<string, unknown>;
       const sb = elementSummary(ib, id) as unknown as Record<string, unknown>;
       const fields = fieldChanges(sa, sb, ELEMENT_FIELDS);
+      const pa = ia.parentOf(id);
+      const pb = ib.parentOf(id);
+      if (pa !== pb) fields.unshift({ field: "parent", label: "Parent", before: pa ? ia.el(pa).name : null, after: pb ? ib.el(pb).name : null });
       elements.push(objChange("element", ib.kindOf(id), id, String(sb.name), "changed", fields.length ? fields : [OTHER], homeKey(ib, id)));
     } else {
       const idx = inB ? ib : ia;
@@ -163,7 +167,10 @@ export function diffModels(before: Snapshot, after: Snapshot, against: string, c
     if (!idx.elements.has(id)) return;
     for (const anc of idx.ancestors(id).slice(self ? 0 : 1)) if (!touched.has(anc)) inner.add(anc);
   };
-  for (const e of elements) markAbove(e.change === "removed" ? ia : ib, e.id, false);
+  for (const e of elements) {
+    markAbove(e.change === "removed" ? ia : ib, e.id, false);
+    if (e.fields.some((f) => f.field === "parent")) markAbove(ia, e.id, false); // where it moved from
+  }
   for (const r of relationships) {
     const idx = r.change === "removed" ? ia : ib;
     const rel = idx.relationships.get(r.id)!;

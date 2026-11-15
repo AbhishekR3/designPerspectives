@@ -1,7 +1,6 @@
 import { useCallback, useRef, type Dispatch, type RefObject, type SetStateAction } from "react";
 import { api } from "./api";
-import type { AppState, Pt, Selection, Style } from "./types";
-import { confirmDialog } from "./dialogs";
+import type { Pt, Selection, Style } from "./types";
 
 /** Style keys that apply to boxes and to lines (Paste style keeps only the ones that fit). */
 const NODE_STYLE_KEYS: (keyof Style)[] = ["fill", "text", "stroke", "strokeStyle", "strokeWidth", "fontSize"];
@@ -10,16 +9,15 @@ const EDGE_STYLE_KEYS: (keyof Style)[] = ["text", "stroke", "strokeStyle", "stro
 type Mutate = (fn: () => Promise<unknown>) => Promise<boolean>;
 
 /**
- * Copy/cut/paste/duplicate of elements (the clipboard holds an element id; Paste adds a copy of it),
+ * Copy/paste/duplicate of elements (the clipboard holds an element id; Paste adds a copy of it),
  * and Copy style / Paste style (like a format painter). Both are kept for the session.
  */
 export function useClipboard(p: {
-  state: AppState | null;
   keyRef: RefObject<string | null>;
   mutate: Mutate;
   setSelection: Dispatch<SetStateAction<Selection>>;
 }) {
-  const { state, keyRef, mutate, setSelection } = p;
+  const { keyRef, mutate, setSelection } = p;
   const clipboard = useRef<string | null>(null);
   /** Copy style / Paste style (like a format painter), kept for the session. */
   const styleClip = useRef<Style | null>(null);
@@ -37,20 +35,6 @@ export function useClipboard(p: {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- keyRef, setSelection are stable (state setters or refs), so it is safe to leave out of the dependencies
     [mutate],
   );
-  /** Cut: remember the element, then delete it (Paste adds a copy of it back). */
-  const cutElement = useCallback(
-    (id: string) => {
-      const el = state?.elements.find((x) => x.id === id);
-      if (!el) return;
-      clipboard.current = id;
-      void confirmDialog({ title: `Cut "${el.name}"?`, message: "It is removed now; Paste adds a copy of it.", confirmLabel: "Cut", danger: true }).then(
-        (yes) => yes && mutate(() => api.deleteElement(el.id)).then((ok) => ok && setSelection(null)),
-      );
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- setSelection is stable (a state setter or ref), so it is safe to leave out of the dependencies
-    [state, mutate],
-  );
-
   const pasteStyle = (target: string, kind: "node" | "edge") => {
     const s = styleClip.current;
     if (!s) return;
@@ -58,7 +42,7 @@ export function useClipboard(p: {
     void mutate(() => api.style(target, Object.keys(picked).length ? (picked as Style) : null));
   };
 
-  return { clipboard, styleClip, pasteFrom, cutElement, pasteStyle };
+  return { clipboard, styleClip, pasteFrom, pasteStyle };
 }
 
 export type Clipboard = ReturnType<typeof useClipboard>;

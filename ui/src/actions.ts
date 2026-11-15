@@ -48,6 +48,23 @@ export function useElementActions(p: {
   return { deleteRelationship, nodeActions };
 }
 
+/**
+ * Adding a box is ignored while another add is still in flight, so a double click on a palette item
+ * adds one box, not two. (Only adds are guarded: other edits, such as rapid arrow-key nudges, queue normally.)
+ */
+let adding = false;
+function onceAtATime<A extends unknown[], R>(fn: (...args: A) => Promise<R>): (...args: A) => Promise<R | null> {
+  return async (...args) => {
+    if (adding) return null;
+    adding = true;
+    try {
+      return await fn(...args);
+    } finally {
+      adding = false;
+    }
+  };
+}
+
 /** Edits started on the canvas or from the palette: add, connect, move; and adding a flow. */
 export function diagramActions(c: {
   state: AppState;
@@ -63,18 +80,19 @@ export function diagramActions(c: {
   const { state, diagram, key, mutate, open, canvasRef, startRename, setSelection, setFocusName } = c;
 
   const newFlow = async () => {
-    const title = await promptDialog({ title: "Name of the new flow", confirmLabel: "Create" });
+    // The dialog only confirms a non-empty, trimmed name; trimming again keeps this true on its own.
+    const title = (await promptDialog({ title: "Name of the new flow", confirmLabel: "Create" }))?.trim();
     if (!title) return;
     let k = "";
     if (await mutate(async () => (k = (await api.createFlow({ title })).key))) open(k);
   };
 
   /** Add an object from the palette: at `at` (dropped there) or in the nearest free spot. */
-  const addItem = async (item: PaletteItem, at?: Pt) => {
+  const addItem = onceAtATime(async (item: PaletteItem, at?: Pt) => {
     if (!diagram || !key) return;
     if (item.kind === "stage") {
       const rel = state.relationships.find((r) => r.id === diagram.scope);
-      const name = await promptDialog({ title: "Name of the new stage", label: "A step inside this connector", confirmLabel: "Add" });
+      const name = (await promptDialog({ title: "Name of the new stage", label: "A step inside this connector", confirmLabel: "Add" }))?.trim();
       if (rel && name) await mutate(() => api.updateRelationship(rel.id, { stages: [...rel.stages, { id: "", name }] }));
       return;
     }
@@ -88,10 +106,10 @@ export function diagramActions(c: {
     });
     if (ok) startRename(newId);
     return ok ? newId : null;
-  };
+  });
 
   /** A line dragged from a box onto empty canvas: add a box of the usual kind there and connect it. */
-  const connectToEmpty = async (sourceId: string, at: Pt, sourceAnchor?: Pt) => {
+  const connectToEmpty = onceAtATime(async (sourceId: string, at: Pt, sourceAnchor?: Pt) => {
     if (!diagram || !key) return;
     const src = diagram.nodes.find((n) => n.id === sourceId);
     const kind = diagram.level === "container" ? "container" : diagram.level === "component" ? "component" : "softwareSystem";
@@ -106,7 +124,7 @@ export function diagramActions(c: {
       if (sourceAnchor) await api.layout(key, { edges: { [rel]: { sourceAnchor } } });
     });
     if (ok && src) startRename(newId);
-  };
+  });
 
   const connect = async (source: string, target: string, anchors: { sourceAnchor?: Pt; targetAnchor?: Pt }) => {
     let newId = "";

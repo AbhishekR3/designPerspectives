@@ -12,7 +12,8 @@ describe("API", () => {
   test("state", async () => {
     const s = await ok(client().get("/api/state"));
     expect(s.workspace.name).toBe("Big Bank plc");
-    expect(s.lenses.map((l: any) => l.id)).toEqual(["engineer", "security-review", "product-owner"]);
+    expect(s.lenses.map((l: any) => l.id)).toEqual(["engineer", "architect", "overview", "security-review", "product-owner"]);
+    expect(s.defaultLens).toBe("engineer");
     expect(s.loadErrors).toEqual([]);
   });
 

@@ -14,7 +14,7 @@ npx vitest run tests/ops.test.ts -t "name"  # single test
 npm run typecheck                           # tsc --noEmit over src, tests, e2e, scripts
 npm run lint                                # ESLint (flat config, eslint.config.js) over src, tests, e2e, scripts, ui/src; lint:fix applies safe fixes
 npm run format:check                        # Prettier (printWidth 200); not enforced yet, the code has not been reformatted (npm run format writes)
-npm run dp -- serve [PATH]                  # dp from source: serves PATH/architecture/ on 127.0.0.1:8765 (creates demo model if none)
+npm run dp -- serve [PATH]                  # dp from source: serves PATH/architecture/ on 127.0.0.1:8765 (creates an empty model if none; --demo creates the sample model)
 npm run dp -- serve --read-only | --code-root SRC
 npm run dp -- check                         # exit 1 on model problems (also drafts; warnings for missing code paths)
 npm run dp -- diff --base main              # Markdown summary of model changes since a git ref

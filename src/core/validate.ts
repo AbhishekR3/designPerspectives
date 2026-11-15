@@ -7,7 +7,7 @@
  */
 
 import { buildIndex, getProps, ModelError, TAG_PREFIX, type Index } from "./ops.js";
-import { LEVELS, type Sidecar } from "./sidecar.js";
+import { BUILTIN_LENSES, LEVELS, type Sidecar } from "./sidecar.js";
 import { allViews, VIEW_LISTS, type Workspace } from "./workspace.js";
 
 function counts<T>(items: T[], key: (t: T) => string = String): Map<string, number> {
@@ -128,7 +128,8 @@ export function errors(ws: Workspace, sidecar: Sidecar): string[] {
   for (const [n, c] of counts(sidecar.lenses, (l) => l.id)) if (c > 1) out.push(`Two lenses have the ID "${n}".`);
   const charNames = new Set(sidecar.characteristics.map((c) => c.name));
   for (const lens of sidecar.lenses) {
-    if (lens.id === "engineer") out.push('The lens ID "engineer" is reserved for the built-in Engineer lens.');
+    const builtin = BUILTIN_LENSES.find((b) => b.id === lens.id);
+    if (builtin) out.push(`The lens ID "${builtin.id}" is reserved for the built-in ${builtin.name} lens.`);
     const bad = lens.visibleLevels.filter((lv) => !(LEVELS as readonly string[]).includes(lv));
     if (bad.length) out.push(`Lens "${lens.name}" has unknown levels: ${bad.join(", ")}.`);
     // Default overlay: a tag group name, "@cost", "@tech", "@work:<type>" or "@char:<characteristic>".

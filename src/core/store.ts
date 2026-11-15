@@ -185,9 +185,9 @@ export class AlreadyExists extends Error {}
 
 export const DEMO_DIR = path.join(PACKAGE_ROOT, "demo");
 
-/** Create `<root>/architecture/` with the demo model or an empty one. Never overwrites. */
+/** Create `<root>/architecture/` with an empty model (default) or the demo model. Never overwrites. */
 export function initProject(root: string, opts: { demo?: boolean; name?: string | null } = {}): string {
-  const demo = opts.demo ?? true;
+  const demo = opts.demo ?? false;
   const arch = path.join(root, ARCH_DIR);
   const wsPath = path.join(arch, WORKSPACE_FILE);
   if (fs.existsSync(wsPath)) throw new AlreadyExists(`${wsPath} already exists`);

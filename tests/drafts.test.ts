@@ -158,4 +158,59 @@ describe("drafts", () => {
     expect((await viewer.post(`/api/drafts/${id}/apply`)).status).toBe(403);
     expect((await ok(viewer.at(`draft:${id}`).get("/api/state"))).readOnly).toBe(true);
   });
+
+  it("moves an element in a draft: shown as a change, applied to main", async () => {
+    const dir = demoDir();
+    const c = client(dir);
+    const { id } = await ok(c.post("/api/drafts", { title: "Move DB" }));
+    await ok(c.at(`draft:${id}`).post("/api/elements/database/move", { parentId: "analytics-platform" }));
+    const dc = c.at(`draft:${id}`, "base");
+    const changes = await ok(dc.get("/api/changes"));
+    expect(changes.elements).toMatchObject([
+      {
+        id: "database",
+        change: "changed",
+        homeKey: "containers-analytics-platform",
+        fields: [{ field: "parent", label: "Parent", before: "Internet Banking System", after: "Analytics Platform" }],
+      },
+    ]);
+    expect(changes.inner).toEqual(expect.arrayContaining(["internet-banking-system", "analytics-platform"]));
+    // Changed in its new parent's diagram; a ghost where it was.
+    const to = await ok(dc.get("/api/diagrams/containers-analytics-platform"));
+    expect(to.nodes.find((n: any) => n.id === "database")).toMatchObject({ change: "changed", inScope: true });
+    expect(to.nodes.find((n: any) => n.id === "database").ghost).toBeUndefined();
+    const from = await ok(dc.get("/api/diagrams/containers-internet-banking-system"));
+    expect(from.nodes.find((n: any) => n.id === "database")).toMatchObject({ ghost: true, change: "removed" });
+
+    const preview = await ok(c.get(`/api/drafts/${id}/apply-preview`));
+    expect(preview.conflicts).toEqual([]);
+    await ok(c.post(`/api/drafts/${id}/apply`));
+    const st = await ok(c.get("/api/state"));
+    expect(st.elements.find((e: any) => e.id === "database").parentId).toBe("analytics-platform");
+    expect(st.relationships.some((r: any) => r.id === "security-component--database")).toBe(true);
+    await ok(c.post("/api/undo"));
+    expect((await ok(c.get("/api/state"))).elements.find((e: any) => e.id === "database").parentId).toBe("internet-banking-system");
+  });
+
+  it("refuses to apply a move that clashes with main", async () => {
+    const reasons = async (mainEdit: (c: ReturnType<typeof client>) => Promise<unknown>) => {
+      const c = client();
+      const { id } = await ok(c.post("/api/drafts", { title: "Move" }));
+      await ok(c.at(`draft:${id}`).post("/api/elements/database/move", { parentId: "analytics-platform" }));
+      await mainEdit(c);
+      const r = await c.post(`/api/drafts/${id}/apply`);
+      expect(r.status, r.text).toBe(409);
+      return r.json().conflicts.map((x: any) => x.reason);
+    };
+    // Main moved it elsewhere, or changed it.
+    expect(await reasons((c) => ok(c.post("/api/elements/database/move", { parentId: "atm" })))).toEqual(["Changed in both main and the draft, differently."]);
+    expect(await reasons((c) => ok(c.patch("/api/elements/database", { description: "x" })))).toEqual(["Changed in both main and the draft, differently."]);
+    // Main removed it, or removed the new parent.
+    expect(await reasons((c) => ok(c.delete("/api/elements/database")))).toEqual(["Removed in main, changed in the draft."]);
+    expect(await reasons((c) => ok(c.delete("/api/elements/analytics-platform")))).toContain('It is inside "Analytics Platform", which main removed.');
+    // Main added a relationship that the move turns into one between parent and child.
+    const rule = await reasons((c) => ok(c.post("/api/relationships", { sourceId: "database", destinationId: "analytics-platform" })));
+    expect(rule.join(" ")).toMatch(/one of which contains the other/);
+  });
 });
+

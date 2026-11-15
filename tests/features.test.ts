@@ -350,3 +350,112 @@ describe("features", () => {
     expect((await client().put("/api/diagrams/nope/positions", { positions: {} })).status).toBe(404);
   });
 });
+
+describe("diagramming from scratch", () => {
+  const parentOf = async (c: Client, id: string) => (await element(c, id))?.parentId;
+
+  test("move an element; undo and redo", async () => {
+    const c = client();
+    const r = await ok(c.post("/api/elements/database/move", { parentId: "analytics-platform" }));
+    expect(r).toEqual({ ok: true, id: "database", parentId: "analytics-platform" });
+    expect(await parentOf(c, "database")).toBe("analytics-platform");
+    const st = await ok(c.get("/api/state"));
+    expect(st.relationships.find((x: any) => x.id === "security-component--database")).toBeTruthy();
+    const d = await ok(c.get("/api/diagrams/containers-analytics-platform"));
+    expect(d.nodes.find((n: any) => n.id === "database").inScope).toBe(true);
+    await ok(c.post("/api/undo"));
+    expect(await parentOf(c, "database")).toBe("internet-banking-system");
+    await ok(c.post("/api/redo"));
+    expect(await parentOf(c, "database")).toBe("analytics-platform");
+  });
+
+  test("refused moves are 422 and change nothing", async () => {
+    const c = client();
+    const refused = async (id: string, body: unknown, msg: RegExp) => {
+      const r = await c.post(`/api/elements/${id}/move`, body);
+      expect(r.status, r.text).toBe(422);
+      expect(r.json().detail).toMatch(msg);
+    };
+    await refused("atm", { parentId: "analytics-platform" }, /Only containers and components/);
+    await refused("database", { parentId: "api-application" }, /must sit inside a software system/);
+    await refused("database", { parentId: "internet-banking-system" }, /already inside/);
+    await refused("database", {}, /"parentId" is required/);
+    await refused("nope", { parentId: "analytics-platform" }, /No element with ID "nope"/);
+    expect((await ok(c.get("/api/state"))).canUndo).toBe(false);
+  });
+
+  test("create and connect in one undo step", async () => {
+    const c = client();
+    const made = await ok(
+      c.post("/api/elements", { kind: "person", name: "Teller", connectTo: "web-application", diagramKey: "containers-internet-banking-system", position: { x: 5, y: 5 } }),
+    );
+    expect(made).toEqual({ id: "teller", relationshipId: "teller--web-application" });
+    const d = await ok(c.get("/api/diagrams/containers-internet-banking-system"));
+    expect(d.nodes.find((n: any) => n.id === "teller")).toMatchObject({ inScope: false, position: { x: 5, y: 5 } });
+    expect(d.connectRequired).toEqual(["person", "softwareSystem"]);
+
+    const sys = await ok(c.post("/api/elements", { kind: "softwareSystem", name: "Fraud Check", connectFrom: "api-application", connectDescription: "Checks payments with" }));
+    const rel = (await ok(c.get("/api/state"))).relationships.find((x: any) => x.id === sys.relationshipId);
+    expect(rel).toMatchObject({ sourceId: "api-application", destinationId: "fraud-check", description: "Checks payments with" });
+
+    await ok(c.post("/api/undo"));
+    let st = await ok(c.get("/api/state"));
+    expect(st.elements.some((e: any) => e.id === "fraud-check")).toBe(false);
+    expect(st.relationships.some((x: any) => x.id === sys.relationshipId)).toBe(false);
+    expect(st.elements.some((e: any) => e.id === "teller")).toBe(true);
+    await ok(c.post("/api/undo"));
+    st = await ok(c.get("/api/state"));
+    expect(st.elements.some((e: any) => e.id === "teller")).toBe(false);
+    expect(st.canUndo).toBe(false);
+
+    // A relationship that is not allowed refuses the whole edit: no element is left behind.
+    const bad = await c.post("/api/elements", { kind: "container", parentId: "atm", name: "Inside", connectTo: "atm" });
+    expect(bad.status).toBe(422);
+    expect((await c.post("/api/elements", { kind: "person", connectTo: "nope" })).status).toBe(422);
+    expect((await c.post("/api/elements", { kind: "person", connectTo: "atm", connectFrom: "atm" })).status).toBe(422);
+    st = await ok(c.get("/api/state"));
+    expect(st.elements.some((e: any) => e.id === "inside" || e.name === "New person")).toBe(false);
+  });
+
+  test("the first rename after creating can give the element a readable ID", async () => {
+    const c = client();
+    const { id } = await ok(c.post("/api/elements", { kind: "softwareSystem", name: "New system", connectFrom: "personal-banking-customer" }));
+    expect(id).toBe("new-system");
+    await ok(c.put("/api/diagrams/landscape/positions", { positions: { [id]: { x: 1, y: 2 } } }));
+    const r = await ok(c.patch(`/api/elements/${id}`, { name: "Loans", reslug: true }));
+    expect(r).toEqual({ ok: true, id: "loans" });
+    const st = await ok(c.get("/api/state"));
+    expect(st.elements.some((e: any) => e.id === "new-system")).toBe(false);
+    expect(st.relationships.some((x: any) => x.id === "personal-banking-customer--loans")).toBe(true);
+    const land = await ok(c.get("/api/diagrams/landscape"));
+    expect(land.nodes.find((n: any) => n.id === "loans").position).toEqual({ x: 1, y: 2 });
+    expect(st.diagrams.map((d: any) => d.key)).toContain("containers-loans");
+
+    // Without the option, or for an element whose ID is not made from its name, the ID stays.
+    expect(await ok(c.patch("/api/elements/loans", { name: "Loan Service" }))).toEqual({ ok: true, id: "loans" });
+    expect(await ok(c.patch("/api/elements/loans", { name: "Credit", reslug: true }))).toEqual({ ok: true, id: "loans" });
+
+    await ok(c.post("/api/undo"));
+    await ok(c.post("/api/undo"));
+    await ok(c.post("/api/undo")); // the re-slugging rename
+    const back = await ok(c.get("/api/state"));
+    expect(back.elements.find((e: any) => e.id === "new-system").name).toBe("New system");
+    expect(back.relationships.some((x: any) => x.id === "personal-banking-customer--new-system")).toBe(true);
+  });
+
+  test("in a draft, only elements new to the draft are re-slugged", async () => {
+    const c = client();
+    await ok(c.post("/api/elements", { kind: "softwareSystem" })); // "new-system" in main
+    const { id: draft } = await ok(c.post("/api/drafts", { title: "Plan" }));
+    const d = c.at(`draft:${draft}`);
+    expect(await ok(d.patch("/api/elements/new-system", { name: "Billing", reslug: true }))).toEqual({ ok: true, id: "new-system" });
+    const { id } = await ok(d.post("/api/elements", { kind: "softwareSystem" }));
+    expect(await ok(d.patch(`/api/elements/${id}`, { name: "Payments", reslug: true }))).toEqual({ ok: true, id: "payments" });
+    const changes = await ok(c.at(`draft:${draft}`, "base").get("/api/changes"));
+    expect(changes.elements.map((e: any) => [e.id, e.change]).sort()).toEqual([
+      ["new-system", "changed"],
+      ["payments", "added"],
+    ]);
+  });
+});
+

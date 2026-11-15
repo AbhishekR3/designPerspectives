@@ -154,10 +154,17 @@ function typeLabel(el: DiagramNode): string {
 function InlineName({ value, fontSize, onDone }: { value: string; fontSize: number; onDone(v: string | null): void }) {
   const [v, setV] = useState(value);
   const ref = useRef<HTMLInputElement>(null);
+  const finished = useRef(false);
   useEffect(() => {
     ref.current?.focus();
     ref.current?.select();
   }, []);
+  // Enter (or Escape) and the blur that follows when the field goes away must report once.
+  const finish = (save: boolean) => {
+    if (finished.current) return;
+    finished.current = true;
+    onDone(save && v.trim() && v.trim() !== value ? v.trim() : null);
+  };
   return (
     <input
       ref={ref}
@@ -167,10 +174,10 @@ function InlineName({ value, fontSize, onDone }: { value: string; fontSize: numb
       onChange={(e) => setV(e.target.value)}
       onKeyDown={(e) => {
         e.stopPropagation();
-        if (e.key === "Enter") onDone(v.trim() && v.trim() !== value ? v.trim() : null);
-        if (e.key === "Escape") onDone(null);
+        if (e.key === "Enter") finish(true);
+        if (e.key === "Escape") finish(false);
       }}
-      onBlur={() => onDone(v.trim() && v.trim() !== value ? v.trim() : null)}
+      onBlur={() => finish(true)}
       onDoubleClick={(e) => e.stopPropagation()}
       aria-label="Name"
       data-testid="inline-name"

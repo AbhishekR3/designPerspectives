@@ -15,9 +15,15 @@ export function lensOverlay(l: Lens, s: AppState): OverlaySpec | null {
   return spec && specExists(spec, s, groups) ? spec : null;
 }
 
+/** The lens to start in: the saved one if it still exists, else the server's default. */
+export function pickLens(s: AppState, saved: string | null): Lens {
+  return s.lenses.find((l) => l.id === saved) ?? s.lenses.find((l) => l.id === s.defaultLens) ?? s.lenses[0];
+}
+
 /** The chosen lens (remembered in localStorage), the colour overlay and the Focus/Hide filters. */
 export function useLensState() {
-  const [lensId, setLensId] = useState<string>(storage.get(LENS_KEY) ?? "engineer");
+  // The saved choice, or null until the first load resolves it (see `pickLens`).
+  const [lensId, setLensId] = useState<string | null>(() => storage.get(LENS_KEY));
   const [overlay, setOverlay] = useState<OverlaySpec | null>(null);
   const [filters, setFilters] = useState<Filter[]>([]);
   return { lensId, setLensId, overlay, setOverlay, filters, setFilters };
@@ -35,7 +41,7 @@ export function useLens(p: {
   const { lensId, setLensId, overlay, setOverlay, filters } = p.lensState;
 
   const lens: Lens | null = useMemo(
-    () => state?.lenses.find((l) => l.id === lensId) ?? state?.lenses.find((l) => l.id === "engineer") ?? null,
+    () => (state ? pickLens(state, lensId) : null),
     [state, lensId],
   );
 

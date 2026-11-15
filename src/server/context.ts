@@ -64,6 +64,7 @@ export function state(project: Project, readOnly = false, sel?: Selection, draft
     characteristics: sc.characteristics.map((c) => ({ name: c.name, description: c.description })),
     costSettings: { currency: sc.cost.currency, bands: sc.cost.bands.map((b) => ({ name: b.name, max: b.max ?? null, color: b.color })) },
     lenses: [...BUILTIN_LENSES, ...sc.lenses].map((l) => ({ ...lensData(l), defaultOverlay: l.defaultOverlay ?? null, builtin: l.builtin }) as unknown as Lens),
+    defaultLens: [...idx.elements.keys()].some((id) => idx.kindOf(id) === "container") ? "engineer" : "architect",
     flows: flows.listFlows(ws),
     loadErrors: src.loadErrors,
     enums: ops.ENUMS,

@@ -6,6 +6,11 @@
  * is kept; if both changed it differently, that is a conflict and nothing is applied. Positions
  * and other layout data never conflict: the draft's layout wins (it is cheap to redo).
  *
+ * An element's parent is part of its unit, so moving an element (to another system or container) is
+ * a change to that element: it merges like any other change, conflicts with a different change to
+ * the same element on the other side, and a move into a parent the other side removed is caught by
+ * the reference check below.
+ *
  * After the per-unit merge, references are checked: an element inside a removed element, a
  * relationship to a removed element, or a flow step over a removed relationship is a conflict.
  * Model rules (unique names, ...) are checked by the caller when the result is saved.
@@ -68,7 +73,25 @@ export function merge3(base: Units, ours: Units, theirs: Units, names: MergeName
       }
     }
   }
-  return { units: chosen, conflicts };
+  return { units: placeMoved(chosen, ours, theirs), conflicts };
+}
+
+/** An element the draft moved to another parent is placed after the unit that precedes it in the
+ *  draft, so it keeps its place among its new siblings (`unflatten` attaches it to its parent). */
+function placeMoved(chosen: Units, ours: Units, theirs: Units): Units {
+  const order = [...chosen.keys()];
+  const theirKeys = [...theirs.keys()];
+  let moved = false;
+  for (const [key, u] of chosen) {
+    const o = ours.get(key);
+    if (u.t !== "el" || !o || o.t !== "el" || o.parent === u.parent) continue;
+    const prev = theirKeys[theirKeys.indexOf(key) - 1];
+    if (prev === undefined || !chosen.has(prev)) continue;
+    order.splice(order.indexOf(key), 1);
+    order.splice(order.indexOf(prev) + 1, 0, key);
+    moved = true;
+  }
+  return moved ? new Map(order.map((k) => [k, chosen.get(k)!])) : chosen;
 }
 
 function bothReason(b: Unit | undefined, o: Unit | undefined, t: Unit | undefined, n: MergeNames): string {

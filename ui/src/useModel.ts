@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type Dispatch, type RefObject, type SetStateAction } from "react";
 import { api, ApiError, setContext } from "./api";
-import { inLens, lensOverlay } from "./useLens";
+import { inLens, lensOverlay, pickLens } from "./useLens";
 import { errorMessage, useErrorSlot } from "./notify";
 import { fromHash, hashFor } from "./useNavigation";
 import type { Filter, OverlaySpec } from "./overlays";
@@ -15,11 +15,12 @@ export function useModel(p: {
   keyRef: RefObject<string | null>;
   setKey: Dispatch<SetStateAction<string | null>>;
   setSelection: Dispatch<SetStateAction<Selection>>;
-  lensId: string;
+  lensId: string | null;
+  setLensId: Dispatch<SetStateAction<string | null>>;
   setOverlay: Dispatch<SetStateAction<OverlaySpec | null>>;
   setFilters: Dispatch<SetStateAction<Filter[]>>;
 }) {
-  const { keyRef, setKey, setSelection, lensId, setOverlay, setFilters } = p;
+  const { keyRef, setKey, setSelection, lensId, setLensId, setOverlay, setFilters } = p;
   const [state, setState] = useState<AppState | null>(null);
   const [diagram, setDiagram] = useState<Diagram | null>(null);
   // Model version shown (main or a draft) and the version it is compared with; sent with every request.
@@ -99,7 +100,9 @@ export function useModel(p: {
       .then(async (s) => {
         setState(s);
         if (versionRef.current.compare) setChanges(await api.changes());
-        const l = s.lenses.find((x) => x.id === lensId) ?? s.lenses[0];
+        const l = pickLens(s, lensId);
+        // Fix the choice now (not saved): the default must not flip when the first container is added.
+        setLensId(l.id);
         setOverlay(versionRef.current.compare ? { kind: "changes" } : lensOverlay(l, s));
         if (!keyRef.current) {
           const first = s.diagrams.find((d) => inLens(l, d.level)) ?? s.diagrams[0];

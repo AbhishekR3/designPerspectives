@@ -6,9 +6,10 @@ import { diffModels, type Snapshot } from "../src/core/diff.js";
 import { syncFlows } from "../src/core/flows.js";
 import { merge3 } from "../src/core/merge.js";
 import * as ops from "../src/core/ops.js";
-import { parseSidecar, type Sidecar } from "../src/core/sidecar.js";
+import { stableJson } from "../src/core/json.js";
+import { parseSidecar, sidecarData, type Sidecar } from "../src/core/sidecar.js";
 import { flatten, unflatten } from "../src/core/units.js";
-import type { Workspace } from "../src/core/workspace.js";
+import { dumpWorkspace, type Workspace } from "../src/core/workspace.js";
 import { demoDir, demoWs } from "./helpers.js";
 
 function demo(): Snapshot {
@@ -150,4 +151,44 @@ describe("merge3", () => {
     const v = r.model!.workspace.views.systemLandscapeViews[0]!;
     expect(v.elements.find((e) => e.id === "atm")).toMatchObject({ x: 4, y: 4 });
   });
+
+  it("merges a move made in the draft, next to its new siblings", () => {
+    const base = demo();
+    const main = changed(base, (ws, sc) => ops.updateElement(ws, sc, "atm", { description: "Main edit" }));
+    // In main the API Application comes before the Analytics Platform; the merge still puts it after its new siblings.
+    const draft = changed(base, (ws) => ops.moveElement(ws, "api-application", "analytics-platform"));
+    const r = merged(base, main, draft);
+    expect(r.conflicts).toEqual([]);
+    const idx = ops.buildIndex(r.model!.workspace);
+    expect(idx.parentOf("api-application")).toBe("analytics-platform");
+    expect(idx.childrenOf("analytics-platform")).toEqual(ops.buildIndex(draft.workspace).childrenOf("analytics-platform"));
+    expect(idx.parentOf("sign-in-controller")).toBe("api-application");
+    expect(idx.el("atm").description).toBe("Main edit");
+  });
+
+  it("a moved element still round-trips through units, and a later parent is no problem", () => {
+    const base = demo();
+    const draft = changed(base, (ws) => ops.moveElement(ws, "database", "analytics-platform"));
+    // A unit list where the moved element comes before its new parent (as main's order would put it).
+    const u = units(draft);
+    const moved = [...u].sort(([a], [b]) => (a === "el:database" ? -1 : b === "el:database" ? 1 : 0));
+    const { ws } = unflatten(new Map(moved));
+    expect(ops.buildIndex(ws).parentOf("database")).toBe("analytics-platform");
+    const again = unflatten(u);
+    syncViews(again.ws);
+    syncFlows(again.ws);
+    expect(dumpWorkspace(again.ws)).toBe(dumpWorkspace(draft.workspace));
+    expect(stableJson(sidecarData(again.sc))).toBe(stableJson(sidecarData(draft.sidecar)));
+  });
+
+  it("reports a move with the parents' names", () => {
+    const a = demo();
+    const b = changed(a, (ws) => ops.moveElement(ws, "e-mail-component", "pipeline-worker"));
+    const cs = diffModels(a, b, "base");
+    expect(cs.elements).toMatchObject([
+      { id: "e-mail-component", change: "changed", homeKey: "components-pipeline-worker", fields: [{ field: "parent", before: "API Application", after: "Pipeline Worker" }] },
+    ]);
+    expect(cs.inner).toEqual(expect.arrayContaining(["api-application", "internet-banking-system", "pipeline-worker", "analytics-platform"]));
+  });
 });
+

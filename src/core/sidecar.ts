@@ -82,7 +82,18 @@ export const ENGINEER: Lens = makeLens({
   visibleLevels: ["container", "component", "code"],
   builtin: true,
 });
-export const BUILTIN_LENSES: Lens[] = [ENGINEER];
+/** Everything: all levels and sections, technology and descriptions shown. The default for a model with no containers yet. */
+export const ARCHITECT: Lens = makeLens({ id: "architect", name: "Architect", builtin: true });
+/** For stakeholders outside engineering: the big picture, without technology, cost or code. */
+export const OVERVIEW: Lens = makeLens({
+  id: "overview",
+  name: "Overview",
+  visibleLevels: ["landscape", "context"],
+  visibleSections: SECTIONS.filter((x) => !["cost", "notes", "tradeoffs", "sensitive", "code"].includes(x)),
+  showTechnology: false,
+  builtin: true,
+});
+export const BUILTIN_LENSES: Lens[] = [ENGINEER, ARCHITECT, OVERVIEW];
 
 export interface Size {
   w: number;

@@ -44,13 +44,14 @@ export function program(): Command {
     .showHelpAfterError();
 
   p.command("init")
-    .description("Create architecture/workspace.json (demo model by default).")
+    .description("Create architecture/workspace.json (an empty model by default).")
     .argument("[path]", "Project folder; the model goes in <path>/architecture/.", ".")
-    .option("--empty", "Start with an empty model instead of the demo.")
+    .option("--demo", "Start with the sample model (and its sample code) instead of an empty one.")
+    .option("--empty", "Start with an empty model (the default; accepted for compatibility).")
     .option("--name <name>", "Workspace name (empty model only).")
-    .action((dir: string, o: { empty?: boolean; name?: string }) => {
+    .action((dir: string, o: { demo?: boolean; empty?: boolean; name?: string }) => {
       try {
-        console.log(`Created ${initProject(dir, { demo: !o.empty, name: o.name })}`);
+        console.log(`Created ${initProject(dir, { demo: Boolean(o.demo) && !o.empty, name: o.name })}`);
       } catch (e) {
         if (e instanceof AlreadyExists) {
           console.error(`Not overwriting: ${e.message}`);
@@ -61,17 +62,20 @@ export function program(): Command {
     });
 
   p.command("serve")
-    .description("Serve the model in the browser. Creates the demo model first if the folder has none.")
+    .description("Serve the model in the browser. Creates an empty model first if the folder has none (--demo: the sample model).")
     .argument("[path]", "Project folder containing architecture/.", ".")
     .addOption(new Option("--port <port>", "Port to listen on.").default(8765).argParser((v) => parseInt(v, 10)))
     .option("--host <host>", "Interface to bind. Keep the default unless you know you need another.", "127.0.0.1")
     .option("--allow-host <name>", "Also answer requests addressed to this host name (a tunnel or proxy in front of the server). Repeat for more.", (v: string, all: string[]) => [...all, v], [] as string[])
     .option("--no-open", "Do not open the browser.")
+    .option("--demo", "If the folder has no model, create the sample model (with its sample code) instead of an empty one.")
     .option("--read-only", "Viewer role: browse only; every change is refused.")
     .option("--code-root <folder>", "Folder holding the source code that components point to (default: the project folder).")
-    .action((dir: string, o: { port: number; host: string; allowHost: string[]; open: boolean; readOnly?: boolean; codeRoot?: string }) => {
+    .action((dir: string, o: { port: number; host: string; allowHost: string[]; open: boolean; demo?: boolean; readOnly?: boolean; codeRoot?: string }) => {
       if (!fs.existsSync(path.join(dir, ARCH_DIR, WORKSPACE_FILE))) {
-        console.log(`No model found; created the demo model in ${initProject(dir, { demo: true })}`);
+        const demo = Boolean(o.demo);
+        const made = initProject(dir, { demo });
+        console.log(demo ? `No model found; created the sample model in ${made}` : `No model found; created an empty model in ${made} (use --demo for the sample model)`);
       }
       const loopback = allowedHostsFor(o.host);
       const allowedHosts = loopback && [...loopback, ...o.allowHost.map((h) => h.trim().toLowerCase())];

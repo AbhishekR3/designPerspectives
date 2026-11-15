@@ -1,4 +1,4 @@
-/** Browser-test fixtures: a real server on a free port with a fresh demo project, and a page on it. */
+/** Browser-test fixtures: a real server on a free port with a fresh demo (or empty) project, and a page on it. */
 
 import fs from "node:fs";
 import type { AddressInfo } from "node:net";
@@ -14,13 +14,17 @@ export interface Server {
   root: string;
 }
 
-export const test = base.extend<{ server: Server }>({
-  // eslint-disable-next-line no-empty-pattern -- Playwright reads the fixtures a test needs from this destructuring, so it must stay an object pattern
-  server: async ({}, use, testInfo) => {
+/** Which project a test starts on: the demo (default) or an empty model. Opt in with `test.use({ project: "empty" })`. */
+export type ProjectKind = "demo" | "empty";
+
+export const test = base.extend<{ server: Server; project: ProjectKind; readOnly: boolean }>({
+  project: ["demo", { option: true }],
+  readOnly: [false, { option: true }],
+  server: async ({ project, readOnly }, use, testInfo) => {
     testInfo.skip(staticDir() === null, "UI not built (run `npm ci && npm run build` in ui/)");
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "dp-e2e-"));
-    initProject(root, { demo: true });
-    const app = createApp(root);
+    initProject(root, { demo: project === "demo" });
+    const app = createApp(root, { readOnly });
     const srv = await new Promise<ReturnType<typeof serve>>((resolve) => {
       const s = serve({ fetch: app.fetch, port: 0, hostname: "127.0.0.1" }, () => resolve(s));
     });

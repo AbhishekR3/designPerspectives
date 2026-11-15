@@ -1,5 +1,5 @@
 import { ReactFlowProvider } from "@xyflow/react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { draftActions, diagramActions, useElementActions } from "./actions";
 import { api } from "./api";
 import { ApplyDialog, ChangeDetails, ChangeList, DraftList, GhostPanel, PlanDialog, VersionStrip } from "./ChangesPanel";
@@ -10,8 +10,9 @@ import { CharacteristicsEditor, CostSettingsEditor, LensEditor, TagGroupEditor }
 import { FlowCard } from "./FlowCard";
 import { FlowPanel } from "./FlowPanel";
 import { Icon } from "./icons";
-import { menuItems, useContextMenu } from "./menus";
-import { Palette } from "./Palette";
+import { diagramEditable, menuItems, useContextMenu } from "./menus";
+import { EmptyStart, emptyHint } from "./EmptyState";
+import { Palette, paletteItems } from "./Palette";
 import { formatMoney, overlayable } from "./overlays";
 import { FileEditor } from "./CodeParts";
 import { CodeDiagramPanel, ConnectorPanel, EdgePanel, FilePanel, ObjectPanel, StagePanel } from "./panels";
@@ -43,6 +44,7 @@ export default function App() {
     setKey,
     setSelection,
     lensId: lensState.lensId,
+    setLensId: lensState.setLensId,
     setOverlay,
     setFilters,
   });
@@ -58,14 +60,19 @@ export default function App() {
   const { leftOpen, toggleLeft, startDrag, resetLeft, resetRight, gridTemplateColumns } = usePanels();
   const canvasRef = useRef<CanvasHandle>(null);
 
+  // A box waiting to be renamed that is not on this diagram must not pop open later on another one.
+  useEffect(() => {
+    if (renameId && diagram && !diagram.nodes.some((n) => n.id === renameId)) clearRename();
+  }, [renameId, diagram, clearRename]);
+
   useHashSync({ key, keyRef, setKey, versionRef, loadDiagram, switchVersion, setSelection, setMenu, setFlowStep, setPlaying });
   const flow = useFlowAutoplay(diagram, player);
   const reveal = useReveal(state, diagram, setKey, setSelection);
   const { lens, chooseLens, chooseLensAfterSave, activeOverlay, decorate } = useLens({ state, setState, diagram, open, lensState });
-  const clip = useClipboard({ state, keyRef, mutate, setSelection });
-  const { pasteFrom, cutElement } = clip;
+  const clip = useClipboard({ keyRef, mutate, setSelection });
+  const { pasteFrom } = clip;
   const { deleteRelationship, nodeActions } = useElementActions({ state, mutate, pasteFrom, open, setSelection });
-  useShortcuts({ state, diagram, selection, setSelection, setFocusName, setRenameId, setSearchOpen, doHistory, mutate, clipboard: clip.clipboard, pasteFrom, cutElement, deleteRelationship, canvasRef });
+  useShortcuts({ state, diagram, selection, setSelection, setFocusName, setRenameId, setSearchOpen, doHistory, clipboard: clip.clipboard, pasteFrom, deleteRelationship, nodeActions, toggleHelp: () => setHelpOpen((o) => !o), canvasRef });
 
   if (!state || !lens) {
     return <div className="loading">{error ? `Could not load: ${error}` : "Loading…"}</div>;
@@ -92,15 +99,19 @@ export default function App() {
   const diagramCost = diagram ? overlayable(diagram).reduce((sum, n) => sum + (n.costRollup ?? 0), 0) : 0;
   const tools = (
     <div className="float bar tools">
-      <button className="ghost icon" onClick={() => doHistory("undo")} disabled={!state.canUndo} title="Undo (Ctrl/Cmd+Z)" aria-label="Undo" data-testid="undo">
-        <Icon name="undo" />
-      </button>
-      <button className="ghost icon" onClick={() => doHistory("redo")} disabled={!state.canRedo} title="Redo (Ctrl/Cmd+Shift+Z)" aria-label="Redo" data-testid="redo">
-        <Icon name="redo" />
-      </button>
-      <button className="ghost icon" onClick={() => canvasRef.current?.relayout()} title="Auto-layout: lay the diagram out again" aria-label="Auto-layout" data-testid="auto-layout">
-        <Icon name="layout" />
-      </button>
+      {diagramEditable(state, diagram) && (
+        <>
+        <button className="ghost icon" onClick={() => doHistory("undo")} disabled={!state.canUndo} title="Undo (Ctrl/Cmd+Z)" aria-label="Undo" data-testid="undo">
+          <Icon name="undo" />
+        </button>
+        <button className="ghost icon" onClick={() => doHistory("redo")} disabled={!state.canRedo} title="Redo (Ctrl/Cmd+Shift+Z)" aria-label="Redo" data-testid="redo">
+          <Icon name="redo" />
+        </button>
+        <button className="ghost icon" onClick={() => canvasRef.current?.relayout()} title="Auto-layout: lay the diagram out again" aria-label="Auto-layout" data-testid="auto-layout">
+          <Icon name="layout" />
+        </button>
+        </>
+      )}
       <span className="export-wrap" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setExportOpen(false)}>
         <button className="ghost icon" onClick={() => setExportOpen(!exportOpen)} aria-haspopup="menu" aria-expanded={exportOpen} title="Download the diagram" aria-label="Download" data-testid="export">
           <Icon name="download" />
@@ -321,15 +332,15 @@ export default function App() {
 
           {diagram && !state.readOnly && !diagram.compare?.removed && diagram.level !== "flow" && diagram.level !== "code" && <Palette diagram={diagram} onAdd={(it) => addItem(it)} />}
 
-          {diagram && diagram.nodes.length === 0 && (
-            <div className="empty-hint">
-              {diagram.level === "flow"
-                ? "This flow has no steps yet. Add steps in the panel on the right."
-                : diagram.level === "code"
-                  ? "No files yet. Add code paths in the panel on the right."
-                  : "Nothing here yet. Drag something from the Add palette on the left onto the diagram."}
-            </div>
-          )}
+          {diagram && diagram.nodes.length === 0 &&
+            (diagram.level === "landscape" && !state.readOnly && !diagram.compare?.removed ? (
+              <EmptyStart onAdd={(testId) => {
+                const item = paletteItems(diagram).find((it) => it.testId === testId);
+                if (item) void addItem(item);
+              }} />
+            ) : (
+              <div className="empty-hint" data-testid="empty-hint">{emptyHint(diagram.level, state.readOnly)}</div>
+            ))}
         </div>
       </main>
 
@@ -371,7 +382,7 @@ export default function App() {
                 </>
               )}
             </dl>
-            <p className="muted small">Click an object or connection to see its details here. Press ? at the top right for help.</p>
+            <p className="muted small">Click an object or connection to see its details here. Press ? or use the help button at the top right.</p>
             {changes && (
               <>
                 <h3 className="panel-subtitle">Changes compared with {againstLabel}</h3>

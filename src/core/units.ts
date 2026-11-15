@@ -151,6 +151,10 @@ export function unflatten(units: Units): { ws: Workspace; sc: Sidecar } {
   const styles: Obj = {};
   const layouts: Record<string, Obj> = {};
   const layout = (d: string) => (layouts[d] ??= { sizes: {}, edges: {}, positions: {} });
+  // Elements and relationships are put in place after all elements exist, so a unit may come
+  // before its parent (a merged draft that moved an element to a parent listed later).
+  const elUnits: [Extract<Unit, { t: "el" }>, Obj][] = [];
+  const relUnits: Extract<Unit, { t: "rel" }>[] = [];
 
   for (const u of units.values()) {
     switch (u.t) {
@@ -164,22 +168,13 @@ export function unflatten(units: Units): { ws: Workspace; sc: Sidecar } {
         const o: Obj = { ...structuredClone(u.v), relationships: [] };
         if (u.kind === "softwareSystem") o.containers = [];
         if (u.kind === "container") o.components = [];
-        const id = String(u.v.id);
-        els.set(id, o);
-        if (u.parent === null) (model[u.kind === "person" ? "people" : "softwareSystems"] as Obj[]).push(o);
-        else {
-          const p = els.get(u.parent);
-          if (!p) throw new UnitError(`"${String(u.v.name)}" is inside an element that does not exist (${u.parent}).`);
-          (p[u.kind === "container" ? "containers" : "components"] as Obj[]).push(o);
-        }
+        els.set(String(u.v.id), o);
+        elUnits.push([u, o]);
         break;
       }
-      case "rel": {
-        const owner = els.get(u.owner);
-        if (!owner) throw new UnitError(`Relationship "${String(u.v.id)}" belongs to an element that does not exist (${u.owner}).`);
-        (owner.relationships as Obj[]).push(structuredClone(u.v));
+      case "rel":
+        relUnits.push(u);
         break;
-      }
       case "view": {
         const o = structuredClone(u.v);
         if (u.mode !== "whole") {
@@ -219,6 +214,19 @@ export function unflatten(units: Units): { ws: Workspace; sc: Sidecar } {
         Object.assign(layout(u.diagram), u.v);
         break;
     }
+  }
+  for (const [u, o] of elUnits) {
+    if (u.parent === null) (model[u.kind === "person" ? "people" : "softwareSystems"] as Obj[]).push(o);
+    else {
+      const p = els.get(u.parent);
+      if (!p) throw new UnitError(`"${String(u.v.name)}" is inside an element that does not exist (${u.parent}).`);
+      (p[u.kind === "container" ? "containers" : "components"] as Obj[]).push(o);
+    }
+  }
+  for (const u of relUnits) {
+    const owner = els.get(u.owner);
+    if (!owner) throw new UnitError(`Relationship "${String(u.v.id)}" belongs to an element that does not exist (${u.owner}).`);
+    (owner.relationships as Obj[]).push(structuredClone(u.v));
   }
   const ws = toWorkspace(structuredClone({ ...top, model, views }));
   const sidecar = toSidecar(structuredClone({ ...sc, tagGroups, lenses, styles, layouts }));
