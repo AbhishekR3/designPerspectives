@@ -27,6 +27,8 @@
 
 ### Changed
 - API clients must send `Content-Type: application/json` with a request body (415 otherwise).
+- In-app dialogs and toasts replace the browser's prompt and confirm boxes. Destructive confirms name the action (Delete, Discard).
+- Internal: the UI shell, the server routes, the object panel and the stylesheet are split into smaller files; ESLint runs in CI.
 
 ### Fixed
 - `dp plan --against <ref>` exits 2 when there is no code to check against (for example, the code
@@ -40,6 +42,9 @@
 - Apply with code is all or nothing: if a file write or the model step fails, every file is restored
   and the draft stays.
 - A mapped path such as `./src/api` keeps its code-diagram layout.
+- Errors from layout, auto-layout, image export and lens refetch are now shown. They used to fail silently.
+- Escape in a dialog no longer clears the canvas selection.
+- Keyboard shortcuts no longer act on the canvas while a dialog is open.
 
 ### Security
 - Requests must be addressed to a loopback host (`localhost`, `127.0.0.1`, `[::1]`) when the server

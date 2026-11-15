@@ -23,6 +23,7 @@ export function useElementActions(p: {
     (relId: string) => {
       void confirmDeleteRelationship().then((yes) => yes && mutate(() => api.deleteRelationship(relId)).then((ok) => ok && setSelection(null)));
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- setSelection is stable (a state setter or ref), so it is safe to leave out of the dependencies
     [mutate],
   );
 
@@ -40,6 +41,7 @@ export function useElementActions(p: {
             },
             open: (k) => open(k),
           },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- setSelection is stable (a state setter or ref), so it is safe to leave out of the dependencies
     [state, mutate, pasteFrom, open],
   );
 

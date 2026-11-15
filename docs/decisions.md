@@ -203,3 +203,15 @@ Entry format: **ID — title** · date · status · who decided · what was deci
 - Decision: apply with code writes the code files first, keeping a backup of each. Then it writes the model. Then it deletes the draft. If a file write or the model step fails, every file is restored and the draft stays.
 - Why: a failed file write used to leave the model applied and the draft in place, so the model and the code could disagree.
 - Trade-off: restore is best effort. Content and permissions come back, modification times do not, and a failed restore is logged. A crash between the steps is not covered. Deleting the draft is not rolled back.
+
+## DEC-033 — In-app dialogs replace browser prompt and confirm
+- Date: 2026-11-14 · Status: Accepted (built in Stage R) · Decided by: [Proposal]
+- Decision: the browser's prompt and confirm boxes are replaced by in-app dialogs. Dialogs take focus, keep Tab inside, give focus back when they close, and close on Escape without clearing the canvas selection. Keyboard shortcuts do nothing while a dialog is open. Destructive confirms name the action (Delete, Discard). Prompts trim the text and refuse an empty value. Failures that used to be silent are shown in an error slot or as a toast.
+- Why: native boxes cannot be styled, they block the page while open, and keyboard shortcuts can act behind them.
+- Trade-off: more UI code to maintain. Browser tests must click the dialog buttons, and they fail if a native dialog opens.
+
+## DEC-034 — ESLint enforced, Prettier configured but not enforced
+- Date: 2026-11-14 · Status: Accepted (built in Stage R) · Decided by: [Proposal]
+- Decision: ESLint runs in CI (`npm run lint`) with the recommended rules for JavaScript and TypeScript and the two hook rules. Prettier is configured (print width 200) with `npm run format` and `format:check`, but it is not applied and CI does not check it. The 18 hook-dependency warnings were each reviewed and marked intentional with a reason. No dependency array was changed.
+- Why: lint finds real bugs at low cost. Applying Prettier now would re-wrap 58 of 113 source files and bury real changes in the history.
+- Trade-off: the code is not formatted to one style until the owner decides. The hook-dependency disables are only correct while callers keep passing state setters and refs.

@@ -34,6 +34,7 @@ export function useClipboard(p: {
       });
       if (ok) setSelection({ type: "node", id: newId });
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyRef, setSelection are stable (state setters or refs), so it is safe to leave out of the dependencies
     [mutate],
   );
   /** Cut: remember the element, then delete it (Paste adds a copy of it back). */
@@ -46,6 +47,7 @@ export function useClipboard(p: {
         (yes) => yes && mutate(() => api.deleteElement(el.id)).then((ok) => ok && setSelection(null)),
       );
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- setSelection is stable (a state setter or ref), so it is safe to leave out of the dependencies
     [state, mutate],
   );
 

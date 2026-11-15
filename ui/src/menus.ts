@@ -60,6 +60,7 @@ export function useContextMenu(p: {
     }
     setExportOpen(false);
     setMenu({ x: at.x, y: at.y, target, seq: ++menuSeq.current });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- setExportOpen, setFocusName, setSelection are stable (state setters or refs), so it is safe to leave out of the dependencies
   }, []);
   return { menu, setMenu, closeMenu, openMenu };
 }

@@ -40,6 +40,7 @@ export function useModel(p: {
     } catch {
       if (keyRef.current === k) setKey("landscape");
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyRef, setKey are stable (state setters or refs), so it is safe to leave out of the dependencies
   }, []);
 
   const refresh = useCallback(async () => {
@@ -47,6 +48,7 @@ export function useModel(p: {
     setState(s);
     setChanges(versionRef.current.compare ? await api.changes() : null);
     if (keyRef.current) await loadDiagram(keyRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyRef is stable (a state setter or ref), so it is safe to leave out of the dependencies
   }, [loadDiagram]);
 
   /** Show another model version (main or a draft), optionally compared with another one. */
@@ -69,6 +71,7 @@ export function useModel(p: {
         else setError(errorMessage(e));
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyRef, setError, setFilters, setOverlay, setSelection are stable (state setters or refs), so it is safe to leave out of the dependencies
     [refresh],
   );
 
@@ -85,6 +88,7 @@ export function useModel(p: {
         return false;
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- setError is stable (a state setter or ref), so it is safe to leave out of the dependencies
     [refresh],
   );
 
@@ -120,6 +124,7 @@ export function useModel(p: {
       }
       await refresh().catch(() => undefined);
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- setError is stable (a state setter or ref), so it is safe to leave out of the dependencies
     [refresh],
   );
 

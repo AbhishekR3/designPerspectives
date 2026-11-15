@@ -12,6 +12,8 @@ npm ci                                      # installs and builds dist/ (prepare
 npm test                                    # vitest: unit + API + CLI tests (tests/)
 npx vitest run tests/ops.test.ts -t "name"  # single test
 npm run typecheck                           # tsc --noEmit over src, tests, e2e, scripts
+npm run lint                                # ESLint (flat config, eslint.config.js) over src, tests, e2e, scripts, ui/src; lint:fix applies safe fixes
+npm run format:check                        # Prettier (printWidth 200); not enforced yet, the code has not been reformatted (npm run format writes)
 npm run dp -- serve [PATH]                  # dp from source: serves PATH/architecture/ on 127.0.0.1:8765 (creates demo model if none)
 npm run dp -- serve --read-only | --code-root SRC
 npm run dp -- check                         # exit 1 on model problems (also drafts; warnings for missing code paths)
@@ -30,7 +32,7 @@ npm run test:e2e
 npm run make-demo                           # regenerate bundled demo model (demo/)
 ```
 
-No linter is configured. CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) typechecks, runs vitest, builds the UI, fails if the build changes `static/`, runs e2e, and fails if `npm run make-demo` changes `demo/` — so after changing model/ops/demo-related code, regenerate the demo and commit the result.
+ESLint (typescript-eslint recommended + react-hooks) is configured; Prettier is configured but not yet enforced. CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) typechecks, lints, runs vitest, builds the UI, fails if the build changes `static/`, runs e2e, and fails if `npm run make-demo` changes `demo/` — so after changing model/ops/demo-related code, regenerate the demo and commit the result.
 
 ## Architecture
 

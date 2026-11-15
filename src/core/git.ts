@@ -46,6 +46,7 @@ export function findRepo(modelDir: string): Repo | null {
 /** Reject anything that is not a plain ref name or commit hash (see git-check-ref-format). */
 export function checkRef(ref: string): string {
   const r = ref.trim();
+  // eslint-disable-next-line no-control-regex -- control characters are exactly what a git ref must not contain
   if (!r || r.startsWith("-") || r.length > 200 || /[\s:\\^?*[\]~]|\.\.|@\{|[\x00-\x1f\x7f]/.test(r.replace(/(\^|~\d*)+$/, ""))) {
     throw new GitError(`"${ref}" is not a valid git ref.`);
   }

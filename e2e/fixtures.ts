@@ -15,6 +15,7 @@ export interface Server {
 }
 
 export const test = base.extend<{ server: Server }>({
+  // eslint-disable-next-line no-empty-pattern -- Playwright reads the fixtures a test needs from this destructuring, so it must stay an object pattern
   server: async ({}, use, testInfo) => {
     testInfo.skip(staticDir() === null, "UI not built (run `npm ci && npm run build` in ui/)");
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "dp-e2e-"));

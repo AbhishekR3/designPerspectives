@@ -199,7 +199,7 @@ export function C4Node({ data, selected }: NodeProps<C4NodeType>) {
   const outline = OUTLINE_SHAPES.has(type);
   let bg = st.fill ?? (el.external ? EXTERNAL_FILL : CARD_FILL);
   let stroke = st.stroke ?? CARD_STROKE;
-  let dash = dashFor(st.strokeStyle) ?? (el.external && !st.stroke ? "6 4" : undefined);
+  const dash = dashFor(st.strokeStyle) ?? (el.external && !st.stroke ? "6 4" : undefined);
   let sw = st.strokeWidth ?? 1.2;
   if (overlay?.color) {
     bg = mix(overlay.color, st.fill ?? CARD_FILL, 0.2);

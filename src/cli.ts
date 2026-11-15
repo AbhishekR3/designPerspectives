@@ -122,7 +122,7 @@ export function program(): Command {
       const project = openProject(dir, o.codeRoot);
       const gitModels = new GitModels(project.dir);
       const gitCodes = new GitCodes(project.codeRoot);
-      let beforeCode: CodeSource = NO_CODE;
+      let beforeCode: CodeSource;
       let afterCode: CodeSource = new DiskCode(project.codeRoot);
       let before: Snapshot;
       let after: Snapshot = project;

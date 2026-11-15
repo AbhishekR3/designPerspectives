@@ -20,6 +20,7 @@ export function useFlowAutoplay(diagram: Diagram | null, player: ReturnType<type
       if (flowStep !== null && flowStep >= flow.steps.length - 1) setPlaying(false);
     }, flowStep === null ? 0 : 1600);
     return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- setFlowStep, setPlaying are stable (state setters or refs), so it is safe to leave out of the dependencies
   }, [playing, flowStep, flow]);
   return flow;
 }

@@ -85,6 +85,7 @@ export function useShortcuts(p: {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- canvasRef, clipboard, setFocusName, setRenameId, setSelection are stable (state setters or refs), so it is safe to leave out of the dependencies
   }, [selection, state, pasteFrom, cutElement]);
 
   // Delete key removes the selection (not while typing).
@@ -105,6 +106,7 @@ export function useShortcuts(p: {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- setSelection is stable (a state setter or ref), so it is safe to leave out of the dependencies
   }, [selection, state, diagram, mutate, deleteRelationship]);
 
   useEffect(() => {
@@ -117,5 +119,6 @@ export function useShortcuts(p: {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- setSearchOpen is stable (a state setter or ref), so it is safe to leave out of the dependencies
   }, []);
 }

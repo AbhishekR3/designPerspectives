@@ -33,6 +33,7 @@ export function useNavigation(setSelection: Dispatch<SetStateAction<Selection>>)
   const open = useCallback((k: string) => {
     setSelection(null);
     setKey(k);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- setSelection is stable (a state setter or ref), so it is safe to leave out of the dependencies
   }, []);
 
   /** A change picked in the change list: open the diagram it is drawn on and select it. */
@@ -81,6 +82,7 @@ export function useHashSync(p: {
     setFlowStep(null);
     setPlaying(false);
     loadDiagram(key);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- setFlowStep, setMenu, setPlaying, versionRef are stable (state setters or refs), so it is safe to leave out of the dependencies
   }, [key, loadDiagram]);
 
   useEffect(() => {
@@ -96,6 +98,7 @@ export function useHashSync(p: {
     };
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyRef, setKey, setSelection, versionRef are stable (state setters or refs), so it is safe to leave out of the dependencies
   }, [switchVersion]);
 }
 
@@ -118,6 +121,7 @@ export function useReveal(
       setKey(homeDiagramOf(el));
       setSelection({ type: "node", id });
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- setKey, setSelection are stable (state setters or refs), so it is safe to leave out of the dependencies
     [state, diagram],
   );
 }
