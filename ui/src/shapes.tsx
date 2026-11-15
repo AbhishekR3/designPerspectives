@@ -135,11 +135,7 @@ export function Shape({ type, w, h, s }: { type: string; w: number; h: number; s
     case "cloud":
       body = (
         <svg className="shape-svg" viewBox="0 0 100 62" preserveAspectRatio="none" width={w} height={h}>
-          <path
-            {...p}
-            vectorEffect="non-scaling-stroke"
-            d="M26,56 C10,56 3,44 8,34 C10,26 17,22 24,22 C25,10 36,3 48,5 C58,6 64,12 66,19 C78,15 94,22 94,36 C94,48 86,56 74,56 Z"
-          />
+          <path {...p} vectorEffect="non-scaling-stroke" d="M26,56 C10,56 3,44 8,34 C10,26 17,22 24,22 C25,10 36,3 48,5 C58,6 64,12 66,19 C78,15 94,22 94,36 C94,48 86,56 74,56 Z" />
         </svg>
       );
       break;

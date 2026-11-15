@@ -126,7 +126,12 @@ describe("drafts", () => {
     await ok(c.patch(`/api/elements/${other}`, { name: "Billing" }));
     const r = await c.post(`/api/drafts/${id}/apply`);
     expect(r.status).toBe(409);
-    expect(r.json().conflicts.map((x: any) => x.reason).join(" ")).toMatch(/Billing/);
+    expect(
+      r
+        .json()
+        .conflicts.map((x: any) => x.reason)
+        .join(" "),
+    ).toMatch(/Billing/);
   });
 
   it("renames and discards drafts", async () => {
@@ -235,7 +240,10 @@ describe("drafts", () => {
       expect((await ok(c.get("/api/state"))).drafts.find((d: any) => d.id === a.id)).not.toHaveProperty("author");
       expect((await ok(c.get(`/api/drafts/${b.id}/plan`))).markdown).toContain(`Draft \`${b.id}\` · by Sam`);
     } finally {
-      for (const [k, v] of [["GIT_CONFIG_GLOBAL", saved.g], ["GIT_CONFIG_NOSYSTEM", saved.n]] as const) {
+      for (const [k, v] of [
+        ["GIT_CONFIG_GLOBAL", saved.g],
+        ["GIT_CONFIG_NOSYSTEM", saved.n],
+      ] as const) {
         if (v === undefined) delete process.env[k];
         else process.env[k] = v;
       }
@@ -257,4 +265,3 @@ describe("drafts", () => {
     expect(await behind()).toBe(n);
   });
 });
-

@@ -1,13 +1,6 @@
 import { useEffect, useState } from "react";
 import { RATING_COLORS, formatMoney } from "../overlays";
-import {
-  type AppState,
-  type CharacteristicDef,
-  type CostItem,
-  type Rating,
-  type WorkItem,
-  type ElementSummary,
-} from "../types";
+import { type AppState, type CharacteristicDef, type CostItem, type Rating, type WorkItem, type ElementSummary } from "../types";
 import { sameKeys } from "./common";
 import { Rows } from "./sectionEditors";
 
@@ -90,7 +83,12 @@ export function CostEditor({ element, currency, onSave }: { element: ElementSumm
       <Rows<CostItem>
         rows={element.cost}
         blank={{ item: "", monthly: 0, note: "" }}
-        onSave={(r) => !sameKeys(r.filter((x) => x.item.trim()), element.cost) && onSave(r.filter((x) => x.item.trim() || x.monthly))}
+        onSave={(r) =>
+          !sameKeys(
+            r.filter((x) => x.item.trim()),
+            element.cost,
+          ) && onSave(r.filter((x) => x.item.trim() || x.monthly))
+        }
         addLabel="+ Add cost line"
         testId="cost-rows"
         render={(r, set, commit) => (
@@ -132,7 +130,12 @@ export function WorkEditor({ rows, enums, onSave }: { rows: WorkItem[]; enums: A
     <Rows<WorkItem>
       rows={rows}
       blank={{ type: "issue", title: "", url: "", status: "open", severity: "" }}
-      onSave={(r) => !sameKeys(r.filter((x) => x.title.trim() || x.url?.trim()), rows) && onSave(r)}
+      onSave={(r) =>
+        !sameKeys(
+          r.filter((x) => x.title.trim() || x.url?.trim()),
+          rows,
+        ) && onSave(r)
+      }
       addLabel="+ Link work"
       testId="work"
       render={(r, set, commit) => (

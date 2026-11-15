@@ -103,7 +103,8 @@ export const dialogOpen = (): boolean => document.querySelector('[aria-modal="tr
 /** True when the keyboard event is aimed at something the user types into (input, textarea, select, contenteditable, the code editor). */
 export const isTyping = (target: EventTarget | null): boolean => target instanceof Element && target.closest("input, textarea, select, [contenteditable], .cm-editor") !== null;
 
-const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"]), [contenteditable="true"]';
+const FOCUSABLE =
+  'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"]), [contenteditable="true"]';
 
 /** Open dialogs, oldest first; only the last one reacts to Escape and Tab. */
 const modalStack: object[] = [];
@@ -185,19 +186,7 @@ export function Modal({ title, onClose, children, wide = false, testId }: { titl
 }
 
 /** Technology as tags: pick from known technologies (type to filter) or add a new one. */
-export function TagInput({
-  label,
-  value,
-  suggestions,
-  onChange,
-  testId,
-}: {
-  label: string;
-  value: string[];
-  suggestions: string[];
-  onChange(v: string[]): void;
-  testId?: string;
-}) {
+export function TagInput({ label, value, suggestions, onChange, testId }: { label: string; value: string[]; suggestions: string[]; onChange(v: string[]): void; testId?: string }) {
   const [text, setText] = useState("");
   const listId = useRef(`tags-${Math.random().toString(36).slice(2)}`).current;
   const add = (t: string) => {
@@ -238,9 +227,11 @@ export function TagInput({
           data-testid={testId ? `${testId}-input` : undefined}
         />
         <datalist id={listId}>
-          {suggestions.filter((s) => !value.includes(s)).map((s) => (
-            <option key={s} value={s} />
-          ))}
+          {suggestions
+            .filter((s) => !value.includes(s))
+            .map((s) => (
+              <option key={s} value={s} />
+            ))}
         </datalist>
       </div>
     </div>
@@ -248,7 +239,21 @@ export function TagInput({
 }
 
 /** A collapsible group in the object panel. */
-export function Section({ title, count, children, footer, defaultOpen = false, testId }: { title: string; count?: number; children: React.ReactNode; /** Shown below the controls, and usable also when the panel is read-only (a button that opens something). */ footer?: React.ReactNode; defaultOpen?: boolean; testId?: string }) {
+export function Section({
+  title,
+  count,
+  children,
+  footer,
+  defaultOpen = false,
+  testId,
+}: {
+  title: string;
+  count?: number;
+  children: React.ReactNode;
+  /** Shown below the controls, and usable also when the panel is read-only (a button that opens something). */ footer?: React.ReactNode;
+  defaultOpen?: boolean;
+  testId?: string;
+}) {
   const [open, setOpen] = useState(defaultOpen || (count ?? 0) > 0);
   return (
     <section className="p-section" data-testid={testId}>

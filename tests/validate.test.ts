@@ -39,7 +39,14 @@ describe("validate", () => {
   });
 
   test("duplicate IDs", () => {
-    const w = ws({ model: { people: [{ id: "a", name: "X" }, { id: "a", name: "Y" }] } });
+    const w = ws({
+      model: {
+        people: [
+          { id: "a", name: "X" },
+          { id: "a", name: "Y" },
+        ],
+      },
+    });
     expect(errors(w, emptySidecar())[0]).toContain("share the ID");
   });
 

@@ -76,7 +76,10 @@ export function resolveRef(repo: Repo, ref: string): string {
 export function listRefs(repo: Repo, limit = 60): string[] {
   try {
     const out = git(repo.cwd, ["for-each-ref", "--sort=-committerdate", "--format=%(refname:short)", "refs/heads", "refs/tags", "refs/remotes"]);
-    const refs = out.split("\n").map((s) => s.trim()).filter((s) => s && !s.endsWith("/HEAD") && s !== "HEAD");
+    const refs = out
+      .split("\n")
+      .map((s) => s.trim())
+      .filter((s) => s && !s.endsWith("/HEAD") && s !== "HEAD");
     return ["HEAD", ...refs].slice(0, limit);
   } catch {
     return [];

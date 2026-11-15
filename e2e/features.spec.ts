@@ -20,8 +20,7 @@ async function dragBy(page: Page, x: number, y: number, dx: number, dy: number, 
   await page.mouse.up();
 }
 
-const edgeOf = async (server: { url: string }, key: string, id: string) =>
-  (await api(server as any, `/diagrams/${key}`)).edges.find((e: any) => e.id === id);
+const edgeOf = async (server: { url: string }, key: string, id: string) => (await api(server as any, `/diagrams/${key}`)).edges.find((e: any) => e.id === id);
 
 test("new objects do not overlap", async ({ page }) => {
   await openDiagram(page, "landscape");

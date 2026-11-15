@@ -23,32 +23,34 @@ export function StagePanel({ node, ...p }: Common & { node: DiagramNode }) {
   const components = state.elements.filter((e) => e.kind === "component" || e.kind === "container");
   return (
     <div className="panel-body" data-testid="stage-panel">
-      <div className="panel-kind">Stage {idx + 1} of {stages.length}</div>
+      <div className="panel-kind">
+        Stage {idx + 1} of {stages.length}
+      </div>
       <Fields loose>
-      <TextField label="Name" value={st.name} onCommit={(v) => patch({ name: v })} testId="stage-name" />
-      <TextField label="Description" value={st.description ?? ""} multiline onCommit={(v) => patch({ description: v })} />
-      <TagInput label="Technology" value={st.technologies ?? []} suggestions={state.technologies} onChange={(v) => patch({ technologies: v })} testId="stage-tech" />
-      <label className="field">
-        <span>Symbol</span>
-        <select value={st.archType ?? "pipeline"} onChange={(e) => patch({ archType: e.target.value })}>
-          {state.enums.archTypes.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.label}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="field">
-        <span>Implemented by (opens when double-clicked)</span>
-        <select value={st.elementId ?? ""} onChange={(e) => patch({ elementId: e.target.value || undefined })} data-testid="stage-element">
-          <option value="">— none —</option>
-          {components.map((e) => (
-            <option key={e.id} value={e.id}>
-              {e.name} ({KIND_LABEL[e.kind]})
-            </option>
-          ))}
-        </select>
-      </label>
+        <TextField label="Name" value={st.name} onCommit={(v) => patch({ name: v })} testId="stage-name" />
+        <TextField label="Description" value={st.description ?? ""} multiline onCommit={(v) => patch({ description: v })} />
+        <TagInput label="Technology" value={st.technologies ?? []} suggestions={state.technologies} onChange={(v) => patch({ technologies: v })} testId="stage-tech" />
+        <label className="field">
+          <span>Symbol</span>
+          <select value={st.archType ?? "pipeline"} onChange={(e) => patch({ archType: e.target.value })}>
+            {state.enums.archTypes.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="field">
+          <span>Implemented by (opens when double-clicked)</span>
+          <select value={st.elementId ?? ""} onChange={(e) => patch({ elementId: e.target.value || undefined })} data-testid="stage-element">
+            <option value="">— none —</option>
+            {components.map((e) => (
+              <option key={e.id} value={e.id}>
+                {e.name} ({KIND_LABEL[e.kind]})
+              </option>
+            ))}
+          </select>
+        </label>
       </Fields>
       {node.drillKey && <button onClick={() => p.onOpen(node.drillKey!)}>Open what implements this stage</button>}
       {!state.readOnly && (

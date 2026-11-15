@@ -5,7 +5,6 @@ import type { Context, Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { secureHeaders } from "hono/secure-headers";
 
-
 /** The names a browser uses for a server bound to a loopback address. */
 export const LOOPBACK_HOSTS = ["localhost", "127.0.0.1", "[::1]"];
 
@@ -92,10 +91,7 @@ export function installProtection(app: Hono, opts: { allowedHosts?: string[] | n
     await next();
   });
 
-  app.use(
-    "/api/*",
-    bodyLimit({ maxSize: MAX_BODY_BYTES, onError: (c) => c.json({ detail: "The request body is too large (over 5 MB)." }, 413) }),
-  );
+  app.use("/api/*", bodyLimit({ maxSize: MAX_BODY_BYTES, onError: (c) => c.json({ detail: "The request body is too large (over 5 MB)." }, 413) }));
 
   // A request body must be JSON. A web page can send a text/plain POST without asking first; it
   // cannot send application/json to another origin without a preflight, which this server refuses.

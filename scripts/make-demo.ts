@@ -31,7 +31,13 @@ export function build(): [Workspace, Sidecar] {
       name,
       parentId,
       description,
-      technology: technology === null ? null : technology.replace(/ and /g, ",").split(",").map((t) => t.trim()),
+      technology:
+        technology === null
+          ? null
+          : technology
+              .replace(/ and /g, ",")
+              .split(",")
+              .map((t) => t.trim()),
       ...extra,
     });
   const R = (sourceId: string, destinationId: string, description: string | null = null, technology: string | null = null, kind: string | null = null) =>
@@ -125,22 +131,51 @@ export function build(): [Workspace, Sidecar] {
 
   // Symbols (architecture types)
   for (const [el, arch] of [
-    [spa, "web"], [mobile, "mobile"], [web, "web"], [api, "service"], [db, "database"], [email, "cloud"],
-    [stream, "queue"], [worker, "pipeline"], [warehouse, "database"], [mainframe, "service"],
-  ] as const) U(el, { archType: arch });
+    [spa, "web"],
+    [mobile, "mobile"],
+    [web, "web"],
+    [api, "service"],
+    [db, "database"],
+    [email, "cloud"],
+    [stream, "queue"],
+    [worker, "pipeline"],
+    [warehouse, "database"],
+    [mainframe, "service"],
+  ] as const)
+    U(el, { archType: arch });
 
   // Tag groups and tags
   sc.tagGroups = [
-    { name: "Risk", values: [{ name: "Low", color: "#2ca02c" }, { name: "Medium", color: "#ff7f0e" }, { name: "High", color: "#d62728" }] },
-    { name: "Lifecycle", values: [{ name: "Planned", color: "#9467bd" }, { name: "Live", color: "#1f77b4" }, { name: "Deprecated", color: "#7f7f7f" }] },
+    {
+      name: "Risk",
+      values: [
+        { name: "Low", color: "#2ca02c" },
+        { name: "Medium", color: "#ff7f0e" },
+        { name: "High", color: "#d62728" },
+      ],
+    },
+    {
+      name: "Lifecycle",
+      values: [
+        { name: "Planned", color: "#9467bd" },
+        { name: "Live", color: "#1f77b4" },
+        { name: "Deprecated", color: "#7f7f7f" },
+      ],
+    },
   ];
   const tags: [string, Record<string, string>][] = [
-    [ibs, { Risk: "Medium", Lifecycle: "Live" }], [mainframe, { Risk: "High", Lifecycle: "Live" }],
-    [email, { Risk: "Low", Lifecycle: "Live" }], [atm, { Risk: "Medium", Lifecycle: "Deprecated" }],
-    [analytics, { Risk: "Medium", Lifecycle: "Planned" }], [api, { Risk: "High", Lifecycle: "Live" }],
-    [db, { Risk: "High", Lifecycle: "Live" }], [spa, { Risk: "Low", Lifecycle: "Live" }],
-    [mobile, { Risk: "Low", Lifecycle: "Planned" }], [warehouse, { Risk: "Medium", Lifecycle: "Planned" }],
-    [security, { Risk: "High", Lifecycle: "Live" }], [facade, { Risk: "Medium", Lifecycle: "Live" }],
+    [ibs, { Risk: "Medium", Lifecycle: "Live" }],
+    [mainframe, { Risk: "High", Lifecycle: "Live" }],
+    [email, { Risk: "Low", Lifecycle: "Live" }],
+    [atm, { Risk: "Medium", Lifecycle: "Deprecated" }],
+    [analytics, { Risk: "Medium", Lifecycle: "Planned" }],
+    [api, { Risk: "High", Lifecycle: "Live" }],
+    [db, { Risk: "High", Lifecycle: "Live" }],
+    [spa, { Risk: "Low", Lifecycle: "Live" }],
+    [mobile, { Risk: "Low", Lifecycle: "Planned" }],
+    [warehouse, { Risk: "Medium", Lifecycle: "Planned" }],
+    [security, { Risk: "High", Lifecycle: "Live" }],
+    [facade, { Risk: "Medium", Lifecycle: "Live" }],
   ];
   for (const [el, t] of tags) U(el, { tags: t });
 
@@ -161,21 +196,48 @@ export function build(): [Workspace, Sidecar] {
   });
   U(db, {
     notes: "Holds hashed credentials. Backups are encrypted.",
-    sensitive: [{ item: "Hashed authentication credentials", level: "restricted" }, { item: "Access logs", level: "internal" }],
+    sensitive: [
+      { item: "Hashed authentication credentials", level: "restricted" },
+      { item: "Access logs", level: "internal" },
+    ],
     tradeoffs: [{ kind: "cost", text: "Oracle licensing cost grows with core count." }],
   });
   U(db, {
     details: [
-      { title: "Connection", columns: ["Setting", "Value"], rows: [
-        ["Host", "ibdb.internal.bigbank.example"], ["Port", "1521"], ["Service name", "IBPROD"],
-        ["Credentials", "Vault path secret/ib/db (never store passwords here)"]] },
-      { title: "Table USERS", columns: ["Column", "Type", "Nullable", "Notes"], rows: [
-        ["USER_ID", "NUMBER", "no", "Primary key"], ["USERNAME", "VARCHAR2(64)", "no", "Unique"],
-        ["PASSWORD_HASH", "VARCHAR2(128)", "no", "Salted hash"], ["LAST_LOGIN", "TIMESTAMP", "yes", ""]] },
+      {
+        title: "Connection",
+        columns: ["Setting", "Value"],
+        rows: [
+          ["Host", "ibdb.internal.bigbank.example"],
+          ["Port", "1521"],
+          ["Service name", "IBPROD"],
+          ["Credentials", "Vault path secret/ib/db (never store passwords here)"],
+        ],
+      },
+      {
+        title: "Table USERS",
+        columns: ["Column", "Type", "Nullable", "Notes"],
+        rows: [
+          ["USER_ID", "NUMBER", "no", "Primary key"],
+          ["USERNAME", "VARCHAR2(64)", "no", "Unique"],
+          ["PASSWORD_HASH", "VARCHAR2(128)", "no", "Salted hash"],
+          ["LAST_LOGIN", "TIMESTAMP", "yes", ""],
+        ],
+      },
     ],
   });
   U(warehouse, {
-    details: [{ title: "Connection", columns: ["Setting", "Value"], rows: [["Account", "bigbank-analytics"], ["Warehouse", "ANALYTICS_WH"], ["Schema", "USAGE_EVENTS"]] }],
+    details: [
+      {
+        title: "Connection",
+        columns: ["Setting", "Value"],
+        rows: [
+          ["Account", "bigbank-analytics"],
+          ["Warehouse", "ANALYTICS_WH"],
+          ["Schema", "USAGE_EVENTS"],
+        ],
+      },
+    ],
   });
   U(mainframe, {
     usage: [{ users: "Back office staff", frequency: "continuous" }],
@@ -206,15 +268,34 @@ export function build(): [Workspace, Sidecar] {
   const cost = (...rows: [string, number, string][]) => rows.map(([item, monthly, note]) => ({ item, monthly, ...(note ? { note } : {}) }));
   const ratings: [string, ReturnType<typeof chars>, ReturnType<typeof cost>][] = [
     [spa, chars(["Scalability", 5, true, "Static files served from a CDN"], ["Deployability", 4, false, ""], ["Testability", 3, false, ""]), cost(["CDN and static hosting", 40, ""])],
-    [mobile, chars(["Deployability", 2, false, "App-store review delays releases"], ["Testability", 2, false, ""], ["Performance", 4, false, ""]), cost(["App store accounts", 10, ""], ["Device test lab", 150, ""])],
+    [
+      mobile,
+      chars(["Deployability", 2, false, "App-store review delays releases"], ["Testability", 2, false, ""], ["Performance", 4, false, ""]),
+      cost(["App store accounts", 10, ""], ["Device test lab", 150, ""]),
+    ],
     [web, chars(["Scalability", 3, false, ""], ["Deployability", 3, false, ""], ["Availability", 4, true, ""]), cost(["Cloud Run, 2 instances", 180, ""])],
-    [api, chars(["Scalability", 3, true, "Stateless; scales horizontally behind the load balancer"], ["Performance", 3, true, "Mainframe calls dominate latency"],
-      ["Availability", 4, true, ""], ["Deployability", 3, false, "Single deployment unit"], ["Testability", 4, false, ""], ["Security", 4, true, ""]),
-      cost(["Kubernetes nodes, 3 x n2-standard-4", 1150, ""], ["Load balancer", 60, ""])],
-    [db, chars(["Scalability", 2, false, "Vertical scaling only"], ["Availability", 4, true, "Data Guard standby"], ["Fault tolerance", 3, false, ""]),
-      cost(["Oracle licences", 4200, "Prorated per month"], ["Storage and backups", 380, ""])],
-    [mainframe, chars(["Scalability", 1, false, ""], ["Deployability", 1, false, "Quarterly release window"], ["Availability", 5, true, ""], ["Evolvability", 1, false, ""]),
-      cost(["Mainframe MIPS share", 9500, "Internal chargeback"])],
+    [
+      api,
+      chars(
+        ["Scalability", 3, true, "Stateless; scales horizontally behind the load balancer"],
+        ["Performance", 3, true, "Mainframe calls dominate latency"],
+        ["Availability", 4, true, ""],
+        ["Deployability", 3, false, "Single deployment unit"],
+        ["Testability", 4, false, ""],
+        ["Security", 4, true, ""],
+      ),
+      cost(["Kubernetes nodes, 3 x n2-standard-4", 1150, ""], ["Load balancer", 60, ""]),
+    ],
+    [
+      db,
+      chars(["Scalability", 2, false, "Vertical scaling only"], ["Availability", 4, true, "Data Guard standby"], ["Fault tolerance", 3, false, ""]),
+      cost(["Oracle licences", 4200, "Prorated per month"], ["Storage and backups", 380, ""]),
+    ],
+    [
+      mainframe,
+      chars(["Scalability", 1, false, ""], ["Deployability", 1, false, "Quarterly release window"], ["Availability", 5, true, ""], ["Evolvability", 1, false, ""]),
+      cost(["Mainframe MIPS share", 9500, "Internal chargeback"]),
+    ],
     [email, chars(["Availability", 4, false, ""]), cost(["E-mail licences", 120, ""])],
     [stream, chars(["Scalability", 5, true, ""], ["Elasticity", 4, false, ""], ["Fault tolerance", 4, true, "Replication factor 3"]), cost(["Managed Kafka", 640, ""])],
     [worker, chars(["Scalability", 2, false, "Single scheduler"], ["Testability", 3, false, ""], ["Deployability", 4, false, ""]), cost(["Airflow workers", 320, ""])],
@@ -229,10 +310,13 @@ export function build(): [Workspace, Sidecar] {
   // Linked work: security issues, pull requests, issues, backlog items, required updates (examples).
   const work: [string, Record<string, string>[]][] = [
     [security, [{ type: "security", title: "Password hashing uses SHA-1; move to bcrypt", status: "in-progress", severity: "critical", url: "https://example.com/security/101" }]],
-    [api, [
-      { type: "pr", title: "Add rate limiting to the accounts API", status: "open", url: "https://example.com/pulls/42" },
-      { type: "security", title: "Upgrade the JSON library (known deserialisation issue)", status: "open", severity: "high" },
-    ]],
+    [
+      api,
+      [
+        { type: "pr", title: "Add rate limiting to the accounts API", status: "open", url: "https://example.com/pulls/42" },
+        { type: "security", title: "Upgrade the JSON library (known deserialisation issue)", status: "open", severity: "high" },
+      ],
+    ],
     [mobile, [{ type: "update", title: "Migrate off the current mobile framework", status: "open", severity: "medium" }]],
     [facade, [{ type: "backlog", title: "Add a circuit breaker around mainframe calls", status: "open", severity: "medium" }]],
     [worker, [{ type: "issue", title: "Nightly job retries forever on bad events", status: "blocked", severity: "low" }]],
@@ -248,12 +332,20 @@ export function build(): [Workspace, Sidecar] {
   // Lenses
   sc.lenses = [
     makeLens({
-      id: "security-review", name: "Security review", visibleLevels: ["context", "container", "component"], defaultOverlay: "Risk",
+      id: "security-review",
+      name: "Security review",
+      visibleLevels: ["context", "container", "component"],
+      defaultOverlay: "Risk",
       visibleSections: ["technology", "characteristics", "work", "details", "notes", "sensitive", "tradeoffs"],
     }),
     makeLens({
-      id: "product-owner", name: "Product owner", visibleLevels: ["landscape", "context", "container"], defaultOverlay: "Lifecycle",
-      hiddenTagGroups: ["Risk"], visibleSections: ["cost", "work", "notes", "usage"], showTechnology: false,
+      id: "product-owner",
+      name: "Product owner",
+      visibleLevels: ["landscape", "context", "container"],
+      defaultOverlay: "Lifecycle",
+      hiddenTagGroups: ["Risk"],
+      visibleSections: ["cost", "work", "notes", "usage"],
+      showTechnology: false,
     }),
   ];
 

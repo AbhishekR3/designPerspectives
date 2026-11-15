@@ -1,13 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { TextField } from "../fields";
-import {
-  type AppState,
-  type DetailTable,
-  type Relationship,
-  type SensitiveItem,
-  type Tradeoff,
-  type Usage,
-} from "../types";
+import { type AppState, type DetailTable, type Relationship, type SensitiveItem, type Tradeoff, type Usage } from "../types";
 import { sameKeys } from "./common";
 
 // ------------------------------------------------------------------ small editors
@@ -54,7 +47,11 @@ export function Rows<T extends object>({
     <div data-testid={testId} ref={box}>
       {draft.map((r, i) => (
         <div className="rowed" key={i}>
-          {render(r, (patch, commit) => update(i, patch, commit), () => onSave(latest.current))}
+          {render(
+            r,
+            (patch, commit) => update(i, patch, commit),
+            () => onSave(latest.current),
+          )}
           <button className="icon edit-only" aria-label="Remove" title="Remove" onClick={() => onSave(latest.current.filter((_, j) => j !== i))}>
             ×
           </button>
@@ -72,8 +69,17 @@ export function NotesEditor({ value, onSave }: { value: string; onSave(v: string
 }
 
 const DETAIL_TEMPLATES: Record<string, DetailTable> = {
-  "Connection details": { title: "Connection", columns: ["Setting", "Value"], rows: [["Host", ""], ["Port", ""], ["Database / service", ""], ["Credentials", "Where the secret is kept (do not type passwords)"]] },
-  "Columns": { title: "Table", columns: ["Column", "Type", "Nullable", "Notes"], rows: [["", "", "", ""]] },
+  "Connection details": {
+    title: "Connection",
+    columns: ["Setting", "Value"],
+    rows: [
+      ["Host", ""],
+      ["Port", ""],
+      ["Database / service", ""],
+      ["Credentials", "Where the secret is kept (do not type passwords)"],
+    ],
+  },
+  Columns: { title: "Table", columns: ["Column", "Type", "Nullable", "Notes"], rows: [["", "", "", ""]] },
   "Blank table": { title: "Details", columns: ["Name", "Value"], rows: [["", ""]] },
 };
 
@@ -114,7 +120,12 @@ export function DetailsEditor({ tables, onSave }: { tables: DetailTable[]; onSav
                     </td>
                   ))}
                   <td>
-                    <button className="icon edit-only" aria-label="Remove row" title="Remove row" onClick={() => commit(draft.map((x, j) => (j === i ? { ...t, rows: t.rows.filter((_, m) => m !== ri) } : x)))}>
+                    <button
+                      className="icon edit-only"
+                      aria-label="Remove row"
+                      title="Remove row"
+                      onClick={() => commit(draft.map((x, j) => (j === i ? { ...t, rows: t.rows.filter((_, m) => m !== ri) } : x)))}
+                    >
                       ×
                     </button>
                   </td>
@@ -132,11 +143,7 @@ export function DetailsEditor({ tables, onSave }: { tables: DetailTable[]; onSav
       ))}
       <label className="field inline edit-only">
         <span>Add</span>
-        <select
-          value=""
-          onChange={(e) => e.target.value && commit([...draft, structuredClone(DETAIL_TEMPLATES[e.target.value])])}
-          data-testid="detail-template"
-        >
+        <select value="" onChange={(e) => e.target.value && commit([...draft, structuredClone(DETAIL_TEMPLATES[e.target.value])])} data-testid="detail-template">
           <option value="">Table…</option>
           {Object.keys(DETAIL_TEMPLATES).map((k) => (
             <option key={k} value={k}>
@@ -154,7 +161,12 @@ export function TradeoffsEditor({ rows, onSave }: { rows: Tradeoff[]; onSave(r: 
     <Rows<Tradeoff>
       rows={rows}
       blank={{ kind: "benefit", text: "" }}
-      onSave={(r) => !sameKeys(r.filter((x) => x.text.trim()), rows) && onSave(r)}
+      onSave={(r) =>
+        !sameKeys(
+          r.filter((x) => x.text.trim()),
+          rows,
+        ) && onSave(r)
+      }
       addLabel="+ Add tradeoff"
       testId="tradeoffs"
       render={(r, set, commit) => (
@@ -176,7 +188,12 @@ export function UsageEditor({ rows, frequencies, onSave }: { rows: Usage[]; freq
     <Rows<Usage>
       rows={rows}
       blank={{ users: "", frequency: "daily", volume: "" }}
-      onSave={(r) => !sameKeys(r.filter((x) => x.users.trim()), rows) && onSave(r)}
+      onSave={(r) =>
+        !sameKeys(
+          r.filter((x) => x.users.trim()),
+          rows,
+        ) && onSave(r)
+      }
       addLabel="+ Add user group"
       testId="usage"
       render={(r, set, commit) => (
@@ -203,7 +220,12 @@ export function SensitiveEditor({ rows, levels, onSave }: { rows: SensitiveItem[
     <Rows<SensitiveItem>
       rows={rows}
       blank={{ item: "", level: "confidential" }}
-      onSave={(r) => !sameKeys(r.filter((x) => x.item.trim()), rows) && onSave(r)}
+      onSave={(r) =>
+        !sameKeys(
+          r.filter((x) => x.item.trim()),
+          rows,
+        ) && onSave(r)
+      }
       addLabel="+ Add sensitive item"
       testId="sensitive"
       render={(r, set, commit) => (

@@ -107,7 +107,29 @@ const MULTI_KINDS = new Set(["person", "softwareSystem", "container", "component
 const groupedIds = (d: Diagram) => (d.boundary ? d.nodes.filter((n) => n.inScope).map((n) => n.id) : []);
 const BOUNDARY_PAD = 40;
 
-export function Canvas({ diagram, lens, decorate, actions, archTypes, renameId, onRenameStarted, onDropItem, onConnectToEmpty, flowStep, showChanges, selection, onSelect, onDrill, onConnect, onPositions, onLayout, onOpenFile, onContextMenu, handleRef, readOnly }: Props) {
+export function Canvas({
+  diagram,
+  lens,
+  decorate,
+  actions,
+  archTypes,
+  renameId,
+  onRenameStarted,
+  onDropItem,
+  onConnectToEmpty,
+  flowStep,
+  showChanges,
+  selection,
+  onSelect,
+  onDrill,
+  onConnect,
+  onPositions,
+  onLayout,
+  onOpenFile,
+  onContextMenu,
+  handleRef,
+  readOnly,
+}: Props) {
   const rf = useReactFlow();
   const [positions, setPositions] = useState<P>({});
   const [sizeOverride, setSizeOverride] = useState<Record<string, Size>>({});
@@ -121,10 +143,13 @@ export function Canvas({ diagram, lens, decorate, actions, archTypes, renameId, 
   const shiftDown = useRef(false);
   const multiIds = useMemo(() => (selection?.type === "nodes" ? new Set(selection.ids) : null), [selection]);
   /** Ghosts (boxes of the compared version), stages and files cannot be part of a multi-selection. */
-  const multiOk = useCallback((id: string) => {
-    const n = diagram.nodes.find((x) => x.id === id);
-    return !!n && !n.ghost && MULTI_KINDS.has(n.kind);
-  }, [diagram]);
+  const multiOk = useCallback(
+    (id: string) => {
+      const n = diagram.nodes.find((x) => x.id === id);
+      return !!n && !n.ghost && MULTI_KINDS.has(n.kind);
+    },
+    [diagram],
+  );
   const commitSelection = useCallback(
     (ids: string[]) => {
       const next = nodeSelection(ids);
@@ -147,10 +172,7 @@ export function Canvas({ diagram, lens, decorate, actions, archTypes, renameId, 
   const canConnect = !frozen && ["landscape", "context", "container", "component"].includes(diagram.level);
   /** Ghosts (objects of the compared version) are never saved. */
   const ghosts = useMemo(() => new Set([...diagram.nodes.filter((n) => n.ghost).map((n) => n.id)]), [diagram]);
-  const savable = useCallback(
-    (p: P): P => (frozen ? {} : Object.fromEntries(Object.entries(p).filter(([id]) => !ghosts.has(id)))),
-    [frozen, ghosts],
-  );
+  const savable = useCallback((p: P): P => (frozen ? {} : Object.fromEntries(Object.entries(p).filter(([id]) => !ghosts.has(id)))), [frozen, ghosts]);
 
   useEffect(() => setSizeOverride({}), [diagram]);
 
@@ -339,57 +361,59 @@ export function Canvas({ diagram, lens, decorate, actions, archTypes, renameId, 
     const pastSteps = new Set(flow && flowStep !== null ? flow.steps.slice(0, flowStep).map((s) => s.relationshipId) : []);
     const shown = new Set(nodes.map((n) => n.id));
     const unfocused = new Set(diagram.nodes.filter((n) => decorate(n).outOfFocus).map((n) => n.id));
-    return diagram.edges.filter((e) => shown.has(e.source) && shown.has(e.target)).map((e) => {
-      const g = groups.get([e.source, e.target].sort().join("|"))!;
-      const i = g.indexOf(e.id);
-      const offset = g.length > 1 && !e.layout.control ? (i - (g.length - 1) / 2) * 60 : 0;
-      const current = stepRel === e.id;
-      let label = e.description;
-      if (e.steps?.length) label = `${e.steps.join(", ")}. ${e.description}`;
-      if (current && step) label = `${flowStep! + 1}. ${step.description || e.description}${step.response ? " (response)" : ""}`;
-      const color = current ? FLOW_CURRENT : edgeColor(e);
-      const head = e.style.arrowHead ?? "filled";
-      const arrow: Edge["markerEnd"] = (CUSTOM_HEADS as readonly string[]).includes(head)
-        ? `dp-head-${head}`
-        : { type: head === "open" ? MarkerType.Arrow : MarkerType.ArrowClosed, color, width: 18, height: 18 };
-      const reverse = current && step?.response;
-      const mode = e.style.arrow ?? "end";
-      const data: C4EdgeData = {
-        label,
-        technologies: e.technologies,
-        kind: e.kind,
-        derived: e.derived,
-        offset,
-        highlight: current ? "current" : pastSteps.has(e.id) ? "past" : null,
-        response: !!reverse,
-        dimmed: (!!step && !current && !pastSteps.has(e.id)) || unfocused.has(e.source) || unfocused.has(e.target),
-        testId: e.id,
-        style: e.style,
-        layout: e.layout,
-        sensitivityLevel: e.sensitivityLevel,
-        hasNotes: e.hasNotes,
-        stageCount: e.stageCount,
-        openWork: e.openWork ?? 0,
-        hasDetail: !!e.detailKey || e.drillTargets.length === 1,
-        editable: editable && !flow && !e.ghost,
-        ghost: !!e.ghost,
-        changeColor: showChanges && e.change ? CHANGE_COLORS[e.change] : null,
-        onGeom: (id, layout) => onLayout({ edges: { [id]: layout } }),
-        onSelect: (id) => onSelect({ type: "edge", id }),
-        onOpen: openEdge,
-        onContextMenu: (id, client) => onContextMenu({ type: "edge", id }, client),
-      };
-      return {
-        id: e.id,
-        source: e.source,
-        target: e.target,
-        type: "c4",
-        data,
-        markerEnd: reverse ? undefined : mode === "end" || mode === "both" ? arrow : undefined,
-        markerStart: reverse || mode === "start" || mode === "both" ? arrow : undefined,
-        selected: selection?.type === "edge" && selection.id === e.id,
-      };
-    });
+    return diagram.edges
+      .filter((e) => shown.has(e.source) && shown.has(e.target))
+      .map((e) => {
+        const g = groups.get([e.source, e.target].sort().join("|"))!;
+        const i = g.indexOf(e.id);
+        const offset = g.length > 1 && !e.layout.control ? (i - (g.length - 1) / 2) * 60 : 0;
+        const current = stepRel === e.id;
+        let label = e.description;
+        if (e.steps?.length) label = `${e.steps.join(", ")}. ${e.description}`;
+        if (current && step) label = `${flowStep! + 1}. ${step.description || e.description}${step.response ? " (response)" : ""}`;
+        const color = current ? FLOW_CURRENT : edgeColor(e);
+        const head = e.style.arrowHead ?? "filled";
+        const arrow: Edge["markerEnd"] = (CUSTOM_HEADS as readonly string[]).includes(head)
+          ? `dp-head-${head}`
+          : { type: head === "open" ? MarkerType.Arrow : MarkerType.ArrowClosed, color, width: 18, height: 18 };
+        const reverse = current && step?.response;
+        const mode = e.style.arrow ?? "end";
+        const data: C4EdgeData = {
+          label,
+          technologies: e.technologies,
+          kind: e.kind,
+          derived: e.derived,
+          offset,
+          highlight: current ? "current" : pastSteps.has(e.id) ? "past" : null,
+          response: !!reverse,
+          dimmed: (!!step && !current && !pastSteps.has(e.id)) || unfocused.has(e.source) || unfocused.has(e.target),
+          testId: e.id,
+          style: e.style,
+          layout: e.layout,
+          sensitivityLevel: e.sensitivityLevel,
+          hasNotes: e.hasNotes,
+          stageCount: e.stageCount,
+          openWork: e.openWork ?? 0,
+          hasDetail: !!e.detailKey || e.drillTargets.length === 1,
+          editable: editable && !flow && !e.ghost,
+          ghost: !!e.ghost,
+          changeColor: showChanges && e.change ? CHANGE_COLORS[e.change] : null,
+          onGeom: (id, layout) => onLayout({ edges: { [id]: layout } }),
+          onSelect: (id) => onSelect({ type: "edge", id }),
+          onOpen: openEdge,
+          onContextMenu: (id, client) => onContextMenu({ type: "edge", id }, client),
+        };
+        return {
+          id: e.id,
+          source: e.source,
+          target: e.target,
+          type: "c4",
+          data,
+          markerEnd: reverse ? undefined : mode === "end" || mode === "both" ? arrow : undefined,
+          markerStart: reverse || mode === "start" || mode === "both" ? arrow : undefined,
+          selected: selection?.type === "edge" && selection.id === e.id,
+        };
+      });
   }, [diagram, nodes, decorate, flow, flowStep, step, stepRel, selection, editable, onLayout, onSelect, openEdge, showChanges, onContextMenu]);
 
   const onNodesChange = useCallback(

@@ -75,12 +75,7 @@ export function compareDiagram(shown: Snapshot, other: Snapshot, key: string, cs
   return d;
 }
 
-function edgeChange(
-  e: DiagramEdge,
-  before: DiagramEdge | undefined,
-  changes: Map<string, string>,
-  diagramExisted: boolean,
-): DiagramEdge["change"] {
+function edgeChange(e: DiagramEdge, before: DiagramEdge | undefined, changes: Map<string, string>, diagramExisted: boolean): DiagramEdge["change"] {
   if (!e.derived) return changes.get(e.id) as DiagramEdge["change"];
   // A derived line stands for several relationships.
   if (diagramExisted && !before) return "added";

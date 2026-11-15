@@ -131,7 +131,7 @@ function MenuList({
   const step = (dir: 1 | -1) => {
     const n = items.length;
     for (let k = 1; k <= n; k++) {
-      const i = (((cur < 0 ? (dir > 0 ? -1 : 0) : cur) + dir * k) % n + n) % n;
+      const i = ((((cur < 0 ? (dir > 0 ? -1 : 0) : cur) + dir * k) % n) + n) % n;
       if (usable(items[i])) return setCur(i);
     }
   };

@@ -86,8 +86,7 @@ export const api = {
   logout: () => request<{ ok: boolean }>("POST", "/logout", undefined, { auth: true }),
   state: () => request<AppState>("GET", "/state"),
   diagram: (key: string) => request<Diagram>("GET", `/diagrams/${enc(key)}`),
-  positions: (key: string, positions: Record<string, { x: number; y: number }>, auto = false) =>
-    request("PUT", `/diagrams/${enc(key)}/positions${auto ? "?auto=true" : ""}`, { positions }),
+  positions: (key: string, positions: Record<string, { x: number; y: number }>, auto = false) => request("PUT", `/diagrams/${enc(key)}/positions${auto ? "?auto=true" : ""}`, { positions }),
   layout: (
     key: string,
     patch: {

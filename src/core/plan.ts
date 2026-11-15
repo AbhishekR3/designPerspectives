@@ -35,7 +35,11 @@ interface Item extends Omit<PlanItem, "status" | "evidence" | "auto"> {
 }
 
 function sectionOf(idx: Index, id: string): string {
-  const chain = idx.ancestors(id).slice(1).reverse().map((a) => idx.elements.get(a)!.name);
+  const chain = idx
+    .ancestors(id)
+    .slice(1)
+    .reverse()
+    .map((a) => idx.elements.get(a)!.name);
   return chain.length ? chain.join(" / ") : "Landscape";
 }
 
@@ -80,7 +84,13 @@ export function buildPlanItems(base: Snapshot, draft: Snapshot, cs: ChangeSet, p
     } else if (c.change === "removed") {
       const el = ia.el(c.id);
       // Children of a removed element are covered by removing the element.
-      if (ia.ancestors(c.id).slice(1).some((a) => removedEls.has(a))) continue;
+      if (
+        ia
+          .ancestors(c.id)
+          .slice(1)
+          .some((a) => removedEls.has(a))
+      )
+        continue;
       const ps = paths(ia, c.id);
       items.push({
         id: `el:${c.id}:remove`,
@@ -95,7 +105,14 @@ export function buildPlanItems(base: Snapshot, draft: Snapshot, cs: ChangeSet, p
       const el = ib.el(c.id);
       const detail = c.fields.map((f) => `${f.label}: ${show(f.before)} → ${show(f.after)}`);
       if (!codeFields.length) {
-        items.push({ id: `el:${c.id}:doc`, section: sectionOf(ib, c.id), kind: "model", title: `"${el.name}": ${c.fields.map((f) => f.label.toLowerCase()).join(", ")}`, details: detail, check: { type: "none" } });
+        items.push({
+          id: `el:${c.id}:doc`,
+          section: sectionOf(ib, c.id),
+          kind: "model",
+          title: `"${el.name}": ${c.fields.map((f) => f.label.toLowerCase()).join(", ")}`,
+          details: detail,
+          check: { type: "none" },
+        });
         continue;
       }
       const newPaths = c.fields.find((f) => f.field === "codePaths");
@@ -211,7 +228,10 @@ function evaluate(check: Check, src: CodeSource): Pick<PlanItem, "status" | "evi
       const setB = new Set(fb);
       const setA = new Set(fa);
       const cross = scanImports(src, [...new Set([...fa, ...fb])]).filter(([x, y]) => setA.has(x) && setB.has(y));
-      if (check.want) return cross.length ? { status: "done", evidence: `${cross[0]![0]} imports ${cross[0]![1]}` } : { status: "open", evidence: "No import from the source's files to the destination's files yet" };
+      if (check.want)
+        return cross.length
+          ? { status: "done", evidence: `${cross[0]![0]} imports ${cross[0]![1]}` }
+          : { status: "open", evidence: "No import from the source's files to the destination's files yet" };
       return cross.length ? { status: "open", evidence: `Still imported: ${cross[0]![0]} → ${cross[0]![1]}` } : { status: "done", evidence: "No imports left" };
     }
     case "file": {

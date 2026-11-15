@@ -32,8 +32,12 @@ export function EmptyStart({ onAdd }: { onAdd(testId: "add-person" | "add-softwa
         <li>Double-click a system to add what is inside it.</li>
       </ol>
       <div className="empty-start-actions">
-        <button onClick={() => onAdd("add-person")} data-testid="empty-add-person">Add a person</button>
-        <button className="primary" onClick={() => onAdd("add-softwareSystem")} data-testid="empty-add-system">Add a software system</button>
+        <button onClick={() => onAdd("add-person")} data-testid="empty-add-person">
+          Add a person
+        </button>
+        <button className="primary" onClick={() => onAdd("add-softwareSystem")} data-testid="empty-add-system">
+          Add a software system
+        </button>
       </div>
     </div>
   );

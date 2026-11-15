@@ -12,9 +12,7 @@ type Mutate = (fn: () => Promise<unknown>) => Promise<boolean>;
 
 export function TagGroupEditor({ group, onClose, mutate }: { group: TagGroup | null; onClose(): void; mutate: Mutate }) {
   const [name, setName] = useState(group?.name ?? "");
-  const [values, setValues] = useState(
-    group ? group.values.map((v) => ({ ...v, previousName: v.name })) : [{ name: "", color: PALETTE[0], previousName: null as string | null }],
-  );
+  const [values, setValues] = useState(group ? group.values.map((v) => ({ ...v, previousName: v.name })) : [{ name: "", color: PALETTE[0], previousName: null as string | null }]);
   const set = (i: number, patch: object) => setValues(values.map((v, j) => (j === i ? { ...v, ...patch } : v)));
   const [busy, guard] = useBusy();
   const save = () =>
@@ -40,10 +38,7 @@ export function TagGroupEditor({ group, onClose, mutate }: { group: TagGroup | n
           </button>
         </div>
       ))}
-      <button
-        data-testid="tg-add-value"
-        onClick={() => setValues([...values, { name: "", color: PALETTE[values.length % PALETTE.length], previousName: null }])}
-      >
+      <button data-testid="tg-add-value" onClick={() => setValues([...values, { name: "", color: PALETTE[values.length % PALETTE.length], previousName: null }])}>
         Add value
       </button>
       {group && <p className="muted small">Removing a value clears it from every object that has it.</p>}
@@ -123,11 +118,7 @@ export function LensEditor({
       </div>
       <label className="field">
         <span>Overlay turned on by default</span>
-        <select
-          value={draft.defaultOverlay ?? ""}
-          onChange={(e) => setDraft({ ...draft, defaultOverlay: e.target.value || null })}
-          data-testid="lens-overlay"
-        >
+        <select value={draft.defaultOverlay ?? ""} onChange={(e) => setDraft({ ...draft, defaultOverlay: e.target.value || null })} data-testid="lens-overlay">
           <option value="">None</option>
           <optgroup label="Tag groups">
             {tagGroups.map((g) => (
@@ -160,11 +151,7 @@ export function LensEditor({
           <div className="row wrap">
             {tagGroups.map((g) => (
               <label className="check" key={g.name}>
-                <input
-                  type="checkbox"
-                  checked={draft.hiddenTagGroups.includes(g.name)}
-                  onChange={() => setDraft({ ...draft, hiddenTagGroups: toggle(draft.hiddenTagGroups, g.name) })}
-                />
+                <input type="checkbox" checked={draft.hiddenTagGroups.includes(g.name)} onChange={() => setDraft({ ...draft, hiddenTagGroups: toggle(draft.hiddenTagGroups, g.name) })} />
                 {g.name}
               </label>
             ))}
@@ -232,8 +219,8 @@ export function CharacteristicsEditor({ items, onClose, mutate }: { items: Chara
   return (
     <Modal title="Architecture characteristics" onClose={onClose}>
       <p className="muted small">
-        Objects are rated 1–5 on these (1: weak, 5: one of its strongest features), the scale Richards &amp; Ford use for architecture styles. Renaming keeps
-        existing ratings; removing one deletes its ratings.
+        Objects are rated 1–5 on these (1: weak, 5: one of its strongest features), the scale Richards &amp; Ford use for architecture styles. Renaming keeps existing ratings; removing one deletes its
+        ratings.
       </p>
       {rows.map((r, i) => (
         <div className="rowed" key={i}>
@@ -281,14 +268,7 @@ export function CostSettingsEditor({ settings, onClose, mutate }: { settings: Co
           <input type="color" value={b.color} onChange={(e) => setBand(i, { color: e.target.value })} aria-label="Colour" />
           <input value={b.name} onChange={(e) => setBand(i, { name: e.target.value })} placeholder="Band name" />
           {i < draft.bands.length - 1 ? (
-            <input
-              type="number"
-              min={0}
-              value={b.max ?? 0}
-              onChange={(e) => setBand(i, { max: Number(e.target.value) })}
-              aria-label="Up to (monthly)"
-              style={{ width: 100 }}
-            />
+            <input type="number" min={0} value={b.max ?? 0} onChange={(e) => setBand(i, { max: Number(e.target.value) })} aria-label="Up to (monthly)" style={{ width: 100 }} />
           ) : (
             <span className="muted small" style={{ width: 100 }}>
               no limit
@@ -299,7 +279,8 @@ export function CostSettingsEditor({ settings, onClose, mutate }: { settings: Co
           </span>
           <button
             className="icon"
-            aria-label="Remove band" title="Remove band"
+            aria-label="Remove band"
+            title="Remove band"
             disabled={draft.bands.length <= 1}
             onClick={() => {
               const bands = draft.bands.filter((_, j) => j !== i);

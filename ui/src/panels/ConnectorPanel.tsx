@@ -16,18 +16,18 @@ export function ConnectorPanel(p: Common) {
       <h2 className="panel-title">{c.name}</h2>
       <p className="muted">{rel.description}</p>
       <Fields loose>
-      <label className="field">
-        <span>Kind</span>
-        <select value={rel.kind} onChange={(e) => save({ kind: e.target.value })}>
-          <option value="">— not set —</option>
-          {state.enums.connectorKinds.map((k) => (
-            <option key={k.id} value={k.id}>
-              {k.label}
-            </option>
-          ))}
-        </select>
-      </label>
-      <TagInput label="Technology / protocol" value={rel.technologies} suggestions={state.technologies} onChange={(v) => save({ technology: v })} />
+        <label className="field">
+          <span>Kind</span>
+          <select value={rel.kind} onChange={(e) => save({ kind: e.target.value })}>
+            <option value="">— not set —</option>
+            {state.enums.connectorKinds.map((k) => (
+              <option key={k.id} value={k.id}>
+                {k.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <TagInput label="Technology / protocol" value={rel.technologies} suggestions={state.technologies} onChange={(v) => save({ technology: v })} />
       </Fields>
       <h4>
         Stages <span className="count">{rel.stages.length}</span>

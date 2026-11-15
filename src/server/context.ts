@@ -105,10 +105,7 @@ export function state(project: Project, readOnly = false, sel?: Selection, draft
       const repo = gitModels?.get();
       return repo ? { branch: currentBranch(repo), refs: listRefs(repo) } : null;
     })(),
-    compare:
-      sel?.cmp && sel.cmpRef
-        ? { against: sel.cmpRef, title: sel.cmpTitle ?? sel.cmpRef, summary: diffModels(sel.cmp, src, sel.cmpRef, codePair(sel)).summary }
-        : null,
+    compare: sel?.cmp && sel.cmpRef ? { against: sel.cmpRef, title: sel.cmpTitle ?? sel.cmpRef, summary: diffModels(sel.cmp, src, sel.cmpRef, codePair(sel)).summary } : null,
   };
 }
 
@@ -211,8 +208,7 @@ export function createContext(root: string, opts: AppOptions = {}): Ctx {
   // Each request selects a model version; handlers read it from here (requests interleave at
   // `await`, so this cannot be a plain variable).
   const selection = new AsyncLocalStorage<Selection>();
-  const sel = (): Selection =>
-    selection.getStore() ?? { src: project, ref: "main", title: "Main model", cmp: null, cmpRef: null, cmpTitle: null, code: disk, cmpCode: null, planned: [] };
+  const sel = (): Selection => selection.getStore() ?? { src: project, ref: "main", title: "Main model", cmp: null, cmpRef: null, cmpTitle: null, code: disk, cmpCode: null, planned: [] };
   const src = () => sel().src;
   const writable = (): Project => {
     const s = src();

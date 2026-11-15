@@ -43,10 +43,7 @@ export function useLens(p: {
   const { state, refresh, diagram, open } = p;
   const { lensId, setLensId, overlay, setOverlay, filters } = p.lensState;
 
-  const lens: Lens | null = useMemo(
-    () => (state ? pickLens(state, lensId) : null),
-    [state, lensId],
-  );
+  const lens: Lens | null = useMemo(() => (state ? pickLens(state, lensId) : null), [state, lensId]);
 
   const chooseLens = (id: string) => {
     if (!state) return;

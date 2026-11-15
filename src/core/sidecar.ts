@@ -12,19 +12,7 @@
  */
 
 import { deepEqual, isObj, ordered, type Obj } from "./json.js";
-import {
-  LEVELS,
-  SECTIONS,
-  type CharacteristicDef,
-  type CostSettings,
-  type EdgeLayout,
-  type Lens,
-  type Level,
-  type Pt,
-  type Section,
-  type Style,
-  type TagGroup,
-} from "../shared/types.js";
+import { LEVELS, SECTIONS, type CharacteristicDef, type CostSettings, type EdgeLayout, type Lens, type Level, type Pt, type Section, type Style, type TagGroup } from "../shared/types.js";
 
 export { LEVELS, SECTIONS };
 
@@ -169,14 +157,17 @@ export function toSidecar(data: unknown): Sidecar {
     sc.cost = {
       ...c,
       currency: typeof c.currency === "string" ? c.currency : "USD",
-      bands: "bands" in c ? arrOr(c.bands).map((b) => {
-        const o = objOr(b);
-        needStr(o, "name", "Cost band");
-        needStr(o, "color", "Cost band");
-        const max = o.max === undefined || o.max === null ? null : Number(o.max);
-        if (max !== null && !Number.isFinite(max)) throw new Error(`Cost band "${String(o.name)}": "max" must be a number.`);
-        return { ...o, name: o.name as string, color: o.color as string, max };
-      }) : defaultCost().bands,
+      bands:
+        "bands" in c
+          ? arrOr(c.bands).map((b) => {
+              const o = objOr(b);
+              needStr(o, "name", "Cost band");
+              needStr(o, "color", "Cost band");
+              const max = o.max === undefined || o.max === null ? null : Number(o.max);
+              if (max !== null && !Number.isFinite(max)) throw new Error(`Cost band "${String(o.name)}": "max" must be a number.`);
+              return { ...o, name: o.name as string, color: o.color as string, max };
+            })
+          : defaultCost().bands,
     };
   }
   sc.lenses = arrOr(data.lenses).map((l) => {
@@ -257,10 +248,11 @@ export function sidecarData(sc: Sidecar): Obj {
     styles,
     layouts,
   };
-  const isDefaultChars = deepEqual(
-    sc.characteristics.map((c) => ({ name: c.name, description: c.description })),
-    DEFAULT_CHARACTERISTICS,
-  ) && sc.characteristics.every((c) => Object.keys(c).length === 2);
+  const isDefaultChars =
+    deepEqual(
+      sc.characteristics.map((c) => ({ name: c.name, description: c.description })),
+      DEFAULT_CHARACTERISTICS,
+    ) && sc.characteristics.every((c) => Object.keys(c).length === 2);
   const isDefaultCost = deepEqual(out.cost, costData(defaultCost()));
   return ordered(out, ["version", "tagGroups", "characteristics", "cost", "lenses", "styles", "layouts"], (k, v) => {
     if (k === "styles" || k === "layouts") return Object.keys(v as Obj).length === 0;

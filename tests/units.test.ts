@@ -37,14 +37,26 @@ describe("units", () => {
         deploymentNodes: [{ id: "d", name: "Node" }],
       },
       views: {
-        systemLandscapeViews: [{ key: "landscape", order: 1, elements: [{ id: "p", x: 10, y: 20 }, { id: "s", x: 30, y: 40 }], relationships: [{ id: "r" }] }],
+        systemLandscapeViews: [
+          {
+            key: "landscape",
+            order: 1,
+            elements: [
+              { id: "p", x: 10, y: 20 },
+              { id: "s", x: 30, y: 40 },
+            ],
+            relationships: [{ id: "r" }],
+          },
+        ],
         deploymentViews: [{ key: "dep", elements: [{ id: "d" }] }],
         configuration: { styles: {} },
         containerViews: [{ key: "Custom view", softwareSystemId: "s", order: 2, elements: [{ id: "p" }] }],
       },
     };
     const text = dumpWorkspace(parseWorkspace(JSON.stringify(data)));
-    const sc = stableJson(sidecarData(parseSidecar(JSON.stringify({ version: 1, other: "x", styles: { p: { fill: "#fff" } }, layouts: { landscape: { sizes: { p: { w: 300, h: 200 } }, note: "n" } } }))));
+    const sc = stableJson(
+      sidecarData(parseSidecar(JSON.stringify({ version: 1, other: "x", styles: { p: { fill: "#fff" } }, layouts: { landscape: { sizes: { p: { w: 300, h: 200 } }, note: "n" } } }))),
+    );
     const [ws2, sc2] = roundTrip(text, sc);
     expect(ws2).toBe(text);
     expect(sc2).toBe(sc);

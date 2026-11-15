@@ -36,20 +36,7 @@ import path from "node:path";
 import { inlineJson, isObj, round2, str, type Obj } from "./json.js";
 import { STYLE_KEYS, type Sidecar } from "./sidecar.js";
 import { tagsFor, VIEW_LISTS, type Element, type Kind, type Relationship, type Workspace } from "./workspace.js";
-import type {
-  CostItem,
-  DetailTable,
-  ElementSummary,
-  Enums,
-  Rating,
-  Relationship as RelationshipSummary,
-  SensitiveItem,
-  Stage,
-  Style,
-  Tradeoff,
-  Usage,
-  WorkItem,
-} from "../shared/types.js";
+import type { CostItem, DetailTable, ElementSummary, Enums, Rating, Relationship as RelationshipSummary, SensitiveItem, Stage, Style, Tradeoff, Usage, WorkItem } from "../shared/types.js";
 
 export const OWNER_KEY = "dp.owner";
 export const LINKS_KEY = "dp.links";
@@ -116,12 +103,65 @@ export const ENUMS: Enums = {
 };
 
 export const SUGGESTED_TECH = [
-  "Python", "Java", "Kotlin", "TypeScript", "JavaScript", "Go", "Rust", "C#", ".NET", "Ruby", "PHP", "SQL",
-  "React", "Angular", "Vue", "Spring Boot", "Spring MVC", "FastAPI", "Django", "Flask", "Node.js", "Express",
-  "PostgreSQL", "MySQL", "Oracle", "SQL Server", "MongoDB", "DynamoDB", "Redis", "Elasticsearch", "Snowflake",
-  "Kafka", "RabbitMQ", "SQS", "SNS", "Kinesis", "Pub/Sub", "Airflow", "Spark", "dbt", "Flink",
-  "HTTPS", "REST", "JSON", "gRPC", "GraphQL", "WebSocket", "SQL/TCP", "AMQP", "SFTP", "SMTP",
-  "AWS Lambda", "AWS S3", "AWS Glue", "Azure Functions", "GCP Cloud Run", "Docker", "Kubernetes", "Terraform",
+  "Python",
+  "Java",
+  "Kotlin",
+  "TypeScript",
+  "JavaScript",
+  "Go",
+  "Rust",
+  "C#",
+  ".NET",
+  "Ruby",
+  "PHP",
+  "SQL",
+  "React",
+  "Angular",
+  "Vue",
+  "Spring Boot",
+  "Spring MVC",
+  "FastAPI",
+  "Django",
+  "Flask",
+  "Node.js",
+  "Express",
+  "PostgreSQL",
+  "MySQL",
+  "Oracle",
+  "SQL Server",
+  "MongoDB",
+  "DynamoDB",
+  "Redis",
+  "Elasticsearch",
+  "Snowflake",
+  "Kafka",
+  "RabbitMQ",
+  "SQS",
+  "SNS",
+  "Kinesis",
+  "Pub/Sub",
+  "Airflow",
+  "Spark",
+  "dbt",
+  "Flink",
+  "HTTPS",
+  "REST",
+  "JSON",
+  "gRPC",
+  "GraphQL",
+  "WebSocket",
+  "SQL/TCP",
+  "AMQP",
+  "SFTP",
+  "SMTP",
+  "AWS Lambda",
+  "AWS S3",
+  "AWS Glue",
+  "Azure Functions",
+  "GCP Cloud Run",
+  "Docker",
+  "Kubernetes",
+  "Terraform",
 ];
 
 /** An edit that would break the model's rules. Shown to the user as-is. */
@@ -226,7 +266,10 @@ export function buildIndex(ws: Workspace): Index {
 // --------------------------------------------------------------------------- helpers
 
 export function slugify(text: string): string {
-  const slug = text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  const slug = text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
   return slug || "element";
 }
 
@@ -239,10 +282,7 @@ export function unique(base: string, taken: Set<string> | Map<string, unknown>, 
 
 /** Names that a new/renamed element of this kind must not reuse. */
 export function siblingNames(idx: Index, kind: Kind, parentId: string | null, exclude?: string): Set<string> {
-  const ids =
-    kind === "person" || kind === "softwareSystem"
-      ? [...idx.ws.model.people.map((p) => p.id), ...idx.ws.model.softwareSystems.map((s) => s.id)]
-      : [...idx.childrenOf(parentId ?? "")];
+  const ids = kind === "person" || kind === "softwareSystem" ? [...idx.ws.model.people.map((p) => p.id), ...idx.ws.model.softwareSystems.map((s) => s.id)] : [...idx.childrenOf(parentId ?? "")];
   return new Set(ids.filter((i) => i !== exclude).map((i) => idx.elements.get(i)!.name));
 }
 
@@ -973,9 +1013,7 @@ export function deleteElement(ws: Workspace, elementId: string): Set<string> {
     sys.containers = (sys.containers ?? []).filter((c) => !gone.has(c.id));
     for (const c of sys.containers) c.components = (c.components ?? []).filter((k) => !gone.has(k.id));
   }
-  const goneRels = new Set(
-    [...idx.relationships.values()].filter((r) => gone.has(r.sourceId) || gone.has(r.destinationId)).map((r) => r.id),
-  );
+  const goneRels = new Set([...idx.relationships.values()].filter((r) => gone.has(r.sourceId) || gone.has(r.destinationId)).map((r) => r.id));
   dropRelationships(ws, goneRels);
   dropFromViews(ws, gone, goneRels);
   // Connector stages that linked to a deleted element keep their name but lose the link.
@@ -1009,11 +1047,7 @@ export function createRelationship(ws: Workspace, spec: NewRelationship): string
   if (idx.ancestors(sourceId).includes(destinationId) || idx.ancestors(destinationId).includes(sourceId)) {
     throw new ModelError("Relationships between a parent and its own child are not allowed.");
   }
-  const existing = new Set(
-    [...idx.relationships.values()]
-      .filter((r) => r.sourceId === sourceId && r.destinationId === destinationId)
-      .map((r) => r.description || ""),
-  );
+  const existing = new Set([...idx.relationships.values()].filter((r) => r.sourceId === sourceId && r.destinationId === destinationId).map((r) => r.description || ""));
   let description = str(spec.description).trim();
   if (!description) description = unique("Uses", existing, " ");
   else if (existing.has(description)) throw new ModelError(`A relationship "${description}" already exists between these two elements.`);
@@ -1044,9 +1078,7 @@ export function updateRelationship(ws: Workspace, relId: string, patch: Obj): vo
   const r = idx.rel(relId);
   if ("description" in patch) {
     const description = str(patch.description).trim();
-    const clash = [...idx.relationships.values()].some(
-      (o) => o.id !== relId && o.sourceId === r.sourceId && o.destinationId === r.destinationId && (o.description || "") === description,
-    );
+    const clash = [...idx.relationships.values()].some((o) => o.id !== relId && o.sourceId === r.sourceId && o.destinationId === r.destinationId && (o.description || "") === description);
     if (clash) throw new ModelError(`A relationship "${description}" already exists between these two elements.`);
     r.description = description || null;
   }
@@ -1077,7 +1109,8 @@ function dropFromViews(ws: Workspace, elementIds: Set<string>, relIds: Set<strin
     for (const v of ws.views[listName]) {
       const scope = v.softwareSystemId || v.containerId || v.elementId;
       if (scope && elementIds.has(scope)) {
-        if (v.properties?.["dp.flow"] === "true") v.elementId = null; // our flows: scope is re-inferred from the remaining steps
+        if (v.properties?.["dp.flow"] === "true")
+          v.elementId = null; // our flows: scope is re-inferred from the remaining steps
         else continue;
       }
       v.elements = v.elements.filter((e) => !elementIds.has(e.id));

@@ -20,9 +20,14 @@ export function noOverlap(a: Box, b: Box): boolean {
   const e = 0.5;
   return a.x + a.width <= b.x + e || b.x + b.width <= a.x + e || a.y + a.height <= b.y + e || b.y + b.height <= a.y + e;
 }
-const inside = (inner: Box, outer: Box, slack = 1) => inner.x >= outer.x - slack && inner.y >= outer.y - slack && inner.x + inner.width <= outer.x + outer.width + slack && inner.y + inner.height <= outer.y + outer.height + slack;
+const inside = (inner: Box, outer: Box, slack = 1) =>
+  inner.x >= outer.x - slack && inner.y >= outer.y - slack && inner.x + inner.width <= outer.x + outer.width + slack && inner.y + inner.height <= outer.y + outer.height + slack;
 const send = (server: Server, method: string, p: string, body?: unknown, draft?: string) =>
-  fetch(server.url + "api" + p, { method, headers: { "Content-Type": "application/json", ...(draft ? { "X-DP-Model": `draft:${draft}` } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) });
+  fetch(server.url + "api" + p, {
+    method,
+    headers: { "Content-Type": "application/json", ...(draft ? { "X-DP-Model": `draft:${draft}` } : {}) },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
 
 async function openPalette(page: Page) {
   const t = byId(page, "palette-toggle");
@@ -117,7 +122,11 @@ test.describe("long names", () => {
       const n = await box(node(page, id));
       const parts = node(page, id).locator(".c4-content > *, .c4-title, .c4-name, .c4-desc");
       for (let i = 0; i < (await parts.count()); i++) expect(inside(await box(parts.nth(i)), n, 1.5), `${id}: text part ${i} inside the box`).toBe(true);
-      expect(await node(page, id).locator(".c4-name").evaluate((e) => e.scrollWidth <= e.clientWidth + 1)).toBe(true);
+      expect(
+        await node(page, id)
+          .locator(".c4-name")
+          .evaluate((e) => e.scrollWidth <= e.clientWidth + 1),
+      ).toBe(true);
     }
     // The boundary label stays within the boundary.
     const boundary = await box(byId(page, "boundary"));
@@ -148,14 +157,25 @@ test.describe("long names", () => {
   test("the sidebar truncates long names and keeps its marks and buttons", async ({ page, server }) => {
     await send(server, "PATCH", "/elements/internet-banking-system", { name: LONG });
     await send(server, "PATCH", "/elements/mainframe-banking-system", { name: TOKEN });
-    await send(server, "POST", "/tag-groups", { name: `Group ${LONG}`, values: [{ name: LONG, color: "#ff0000" }, { name: TOKEN, color: "#00ff00" }] });
+    await send(server, "POST", "/tag-groups", {
+      name: `Group ${LONG}`,
+      values: [
+        { name: LONG, color: "#ff0000" },
+        { name: TOKEN, color: "#00ff00" },
+      ],
+    });
     await page.reload();
     await openDiagram(page, KEY);
     const side = await box(page.locator(".sidebar"));
     expect(await noScrollX(page.locator(".sidebar"))).toBe(true);
     for (const row of [byId(page, `diagram-${KEY}`), byId(page, "diagram-containers-mainframe-banking-system")]) {
       expect(inside(await box(row), side, 1)).toBe(true);
-      expect(await row.locator(".tree-label").first().evaluate((e) => getComputedStyle(e).textOverflow)).toBe("ellipsis");
+      expect(
+        await row
+          .locator(".tree-label")
+          .first()
+          .evaluate((e) => getComputedStyle(e).textOverflow),
+      ).toBe("ellipsis");
     }
     // The delete button of the tag group is still inside the sidebar.
     const del = page.locator(".sidebar").getByRole("button", { name: /^Delete Group/ });
@@ -210,7 +230,10 @@ test.describe("the quick bar", () => {
     await node(page, "personal-banking-customer").click();
     await check("top box");
     // Slide the view (drag empty canvas) so the box is at the right edge, then at the left edge.
-    for (const [startX, dx, edge] of [[wrap.x + 245, wrap.width * 0.5, "right"], [wrap.x + wrap.width * 0.92, -wrap.width * 0.95, "left"]] as const) {
+    for (const [startX, dx, edge] of [
+      [wrap.x + 245, wrap.width * 0.5, "right"],
+      [wrap.x + wrap.width * 0.92, -wrap.width * 0.95, "left"],
+    ] as const) {
       const before = await box(node(page, "personal-banking-customer"));
       const y = wrap.y + wrap.height * 0.55;
       await page.mouse.move(startX, y);
@@ -424,7 +447,6 @@ test.describe("details", () => {
     await page.keyboard.press("Escape");
     await expect(byId(page, "help-card")).toHaveCount(0);
   });
-
 });
 
 test.describe("the first-run card", () => {

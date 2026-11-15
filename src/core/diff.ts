@@ -204,15 +204,7 @@ export function diffModels(before: Snapshot, after: Snapshot, against: string, c
   };
 }
 
-function objChange(
-  type: ObjectChange["type"],
-  kind: string,
-  id: string,
-  name: string,
-  change: ObjectChange["change"],
-  fields: FieldChange[],
-  homeKeyValue: string | null,
-): ObjectChange {
+function objChange(type: ObjectChange["type"], kind: string, id: string, name: string, change: ObjectChange["change"], fields: FieldChange[], homeKeyValue: string | null): ObjectChange {
   return { id, type, kind, name, change, fields, homeKey: homeKeyValue };
 }
 
@@ -255,8 +247,7 @@ function lazy<T>(f: () => T): () => T {
 /** Files and imports that differ, per element or relationship mapped to code (in either version). */
 export function diffCode(ia: Index, ib: Index, code: CodePair): CodeChange[] {
   const owners: { id: string; type: "element" | "relationship"; a: string[]; b: string[]; name: string }[] = [];
-  const pathsOf = (idx: Index, id: string, type: "element" | "relationship") =>
-    getJson<string>(type === "element" ? idx.elements.get(id) : idx.relationships.get(id), CODE_KEY);
+  const pathsOf = (idx: Index, id: string, type: "element" | "relationship") => getJson<string>(type === "element" ? idx.elements.get(id) : idx.relationships.get(id), CODE_KEY);
   for (const id of new Set([...ia.elements.keys(), ...ib.elements.keys()])) {
     const a = ia.elements.has(id) ? pathsOf(ia, id, "element") : [];
     const b = ib.elements.has(id) ? pathsOf(ib, id, "element") : [];

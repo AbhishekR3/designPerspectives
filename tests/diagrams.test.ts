@@ -30,13 +30,12 @@ describe("diagrams", () => {
   test("container view includes derived edges", () => {
     const d = dia(demoWs(), "containers-internet-banking-system");
     expect(d.boundary!.name).toBe("Internet Banking System");
-    expect(d.nodes.filter((n) => n.inScope).map((n) => n.name).sort()).toEqual([
-      "API Application",
-      "Database",
-      "Mobile App",
-      "Single-Page Application",
-      "Web Application",
-    ]);
+    expect(
+      d.nodes
+        .filter((n) => n.inScope)
+        .map((n) => n.name)
+        .sort(),
+    ).toEqual(["API Application", "Database", "Mobile App", "Single-Page Application", "Web Application"]);
     const edges = new Map(d.edges.map((e) => [`${e.source}|${e.target}`, e]));
     // API Application -> Database exists only via Security Component -> Database.
     const e = edges.get("api-application|database")!;
@@ -51,13 +50,12 @@ describe("diagrams", () => {
 
   test("component view maps outside elements", () => {
     const d = dia(demoWs(), "components-api-application");
-    expect(d.nodes.filter((n) => !n.inScope).map((n) => n.name).sort()).toEqual([
-      "Database",
-      "E-mail System",
-      "Mainframe Banking System",
-      "Mobile App",
-      "Single-Page Application",
-    ]);
+    expect(
+      d.nodes
+        .filter((n) => !n.inScope)
+        .map((n) => n.name)
+        .sort(),
+    ).toEqual(["Database", "E-mail System", "Mainframe Banking System", "Mobile App", "Single-Page Application"]);
   });
 
   test("explicit relationship suppresses derived", () => {

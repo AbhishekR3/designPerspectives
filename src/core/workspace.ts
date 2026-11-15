@@ -78,13 +78,7 @@ export interface View {
   [extra: string]: unknown;
 }
 
-export const VIEW_LISTS = [
-  "systemLandscapeViews",
-  "systemContextViews",
-  "containerViews",
-  "componentViews",
-  "dynamicViews",
-] as const;
+export const VIEW_LISTS = ["systemLandscapeViews", "systemContextViews", "containerViews", "componentViews", "dynamicViews"] as const;
 export type ViewList = (typeof VIEW_LISTS)[number];
 
 export type Views = { [K in ViewList]: View[] } & { [extra: string]: unknown };
@@ -141,9 +135,7 @@ function normEl(e: unknown, where: string, childKey?: "containers" | "components
   const w = `${where} "${String(o.id)}"`;
   o.relationships = (Array.isArray(o.relationships) ? o.relationships : []).map((r) => normRel(r, w));
   if (childKey) {
-    o[childKey] = (Array.isArray(o[childKey]) ? (o[childKey] as unknown[]) : []).map((c) =>
-      normEl(c, w, grandKey),
-    );
+    o[childKey] = (Array.isArray(o[childKey]) ? (o[childKey] as unknown[]) : []).map((c) => normEl(c, w, grandKey));
   }
   return o as Element;
 }
@@ -169,9 +161,7 @@ export function toWorkspace(data: unknown): Workspace {
   const model = o.model as Obj;
   const views = o.views as Obj;
   model.people = (Array.isArray(model.people) ? model.people : []).map((p) => normEl(p, "Person"));
-  model.softwareSystems = (Array.isArray(model.softwareSystems) ? model.softwareSystems : []).map((s) =>
-    normEl(s, "Software system", "containers", "components"),
-  );
+  model.softwareSystems = (Array.isArray(model.softwareSystems) ? model.softwareSystems : []).map((s) => normEl(s, "Software system", "containers", "components"));
   for (const name of VIEW_LISTS) {
     views[name] = (Array.isArray(views[name]) ? (views[name] as unknown[]) : []).map((v) => normView(v, "View"));
   }
@@ -240,11 +230,7 @@ function dumpView(v: View): Obj {
     elements: v.elements.map((e) => ordered(e, ["id", "x", "y"])),
     relationships: v.relationships.map((r) => ordered(r, ["id", "description", "order", "response"])),
   };
-  return ordered(
-    o,
-    ["key", "order", "title", "description", "properties", "softwareSystemId", "containerId", "elementId", "elements", "relationships"],
-    nonEmpty,
-  );
+  return ordered(o, ["key", "order", "title", "description", "properties", "softwareSystemId", "containerId", "elementId", "elements", "relationships"], nonEmpty);
 }
 
 /** The workspace as written to disk: stable key order, no empty defaults, unknown fields kept. */

@@ -26,11 +26,7 @@ test("characteristic overlay and rating", async ({ page, server }) => {
   await page.getByTestId("node-web-application").click();
   await page.getByTestId("char-add-rating").selectOption("Testability");
   await page.getByTestId("rate-Testability-5").click();
-  await waitUntil(async () =>
-    (await api(server, "/state")).elements
-      .find((e: any) => e.id === "web-application")
-      .characteristics.some((r: any) => r.name === "Testability" && r.rating === 5),
-  );
+  await waitUntil(async () => (await api(server, "/state")).elements.find((e: any) => e.id === "web-application").characteristics.some((r: any) => r.name === "Testability" && r.rating === 5));
   await page.getByTestId("dock-char").click();
   await page.locator("[data-testid='overlay-@char:Testability']").click();
   await expect(page.getByTestId("badge-web-application")).toContainText("★★★★★");

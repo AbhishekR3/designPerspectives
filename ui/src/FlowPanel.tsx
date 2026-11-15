@@ -65,12 +65,14 @@ export function FlowPanel({
               {curRel.technologies.length > 0 && <>Carried by: {curRel.technologies.join(", ")}.</>}
             </div>
           )}
-          {cur.example ? <pre className="example" data-testid="step-example">{cur.example}</pre> : <div className="empty-note">No example data for this step.{!state.readOnly && " Add one under the step below."}</div>}
-          {curRel.sensitive.length > 0 && (
-            <div className="small">
-              Sensitive: {curRel.sensitive.map((x) => `${x.item} (${x.level})`).join("; ")}
-            </div>
+          {cur.example ? (
+            <pre className="example" data-testid="step-example">
+              {cur.example}
+            </pre>
+          ) : (
+            <div className="empty-note">No example data for this step.{!state.readOnly && " Add one under the step below."}</div>
           )}
+          {curRel.sensitive.length > 0 && <div className="small">Sensitive: {curRel.sensitive.map((x) => `${x.item} (${x.level})`).join("; ")}</div>}
           {curRel.notes && <div className="muted small">{curRel.notes}</div>}
         </div>
       )}
@@ -99,62 +101,68 @@ export function FlowPanel({
               <button className="link" onClick={() => setFlowStep(i)} title="Show this step">
                 {relLabel(s.relationshipId)}
               </button>
-              {!state.readOnly && <span className="step-tools">
-                <button className="icon" disabled={i === 0} onClick={() => move(i, -1)} aria-label="Move up" title="Move up">
-                  ↑
-                </button>
-                <button className="icon" disabled={i === flow.steps.length - 1} onClick={() => move(i, 1)} aria-label="Move down" title="Move down">
-                  ↓
-                </button>
-                <button className="icon" onClick={() => saveSteps(flow.steps.filter((_, j) => j !== i))} aria-label="Remove step" title="Remove step">
-                  ×
-                </button>
-              </span>}
+              {!state.readOnly && (
+                <span className="step-tools">
+                  <button className="icon" disabled={i === 0} onClick={() => move(i, -1)} aria-label="Move up" title="Move up">
+                    ↑
+                  </button>
+                  <button className="icon" disabled={i === flow.steps.length - 1} onClick={() => move(i, 1)} aria-label="Move down" title="Move down">
+                    ↓
+                  </button>
+                  <button className="icon" onClick={() => saveSteps(flow.steps.filter((_, j) => j !== i))} aria-label="Remove step" title="Remove step">
+                    ×
+                  </button>
+                </span>
+              )}
             </div>
             <Fields loose>
-            <TextField label="Step text" value={s.description} placeholder="(uses the relationship's description)" onCommit={(v) => setStep(i, { description: v })} />
-            <TextField label="Data format" value={s.format ?? ""} placeholder="e.g. JSON, SQL, event" onCommit={(v) => setStep(i, { format: v })} />
-            <TextField label="Example data sent / returned" value={s.example ?? ""} multiline rows={4} placeholder='e.g. {"username": "alice"}' onCommit={(v) => setStep(i, { example: v })} testId={`step-example-${i}`} />
-            <label className="check small">
-              <input type="checkbox" checked={s.response} onChange={(e) => setStep(i, { response: e.target.checked })} /> Response (travels back)
-            </label>
+              <TextField label="Step text" value={s.description} placeholder="(uses the relationship's description)" onCommit={(v) => setStep(i, { description: v })} />
+              <TextField label="Data format" value={s.format ?? ""} placeholder="e.g. JSON, SQL, event" onCommit={(v) => setStep(i, { format: v })} />
+              <TextField
+                label="Example data sent / returned"
+                value={s.example ?? ""}
+                multiline
+                rows={4}
+                placeholder='e.g. {"username": "alice"}'
+                onCommit={(v) => setStep(i, { example: v })}
+                testId={`step-example-${i}`}
+              />
+              <label className="check small">
+                <input type="checkbox" checked={s.response} onChange={(e) => setStep(i, { response: e.target.checked })} /> Response (travels back)
+              </label>
             </Fields>
           </li>
         ))}
       </ol>
       {!state.readOnly && (
-      <div className="add-step">
-        <h4>Add a step</h4>
-        <input placeholder="Filter relationships…" value={filter} onChange={(e) => setFilter(e.target.value)} data-testid="step-filter" />
-        <select value={pick} onChange={(e) => setPick(e.target.value)} size={6} data-testid="step-select">
-          {options.map((o) => (
-            <option key={o.id} value={o.id}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-        <button
-          disabled={!pick}
-          data-testid="add-step"
-          onClick={() => saveSteps([...flow.steps, { relationshipId: pick, description: "", response: false }])}
-        >
-          Add step
-        </button>
-      </div>
+        <div className="add-step">
+          <h4>Add a step</h4>
+          <input placeholder="Filter relationships…" value={filter} onChange={(e) => setFilter(e.target.value)} data-testid="step-filter" />
+          <select value={pick} onChange={(e) => setPick(e.target.value)} size={6} data-testid="step-select">
+            {options.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+          <button disabled={!pick} data-testid="add-step" onClick={() => saveSteps([...flow.steps, { relationshipId: pick, description: "", response: false }])}>
+            Add step
+          </button>
+        </div>
       )}
       {!state.readOnly && (
-      <div className="panel-actions">
-        <button
-          className="danger"
-          onClick={() => {
-            void confirmDialog({ title: `Delete the flow "${flow.title}"?`, confirmLabel: "Delete", danger: true }).then(
-              (yes) => yes && mutate(() => api.deleteFlow(flow.key)).then((ok) => ok && onDeleted()),
-            );
-          }}
-        >
-          Delete flow
-        </button>
-      </div>
+        <div className="panel-actions">
+          <button
+            className="danger"
+            onClick={() => {
+              void confirmDialog({ title: `Delete the flow "${flow.title}"?`, confirmLabel: "Delete", danger: true }).then(
+                (yes) => yes && mutate(() => api.deleteFlow(flow.key)).then((ok) => ok && onDeleted()),
+              );
+            }}
+          >
+            Delete flow
+          </button>
+        </div>
       )}
     </div>
   );

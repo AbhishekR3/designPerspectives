@@ -33,7 +33,10 @@ const FOREIGN = () => ({
       {
         key: "SystemContext",
         softwareSystemId: "2",
-        elements: [{ id: "1", x: 0, y: 0 }, { id: "2", x: 600, y: 0 }],
+        elements: [
+          { id: "1", x: 0, y: 0 },
+          { id: "2", x: 600, y: 0 },
+        ],
         relationships: [{ id: "3", vertices: [{ x: 1, y: 2 }] }],
         paperSize: "A5_Landscape",
       },

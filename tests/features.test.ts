@@ -27,9 +27,15 @@ describe("features", () => {
     await ok(
       c.patch("/api/elements/web-application", {
         notes: "free text\nsecond line",
-        tradeoffs: [{ kind: "risk", text: "SPOF" }, { kind: "cost", text: "" }],
+        tradeoffs: [
+          { kind: "risk", text: "SPOF" },
+          { kind: "cost", text: "" },
+        ],
         usage: [{ users: "Customers", frequency: "hourly" }],
-        sensitive: [{ item: "PAN", level: "restricted" }, { item: "Logs", level: "internal" }],
+        sensitive: [
+          { item: "PAN", level: "restricted" },
+          { item: "Logs", level: "internal" },
+        ],
       }),
     );
     const el = await element(c, "web-application");
@@ -109,10 +115,7 @@ describe("features", () => {
     const arch = path.join(dir, "architecture");
     fs.mkdirSync(arch);
     const sys = (id: string) => ({ id, name: "X" });
-    fs.writeFileSync(
-      path.join(arch, "workspace.json"),
-      JSON.stringify({ name: "T", model: { softwareSystems: [sys("a"), sys("b")] }, views: {} }),
-    );
+    fs.writeFileSync(path.join(arch, "workspace.json"), JSON.stringify({ name: "T", model: { softwareSystems: [sys("a"), sys("b")] }, views: {} }));
     const p = new Project(dir);
     expect(p.loadErrors).toHaveLength(1);
     // Unrelated edits still work on a model that already has the problem.
@@ -232,9 +235,7 @@ describe("features", () => {
     fs.writeFileSync(path.join(d, "pkg/helper.py"), "");
     fs.writeFileSync(path.join(d, "main.py"), "from pkg import sub");
     const files = ["main.py", "pkg/__init__.py", "pkg/sub.py", "pkg/helper.py"];
-    expect(new Set(code.scanImports(d, files).map(([a, b]) => `${a}>${b}`))).toEqual(
-      new Set(["main.py>pkg/__init__.py", "main.py>pkg/sub.py", "pkg/sub.py>pkg/helper.py"]),
-    );
+    expect(new Set(code.scanImports(d, files).map(([a, b]) => `${a}>${b}`))).toEqual(new Set(["main.py>pkg/__init__.py", "main.py>pkg/sub.py", "pkg/sub.py>pkg/helper.py"]));
   });
 
   test("folders expand to source files, skipping build folders", () => {
@@ -307,7 +308,16 @@ describe("features", () => {
     expect(db.details.map((t: any) => t.title)).toEqual(["Connection", "Table USERS"]);
     await ok(c.patch("/api/elements/database", { details: [{ title: "T", columns: ["a", "b"], rows: [["1"], ["2", "3", "4"], ["", ""]] }] }));
     db = await element(c, "database");
-    expect(db.details).toEqual([{ title: "T", columns: ["a", "b"], rows: [["1", ""], ["2", "3"]] }]);
+    expect(db.details).toEqual([
+      {
+        title: "T",
+        columns: ["a", "b"],
+        rows: [
+          ["1", ""],
+          ["2", "3"],
+        ],
+      },
+    ]);
     expect((await c.patch("/api/elements/database", { details: [{ title: "T", columns: ["a", ""], rows: [] }] })).status).toBe(422);
     await ok(c.patch("/api/elements/database", { details: [] }));
     expect((await element(c, "database")).details).toEqual([]);
@@ -386,9 +396,7 @@ describe("diagramming from scratch", () => {
 
   test("create and connect in one undo step", async () => {
     const c = client();
-    const made = await ok(
-      c.post("/api/elements", { kind: "person", name: "Teller", connectTo: "web-application", diagramKey: "containers-internet-banking-system", position: { x: 5, y: 5 } }),
-    );
+    const made = await ok(c.post("/api/elements", { kind: "person", name: "Teller", connectTo: "web-application", diagramKey: "containers-internet-banking-system", position: { x: 5, y: 5 } }));
     expect(made).toEqual({ id: "teller", relationshipId: "teller--web-application" });
     const d = await ok(c.get("/api/diagrams/containers-internet-banking-system"));
     expect(d.nodes.find((n: any) => n.id === "teller")).toMatchObject({ inScope: false, position: { x: 5, y: 5 } });
@@ -495,4 +503,3 @@ describe("diagramming from scratch", () => {
     ]);
   });
 });
-

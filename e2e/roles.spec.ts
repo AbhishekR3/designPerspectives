@@ -281,9 +281,9 @@ test.describe("with sign-in", () => {
 
   test("an architect: Architect lens, edits main, applies an engineer's draft", async ({ page, server }) => {
     const draft = await newDraftAs(server, "engineer", "Engineer proposal");
-    expect(
-      (await callAs(server, "engineer", "POST", "/elements", { draft, body: { kind: "container", name: "Proposed cache", archType: "cache", parentId: "internet-banking-system" } })).status,
-    ).toBe(200);
+    expect((await callAs(server, "engineer", "POST", "/elements", { draft, body: { kind: "container", name: "Proposed cache", archType: "cache", parentId: "internet-banking-system" } })).status).toBe(
+      200,
+    );
     await signIn(page, "architect");
     await expect(page.getByTestId("user-role")).toHaveText("Architect");
     await expect(page.getByTestId("lens-select")).toHaveValue("architect");

@@ -50,7 +50,11 @@ export function FlowCard({
     <div className="flowbox" ref={ref}>
       <div className="row">
         <button className={`float-btn${flow ? " on" : ""}`} onClick={() => setOpen(!open)} aria-haspopup="menu" aria-expanded={open} data-testid="flows-menu">
-          <Icon name="flows" size={15} /> <span className="flow-name" title={flow ? flow.title : undefined}>{flow ? flow.title : "Flows"}</span> <Icon name="chevron" size={13} />
+          <Icon name="flows" size={15} />{" "}
+          <span className="flow-name" title={flow ? flow.title : undefined}>
+            {flow ? flow.title : "Flows"}
+          </span>{" "}
+          <Icon name="chevron" size={13} />
         </button>
         {flow && (
           <button
@@ -81,7 +85,11 @@ export function FlowCard({
                 }}
                 data-testid={`flow-${f.key}`}
               >
-                <Icon name="flows" size={13} /> <span className="truncate" title={f.title}>{f.title}</span> <span className="muted">{f.steps.length} steps</span>
+                <Icon name="flows" size={13} />{" "}
+                <span className="truncate" title={f.title}>
+                  {f.title}
+                </span>{" "}
+                <span className="muted">{f.steps.length} steps</span>
               </button>
             ))}
             {!state.readOnly && (

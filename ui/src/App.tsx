@@ -36,7 +36,16 @@ import { useShortcuts } from "./useShortcuts";
 import { confirmDialog, DialogHost, promptDialog } from "./dialogs";
 import { notify, Toasts } from "./notify";
 
-type ModalState = { type: "tag"; group: TagGroup | null } | { type: "lens"; lens: Lens | null } | { type: "chars" } | { type: "cost" } | { type: "apply"; draftId: string; title: string } | { type: "plan"; draftId: string } | { type: "draft"; mode: "new" } | { type: "draft"; mode: "rename" | "description"; draftId: string } | null;
+type ModalState =
+  | { type: "tag"; group: TagGroup | null }
+  | { type: "lens"; lens: Lens | null }
+  | { type: "chars" }
+  | { type: "cost" }
+  | { type: "apply"; draftId: string; title: string }
+  | { type: "plan"; draftId: string }
+  | { type: "draft"; mode: "new" }
+  | { type: "draft"; mode: "rename" | "description"; draftId: string }
+  | null;
 
 /** The Add palette starts collapsed on a canvas narrower than this (until the person opens it). */
 const PALETTE_OPEN_FROM = 720;
@@ -114,7 +123,23 @@ export default function App({ onSignOut }: { onSignOut(): void }) {
       reveal(movedTo.id, { home: true });
     }
   }, [movedTo, state, reveal]);
-  useShortcuts({ state, diagram, selection, setSelection, setFocusName, setRenameId, setSearchOpen, doHistory, clipboard: clip.clipboard, pasteFrom, deleteRelationship, nodeActions, toggleHelp: () => setHelpOpen((o) => !o), canvasRef, openMenu });
+  useShortcuts({
+    state,
+    diagram,
+    selection,
+    setSelection,
+    setFocusName,
+    setRenameId,
+    setSearchOpen,
+    doHistory,
+    clipboard: clip.clipboard,
+    pasteFrom,
+    deleteRelationship,
+    nodeActions,
+    toggleHelp: () => setHelpOpen((o) => !o),
+    canvasRef,
+    openMenu,
+  });
 
   if (!state || !lens) {
     return (
@@ -164,7 +189,26 @@ export default function App({ onSignOut }: { onSignOut(): void }) {
   const canDeleteHere = !!nodeActions && diagramEditable(state, diagram);
 
   const shownMenu = menu
-    ? menuItems(menu, { state, diagram, key, mutate, open, select, setFocusName, setRenameId, setOpenFile, clip, nodeActions, deleteRelationship, selection, deleteMany: (ids) => nodeActions?.removeMany(ids), openMove: setMoveId, addItem, doHistory, canvasRef })
+    ? menuItems(menu, {
+        state,
+        diagram,
+        key,
+        mutate,
+        open,
+        select,
+        setFocusName,
+        setRenameId,
+        setOpenFile,
+        clip,
+        nodeActions,
+        deleteRelationship,
+        selection,
+        deleteMany: (ids) => nodeActions?.removeMany(ids),
+        openMove: setMoveId,
+        addItem,
+        doHistory,
+        canvasRef,
+      })
     : [];
 
   const selectedNode = selection?.type === "node" ? diagram?.nodes.find((n) => n.id === selection.id) : undefined;
@@ -187,19 +231,27 @@ export default function App({ onSignOut }: { onSignOut(): void }) {
       )}
       {diagramEditable(state, diagram) && (
         <>
-        <button className="ghost icon" onClick={() => doHistory("undo")} disabled={!state.canUndo} title="Undo (Ctrl/Cmd+Z)" aria-label="Undo" data-testid="undo">
-          <Icon name="undo" />
-        </button>
-        <button className="ghost icon" onClick={() => doHistory("redo")} disabled={!state.canRedo} title="Redo (Ctrl/Cmd+Shift+Z)" aria-label="Redo" data-testid="redo">
-          <Icon name="redo" />
-        </button>
-        <button className="ghost icon" onClick={() => canvasRef.current?.relayout()} title="Auto-layout: lay the diagram out again" aria-label="Auto-layout" data-testid="auto-layout">
-          <Icon name="layout" />
-        </button>
+          <button className="ghost icon" onClick={() => doHistory("undo")} disabled={!state.canUndo} title="Undo (Ctrl/Cmd+Z)" aria-label="Undo" data-testid="undo">
+            <Icon name="undo" />
+          </button>
+          <button className="ghost icon" onClick={() => doHistory("redo")} disabled={!state.canRedo} title="Redo (Ctrl/Cmd+Shift+Z)" aria-label="Redo" data-testid="redo">
+            <Icon name="redo" />
+          </button>
+          <button className="ghost icon" onClick={() => canvasRef.current?.relayout()} title="Auto-layout: lay the diagram out again" aria-label="Auto-layout" data-testid="auto-layout">
+            <Icon name="layout" />
+          </button>
         </>
       )}
       <span className="export-wrap" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setExportOpen(false)}>
-        <button className="ghost icon" onClick={() => setExportOpen(!exportOpen)} aria-haspopup="menu" aria-expanded={exportOpen} title="Download the diagram" aria-label="Download" data-testid="export">
+        <button
+          className="ghost icon"
+          onClick={() => setExportOpen(!exportOpen)}
+          aria-haspopup="menu"
+          aria-expanded={exportOpen}
+          title="Download the diagram"
+          aria-label="Download"
+          data-testid="export"
+        >
           <Icon name="download" />
         </button>
         {exportOpen && (
@@ -266,7 +318,15 @@ export default function App({ onSignOut }: { onSignOut(): void }) {
         <div />
       )}
       {leftOpen ? (
-        <div className="resizer" onPointerDown={startDrag("left")} onDoubleClick={resetLeft} role="separator" aria-orientation="vertical" title="Drag to resize the sidebar (double-click: reset)" data-testid="resize-left" />
+        <div
+          className="resizer"
+          onPointerDown={startDrag("left")}
+          onDoubleClick={resetLeft}
+          role="separator"
+          aria-orientation="vertical"
+          title="Drag to resize the sidebar (double-click: reset)"
+          data-testid="resize-left"
+        />
       ) : (
         <div />
       )}
@@ -337,7 +397,14 @@ export default function App({ onSignOut }: { onSignOut(): void }) {
                     <Icon name="forward" />
                   </button>
                   <span className="divider" />
-                  <button className={`ghost diagrams-btn${leftOpen ? " on" : ""}`} onClick={toggleLeft} title="Show or hide the diagram list" aria-label="Diagrams" aria-pressed={leftOpen} data-testid="toggle-diagrams">
+                  <button
+                    className={`ghost diagrams-btn${leftOpen ? " on" : ""}`}
+                    onClick={toggleLeft}
+                    title="Show or hide the diagram list"
+                    aria-label="Diagrams"
+                    aria-pressed={leftOpen}
+                    data-testid="toggle-diagrams"
+                  >
                     <Icon name="panel" size={14} /> <span className="diagrams-label">Diagrams</span>
                   </button>
                   <span className="divider" />
@@ -372,7 +439,14 @@ export default function App({ onSignOut }: { onSignOut(): void }) {
                     </select>
                   </label>
                   <span className="divider" />
-                  <button className={`ghost icon${helpOpen ? " on" : ""}`} onClick={() => setHelpOpen(!helpOpen)} aria-label="Help" aria-expanded={helpOpen} title="Help and keyboard shortcuts (?)" data-testid="help">
+                  <button
+                    className={`ghost icon${helpOpen ? " on" : ""}`}
+                    onClick={() => setHelpOpen(!helpOpen)}
+                    aria-label="Help"
+                    aria-expanded={helpOpen}
+                    title="Help and keyboard shortcuts (?)"
+                    data-testid="help"
+                  >
                     <Icon name="help" />
                   </button>
                 </div>
@@ -388,17 +462,7 @@ export default function App({ onSignOut }: { onSignOut(): void }) {
             <div className="topbar-sub">
               <div className="topbar-left">
                 {diagram && !inLens(lens, diagram.level) && <div className="float note small">This level is not in the {lens.name} lens.</div>}
-                <FlowCard
-                  state={state}
-                  diagram={diagram}
-                  flow={flow}
-                  flowStep={flowStep}
-                  setFlowStep={setFlowStep}
-                  playing={playing}
-                  setPlaying={setPlaying}
-                  onOpen={open}
-                  onNewFlow={newFlow}
-                />
+                <FlowCard state={state} diagram={diagram} flow={flow} flowStep={flowStep} setFlowStep={setFlowStep} playing={playing} setPlaying={setPlaying} onOpen={open} onNewFlow={newFlow} />
               </div>
               {tools}
             </div>
@@ -406,7 +470,9 @@ export default function App({ onSignOut }: { onSignOut(): void }) {
           {helpOpen && <HelpCard onClose={() => setHelpOpen(false)} />}
 
           <div className="left-stack">
-            {diagram && !state.readOnly && !diagram.compare?.removed && diagram.level !== "flow" && diagram.level !== "code" && <Palette diagram={diagram} open={paletteOpen} onToggle={togglePalette} onAdd={(it) => addItem(it)} />}
+            {diagram && !state.readOnly && !diagram.compare?.removed && diagram.level !== "flow" && diagram.level !== "code" && (
+              <Palette diagram={diagram} open={paletteOpen} onToggle={togglePalette} onAdd={(it) => addItem(it)} />
+            )}
             {diagram && diagram.level !== "code" && diagram.level !== "connector" && (
               <Dock
                 state={state}
@@ -444,7 +510,15 @@ export default function App({ onSignOut }: { onSignOut(): void }) {
       </main>
 
       {rightOpen ? (
-        <div className="resizer" onPointerDown={startDrag("right")} onDoubleClick={resetRight} role="separator" aria-orientation="vertical" title="Drag to resize the panel (double-click: reset)" data-testid="resize-right" />
+        <div
+          className="resizer"
+          onPointerDown={startDrag("right")}
+          onDoubleClick={resetRight}
+          role="separator"
+          aria-orientation="vertical"
+          title="Drag to resize the panel (double-click: reset)"
+          data-testid="resize-right"
+        />
       ) : (
         <div />
       )}
@@ -464,59 +538,51 @@ export default function App({ onSignOut }: { onSignOut(): void }) {
           </button>
         </div>
         <ReadOnlyContext.Provider value={state.readOnly}>
-        {showGhost && (
-          <GhostPanel node={selectedNode} edge={selectedEdge} change={selectedChange} against={againstLabel} />
-        )}
-        {multiIds && diagram && (
-          <MultiPanel
-            state={state}
-            ids={multiIds}
-            canDelete={canDeleteHere}
-            onDelete={() => nodeActions?.removeMany(multiIds.filter((id) => state.elements.some((x) => x.id === id) && !diagram.nodes.find((n) => n.id === id)?.ghost))}
-          />
-        )}
-        {!showGhost && selectedChange && selectedChange.change !== "added" && <ChangeDetails change={selectedChange} against={againstLabel} />}
-        {!showGhost && selectedElement && diagram && <ObjectPanel key={selectedElement.id} element={selectedElement} {...panelProps} />}
-        {!showGhost && !selectedElement && selectedNode?.kind === "stage" && diagram && <StagePanel key={selectedNode.id} node={selectedNode} {...panelProps} />}
-        {!showGhost && !selectedElement && selectedNode?.kind === "file" && diagram && <FilePanel key={selectedNode.id} node={selectedNode} {...panelProps} />}
-        {!showGhost && selection?.type === "edge" && diagram && <EdgePanel key={selection.id} edgeId={selection.id} {...panelProps} />}
-        {!selection && flow && (
-          <FlowPanel
-            flow={flow}
-            state={state}
-            mutate={mutate}
-            onDeleted={() => open("landscape")}
-            flowStep={flowStep}
-            setFlowStep={setFlowStep}
-          />
-        )}
-        {!selection && diagram?.level === "connector" && <ConnectorPanel {...panelProps} />}
-        {!selection && diagram?.level === "code" && <CodeDiagramPanel {...panelProps} />}
-        {!selection && diagram && !flow && diagram.level !== "connector" && diagram.level !== "code" && (
-          <div className="panel-body">
-            <div className="panel-kind">{diagram.c4 && `${diagram.c4} · `}{LEVEL_LABEL[diagram.level]} diagram</div>
-            <h2 className="panel-title">{diagram.title}</h2>
-            <dl className="facts">
-              <dt>Objects</dt>
-              <dd>{overlayable(diagram).length}</dd>
-              <dt>Connections</dt>
-              <dd>{diagram.edges.length}</dd>
-              {diagramCost > 0 && (
+          {showGhost && <GhostPanel node={selectedNode} edge={selectedEdge} change={selectedChange} against={againstLabel} />}
+          {multiIds && diagram && (
+            <MultiPanel
+              state={state}
+              ids={multiIds}
+              canDelete={canDeleteHere}
+              onDelete={() => nodeActions?.removeMany(multiIds.filter((id) => state.elements.some((x) => x.id === id) && !diagram.nodes.find((n) => n.id === id)?.ghost))}
+            />
+          )}
+          {!showGhost && selectedChange && selectedChange.change !== "added" && <ChangeDetails change={selectedChange} against={againstLabel} />}
+          {!showGhost && selectedElement && diagram && <ObjectPanel key={selectedElement.id} element={selectedElement} {...panelProps} />}
+          {!showGhost && !selectedElement && selectedNode?.kind === "stage" && diagram && <StagePanel key={selectedNode.id} node={selectedNode} {...panelProps} />}
+          {!showGhost && !selectedElement && selectedNode?.kind === "file" && diagram && <FilePanel key={selectedNode.id} node={selectedNode} {...panelProps} />}
+          {!showGhost && selection?.type === "edge" && diagram && <EdgePanel key={selection.id} edgeId={selection.id} {...panelProps} />}
+          {!selection && flow && <FlowPanel flow={flow} state={state} mutate={mutate} onDeleted={() => open("landscape")} flowStep={flowStep} setFlowStep={setFlowStep} />}
+          {!selection && diagram?.level === "connector" && <ConnectorPanel {...panelProps} />}
+          {!selection && diagram?.level === "code" && <CodeDiagramPanel {...panelProps} />}
+          {!selection && diagram && !flow && diagram.level !== "connector" && diagram.level !== "code" && (
+            <div className="panel-body">
+              <div className="panel-kind">
+                {diagram.c4 && `${diagram.c4} · `}
+                {LEVEL_LABEL[diagram.level]} diagram
+              </div>
+              <h2 className="panel-title">{diagram.title}</h2>
+              <dl className="facts">
+                <dt>Objects</dt>
+                <dd>{overlayable(diagram).length}</dd>
+                <dt>Connections</dt>
+                <dd>{diagram.edges.length}</dd>
+                {diagramCost > 0 && (
+                  <>
+                    <dt>Monthly cost</dt>
+                    <dd>{formatMoney(diagramCost, state.costSettings.currency)}</dd>
+                  </>
+                )}
+              </dl>
+              <p className="muted small">Click an object or connection to see its details here. Press ? or use the help button at the top right.</p>
+              {changes && (
                 <>
-                  <dt>Monthly cost</dt>
-                  <dd>{formatMoney(diagramCost, state.costSettings.currency)}</dd>
+                  <h3 className="panel-subtitle">Changes compared with {againstLabel}</h3>
+                  <ChangeList changes={changes} onPick={pickChange} />
                 </>
               )}
-            </dl>
-            <p className="muted small">Click an object or connection to see its details here. Press ? or use the help button at the top right.</p>
-            {changes && (
-              <>
-                <h3 className="panel-subtitle">Changes compared with {againstLabel}</h3>
-                <ChangeList changes={changes} onPick={pickChange} />
-              </>
-            )}
-          </div>
-        )}
+            </div>
+          )}
         </ReadOnlyContext.Provider>
       </aside>
 
@@ -578,14 +644,7 @@ export default function App({ onSignOut }: { onSignOut(): void }) {
       {modal?.type === "chars" && <CharacteristicsEditor items={state.characteristics} onClose={() => setModal(null)} mutate={mutate} />}
       {modal?.type === "cost" && <CostSettingsEditor settings={state.costSettings} onClose={() => setModal(null)} mutate={mutate} />}
       {modal?.type === "lens" && (
-        <LensEditor
-          lens={modal.lens}
-          tagGroups={state.tagGroups}
-          characteristics={state.characteristics}
-          onClose={() => setModal(null)}
-          mutate={mutate}
-          onSaved={(id) => chooseLensAfterSave(id)}
-        />
+        <LensEditor lens={modal.lens} tagGroups={state.tagGroups} characteristics={state.characteristics} onClose={() => setModal(null)} mutate={mutate} onSaved={(id) => chooseLensAfterSave(id)} />
       )}
       <DialogHost />
     </div>

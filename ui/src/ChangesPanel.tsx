@@ -9,7 +9,19 @@ import { errorMessage } from "./notify";
 import { Modal } from "./fields";
 import { Icon } from "./icons";
 import { CHANGE_COLORS, CHANGE_LABEL } from "./overlays";
-import { KIND_LABEL, type AppState, type ApplyPreview, type DraftInfo, type ChangeSet, type CodingPlan, type Conflict, type DiagramEdge, type DiagramNode, type FieldChange, type ObjectChange } from "./types";
+import {
+  KIND_LABEL,
+  type AppState,
+  type ApplyPreview,
+  type DraftInfo,
+  type ChangeSet,
+  type CodingPlan,
+  type Conflict,
+  type DiagramEdge,
+  type DiagramNode,
+  type FieldChange,
+  type ObjectChange,
+} from "./types";
 
 const OTHER_REF = "__other";
 
@@ -28,7 +40,23 @@ export function BehindBadge({ n }: { n: number }) {
 }
 
 /** One draft in the sidebar: title, author and date, and a "⋯" menu (also on right-click). */
-function DraftRow({ d, active, canEditDraft, onOpen, onRename, onEditDescription, onDiscard }: { d: DraftInfo; active: boolean; canEditDraft: boolean; onOpen(): void; onRename(): void; onEditDescription(): void; onDiscard(): void }) {
+function DraftRow({
+  d,
+  active,
+  canEditDraft,
+  onOpen,
+  onRename,
+  onEditDescription,
+  onDiscard,
+}: {
+  d: DraftInfo;
+  active: boolean;
+  canEditDraft: boolean;
+  onOpen(): void;
+  onRename(): void;
+  onEditDescription(): void;
+  onDiscard(): void;
+}) {
   const [open, setOpen] = useState(false);
   const wrap = useRef<HTMLSpanElement>(null);
   const toggle = useRef<HTMLButtonElement>(null);
@@ -66,7 +94,16 @@ function DraftRow({ d, active, canEditDraft, onOpen, onRename, onEditDescription
             }
           }}
         >
-          <button ref={toggle} className="ghost icon" onClick={() => setOpen(!open)} aria-haspopup="menu" aria-expanded={open} aria-label={`Actions for ${d.title}`} title="Rename, edit the description, discard" data-testid={`draft-menu-${d.id}`}>
+          <button
+            ref={toggle}
+            className="ghost icon"
+            onClick={() => setOpen(!open)}
+            aria-haspopup="menu"
+            aria-expanded={open}
+            aria-label={`Actions for ${d.title}`}
+            title="Rename, edit the description, discard"
+            data-testid={`draft-menu-${d.id}`}
+          >
             ⋯
           </button>
           {open && (
@@ -128,7 +165,12 @@ export function DraftList({
       <h3 title="A draft is a planned change: a copy of the model you edit, compare and then apply or discard">Drafts</h3>
       <ul className="tree">
         <li>
-          <button className={`link ${state.model.ref === "main" ? "active" : ""}`} onClick={() => state.model.ref !== "main" && onSwitch("main")} data-testid="draft-main" title="The model in architecture/">
+          <button
+            className={`link ${state.model.ref === "main" ? "active" : ""}`}
+            onClick={() => state.model.ref !== "main" && onSwitch("main")}
+            data-testid="draft-main"
+            title="The model in architecture/"
+          >
             Main model
           </button>
         </li>
@@ -287,7 +329,11 @@ function SummaryChips({ s, compact = false }: { s: { added: number; changed: num
           {compact ? `· ${s.code} code` : `${s.code} code file${s.code === 1 ? "" : "s"}`}
         </span>
       )}
-      {s.layout > 0 && <span className="muted" title="Moved or resized boxes, line shapes, styles">{compact ? `· ${s.layout} layout` : `and ${s.layout} layout changes`}</span>}
+      {s.layout > 0 && (
+        <span className="muted" title="Moved or resized boxes, line shapes, styles">
+          {compact ? `· ${s.layout} layout` : `and ${s.layout} layout changes`}
+        </span>
+      )}
     </span>
   );
 }
@@ -346,8 +392,8 @@ export function ApplyDialog({ draftId, title, onClose, onApplied }: { draftId: s
         <div data-testid="apply-conflicts">
           <h4 className="danger-text">Conflicts: the draft cannot be applied</h4>
           <p className="muted small">
-            These objects or files were changed both on the main side (since the draft was made) and in the draft. Change one side so they
-            agree, then apply again{preview?.code.length ? ", or apply the model only" : ""}.
+            These objects or files were changed both on the main side (since the draft was made) and in the draft. Change one side so they agree, then apply again
+            {preview?.code.length ? ", or apply the model only" : ""}.
           </p>
           <ul className="conflict-list">
             {conflicts.map((c, i) => (
@@ -418,7 +464,10 @@ export function ChangeList({ changes, onPick }: { changes: ChangeSet; onPick?(c:
       {changes.code.length > 0 && (
         <div data-testid="code-changes">
           <h4>
-            Code <span className="muted">{changes.summary.code} file{changes.summary.code === 1 ? "" : "s"}</span>
+            Code{" "}
+            <span className="muted">
+              {changes.summary.code} file{changes.summary.code === 1 ? "" : "s"}
+            </span>
           </h4>
           <ul>
             {changes.code.map((c) => (
@@ -489,7 +538,15 @@ function show(v: unknown): string {
   if (Array.isArray(v)) {
     if (!v.length) return "—";
     if (v.every((x) => typeof x === "string")) return v.join(", ");
-    return v.map((x) => (typeof x === "object" && x ? Object.values(x).filter((y) => typeof y === "string" || typeof y === "number").join(" · ") : String(x))).join("; ");
+    return v
+      .map((x) =>
+        typeof x === "object" && x
+          ? Object.values(x)
+              .filter((y) => typeof y === "string" || typeof y === "number")
+              .join(" · ")
+          : String(x),
+      )
+      .join("; ");
   }
   if (typeof v === "object") {
     const entries = Object.entries(v as Record<string, unknown>);
@@ -587,14 +644,21 @@ export function PlanDialog({ state, draftId, onClose, onSaved }: { state: AppSta
   return (
     <Modal title={`Coding plan: ${draft?.title ?? draftId}`} onClose={onClose} wide>
       <p className="muted small">
-        What the code has to do for this draft. Steps with a code path or an import between mapped objects are checked against the code;
-        the rest are checked by hand. Write the code on a branch, check progress here or with <code>dp plan {draftId} --against &lt;branch&gt;</code>,
-        then apply the draft.
+        What the code has to do for this draft. Steps with a code path or an import between mapped objects are checked against the code; the rest are checked by hand. Write the code on a branch, check
+        progress here or with <code>dp plan {draftId} --against &lt;branch&gt;</code>, then apply the draft.
       </p>
       <div className="row plan-controls">
         <label className="field inline">
           <span>Branch</span>
-          <input value={branch} placeholder="e.g. feature/audit-log" onChange={(e) => setBranch(e.target.value)} onBlur={() => void saveBranch()} onKeyDown={(e) => e.key === "Enter" && void saveBranch()} disabled={!state.can.createDraft} data-testid="plan-branch" />
+          <input
+            value={branch}
+            placeholder="e.g. feature/audit-log"
+            onChange={(e) => setBranch(e.target.value)}
+            onBlur={() => void saveBranch()}
+            onKeyDown={(e) => e.key === "Enter" && void saveBranch()}
+            disabled={!state.can.createDraft}
+            data-testid="plan-branch"
+          />
         </label>
         <label className="field inline">
           <span>Check against</span>
@@ -627,18 +691,24 @@ export function PlanDialog({ state, draftId, onClose, onSaved }: { state: AppSta
             <div key={s}>
               <h4>{s}</h4>
               <ul>
-                {work.filter((i) => i.section === s).map((i) => (
-                  <li key={i.id} className={`plan-item ${STATUS[i.status].cls}`} data-testid={`plan-${i.id}`} data-status={i.status}>
-                    <span className="plan-status" title={STATUS[i.status].label}>{STATUS[i.status].icon}</span>
-                    <div>
-                      <div className="plan-title">{i.title}</div>
-                      {i.details.map((d, k) => (
-                        <div key={k} className="muted small">{d}</div>
-                      ))}
-                      {i.evidence && <div className="small plan-evidence">{i.evidence}</div>}
-                    </div>
-                  </li>
-                ))}
+                {work
+                  .filter((i) => i.section === s)
+                  .map((i) => (
+                    <li key={i.id} className={`plan-item ${STATUS[i.status].cls}`} data-testid={`plan-${i.id}`} data-status={i.status}>
+                      <span className="plan-status" title={STATUS[i.status].label}>
+                        {STATUS[i.status].icon}
+                      </span>
+                      <div>
+                        <div className="plan-title">{i.title}</div>
+                        {i.details.map((d, k) => (
+                          <div key={k} className="muted small">
+                            {d}
+                          </div>
+                        ))}
+                        {i.evidence && <div className="small plan-evidence">{i.evidence}</div>}
+                      </div>
+                    </li>
+                  ))}
               </ul>
             </div>
           ))}
@@ -647,7 +717,9 @@ export function PlanDialog({ state, draftId, onClose, onSaved }: { state: AppSta
               <h4>Model-only changes (no code work)</h4>
               <ul>
                 {docs.map((i) => (
-                  <li key={i.id} className="muted small">{i.title}</li>
+                  <li key={i.id} className="muted small">
+                    {i.title}
+                  </li>
                 ))}
               </ul>
             </div>
@@ -656,10 +728,16 @@ export function PlanDialog({ state, draftId, onClose, onSaved }: { state: AppSta
       )}
       {plan && showMd && <textarea className="code-editor" readOnly value={plan.markdown} data-testid="plan-markdown" />}
       <div className="modal-actions">
-        <button className="ghost" onClick={() => setShowMd(!showMd)}>{showMd ? "Show list" : "Show Markdown"}</button>
+        <button className="ghost" onClick={() => setShowMd(!showMd)}>
+          {showMd ? "Show list" : "Show Markdown"}
+        </button>
         <span className="spacer" />
-        <button onClick={() => void copy()} disabled={!plan} data-testid="plan-copy" aria-live="polite">{copied ? "Copied" : "Copy Markdown"}</button>
-        <button className="primary" onClick={onClose}>Close</button>
+        <button onClick={() => void copy()} disabled={!plan} data-testid="plan-copy" aria-live="polite">
+          {copied ? "Copied" : "Copy Markdown"}
+        </button>
+        <button className="primary" onClick={onClose}>
+          Close
+        </button>
       </div>
     </Modal>
   );

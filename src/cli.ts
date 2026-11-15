@@ -20,7 +20,9 @@ function openBrowser(url: string): void {
   const cmd = process.platform === "darwin" ? "open" : process.platform === "win32" ? "cmd" : "xdg-open";
   const args = process.platform === "win32" ? ["/c", "start", "", url] : [url];
   try {
-    spawn(cmd, args, { stdio: "ignore", detached: true }).on("error", () => {}).unref();
+    spawn(cmd, args, { stdio: "ignore", detached: true })
+      .on("error", () => {})
+      .unref();
   } catch {
     /* no browser available: the URL is printed anyway */
   }
@@ -29,7 +31,10 @@ function openBrowser(url: string): void {
 /** The Host-header names to accept when binding `host`: loopback names for a loopback address,
  *  null (any name) otherwise, since other machines reach the server under names we cannot know. */
 export function allowedHostsFor(host: string): string[] | null {
-  const h = host.trim().toLowerCase().replace(/^\[(.*)\]$/, "$1");
+  const h = host
+    .trim()
+    .toLowerCase()
+    .replace(/^\[(.*)\]$/, "$1");
   if (h === "0:0:0:0:0:0:0:1" || /^::ffff:127(?:\.\d{1,3}){3}$/.test(h)) return LOOPBACK_HOSTS;
   if (h === "localhost" || h === "::1" || /^127(?:\.\d{1,3}){3}$/.test(h)) {
     const name = h.includes(":") ? `[${h}]` : h;
@@ -67,7 +72,12 @@ export function program(): Command {
     .argument("[path]", "Project folder containing architecture/.", ".")
     .addOption(new Option("--port <port>", "Port to listen on.").default(8765).argParser((v) => parseInt(v, 10)))
     .option("--host <host>", "Interface to bind. Keep the default unless you know you need another.", "127.0.0.1")
-    .option("--allow-host <name>", "Also answer requests addressed to this host name (a tunnel or proxy in front of the server). Repeat for more.", (v: string, all: string[]) => [...all, v], [] as string[])
+    .option(
+      "--allow-host <name>",
+      "Also answer requests addressed to this host name (a tunnel or proxy in front of the server). Repeat for more.",
+      (v: string, all: string[]) => [...all, v],
+      [] as string[],
+    )
     .option("--no-open", "Do not open the browser.")
     .option("--demo", "If the folder has no model, create the sample model (with its sample code) instead of an empty one.")
     .option("--read-only", "Viewer role: browse only; every change is refused.")
@@ -253,7 +263,14 @@ function usersCommands(p: Command): void {
   };
   const table = (rows: string[][]) => {
     const w = rows[0]!.map((_, i) => Math.max(...rows.map((r) => r[i]!.length)));
-    for (const r of rows) console.log("  " + r.map((x, i) => x.padEnd(w[i]!)).join("  ").trimEnd());
+    for (const r of rows)
+      console.log(
+        "  " +
+          r
+            .map((x, i) => x.padEnd(w[i]!))
+            .join("  ")
+            .trimEnd(),
+      );
   };
   const printPasswords = (made: NewPassword[]) => {
     table([["name", "role", "password"], ...made.map((m) => [m.name, m.role, m.password])]);

@@ -123,19 +123,21 @@ export function EdgePanel({ edgeId, ...p }: Common & { edgeId: string }) {
         </button>
       </p>
       <Fields loose>
-      <TextField label="Description" value={r.description} onCommit={(v) => save({ description: v })} testId="field-rel-description" autoFocus={p.focusName && !state.readOnly} />
-      {has("technology") && <TagInput label="Technology / protocol" value={r.technologies} suggestions={state.technologies} onChange={(v) => save({ technology: v })} testId="field-rel-technology" />}
-      <label className="field">
-        <span>Kind</span>
-        <select value={r.kind} onChange={(e) => save({ kind: e.target.value })} data-testid="field-rel-kind">
-          <option value="">— not set —</option>
-          {state.enums.connectorKinds.map((k) => (
-            <option key={k.id} value={k.id}>
-              {k.label}
-            </option>
-          ))}
-        </select>
-      </label>
+        <TextField label="Description" value={r.description} onCommit={(v) => save({ description: v })} testId="field-rel-description" autoFocus={p.focusName && !state.readOnly} />
+        {has("technology") && (
+          <TagInput label="Technology / protocol" value={r.technologies} suggestions={state.technologies} onChange={(v) => save({ technology: v })} testId="field-rel-technology" />
+        )}
+        <label className="field">
+          <span>Kind</span>
+          <select value={r.kind} onChange={(e) => save({ kind: e.target.value })} data-testid="field-rel-kind">
+            <option value="">— not set —</option>
+            {state.enums.connectorKinds.map((k) => (
+              <option key={k.id} value={k.id}>
+                {k.label}
+              </option>
+            ))}
+          </select>
+        </label>
       </Fields>
       <button className="primary" onClick={() => p.onOpen(detailKey)} data-testid="open-connector">
         Open connector detail{r.stages.length ? ` (${r.stages.length} stages)` : ""}

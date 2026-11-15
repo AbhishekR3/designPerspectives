@@ -45,7 +45,11 @@ describe("blank by default", () => {
 describe("built-in lenses", () => {
   test("engineer, architect and overview are listed first and flagged built-in", async () => {
     const lenses = (await ok(new Client(demoDir()).get("/api/state"))).lenses;
-    expect(lenses.slice(0, 3).map((l: any) => [l.id, l.builtin])).toEqual([["engineer", true], ["architect", true], ["overview", true]]);
+    expect(lenses.slice(0, 3).map((l: any) => [l.id, l.builtin])).toEqual([
+      ["engineer", true],
+      ["architect", true],
+      ["overview", true],
+    ]);
     const arch = lenses.find((l: any) => l.id === "architect");
     expect(arch.visibleLevels).toEqual(["landscape", "context", "container", "component", "code"]);
     expect(arch.showTechnology).toBe(true);

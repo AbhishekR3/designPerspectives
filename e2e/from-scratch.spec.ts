@@ -64,8 +64,7 @@ test("build a diagram from an empty project", async ({ page, server }) => {
 });
 
 const rels = async (server: Server) => (await api(server, "/state")).relationships as any[];
-const post = (server: Server, path: string, body: object) =>
-  fetch(server.url + "api" + path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+const post = (server: Server, path: string, body: object) => fetch(server.url + "api" + path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 
 /** Add a box from the palette and name it on the canvas. */
 async function addNamed(page: import("@playwright/test").Page, testId: string, name: string) {

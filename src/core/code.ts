@@ -29,7 +29,6 @@ export const SKIP_DIRS = new Set(["__pycache__", "node_modules", ".git", ".venv"
 export const MAX_FILES = 60;
 const JS_IMPORT = /(?:import\s[^'"]*?from\s*|import\s*|require\(\s*|export\s[^'"]*?from\s*)['"]([^'"]+)['"]/g;
 
-
 /** A code folder path or a code source. */
 export type CodeInput = CodeSource | string | null;
 export const asSource = (c: CodeInput): CodeSource => (c === null || typeof c === "string" ? new DiskCode(c) : c);
@@ -153,7 +152,10 @@ export function pyModules(source: string): [string, number][] {
     let m = /^import\s+(.+)$/.exec(stmt);
     if (m) {
       for (const part of m[1]!.split(",")) {
-        const name = part.trim().split(/\s+as\s+/)[0]!.trim();
+        const name = part
+          .trim()
+          .split(/\s+as\s+/)[0]!
+          .trim();
         if (IDENT.test(name)) out.push([name, 0]);
       }
       continue;
@@ -166,7 +168,12 @@ export function pyModules(source: string): [string, number][] {
       const names = m[3]!
         .replace(/[()]/g, " ")
         .split(",")
-        .map((p) => p.trim().split(/\s+as\s+/)[0]!.trim())
+        .map((p) =>
+          p
+            .trim()
+            .split(/\s+as\s+/)[0]!
+            .trim(),
+        )
         .filter((x) => x === "*" || IDENT.test(x));
       if (level && !base) for (const a of names) out.push([a, level]);
       else {
@@ -333,12 +340,7 @@ export function readCodeFile(codeRoot: string | null, rel: string): { path: stri
   return { path: rel, content: data.toString("utf-8"), mtime: mtimeOf(target) };
 }
 
-export function writeCodeFile(
-  codeRoot: string | null,
-  rel: string,
-  content: string,
-  expectedMtime?: number | null,
-): { path: string; mtime: number } {
+export function writeCodeFile(codeRoot: string | null, rel: string, content: string, expectedMtime?: number | null): { path: string; mtime: number } {
   const target = safePath(codeRoot, rel);
   checkSize(content);
   if (!isFileOn(target)) throw new ModelError("No such file. New files cannot be created from here.");

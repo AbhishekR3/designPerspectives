@@ -16,4 +16,4 @@ export interface Common {
   focusName: boolean;
 }
 
-export const sameKeys = <T,>(a: T[], b: T[]) => JSON.stringify(a) === JSON.stringify(b);
+export const sameKeys = <T>(a: T[], b: T[]) => JSON.stringify(a) === JSON.stringify(b);

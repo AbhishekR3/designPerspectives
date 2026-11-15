@@ -66,7 +66,13 @@ export function mix(hex: string, base: string, t: number): string {
   };
   const a = p(hex);
   const b = p(base);
-  return `#${a.map((v, i) => Math.round(v * t + b[i] * (1 - t)).toString(16).padStart(2, "0")).join("")}`;
+  return `#${a
+    .map((v, i) =>
+      Math.round(v * t + b[i] * (1 - t))
+        .toString(16)
+        .padStart(2, "0"),
+    )
+    .join("")}`;
 }
 
 export function dashFor(s?: Style["strokeStyle"]): string | undefined {
@@ -363,13 +369,21 @@ export function C4Node({ data, selected }: NodeProps<C4NodeType>) {
                 e.stopPropagation();
                 setRenaming(true);
               }}
-              title={[el.name.length > 28 ? el.name : "", act ? (selected ? "Click to rename" : el.drillKey ? "Double-click to open; select, then click the name to rename" : "Double-click to rename") : ""].filter(Boolean).join("\n") || undefined}
+              title={
+                [el.name.length > 28 ? el.name : "", act ? (selected ? "Click to rename" : el.drillKey ? "Double-click to open; select, then click the name to rename" : "Double-click to rename") : ""]
+                  .filter(Boolean)
+                  .join("\n") || undefined
+              }
             >
               {el.name}
             </span>
           )}
         </div>
-        {data.showDescriptions && el.description && <div className="c4-desc" style={{ fontSize: Math.max(10, fs - 4) }}>{el.description}</div>}
+        {data.showDescriptions && el.description && (
+          <div className="c4-desc" style={{ fontSize: Math.max(10, fs - 4) }}>
+            {el.description}
+          </div>
+        )}
         {el.kind === "stage" && el.linkedElementName && <div className="c4-type">→ {el.linkedElementName}</div>}
         {el.kind === "file" && el.lineCount != null && <div className="c4-type">{el.lineCount} lines</div>}
         <div className="c4-type" style={{ fontSize: Math.max(9, fs - 5) }}>
@@ -395,7 +409,11 @@ export function C4Node({ data, selected }: NodeProps<C4NodeType>) {
             </span>
           )}
           {has("usage") && freq && <span className="badge subtle">Used {freq}</span>}
-          {has("notes") && el.notes && <span className="badge subtle" data-testid={`notes-${el.id}`}>Notes</span>}
+          {has("notes") && el.notes && (
+            <span className="badge subtle" data-testid={`notes-${el.id}`}>
+              Notes
+            </span>
+          )}
           {has("tradeoffs") && el.tradeoffs.length > 0 && <span className="badge subtle">Tradeoffs {el.tradeoffs.length}</span>}
           {has("code") && el.codePaths.length > 0 && el.kind !== "file" && <span className="badge subtle">Code</span>}
         </div>
@@ -542,7 +560,7 @@ function project(pts: Poly, q: Pt): { t: number; dist: number } {
     const py = a.y + dy * k;
     const d2 = (q.x - px) ** 2 + (q.y - py) ** 2;
     if (d2 < best.d2) {
-      const side = Math.sign((q.x - px) * (-dy) + (q.y - py) * dx) || 1;
+      const side = Math.sign((q.x - px) * -dy + (q.y - py) * dx) || 1;
       best = { t: (walked + seg * k) / total, dist: side * Math.sqrt(d2), d2 };
     }
     walked += seg;
@@ -749,7 +767,11 @@ export function C4Edge({ id, source, target, data, selected, markerEnd, markerSt
           onClick={() => data.onSelect(id)}
           onDoubleClick={() => data.onOpen(id)}
           {...grab}
-          title={[data.label.length > 40 ? data.label : "", data.hasDetail ? "Double-click to open the connector detail" : data.editable ? "Drag to slide the label along the line" : ""].filter(Boolean).join("\n") || undefined}
+          title={
+            [data.label.length > 40 ? data.label : "", data.hasDetail ? "Double-click to open the connector detail" : data.editable ? "Drag to slide the label along the line" : ""]
+              .filter(Boolean)
+              .join("\n") || undefined
+          }
         >
           <div className="edge-text">{data.label}</div>
           {techs && (
@@ -769,9 +791,33 @@ export function C4Edge({ id, source, target, data, selected, markerEnd, markerSt
         </div>
         {selected && data.editable && !data.highlight && (
           <>
-            <div className="edge-grip end nodrag nopan" style={handleStyle(p1)} onPointerDown={begin("source")} onDoubleClick={reset("sourceAnchor")} {...grab} title="Drag to move where the line starts (double-click: automatic)" data-testid="grip-source" />
-            <div className="edge-grip end nodrag nopan" style={handleStyle(p2)} onPointerDown={begin("target")} onDoubleClick={reset("targetAnchor")} {...grab} title="Drag to move where the line ends (double-click: automatic)" data-testid="grip-target" />
-            <div className="edge-grip bend nodrag nopan" style={handleStyle(bend)} onPointerDown={begin("bend")} onDoubleClick={reset("control")} {...grab} title="Drag to bend the line (double-click: straighten)" data-testid="grip-bend" />
+            <div
+              className="edge-grip end nodrag nopan"
+              style={handleStyle(p1)}
+              onPointerDown={begin("source")}
+              onDoubleClick={reset("sourceAnchor")}
+              {...grab}
+              title="Drag to move where the line starts (double-click: automatic)"
+              data-testid="grip-source"
+            />
+            <div
+              className="edge-grip end nodrag nopan"
+              style={handleStyle(p2)}
+              onPointerDown={begin("target")}
+              onDoubleClick={reset("targetAnchor")}
+              {...grab}
+              title="Drag to move where the line ends (double-click: automatic)"
+              data-testid="grip-target"
+            />
+            <div
+              className="edge-grip bend nodrag nopan"
+              style={handleStyle(bend)}
+              onPointerDown={begin("bend")}
+              onDoubleClick={reset("control")}
+              {...grab}
+              title="Drag to bend the line (double-click: straighten)"
+              data-testid="grip-bend"
+            />
           </>
         )}
       </EdgeLabelRenderer>

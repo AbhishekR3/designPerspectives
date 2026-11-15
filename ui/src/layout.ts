@@ -64,9 +64,7 @@ export async function autoLayout(
       ...SPACING,
     },
     children,
-    edges: edges
-      .filter((e) => ids.has(e.source) && ids.has(e.target) && e.source !== e.target)
-      .map((e, i) => ({ id: `e${i}`, sources: [e.source], targets: [e.target] })),
+    edges: edges.filter((e) => ids.has(e.source) && ids.has(e.target) && e.source !== e.target).map((e, i) => ({ id: `e${i}`, sources: [e.source], targets: [e.target] })),
   };
   const out = (await (await getElk()).layout(graph)) as ElkNode;
   const pos: Record<string, Pos> = {};
@@ -84,8 +82,7 @@ export async function autoLayout(
 
 // ---------------------------------------------------------------- free-space placement
 
-const overlaps = (a: Rect, b: Rect, gap: number) =>
-  a.x < b.x + b.w + gap && a.x + a.w + gap > b.x && a.y < b.y + b.h + gap && a.y + a.h + gap > b.y;
+const overlaps = (a: Rect, b: Rect, gap: number) => a.x < b.x + b.w + gap && a.x + a.w + gap > b.x && a.y < b.y + b.h + gap && a.y + a.h + gap > b.y;
 
 export function isFree(rect: Rect, others: Rect[], gap = GAP): boolean {
   return !others.some((o) => overlaps(rect, o, gap));
@@ -126,12 +123,7 @@ export function findFreeSpot(want: Pos, size: Size, others: Rect[], gap = GAP): 
  * Positions for boxes that have none yet, in an already laid-out diagram. A box that is connected to
  * a placed box goes next to it (to the right of its neighbour, or below it); others go below the drawing.
  */
-export function placeMissing(
-  placed: Record<string, Pos>,
-  sizes: Record<string, Size>,
-  missing: string[],
-  edges: { source: string; target: string }[],
-): Record<string, Pos> {
+export function placeMissing(placed: Record<string, Pos>, sizes: Record<string, Size>, missing: string[], edges: { source: string; target: string }[]): Record<string, Pos> {
   const rects = (): Rect[] =>
     Object.entries(placed).map(([id, p]) => {
       const sz = sizes[id] ?? { w: NODE_W, h: NODE_H };
@@ -147,9 +139,7 @@ export function placeMissing(
       want = { x: placed[nb].x + s.w + 120, y: placed[nb].y };
     } else {
       const all = Object.values(placed);
-      want = all.length
-        ? { x: Math.min(...all.map((p) => p.x)), y: Math.max(...Object.entries(placed).map(([k, p]) => p.y + (sizes[k]?.h ?? NODE_H))) + 100 }
-        : { x: 0, y: 0 };
+      want = all.length ? { x: Math.min(...all.map((p) => p.x)), y: Math.max(...Object.entries(placed).map(([k, p]) => p.y + (sizes[k]?.h ?? NODE_H))) + 100 } : { x: 0, y: 0 };
     }
     const spot = findFreeSpot(want, size, rects());
     placed[id] = spot;

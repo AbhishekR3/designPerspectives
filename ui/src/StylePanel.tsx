@@ -2,7 +2,28 @@ import { useEffect, useState } from "react";
 import { api } from "./api";
 import type { Style } from "./types";
 
-const SWATCHES = ["#ffffff", "#f4f4f5", "#dbeafe", "#bfdbfe", "#85bbf0", "#438dd5", "#1168bd", "#08427b", "#dcfce7", "#86efac", "#2ca02c", "#fef9c3", "#fde047", "#ff7f0e", "#fecaca", "#d62728", "#e9d5ff", "#9467bd", "#6b7280", "#111111"];
+const SWATCHES = [
+  "#ffffff",
+  "#f4f4f5",
+  "#dbeafe",
+  "#bfdbfe",
+  "#85bbf0",
+  "#438dd5",
+  "#1168bd",
+  "#08427b",
+  "#dcfce7",
+  "#86efac",
+  "#2ca02c",
+  "#fef9c3",
+  "#fde047",
+  "#ff7f0e",
+  "#fecaca",
+  "#d62728",
+  "#e9d5ff",
+  "#9467bd",
+  "#6b7280",
+  "#111111",
+];
 
 function ColorField({ label, value, onCommit, testId }: { label: string; value?: string; onCommit(v: string | null): void; testId: string }) {
   const [draft, setDraft] = useState(value ?? "#888888");
@@ -28,17 +49,7 @@ function ColorField({ label, value, onCommit, testId }: { label: string; value?:
 }
 
 /** Colours, line style and text size of one element or line. Stored per object, like draw.io / Lucidchart formatting. */
-export function StylePanel({
-  target,
-  style,
-  edge,
-  mutate,
-}: {
-  target: string;
-  style: Style;
-  edge: boolean;
-  mutate(fn: () => Promise<unknown>): Promise<boolean>;
-}) {
+export function StylePanel({ target, style, edge, mutate }: { target: string; style: Style; edge: boolean; mutate(fn: () => Promise<unknown>): Promise<boolean> }) {
   const save = (patch: Partial<Style>) => {
     const next: Record<string, unknown> = { ...style, ...patch };
     for (const k of Object.keys(next)) if (next[k] === null || next[k] === undefined || next[k] === "") delete next[k];

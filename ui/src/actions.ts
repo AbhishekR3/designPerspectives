@@ -190,15 +190,18 @@ export function diagramActions(c: {
     const sz = defaultSize(kind);
     const made = { id: "", relationshipId: undefined as string | undefined };
     const ok = await mutate(async () => {
-      Object.assign(made, await api.createElement({
-        kind,
-        name: kind === "softwareSystem" ? "New system" : `New ${kind}`,
-        uniqueName: true,
-        parentId: parentFor(kind, diagram),
-        diagramKey: key,
-        position: { x: Math.round(at.x - sz.w / 2), y: Math.round(at.y - sz.h / 2) },
-        connectFrom: sourceId,
-      }));
+      Object.assign(
+        made,
+        await api.createElement({
+          kind,
+          name: kind === "softwareSystem" ? "New system" : `New ${kind}`,
+          uniqueName: true,
+          parentId: parentFor(kind, diagram),
+          diagramKey: key,
+          position: { x: Math.round(at.x - sz.w / 2), y: Math.round(at.y - sz.h / 2) },
+          connectFrom: sourceId,
+        }),
+      );
       // Which side of the source box the line leaves from; saved with the edit above, not as an undo step of its own.
       if (sourceAnchor && made.relationshipId) await api.layout(key, { edges: { [made.relationshipId]: { sourceAnchor } } }, true);
     });
@@ -250,12 +253,7 @@ export function diagramActions(c: {
 }
 
 /** Starting, editing and discarding a draft (a planned change, edited on a copy of the model). */
-export function draftActions(c: {
-  state: AppState;
-  draftId: string | null;
-  switchVersion(model: string, compare: string | null): Promise<void>;
-  refresh(): Promise<unknown>;
-}) {
+export function draftActions(c: { state: AppState; draftId: string | null; switchVersion(model: string, compare: string | null): Promise<void>; refresh(): Promise<unknown> }) {
   const { state, draftId, switchVersion, refresh } = c;
   /** Create a draft and open it with its changes shown. Throws when the server refuses (the dialog shows why). */
   const createDraft = async (title: string, description: string) => {

@@ -1,21 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "./icons";
-import {
-  NONE,
-  bandRange,
-  counts,
-  encodeSpec,
-  formatMoney,
-  legendItems,
-  overlayable,
-  sameSpec,
-  specLabel,
-  techColors,
-  type Filter,
-  type OverlaySpec,
-  WORK_LABEL,
-  openWork,
-} from "./overlays";
+import { NONE, bandRange, counts, encodeSpec, formatMoney, legendItems, overlayable, sameSpec, specLabel, techColors, type Filter, type OverlaySpec, WORK_LABEL, openWork } from "./overlays";
 import type { AppState, Diagram, TagGroup } from "./types";
 
 type Tab = "tags" | "tech" | "char" | "cost" | "work" | "changes";
@@ -80,21 +65,21 @@ export function Dock({
     tab === "changes"
       ? [{ spec: { kind: "changes" }, label: `Against: ${state.compare?.title ?? "—"}`, count: els.filter((n) => n.change).length }]
       : tab === "tags"
-      ? groups.map((g) => ({ spec: { kind: "tag", name: g.name }, label: g.name, count: els.filter((n) => n.tags[g.name]).length }))
-      : tab === "char"
-        ? state.characteristics.map((c) => ({
-            spec: { kind: "char", name: c.name },
-            label: c.name,
-            title: c.description,
-            count: els.filter((n) => n.characteristics?.some((r) => r.name === c.name && r.rating)).length,
-          }))
-        : tab === "cost"
-          ? [{ spec: { kind: "cost" }, label: "Monthly cost", count: els.filter((n) => n.cost.length || n.costRollup > 0).length }]
-          : tab === "work"
-            ? Object.keys(WORK_LABEL).map((t) => ({ spec: { kind: "work", type: t } as OverlaySpec, label: WORK_LABEL[t], count: els.filter((n) => openWork(n, t).length).length }))
-          : tab === "tech"
-            ? [{ spec: { kind: "tech" }, label: "By technology", count: els.filter((n) => n.technologies?.length).length }]
-            : [];
+        ? groups.map((g) => ({ spec: { kind: "tag", name: g.name }, label: g.name, count: els.filter((n) => n.tags[g.name]).length }))
+        : tab === "char"
+          ? state.characteristics.map((c) => ({
+              spec: { kind: "char", name: c.name },
+              label: c.name,
+              title: c.description,
+              count: els.filter((n) => n.characteristics?.some((r) => r.name === c.name && r.rating)).length,
+            }))
+          : tab === "cost"
+            ? [{ spec: { kind: "cost" }, label: "Monthly cost", count: els.filter((n) => n.cost.length || n.costRollup > 0).length }]
+            : tab === "work"
+              ? Object.keys(WORK_LABEL).map((t) => ({ spec: { kind: "work", type: t } as OverlaySpec, label: WORK_LABEL[t], count: els.filter((n) => openWork(n, t).length).length }))
+              : tab === "tech"
+                ? [{ spec: { kind: "tech" }, label: "By technology", count: els.filter((n) => n.technologies?.length).length }]
+                : [];
 
   const active = overlay && tabOf(overlay) === tab ? overlay : null;
   const c = active ? counts(active, diagram, state, techs) : null;
@@ -152,13 +137,7 @@ export function Dock({
     <div className="dock" data-testid="dock" data-occludes="bottom">
       <div className="dock-tabs">
         {(state.compare ? [CHANGES_TAB, ...TABS] : TABS).map((t) => (
-          <button
-            key={t.id}
-            className={`float-btn${tab === t.id ? " on" : ""}`}
-            onClick={() => setTab(tab === t.id ? null : t.id)}
-            data-testid={`dock-${t.id}`}
-            aria-expanded={tab === t.id}
-          >
+          <button key={t.id} className={`float-btn${tab === t.id ? " on" : ""}`} onClick={() => setTab(tab === t.id ? null : t.id)} data-testid={`dock-${t.id}`} aria-expanded={tab === t.id}>
             <Icon name={t.icon} size={14} /> {t.label}
           </button>
         ))}
@@ -208,10 +187,13 @@ export function Dock({
           )}
           {active && c && (
             <div className="dock-values">
-              {items.map((it, i) =>
-                chip(it.key, it.label, it.color, c.byKey.get(it.key) ?? 0, active.kind === "cost" ? bandRange(i, state.costSettings) : undefined),
+              {items.map((it, i) => chip(it.key, it.label, it.color, c.byKey.get(it.key) ?? 0, active.kind === "cost" ? bandRange(i, state.costSettings) : undefined))}
+              {chip(
+                NONE,
+                active.kind === "char" ? "Not rated" : active.kind === "cost" ? "No cost" : active.kind === "work" ? "Nothing open" : active.kind === "changes" ? "Unchanged" : "No value",
+                null,
+                c.none,
               )}
-              {chip(NONE, active.kind === "char" ? "Not rated" : active.kind === "cost" ? "No cost" : active.kind === "work" ? "Nothing open" : active.kind === "changes" ? "Unchanged" : "No value", null, c.none)}
             </div>
           )}
           {!active && tab && subTabs.length > 0 && <div className="dock-note muted small">Choose one above to colour the objects.</div>}

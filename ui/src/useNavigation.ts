@@ -111,12 +111,7 @@ export function useHashSync(p: {
  * Show an element: select it on this diagram, or open the diagram it belongs to. With `home` it always opens
  * the diagram it belongs to (after a move, to see the element in its new place).
  */
-export function useReveal(
-  state: AppState | null,
-  diagram: Diagram | null,
-  setKey: Dispatch<SetStateAction<string | null>>,
-  setSelection: Dispatch<SetStateAction<Selection>>,
-) {
+export function useReveal(state: AppState | null, diagram: Diagram | null, setKey: Dispatch<SetStateAction<string | null>>, setSelection: Dispatch<SetStateAction<Selection>>) {
   return useCallback(
     (id: string, opts: { home?: boolean } = {}) => {
       if (!state) return;

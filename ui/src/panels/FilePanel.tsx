@@ -19,11 +19,19 @@ export function FilePanel({ node, ...p }: Common & { node: DiagramNode }) {
         <h4>
           Imports <span className="count">{imports.length}</span>
         </h4>
-        <ul>{imports.map((i) => <li key={i}>{name(i)}</li>)}</ul>
+        <ul>
+          {imports.map((i) => (
+            <li key={i}>{name(i)}</li>
+          ))}
+        </ul>
         <h4>
           Imported by <span className="count">{importedBy.length}</span>
         </h4>
-        <ul>{importedBy.map((i) => <li key={i}>{name(i)}</li>)}</ul>
+        <ul>
+          {importedBy.map((i) => (
+            <li key={i}>{name(i)}</li>
+          ))}
+        </ul>
       </div>
       {!p.state.readOnly && (
         <Section title="Appearance">

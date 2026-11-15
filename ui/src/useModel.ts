@@ -71,7 +71,7 @@ export function useModel(p: {
   const [loadError, setLoadError] = useState<string | null>(null);
   // Diagram and version switches in flight (edits are not counted: they have their own feedback). Shown as a thin loading bar.
   const [pending, setPending] = useState(0);
-  const track = useCallback(async <T,>(work: () => Promise<T>): Promise<T> => {
+  const track = useCallback(async <T>(work: () => Promise<T>): Promise<T> => {
     setPending((n) => n + 1);
     try {
       return await work();

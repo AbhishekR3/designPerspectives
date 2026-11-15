@@ -151,7 +151,7 @@ export function parseUsers(text: string, file = USERS_FILE): UserEntry[] {
     throw bad('expected an object with a "users" list.');
   }
   const seen = new Set<string>();
-  return ((doc as { users: unknown[] }).users).map((u, i) => {
+  return (doc as { users: unknown[] }).users.map((u, i) => {
     const at = `user ${i + 1}`;
     if (!u || typeof u !== "object" || Array.isArray(u)) throw bad(`${at} is not an object.`);
     const { name, role, password } = u as Record<string, unknown>;

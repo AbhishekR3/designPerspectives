@@ -55,7 +55,14 @@ export function Palette({ diagram, open, onToggle, onAdd }: { diagram: Diagram; 
   if (!items.length) return null;
   return (
     <div className={`palette float${open ? "" : " closed"}`} data-testid="palette" data-occludes="left">
-      <button className="palette-head ghost" onClick={onToggle} aria-expanded={open} aria-label={open ? "Collapse the Add palette" : "Open the Add palette"} title={open ? "Collapse the Add palette" : "Add objects to the diagram"} data-testid="palette-toggle">
+      <button
+        className="palette-head ghost"
+        onClick={onToggle}
+        aria-expanded={open}
+        aria-label={open ? "Collapse the Add palette" : "Open the Add palette"}
+        title={open ? "Collapse the Add palette" : "Add objects to the diagram"}
+        data-testid="palette-toggle"
+      >
         <Icon name="plus" size={14} /> <span>Add</span>
         <Icon name="chevron" size={12} className={open ? "flip" : ""} />
       </button>
@@ -77,7 +84,10 @@ export function Palette({ diagram, open, onToggle, onAdd }: { diagram: Diagram; 
                     e.dataTransfer.effectAllowed = "copy";
                   }}
                   onClick={() => onAdd(it)}
-                  title={blocked ?? `${it.label}: drag onto the diagram, or click to add${connects ? (diagram.level === "context" ? ". It is connected to the system." : ". It is connected to the selected box.") : ""}`}
+                  title={
+                    blocked ??
+                    `${it.label}: drag onto the diagram, or click to add${connects ? (diagram.level === "context" ? ". It is connected to the system." : ". It is connected to the selected box.") : ""}`
+                  }
                   data-testid={it.testId}
                 >
                   <Icon name={it.kind === "stage" ? "stage" : iconFor(it.kind, it.archType)} size={15} />

@@ -7,14 +7,7 @@ import { ShapeIcon } from "../shapes";
 import { StylePanel } from "../StylePanel";
 import { KIND_LABEL, type ElementSummary } from "../types";
 import type { Common } from "./common";
-import {
-  NotesEditor,
-  DetailsEditor,
-  TradeoffsEditor,
-  UsageEditor,
-  SensitiveEditor,
-  ConnectionList,
-} from "./sectionEditors";
+import { NotesEditor, DetailsEditor, TradeoffsEditor, UsageEditor, SensitiveEditor, ConnectionList } from "./sectionEditors";
 import { CharacteristicsEditor, CostEditor, WorkEditor } from "./valueEditors";
 import { confirmDeleteElement } from "../dialogs";
 
@@ -23,7 +16,7 @@ export function ObjectPanel({ element, ...p }: Common & { element: ElementSummar
   const save = (patch: object) => mutate(() => api.updateElement(element.id, patch));
   const has = (s: (typeof lens.visibleSections)[number]) => lens.visibleSections.includes(s);
   const subtree = new Set([element.id]);
-  for (let grew = true; grew; ) {
+  for (let grew = true; grew;) {
     grew = false;
     for (const e of state.elements)
       if (e.parentId && subtree.has(e.parentId) && !subtree.has(e.id)) {
@@ -47,51 +40,51 @@ export function ObjectPanel({ element, ...p }: Common & { element: ElementSummar
         {parent && <span className="muted"> in {parent.name}</span>}
       </div>
       <Fields loose>
-      <TextField label="Name" value={element.name} onCommit={(v) => p.onRename(element.id, v)} testId="field-name" autoFocus={p.focusName && !state.readOnly} />
-      <TextField label="Description" value={element.description} multiline onCommit={(v) => save({ description: v })} testId="field-description" />
-      {element.kind !== "person" && (
-        <label className="field">
-          <span>Symbol</span>
-          <div className="row">
-            <ShapeIcon type={element.archType || "box"} />
-            <select value={element.archType || "box"} onChange={(e) => save({ archType: e.target.value })} data-testid="field-arch" style={{ flex: 1 }}>
-              {state.enums.archTypes.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        </label>
-      )}
-      {hasTech && has("technology") && (
-        <TagInput label="Technology" value={element.technologies} suggestions={state.technologies} onChange={(v) => save({ technology: v })} testId="field-technology" />
-      )}
-      <TextField label="Owner" value={element.owner} onCommit={(v) => save({ owner: v })} testId="field-owner" />
-      {(element.kind === "person" || element.kind === "softwareSystem") && (
-        <label className="check">
-          <input type="checkbox" checked={element.location === "External"} onChange={(e) => save({ external: e.target.checked })} />
-          External (outside our organisation)
-        </label>
-      )}
-      {groups.length > 0 && (
-        <div className="tag-fields">
-          <h4>Tags</h4>
-          {groups.map((g) => (
-            <label className="field inline" key={g.name}>
-              <span>{g.name}</span>
-              <select value={element.tags[g.name] ?? ""} data-testid={`tag-${g.name}`} onChange={(e) => save({ tags: { [g.name]: e.target.value || null } })}>
-                <option value="">—</option>
-                {g.values.map((v) => (
-                  <option key={v.name} value={v.name}>
-                    {v.name}
+        <TextField label="Name" value={element.name} onCommit={(v) => p.onRename(element.id, v)} testId="field-name" autoFocus={p.focusName && !state.readOnly} />
+        <TextField label="Description" value={element.description} multiline onCommit={(v) => save({ description: v })} testId="field-description" />
+        {element.kind !== "person" && (
+          <label className="field">
+            <span>Symbol</span>
+            <div className="row">
+              <ShapeIcon type={element.archType || "box"} />
+              <select value={element.archType || "box"} onChange={(e) => save({ archType: e.target.value })} data-testid="field-arch" style={{ flex: 1 }}>
+                {state.enums.archTypes.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.label}
                   </option>
                 ))}
               </select>
-            </label>
-          ))}
-        </div>
-      )}
+            </div>
+          </label>
+        )}
+        {hasTech && has("technology") && (
+          <TagInput label="Technology" value={element.technologies} suggestions={state.technologies} onChange={(v) => save({ technology: v })} testId="field-technology" />
+        )}
+        <TextField label="Owner" value={element.owner} onCommit={(v) => save({ owner: v })} testId="field-owner" />
+        {(element.kind === "person" || element.kind === "softwareSystem") && (
+          <label className="check">
+            <input type="checkbox" checked={element.location === "External"} onChange={(e) => save({ external: e.target.checked })} />
+            External (outside our organisation)
+          </label>
+        )}
+        {groups.length > 0 && (
+          <div className="tag-fields">
+            <h4>Tags</h4>
+            {groups.map((g) => (
+              <label className="field inline" key={g.name}>
+                <span>{g.name}</span>
+                <select value={element.tags[g.name] ?? ""} data-testid={`tag-${g.name}`} onChange={(e) => save({ tags: { [g.name]: e.target.value || null } })}>
+                  <option value="">—</option>
+                  {g.values.map((v) => (
+                    <option key={v.name} value={v.name}>
+                      {v.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ))}
+          </div>
+        )}
       </Fields>
 
       {has("characteristics") && element.kind !== "person" && (
@@ -149,31 +142,31 @@ export function ObjectPanel({ element, ...p }: Common & { element: ElementSummar
       )}
       <Section title="Links" count={element.links.length + (element.url ? 1 : 0)}>
         <Fields>
-        <TextField label="Main link (URL)" value={element.url} onCommit={(v) => save({ url: v })} placeholder="https://" />
-        <ul className="links">
-          {element.links.map((l, i) => (
-            <li key={i}>
-              <a href={l.url} target="_blank" rel="noreferrer">
-                {l.label || l.url}
-              </a>
-              <button className="icon edit-only" aria-label="Remove link" title="Remove link" onClick={() => save({ links: element.links.filter((_, j) => j !== i) })}>
-                ×
-              </button>
-            </li>
-          ))}
-        </ul>
-        <div className="row edit-only">
-          <input placeholder="Label" value={newLink.label} onChange={(e) => setNewLink({ ...newLink, label: e.target.value })} />
-          <input placeholder="https://" value={newLink.url} onChange={(e) => setNewLink({ ...newLink, url: e.target.value })} />
-          <button
-            disabled={!newLink.url.trim()}
-            onClick={async () => {
-              if (await save({ links: [...element.links, newLink] })) setNewLink({ label: "", url: "" });
-            }}
-          >
-            Add
-          </button>
-        </div>
+          <TextField label="Main link (URL)" value={element.url} onCommit={(v) => save({ url: v })} placeholder="https://" />
+          <ul className="links">
+            {element.links.map((l, i) => (
+              <li key={i}>
+                <a href={l.url} target="_blank" rel="noreferrer">
+                  {l.label || l.url}
+                </a>
+                <button className="icon edit-only" aria-label="Remove link" title="Remove link" onClick={() => save({ links: element.links.filter((_, j) => j !== i) })}>
+                  ×
+                </button>
+              </li>
+            ))}
+          </ul>
+          <div className="row edit-only">
+            <input placeholder="Label" value={newLink.label} onChange={(e) => setNewLink({ ...newLink, label: e.target.value })} />
+            <input placeholder="https://" value={newLink.url} onChange={(e) => setNewLink({ ...newLink, url: e.target.value })} />
+            <button
+              disabled={!newLink.url.trim()}
+              onClick={async () => {
+                if (await save({ links: [...element.links, newLink] })) setNewLink({ label: "", url: "" });
+              }}
+            >
+              Add
+            </button>
+          </div>
         </Fields>
       </Section>
       {!state.readOnly && (

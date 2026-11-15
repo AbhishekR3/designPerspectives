@@ -43,7 +43,11 @@ function merged(base: Snapshot, ours: Snapshot, theirs: Snapshot) {
 describe("diffModels", () => {
   it("reports nothing for the same model", () => {
     const a = demo();
-    const cs = diffModels(a, changed(a, () => {}), "base");
+    const cs = diffModels(
+      a,
+      changed(a, () => {}),
+      "base",
+    );
     expect(cs.summary).toEqual({ added: 0, changed: 0, removed: 0, layout: 0, code: 0 });
   });
 
@@ -119,9 +123,7 @@ describe("merge3", () => {
     const base = demo();
     const main = changed(base, (ws, sc) => ops.updateElement(ws, sc, "atm", { name: "ATM 2" }));
     const draft = changed(base, (ws, sc) => ops.updateElement(ws, sc, "atm", { name: "ATM 3" }));
-    expect(merged(base, main, draft).conflicts).toEqual([
-      { label: 'Software system "ATM 3"', reason: "Changed in both main and the draft, differently." },
-    ]);
+    expect(merged(base, main, draft).conflicts).toEqual([{ label: 'Software system "ATM 3"', reason: "Changed in both main and the draft, differently." }]);
   });
 
   it("accepts the same change made on both sides", () => {
@@ -191,4 +193,3 @@ describe("merge3", () => {
     expect(cs.inner).toEqual(expect.arrayContaining(["api-application", "internet-banking-system", "pipeline-worker", "analytics-platform"]));
   });
 });
-

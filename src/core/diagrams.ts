@@ -66,8 +66,7 @@ export interface DiagramRef {
 /** A diagram as computed on the server, before styles and sizes are attached. */
 export type RawNode = Omit<DiagramNode, "style" | "size"> & Partial<Pick<DiagramNode, "style" | "size">>;
 export type RawEdge = Omit<DiagramEdge, "style" | "layout"> & Partial<Pick<DiagramEdge, "style" | "layout">>;
-export type RawDiagram = Omit<Diagram, "nodes" | "edges" | "breadcrumb" | "c4" | "addable"> &
-  Partial<Pick<Diagram, "breadcrumb" | "c4" | "addable">> & { nodes: RawNode[]; edges: RawEdge[] };
+export type RawDiagram = Omit<Diagram, "nodes" | "edges" | "breadcrumb" | "c4" | "addable"> & Partial<Pick<Diagram, "breadcrumb" | "c4" | "addable">> & { nodes: RawNode[]; edges: RawEdge[] };
 
 export function parseKey(key: string): DiagramRef | null {
   if (key === "landscape") return { key, level: "landscape", scope: null };
@@ -383,10 +382,7 @@ function staticDiagram(ws: Workspace, idx: Index, r: DiagramRef, drawn: Map<stri
       e.drillTargets = [];
     }
   }
-  const boundary =
-    r.level === "container" || r.level === "component"
-      ? { id: r.scope!, name: idx.elements.get(r.scope!)!.name, kind: idx.kindOf(r.scope!) }
-      : null;
+  const boundary = r.level === "container" || r.level === "component" ? { id: r.scope!, name: idx.elements.get(r.scope!)!.name, kind: idx.kindOf(r.scope!) } : null;
   return { key: r.key, level: r.level, scope: r.scope, title: titleOf(idx, r), boundary, nodes, edges };
 }
 

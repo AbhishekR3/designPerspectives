@@ -5,8 +5,7 @@ import { api, clickEmptyCanvas, confirmDialog, expect, node, openDiagram, test, 
 const elements = async (server: Server) => (await api(server, "/state")).elements as any[];
 const parentOf = async (server: Server, id: string) => (await elements(server)).find((e) => e.id === id)?.parentId;
 
-const post = (server: Server, path: string, body: object) =>
-  fetch(server.url + "api" + path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+const post = (server: Server, path: string, body: object) => fetch(server.url + "api" + path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 
 test("move a component to another container from the menu", async ({ page, server }) => {
   // Seven other containers is a short list; with more than eight targets there is a filter box.

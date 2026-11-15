@@ -25,9 +25,7 @@ export interface PromptOptions {
   validate?(value: string): string | null;
 }
 
-type Request =
-  | ({ kind: "confirm"; id: number; resolve(v: boolean): void } & ConfirmOptions)
-  | ({ kind: "prompt"; id: number; resolve(v: string | null): void } & PromptOptions);
+type Request = ({ kind: "confirm"; id: number; resolve(v: boolean): void } & ConfirmOptions) | ({ kind: "prompt"; id: number; resolve(v: string | null): void } & PromptOptions);
 
 let queue: Request[] = [];
 let nextId = 1;
@@ -135,5 +133,4 @@ export function confirmDeleteElement(el: { name: string; childCount: number }, o
   });
 }
 
-export const confirmDeleteRelationship = () =>
-  confirmDialog({ title: "Delete this relationship?", message: "Flow steps that use it are removed too.", confirmLabel: "Delete", danger: true });
+export const confirmDeleteRelationship = () => confirmDialog({ title: "Delete this relationship?", message: "Flow steps that use it are removed too.", confirmLabel: "Delete", danger: true });

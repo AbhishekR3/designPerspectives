@@ -46,11 +46,7 @@ export interface MenuState {
   keyboard?: boolean;
 }
 
-export function useContextMenu(p: {
-  setFocusName: Dispatch<SetStateAction<boolean>>;
-  setSelection: Dispatch<SetStateAction<Selection>>;
-  setExportOpen: Dispatch<SetStateAction<boolean>>;
-}) {
+export function useContextMenu(p: { setFocusName: Dispatch<SetStateAction<boolean>>; setSelection: Dispatch<SetStateAction<Selection>>; setExportOpen: Dispatch<SetStateAction<boolean>> }) {
   const { setFocusName, setSelection, setExportOpen } = p;
   const [menu, setMenu] = useState<MenuState | null>(null);
   const menuSeq = useRef(0);
@@ -116,11 +112,12 @@ export function menuItems(menu: MenuState | null, c: MenuContext): MenuItem[] {
   const { clipboard, styleClip, pasteFrom, pasteStyle } = c.clip;
   const frozen = !!diagram?.compare?.removed;
 
-  const styleItems = (target: string, style: Style, kind: "node" | "edge", canEdit: boolean): MenuItem[] => [
-    { label: "Copy style", icon: "brush", testId: "ctx-copy-style", onSelect: () => (styleClip.current = { ...style }) },
-    canEdit && { label: "Paste style", icon: "brush", testId: "ctx-paste-style", disabled: !styleClip.current, onSelect: () => pasteStyle(target, kind) },
-    canEdit && { label: "Reset style", testId: "ctx-reset-style", disabled: Object.keys(style).length === 0, onSelect: () => void mutate(() => api.style(target, null)) },
-  ].filter(Boolean) as MenuItem[];
+  const styleItems = (target: string, style: Style, kind: "node" | "edge", canEdit: boolean): MenuItem[] =>
+    [
+      { label: "Copy style", icon: "brush", testId: "ctx-copy-style", onSelect: () => (styleClip.current = { ...style }) },
+      canEdit && { label: "Paste style", icon: "brush", testId: "ctx-paste-style", disabled: !styleClip.current, onSelect: () => pasteStyle(target, kind) },
+      canEdit && { label: "Reset style", testId: "ctx-reset-style", disabled: Object.keys(style).length === 0, onSelect: () => void mutate(() => api.style(target, null)) },
+    ].filter(Boolean) as MenuItem[];
 
   /** Right-click on one of several selected boxes: only what makes sense for all of them. */
   const multiMenu = (ids: string[]): MenuItem[] => {
@@ -175,7 +172,14 @@ export function menuItems(menu: MenuState | null, c: MenuContext): MenuItem[] {
         },
       { sep: true },
       ...styleItems(n.id, n.style ?? {}, "node", canEdit),
-      canEdit && diagram?.level !== "flow" && { label: "Reset size", icon: "resize", testId: "ctx-reset-size", disabled: !n.size, onSelect: () => key && void mutate(() => api.layout(key, { sizes: { [n.id]: null } })) },
+      canEdit &&
+        diagram?.level !== "flow" && {
+          label: "Reset size",
+          icon: "resize",
+          testId: "ctx-reset-size",
+          disabled: !n.size,
+          onSelect: () => key && void mutate(() => api.layout(key, { sizes: { [n.id]: null } })),
+        },
       { sep: true },
       canEditEl && {
         label: n.childCount ? `Delete (and ${n.childCount} inside)` : "Delete",
@@ -202,8 +206,7 @@ export function menuItems(menu: MenuState | null, c: MenuContext): MenuItem[] {
     const head = e.style.arrowHead ?? "filled";
     return tidy([
       e.detailKey && { label: "Open connector", icon: "search", shortcut: "Double-click", testId: "ctx-open", onSelect: () => open(e.detailKey!) },
-      !e.detailKey &&
-        e.drillTargets.length === 1 && { label: "Open where it is drawn", icon: "search", shortcut: "Double-click", testId: "ctx-open", onSelect: () => open(e.drillTargets[0].key) },
+      !e.detailKey && e.drillTargets.length === 1 && { label: "Open where it is drawn", icon: "search", shortcut: "Double-click", testId: "ctx-open", onSelect: () => open(e.drillTargets[0].key) },
       !e.detailKey &&
         e.drillTargets.length > 1 && {
           label: "Open where it is drawn",
@@ -211,7 +214,12 @@ export function menuItems(menu: MenuState | null, c: MenuContext): MenuItem[] {
           testId: "ctx-open",
           submenu: e.drillTargets.map((t) => ({ label: t.title, onSelect: () => open(t.key) })),
         },
-      { label: relId && canEdit ? "Edit label…" : "Show details", icon: relId && canEdit ? "edit" : "panel", testId: "ctx-details", onSelect: () => (select({ type: "edge", id: e.id }), setFocusName(!!relId && canEdit)) },
+      {
+        label: relId && canEdit ? "Edit label…" : "Show details",
+        icon: relId && canEdit ? "edit" : "panel",
+        testId: "ctx-details",
+        onSelect: () => (select({ type: "edge", id: e.id }), setFocusName(!!relId && canEdit)),
+      },
       { sep: true },
       lineEditable && {
         label: "Line shape",

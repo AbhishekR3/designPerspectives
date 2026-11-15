@@ -291,11 +291,7 @@ export class Drafts {
     const draft = this.get(id);
     draft.reloadIfChanged();
     const base = this.base(id);
-    const { units, conflicts } = merge3(
-      flatten(base.workspace, base.sidecar),
-      flatten(this.main.workspace, this.main.sidecar),
-      flatten(draft.workspace, draft.sidecar),
-    );
+    const { units, conflicts } = merge3(flatten(base.workspace, base.sidecar), flatten(this.main.workspace, this.main.sidecar), flatten(draft.workspace, draft.sidecar));
     if (conflicts.length) return { merged: null, conflicts };
     let result: Snapshot;
     try {
@@ -344,8 +340,7 @@ class CodeJournal {
       try {
         if (b.content === null) {
           if (fs.existsSync(b.file)) fs.rmSync(b.file, { force: true });
-        }
-        else {
+        } else {
           fs.mkdirSync(path.dirname(b.file), { recursive: true });
           fs.writeFileSync(b.file, b.content);
           fs.chmodSync(b.file, b.mode);

@@ -15,7 +15,15 @@
   --warn-bg: #2c2412;
   --warn-line: #6b5420;
   --shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    "Helvetica Neue",
+    Arial,
+    sans-serif;
   font-size: 13px;
   color: var(--text);
   color-scheme: dark;

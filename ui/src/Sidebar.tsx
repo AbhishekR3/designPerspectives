@@ -81,8 +81,15 @@ export function Sidebar({
         <ul className="tree" data-testid="diagram-list">
           {rows.map(({ d, empty }) => (
             <li key={d.key} style={{ paddingLeft: d.depth * 14 }}>
-              <button className={`link tree-link ${d.key === currentKey ? "active" : ""}`} onClick={() => onOpen(d.key)} data-testid={`diagram-${d.key}`} title={empty ? `${d.title}: nothing inside yet` : d.title}>
-                <span className={`level-tag c4-${d.c4}`} data-testid={`level-${d.key}`}>{d.c4}</span>
+              <button
+                className={`link tree-link ${d.key === currentKey ? "active" : ""}`}
+                onClick={() => onOpen(d.key)}
+                data-testid={`diagram-${d.key}`}
+                title={empty ? `${d.title}: nothing inside yet` : d.title}
+              >
+                <span className={`level-tag c4-${d.c4}`} data-testid={`level-${d.key}`}>
+                  {d.c4}
+                </span>
                 <span className="tree-label">
                   {d.level === "connector" ? "⇢ " : ""}
                   {d.level === "landscape" ? "System landscape" : d.level === "context" ? `${d.label} (context)` : d.label}
@@ -110,7 +117,13 @@ export function Sidebar({
                 {l.builtin && <span className="muted small"> built-in</span>}
               </span>
               {canEdit && (
-                <button className="ghost icon" onClick={() => onEditLens(l)} title={l.builtin ? "Duplicate lens" : "Edit lens"} aria-label={`${l.builtin ? "Duplicate" : "Edit"} the lens ${l.name}`} data-testid={l.id === lens.id ? "lens-edit" : undefined}>
+                <button
+                  className="ghost icon"
+                  onClick={() => onEditLens(l)}
+                  title={l.builtin ? "Duplicate lens" : "Edit lens"}
+                  aria-label={`${l.builtin ? "Duplicate" : "Edit"} the lens ${l.name}`}
+                  data-testid={l.id === lens.id ? "lens-edit" : undefined}
+                >
                   {l.builtin ? "⧉" : "✎"}
                 </button>
               )}

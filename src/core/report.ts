@@ -82,7 +82,7 @@ export function diffMarkdown(cs: ChangeSet, before: Snapshot, after: Snapshot, b
   const where = (id: string, removed: boolean) => {
     const idx = removed ? ia : ib;
     const p = idx.parentOf(id);
-    return p ? idx.elements.get(p)?.name ?? p : "";
+    return p ? (idx.elements.get(p)?.name ?? p) : "";
   };
   if (cs.elements.length) {
     out.push("### Elements", "", "| Change | Type | Name | In | What changed |", "|---|---|---|---|---|");

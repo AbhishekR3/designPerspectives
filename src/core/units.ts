@@ -51,12 +51,17 @@ export const isLayoutUnit = (u: Unit): boolean => u.t === "vel" || u.t === "lay"
 /** JSON with sorted object keys, so equal values compare equal whatever their key order. */
 export function canon(v: unknown): string {
   return JSON.stringify(v, (_k, x) =>
-    isObj(x) ? Object.fromEntries(Object.keys(x).sort().map((k) => [k, x[k]])) : x,
+    isObj(x)
+      ? Object.fromEntries(
+          Object.keys(x)
+            .sort()
+            .map((k) => [k, x[k]]),
+        )
+      : x,
   );
 }
 
-export const sameUnit = (a: Unit | undefined, b: Unit | undefined): boolean =>
-  a === b || (a !== undefined && b !== undefined && canon(a) === canon(b));
+export const sameUnit = (a: Unit | undefined, b: Unit | undefined): boolean => a === b || (a !== undefined && b !== undefined && canon(a) === canon(b));
 
 const SIDECAR_SPLIT = new Set(["tagGroups", "lenses", "styles", "layouts"]);
 const LAYOUT_SECTIONS = ["sizes", "edges", "positions"];

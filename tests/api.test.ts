@@ -69,7 +69,11 @@ describe("API", () => {
         ],
       }),
     );
-    for (const [e, v] of [["api-application", "High"], ["database", "Medium"], ["mobile-app", "Low"]]) {
+    for (const [e, v] of [
+      ["api-application", "High"],
+      ["database", "Medium"],
+      ["mobile-app", "Low"],
+    ]) {
       await ok(c.patch(`/api/elements/${e}`, { tags: { Priority: v } }));
     }
     const d = await ok(c.get("/api/diagrams/containers-internet-banking-system"));

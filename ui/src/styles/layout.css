@@ -151,10 +151,22 @@ button.link.tree-link .tree-mark {
   text-align: center;
   font-weight: 500;
 }
-.level-tag.c4-C1 { color: #93c5fd; border-color: #31507a; }
-.level-tag.c4-C2 { color: #7dd3fc; border-color: #1e5670; }
-.level-tag.c4-C3 { color: #a5f3fc; border-color: #1f5a63; }
-.level-tag.c4-C4 { color: #86efac; border-color: #25573a; }
+.level-tag.c4-C1 {
+  color: #93c5fd;
+  border-color: #31507a;
+}
+.level-tag.c4-C2 {
+  color: #7dd3fc;
+  border-color: #1e5670;
+}
+.level-tag.c4-C3 {
+  color: #a5f3fc;
+  border-color: #1f5a63;
+}
+.level-tag.c4-C4 {
+  color: #86efac;
+  border-color: #25573a;
+}
 .footer {
   margin-top: auto;
   padding-top: 10px;

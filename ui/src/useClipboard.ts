@@ -12,11 +12,7 @@ type Mutate = (fn: () => Promise<unknown>) => Promise<boolean>;
  * Copy/paste/duplicate of elements (the clipboard holds an element id; Paste adds a copy of it),
  * and Copy style / Paste style (like a format painter). Both are kept for the session.
  */
-export function useClipboard(p: {
-  keyRef: RefObject<string | null>;
-  mutate: Mutate;
-  setSelection: Dispatch<SetStateAction<Selection>>;
-}) {
+export function useClipboard(p: { keyRef: RefObject<string | null>; mutate: Mutate; setSelection: Dispatch<SetStateAction<Selection>> }) {
   const { keyRef, mutate, setSelection } = p;
   const clipboard = useRef<string | null>(null);
   /** Copy style / Paste style (like a format painter), kept for the session. */
