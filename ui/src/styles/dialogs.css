@@ -162,9 +162,17 @@
   justify-content: space-between;
   align-items: center;
 }
+.modal-head {
+  gap: 8px;
+}
 .modal-head h2 {
   margin: 0;
   font-size: 16px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.modal-head button {
+  flex: none;
 }
 .modal-actions {
   display: flex;

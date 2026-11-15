@@ -78,7 +78,8 @@ export const api = {
   redo: () => request<{ ok: boolean }>("POST", "/redo"),
   codeTree: (path = "") => request<{ entries: { name: string; path: string; type: "dir" | "file" }[] }>("GET", `/code/tree?path=${enc(path)}`),
   codeFile: (path: string) => request<CodeFile>("GET", `/code/file?path=${enc(path)}`),
-  newCodeFile: (path: string, content = "") => request<{ path: string }>("POST", "/code/file", { path, content }),
+  /** Plan a new file in the draft; with `mapTo` (an element or relationship id) its path is added to that object's code paths in the same step. */
+  newCodeFile: (path: string, content = "", mapTo?: string) => request<{ path: string }>("POST", "/code/file", { path, content, ...(mapTo ? { mapTo } : {}) }),
   deleteCodeFile: (path: string) => request("DELETE", `/code/file?path=${enc(path)}`),
   revertCodeFile: (path: string) => request("POST", "/code/revert", { path }),
   saveCodeFile: (path: string, content: string, mtime: number) => request<{ path: string; mtime: number }>("PUT", "/code/file", { path, content, mtime }),

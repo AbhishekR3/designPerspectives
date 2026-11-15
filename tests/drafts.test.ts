@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { client, demoDir, ok } from "./helpers.js";
+import { client, demoDir, ok, tmpDir } from "./helpers.js";
 
 const draftDir = (dir: string, id: string) => path.join(dir, "architecture", "drafts", id);
 const mainFile = (dir: string) => fs.readFileSync(path.join(dir, "architecture", "workspace.json"), "utf-8");
@@ -211,6 +211,50 @@ describe("drafts", () => {
     // Main added a relationship that the move turns into one between parent and child.
     const rule = await reasons((c) => ok(c.post("/api/relationships", { sourceId: "database", destinationId: "analytics-platform" })));
     expect(rule.join(" ")).toMatch(/one of which contains the other/);
+  });
+  it("records who started a draft: the client's name, else the git user name; old drafts still load", async () => {
+    const cfg = path.join(tmpDir(), "gitconfig");
+    fs.writeFileSync(cfg, "[user]\n\tname = Pat Git\n");
+    const saved = { g: process.env.GIT_CONFIG_GLOBAL, n: process.env.GIT_CONFIG_NOSYSTEM };
+    process.env.GIT_CONFIG_GLOBAL = cfg;
+    process.env.GIT_CONFIG_NOSYSTEM = "1";
+    try {
+      const dir = demoDir();
+      const c = client(dir);
+      const a = await ok(c.post("/api/drafts", { title: "From git" }));
+      const b = await ok(c.post("/api/drafts", { title: "From client", author: " Sam " }));
+      expect((await c.post("/api/drafts", { title: "Too long", author: "x".repeat(81) })).status).toBe(422);
+      expect((await c.post("/api/drafts", { title: "Not text", author: 5 })).status).toBe(422);
+      const list = (await ok(c.get("/api/state"))).drafts;
+      expect(list.find((d: any) => d.id === a.id).author).toBe("Pat Git");
+      expect(list.find((d: any) => d.id === b.id).author).toBe("Sam");
+      // Renaming keeps it; a draft.json without it loads without one.
+      await ok(c.patch(`/api/drafts/${a.id}`, { title: "Renamed" }));
+      expect(JSON.parse(fs.readFileSync(path.join(draftDir(dir, a.id), "draft.json"), "utf-8")).author).toBe("Pat Git");
+      fs.writeFileSync(path.join(draftDir(dir, a.id), "draft.json"), JSON.stringify({ title: "Old", created: "2024-01-01" }));
+      expect((await ok(c.get("/api/state"))).drafts.find((d: any) => d.id === a.id)).not.toHaveProperty("author");
+      expect((await ok(c.get(`/api/drafts/${b.id}/plan`))).markdown).toContain(`Draft \`${b.id}\` · by Sam`);
+    } finally {
+      for (const [k, v] of [["GIT_CONFIG_GLOBAL", saved.g], ["GIT_CONFIG_NOSYSTEM", saved.n]] as const) {
+        if (v === undefined) delete process.env[k];
+        else process.env[k] = v;
+      }
+    }
+  });
+
+  it("counts the objects main changed since the draft started", async () => {
+    const c = client();
+    const { id } = await ok(c.post("/api/drafts", { title: "Behind" }));
+    const behind = async () => (await ok(c.get("/api/state"))).drafts[0].behind;
+    expect(await behind()).toBe(0);
+    await ok(c.patch("/api/elements/database", { description: "Changed in main" }));
+    await ok(c.post("/api/elements", { kind: "container", parentId: "internet-banking-system", name: "Cache" }));
+    const n = await behind();
+    expect(n).toBeGreaterThanOrEqual(2);
+    expect(await behind()).toBe(n);
+    // Edits in the draft itself do not count.
+    await ok(c.at(`draft:${id}`).patch("/api/elements/mobile-app", { description: "Draft only" }));
+    expect(await behind()).toBe(n);
   });
 });
 

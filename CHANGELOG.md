@@ -40,6 +40,13 @@
   only, fewer sections). The chosen lens is remembered per project folder. See DEC-038.
 - First-run card "Start your architecture" on an empty landscape; other empty diagrams show a hint.
 - `dp serve --demo` and `dp init --demo` create the sample model with its sample code.
+- New draft dialog: a title and an optional description. A duplicate title is refused in the dialog.
+- Drafts record an optional `author`. The client sends it; otherwise it comes from `git config user.name`. The author shows in the drafts list and in the `dp plan` Markdown header.
+- Drafts list: rows show the author and date. A row menu has Rename, Edit description and Discard.
+- "main +N" badge on a draft: how many objects main changed since the draft started.
+- "+ New planned file" in the element panel for a component or container in a draft. It creates the file and maps the path in one request (`POST /api/code/file` with `mapTo`); both happen or neither.
+- Success toasts for apply and discard.
+- The state response carries a `version`. When the window regains focus, the UI reloads only if the model changed (git checkout, another tab, the CLI).
 
 ### Changed
 - API clients must send `Content-Type: application/json` with a request body (415 otherwise).
@@ -53,6 +60,11 @@
 - The sidebar lists every software system. A system with no containers is one entry marked "(empty)".
 - Boxes that can be opened show a muted open mark on hover.
 - The toolbar hides Undo, Redo and Auto-layout in read-only views.
+- Apply dialog: a draft with only planned code edits is no longer shown as "changes nothing". Stale conflicts clear when the code option is toggled. The undo text says that undo restores the model only, not written code files or the draft.
+- Coding plan dialog: "Checking…" while loading, a failed check is shown in the dialog, the branch is saved once, and Copy Markdown confirms.
+- File editor: Ctrl/Cmd+S saves only when Save is enabled. Tab no longer edits a read-only file. A Loading… state is shown, and long paths wrap.
+- Right-click menu: scrolling inside it no longer closes it. Shift+F10 or the menu key opens it for the selection.
+- A removed (ghost) file box no longer shows an editable file panel.
 
 ### Fixed
 - `dp plan --against <ref>` exits 2 when there is no code to check against (for example, the code
@@ -78,6 +90,12 @@
 - The Delete key respects read-only and compare-only views, and uses the same confirm wording as the menu.
 - One rename request is sent per Enter.
 - Shortcuts do not fire while you type in a field. `?` toggles the help.
+- A draft or git version that cannot load no longer locks the UI. The previous version, overlay and URL are restored, and the error names what failed.
+- A bad version in the URL on first load falls back to main with a notice. A main model that cannot load shows a Retry button.
+- Only the newest response is applied, so a box no longer jumps back after quick edits or drags.
+- An edit that saved but whose reload failed says "Saved, but the view could not be refreshed", with Retry. Follow-ups (select, rename) still run.
+- Back and Forward across a version switch land on the right diagram and add no stray history entries.
+- Ctrl/Cmd+S on a file planned for deletion no longer drops the planned deletion silently.
 
 ### Security
 - Requests must be addressed to a loopback host (`localhost`, `127.0.0.1`, `[::1]`) when the server

@@ -42,6 +42,8 @@ export interface MenuState {
   y: number;
   target: ContextTarget;
   seq: number;
+  /** Opened from the keyboard: the first row starts highlighted. */
+  keyboard?: boolean;
 }
 
 export function useContextMenu(p: {
@@ -54,14 +56,14 @@ export function useContextMenu(p: {
   const menuSeq = useRef(0);
   const closeMenu = useCallback(() => setMenu(null), []);
   /** Right-click: a box or line is selected too (as a click would), then the menu opens at the pointer. */
-  const openMenu = useCallback((target: ContextTarget, at: Pt) => {
+  const openMenu = useCallback((target: ContextTarget, at: Pt, keyboard = false) => {
     if (target.type !== "pane") {
       setFocusName(false);
       // A box that is one of several selected keeps the selection: the menu then acts on all of them.
       setSelection((cur) => (cur?.type === "nodes" && target.type === "node" && cur.ids.includes(target.id) ? cur : target));
     }
     setExportOpen(false);
-    setMenu({ x: at.x, y: at.y, target, seq: ++menuSeq.current });
+    setMenu({ x: at.x, y: at.y, target, seq: ++menuSeq.current, keyboard });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- setExportOpen, setFocusName, setSelection are stable (state setters or refs), so it is safe to leave out of the dependencies
   }, []);
   return { menu, setMenu, closeMenu, openMenu };

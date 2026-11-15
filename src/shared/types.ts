@@ -406,6 +406,10 @@ export interface DraftInfo {
   title: string;
   description: string;
   created: string;
+  /** Who started the draft (the signed-in user or the git user name); absent when unknown. */
+  author?: string;
+  /** Objects added, changed or removed in the main model since the draft started. */
+  behind: number;
   /** The git branch where the code for this draft is written (for the progress check). */
   branch: string;
   /** A link to the pull request or ticket. */
@@ -440,6 +444,8 @@ export interface CodingPlan {
   draftId: string;
   title: string;
   description: string;
+  /** Who started the draft; absent when unknown. */
+  author?: string;
   branch: string;
   link: string;
   /** What the code was checked against, e.g. "the code folder", "git feature/x (a1b2c3d)"; null: not checked. */

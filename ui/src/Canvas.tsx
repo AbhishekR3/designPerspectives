@@ -33,6 +33,9 @@ export interface CanvasHandle {
   nudge(ids: string[], dx: number, dy: number): void;
   fit(): void;
   zoom(dir: 1 | -1): void;
+  /** Where the right-click menu opens from the keyboard: on the selected box or line (its centre on
+   *  screen), else the middle of the canvas. */
+  menuSpot(selection: Selection): { target: ContextTarget; client: Pt } | null;
 }
 
 /** How overlays and filters show one element: colour/chip, hidden by a Hide filter, in or out of focus. */
@@ -427,6 +430,25 @@ export function Canvas({ diagram, lens, decorate, actions, archTypes, renameId, 
       zoom(dir) {
         if (dir > 0) rf.zoomIn({ duration: 150 });
         else rf.zoomOut({ duration: 150 });
+      },
+      menuSpot(selection) {
+        const box = wrapper.current?.getBoundingClientRect();
+        if (!box) return null;
+        const inside = (r: DOMRect): Pt => ({
+          x: Math.min(Math.max(r.left + r.width / 2, box.left + 8), box.right - 8),
+          y: Math.min(Math.max(r.top + r.height / 2, box.top + 8), box.bottom - 8),
+        });
+        const find = (cls: string, id: string) => [...(wrapper.current?.querySelectorAll<HTMLElement | SVGElement>(`.${cls}`) ?? [])].find((e) => e.getAttribute("data-id") === id);
+        if (selection?.type === "node" || selection?.type === "nodes") {
+          const id = selection.type === "node" ? selection.id : selection.ids[0];
+          const el = id ? find("react-flow__node", id) : undefined;
+          if (id && el) return { target: { type: "node", id }, client: inside(el.getBoundingClientRect()) };
+        } else if (selection?.type === "edge") {
+          const el = find("react-flow__edge", selection.id);
+          if (el) return { target: { type: "edge", id: selection.id }, client: inside(el.getBoundingClientRect()) };
+        }
+        const client = { x: box.left + box.width / 2, y: box.top + box.height / 2 };
+        return { target: { type: "pane", at: rf.screenToFlowPosition(client) }, client };
       },
       async exportImage(format) {
         await run(async () => {

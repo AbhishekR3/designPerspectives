@@ -10,7 +10,9 @@ export function registerDrafts(app: Hono, ctx: Ctx): void {
 
   app.post("/api/drafts", async (c) => {
     const b = await objBody(c);
-    return c.json({ id: drafts.create(needStr(b, "title"), optStr(b, "description") ?? "") });
+    const author = optStr(b, "author")?.trim() ?? null;
+    if (author !== null && author.length > 80) throw new HttpError(422, '"author" can be at most 80 characters.');
+    return c.json({ id: drafts.create(needStr(b, "title"), optStr(b, "description") ?? "", author) });
   });
 
   app.patch("/api/drafts/:id", async (c) => {

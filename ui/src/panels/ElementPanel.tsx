@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { api } from "../api";
-import { CodePaths } from "../CodeParts";
+import { CodePaths, NewPlannedFile } from "../CodeParts";
 import { Section, TagInput, TextField } from "../fields";
 import { formatMoney, openWork } from "../overlays";
 import { ShapeIcon } from "../shapes";
@@ -139,6 +139,9 @@ export function ObjectPanel({ element, ...p }: Common & { element: ElementSummar
             onSave={(paths) => save({ codePaths: paths })}
             onOpenDiagram={element.kind === "person" ? undefined : () => p.onOpen(`code-${element.id}`)}
           />
+          {(element.kind === "component" || element.kind === "container") && state.model.ref.startsWith("draft:") && !state.readOnly && (
+            <NewPlannedFile ownerId={element.id} paths={element.codePaths} mutate={mutate} onOpenFile={p.onOpenFile} />
+          )}
         </Section>
       )}
       <Section title="Links" count={element.links.length + (element.url ? 1 : 0)}>

@@ -2,7 +2,7 @@ import { ReactFlowProvider } from "@xyflow/react";
 import { useEffect, useRef, useState } from "react";
 import { draftActions, diagramActions, useElementActions } from "./actions";
 import { api } from "./api";
-import { ApplyDialog, ChangeDetails, ChangeList, DraftList, GhostPanel, PlanDialog, VersionStrip } from "./ChangesPanel";
+import { ApplyDialog, ChangeDetails, ChangeList, DraftDialog, DraftList, GhostPanel, PlanDialog, VersionStrip } from "./ChangesPanel";
 import { Canvas, type CanvasHandle } from "./Canvas";
 import { ContextMenu, type MenuItem } from "./ContextMenu";
 import { Dock } from "./Dock";
@@ -29,9 +29,9 @@ import { usePanels } from "./usePanels";
 import { useSelection } from "./useSelection";
 import { useShortcuts } from "./useShortcuts";
 import { confirmDialog, DialogHost, promptDialog } from "./dialogs";
-import { Toasts } from "./notify";
+import { notify, Toasts } from "./notify";
 
-type ModalState = { type: "tag"; group: TagGroup | null } | { type: "lens"; lens: Lens | null } | { type: "chars" } | { type: "cost" } | { type: "apply"; draftId: string; title: string } | { type: "plan"; draftId: string } | null;
+type ModalState = { type: "tag"; group: TagGroup | null } | { type: "lens"; lens: Lens | null } | { type: "chars" } | { type: "cost" } | { type: "apply"; draftId: string; title: string } | { type: "plan"; draftId: string } | { type: "draft"; mode: "new" } | { type: "draft"; mode: "rename" | "description"; draftId: string } | null;
 
 export default function App() {
   // State. Hook order matters only for effects, which run in this order: first load (useModel),
@@ -89,7 +89,7 @@ export default function App() {
       reveal(movedTo.id, { home: true });
     }
   }, [movedTo, state, reveal]);
-  useShortcuts({ state, diagram, selection, setSelection, setFocusName, setRenameId, setSearchOpen, doHistory, clipboard: clip.clipboard, pasteFrom, deleteRelationship, nodeActions, toggleHelp: () => setHelpOpen((o) => !o), canvasRef });
+  useShortcuts({ state, diagram, selection, setSelection, setFocusName, setRenameId, setSearchOpen, doHistory, clipboard: clip.clipboard, pasteFrom, deleteRelationship, nodeActions, toggleHelp: () => setHelpOpen((o) => !o), canvasRef, openMenu });
 
   if (!state || !lens) {
     return (
@@ -110,7 +110,7 @@ export default function App() {
 
   const visibleGroups = state.tagGroups.filter((g) => !lens.hiddenTagGroups.includes(g.name));
   const draftId = version.model.startsWith("draft:") ? version.model.slice(6) : null;
-  const { newDraft, discardDraft } = draftActions({ state, draftId, switchVersion });
+  const { createDraft, updateDraft, discardDraft } = draftActions({ state, draftId, switchVersion, refresh });
   const changeOf = (id: string) => (changes ? [...changes.elements, ...changes.relationships].find((c) => c.id === id) : undefined);
   const againstLabel = state.compare?.title ?? "the compared version";
   const { newFlow, addItem, connectToEmpty, connect, savePositions } = diagramActions({
@@ -208,7 +208,10 @@ export default function App() {
             <DraftList
               state={state}
               onSwitch={(ref) => switchVersion(ref, ref.startsWith("draft:") ? "base" : null)}
-              onNewDraft={newDraft}
+              onNewDraft={() => setModal({ type: "draft", mode: "new" })}
+              onRename={(d) => setModal({ type: "draft", mode: "rename", draftId: d.id })}
+              onEditDescription={(d) => setModal({ type: "draft", mode: "description", draftId: d.id })}
+              onDiscard={(d) => void discardDraft(d.id, d.title)}
               onCompareRef={(r) => switchVersion(version.model.startsWith("ref:") ? "main" : version.model, `ref:${r}`)}
             />
           }
@@ -235,7 +238,7 @@ export default function App() {
             setShowChanges={(v) => switchVersion(version.model, v ? "base" : null)}
             onApply={() => draftId && setModal({ type: "apply", draftId, title: state.model.title.replace(/^Draft: /, "") })}
             onPlan={() => draftId && setModal({ type: "plan", draftId })}
-            onDiscard={discardDraft}
+            onDiscard={() => void discardDraft()}
             onStopCompare={() => switchVersion(version.model, null)}
             onExit={() => switchVersion("main", null)}
           />
@@ -407,7 +410,7 @@ export default function App() {
         {!showGhost && selectedChange && selectedChange.change !== "added" && <ChangeDetails change={selectedChange} against={againstLabel} />}
         {!showGhost && selectedElement && diagram && <ObjectPanel key={selectedElement.id} element={selectedElement} {...panelProps} />}
         {!showGhost && !selectedElement && selectedNode?.kind === "stage" && diagram && <StagePanel key={selectedNode.id} node={selectedNode} {...panelProps} />}
-        {!selectedElement && selectedNode?.kind === "file" && diagram && <FilePanel key={selectedNode.id} node={selectedNode} {...panelProps} />}
+        {!showGhost && !selectedElement && selectedNode?.kind === "file" && diagram && <FilePanel key={selectedNode.id} node={selectedNode} {...panelProps} />}
         {!showGhost && selection?.type === "edge" && diagram && <EdgePanel key={selection.id} edgeId={selection.id} {...panelProps} />}
         {!selection && flow && (
           <FlowPanel
@@ -448,7 +451,7 @@ export default function App() {
         )}
       </aside>
 
-      {menu && shownMenu.length > 0 && <ContextMenu key={menu.seq} x={menu.x} y={menu.y} items={shownMenu} onClose={closeMenu} />}
+      {menu && shownMenu.length > 0 && <ContextMenu key={menu.seq} x={menu.x} y={menu.y} items={shownMenu} keyboard={menu.keyboard} onClose={closeMenu} />}
       {choiceMenu && <ContextMenu key={`choice-${choiceMenu.seq}`} x={choiceMenu.x} y={choiceMenu.y} items={choiceMenu.items} keyboard onClose={() => setChoiceMenu(null)} />}
       {movingEl && canMove(movingEl) && (
         <MoveDialog
@@ -486,7 +489,19 @@ export default function App() {
           onClose={() => setModal(null)}
           onApplied={() => {
             setModal(null);
+            notify.success(`Applied "${modal.title}" to the main model.`);
             void switchVersion("main", null);
+          }}
+        />
+      )}
+      {modal?.type === "draft" && (
+        <DraftDialog
+          mode={modal.mode}
+          draft={modal.mode === "new" ? undefined : state.drafts.find((d) => d.id === modal.draftId)}
+          onClose={() => setModal(null)}
+          onSubmit={async ({ title, description }) => {
+            if (modal.mode === "new") await createDraft(title, description);
+            else await updateDraft(modal.draftId, modal.mode === "rename" ? { title } : { description });
           }}
         />
       )}

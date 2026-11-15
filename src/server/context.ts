@@ -7,7 +7,7 @@ import * as diagrams from "../core/diagrams.js";
 import { diffModels } from "../core/diff.js";
 import { Drafts } from "../core/drafts.js";
 import { DiskCode, NO_CODE, type CodeSource } from "../core/codefs.js";
-import { currentBranch, GitCodes, GitModels, listRefs } from "../core/git.js";
+import { currentBranch, GitCodes, GitModels, gitUserName, listRefs } from "../core/git.js";
 import * as flows from "../core/flows.js";
 import { isObj, type Obj } from "../core/json.js";
 import * as ops from "../core/ops.js";
@@ -167,7 +167,7 @@ export interface Ctx {
 export function createContext(root: string, opts: AppOptions = {}): Ctx {
   const readOnly = opts.readOnly ?? false;
   const project = new Project(root, opts.codeRoot);
-  const drafts = new Drafts(project);
+  const drafts = new Drafts(project, gitUserName(project.dir));
   const gitModels = new GitModels(project.dir);
   const gitCodes = new GitCodes(project.codeRoot);
   const disk = new DiskCode(project.codeRoot);

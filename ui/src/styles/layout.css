@@ -315,3 +315,51 @@
   gap: 8px;
   flex-wrap: wrap;
 }
+
+/* Drafts list: title (ellipsis) and the "⋯" menu on one line, author and date below. */
+.tree li.draft-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 4px;
+  margin: 3px 0;
+}
+.draft-row .draft-title {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.draft-menu-wrap {
+  position: relative;
+  display: inline-block;
+}
+.draft-menu-wrap .pop-menu {
+  margin-top: 2px;
+}
+.draft-row .draft-sub {
+  grid-column: 1 / -1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.behind-badge {
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 0 5px;
+  white-space: nowrap;
+  cursor: help;
+}
+.draft-strip .behind-badge {
+  color: inherit;
+  opacity: 0.75;
+}
+.draft-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.draft-form .field textarea {
+  resize: vertical;
+}

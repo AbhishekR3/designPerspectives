@@ -2,13 +2,13 @@
 
 import type { Hono } from "hono";
 import * as codemod from "../../core/code.js";
-import { codeRel } from "../../core/codefs.js";
+import { checkSize, codeRel } from "../../core/codefs.js";
 import { str } from "../../core/json.js";
-import { ModelError } from "../../core/ops.js";
+import { addCodePath, codePathCovered, ModelError } from "../../core/ops.js";
 import { HttpError, num, objBody, type Ctx } from "../context.js";
 
 export function registerCode(app: Hono, ctx: Ctx): void {
-  const { project, drafts, disk, ok, sel, draftId } = ctx;
+  const { project, drafts, disk, ok, sel, draftId, writable } = ctx;
 
   // In a draft, code files are read from and saved to the draft's planned edits; the code folder
   // is only written when the draft is applied. A git version's code is read-only.
@@ -80,7 +80,27 @@ export function registerCode(app: Hono, ctx: Ctx): void {
     const id = draftOnly("New files");
     const rel = relOf(b.path);
     if (drafts.code(id).kind(rel) !== null) throw new ModelError(`${rel} already exists.`);
-    drafts.codePlan(id).write(rel, str(b.content), null);
+    const plan = drafts.codePlan(id);
+    // `mapTo`: also add the path to that element's (or relationship's) code paths. Both or neither:
+    // the model edit validates first (it can refuse), the planned file is written last, and a
+    // failed write puts the model back.
+    const mapTo = b.mapTo === undefined || b.mapTo === null ? null : str(b.mapTo);
+    if (mapTo === null) {
+      plan.write(rel, str(b.content), null);
+      return c.json({ path: rel });
+    }
+    const content = str(b.content);
+    checkSize(content);
+    const draft = writable();
+    // A path inside a folder the object already maps needs no new code path.
+    const mapped = codePathCovered(draft.workspace, mapTo, rel);
+    if (!mapped) draft.edit((ws) => addCodePath(ws, mapTo, rel));
+    try {
+      plan.write(rel, content, null);
+    } catch (e) {
+      if (!mapped) draft.undo();
+      throw e;
+    }
     return c.json({ path: rel });
   });
 

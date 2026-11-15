@@ -2,15 +2,93 @@
  * Planned change (drafts): the drafts list, the draft strip, the apply dialog, the list of
  * changes against the compared version, and the read-only panel of a removed object.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, ApiError } from "./api";
 import { promptDialog } from "./dialogs";
+import { errorMessage } from "./notify";
 import { Modal } from "./fields";
 import { Icon } from "./icons";
 import { CHANGE_COLORS, CHANGE_LABEL } from "./overlays";
-import { KIND_LABEL, type AppState, type ApplyPreview, type ChangeSet, type CodingPlan, type Conflict, type DiagramEdge, type DiagramNode, type FieldChange, type ObjectChange } from "./types";
+import { KIND_LABEL, type AppState, type ApplyPreview, type DraftInfo, type ChangeSet, type CodingPlan, type Conflict, type DiagramEdge, type DiagramNode, type FieldChange, type ObjectChange } from "./types";
 
 const OTHER_REF = "__other";
+
+/** Muted "main +N": the main model changed N objects since the draft started. */
+export function BehindBadge({ n }: { n: number }) {
+  if (n <= 0) return null;
+  return (
+    <span
+      className="behind-badge muted small"
+      title={`The main model changed ${n} object${n === 1 ? "" : "s"} since this draft started. Apply merges them; conflicts are shown first.`}
+      data-testid="draft-behind"
+    >
+      main +{n}
+    </span>
+  );
+}
+
+/** One draft in the sidebar: title, author and date, and a "⋯" menu (also on right-click). */
+function DraftRow({ d, active, readOnly, onOpen, onRename, onEditDescription, onDiscard }: { d: DraftInfo; active: boolean; readOnly: boolean; onOpen(): void; onRename(): void; onEditDescription(): void; onDiscard(): void }) {
+  const [open, setOpen] = useState(false);
+  const wrap = useRef<HTMLSpanElement>(null);
+  const toggle = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (open) wrap.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
+  }, [open]);
+  const pick = (fn: () => void) => () => {
+    setOpen(false);
+    fn();
+  };
+  const by = [d.author, d.created].filter(Boolean).join(" · ");
+  return (
+    <li className="draft-row" onContextMenu={readOnly ? undefined : (e) => (e.preventDefault(), setOpen(true))}>
+      <button
+        className={`link draft-title ${active ? "active" : ""}`}
+        onClick={onOpen}
+        data-testid={`draft-${d.id}`}
+        title={`${d.title}${d.description ? `\n${d.description}` : ""}\nDraft in architecture/drafts/${d.id}/`}
+      >
+        {d.title}
+      </button>
+      {!readOnly && (
+        <span
+          className="draft-menu-wrap"
+          ref={wrap}
+          onBlur={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setOpen(false)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape" && open) {
+              e.stopPropagation();
+              setOpen(false);
+              toggle.current?.focus();
+            }
+          }}
+        >
+          <button ref={toggle} className="ghost icon" onClick={() => setOpen(!open)} aria-haspopup="menu" aria-expanded={open} aria-label={`Actions for ${d.title}`} title="Rename, edit the description, discard" data-testid={`draft-menu-${d.id}`}>
+            ⋯
+          </button>
+          {open && (
+            <div className="pop-menu right" role="menu" data-testid={`draft-menu-popup-${d.id}`}>
+              <button role="menuitem" onClick={pick(onRename)} data-testid="draft-rename">
+                Rename…
+              </button>
+              <button role="menuitem" onClick={pick(onEditDescription)} data-testid="draft-edit-description">
+                Edit description…
+              </button>
+              <button role="menuitem" className="danger-text" onClick={pick(onDiscard)} data-testid="draft-discard">
+                Discard…
+              </button>
+            </div>
+          )}
+        </span>
+      )}
+      <div className="draft-sub muted small">
+        {by}
+        {by && d.behind > 0 && " "}
+        <BehindBadge n={d.behind} />
+      </div>
+    </li>
+  );
+}
 
 /** Sidebar section: the main model and each draft (a planned change); open one, or start a new
  *  draft. With git: compare with, or open (read-only), a branch, tag or commit. */
@@ -19,33 +97,43 @@ export function DraftList({
   onSwitch,
   onNewDraft,
   onCompareRef,
+  onRename,
+  onEditDescription,
+  onDiscard,
 }: {
   state: AppState;
   onSwitch(ref: string): void;
   onNewDraft(): void;
   onCompareRef(ref: string): void;
+  onRename(d: DraftInfo): void;
+  onEditDescription(d: DraftInfo): void;
+  onDiscard(d: DraftInfo): void;
 }) {
   const [gitRef, setGitRef] = useState(state.git?.branch ?? "HEAD");
   const pickRef = async (): Promise<string | null> => {
     if (gitRef !== OTHER_REF) return gitRef;
     return promptDialog({ title: "Branch, tag or commit", placeholder: "e.g. main, v1.0, HEAD~3, a1b2c3d", confirmLabel: "Use" });
   };
-  const items = [{ ref: "main", label: "Main model", sub: "" }, ...state.drafts.map((d) => ({ ref: `draft:${d.id}`, label: d.title, sub: d.created }))];
   return (
     <section data-testid="draft-list">
       <h3 title="A draft is a planned change: a copy of the model you edit, compare and then apply or discard">Drafts</h3>
       <ul className="tree">
-        {items.map((it) => (
-          <li key={it.ref}>
-            <button
-              className={`link ${it.ref === state.model.ref ? "active" : ""}`}
-              onClick={() => it.ref !== state.model.ref && onSwitch(it.ref)}
-              data-testid={it.ref === "main" ? "draft-main" : `draft-${it.ref.slice(6)}`}
-              title={it.ref === "main" ? "The model in architecture/" : `Draft in architecture/drafts/${it.ref.slice(6)}/`}
-            >
-              {it.label} {it.sub && <span className="muted small">{it.sub}</span>}
-            </button>
-          </li>
+        <li>
+          <button className={`link ${state.model.ref === "main" ? "active" : ""}`} onClick={() => state.model.ref !== "main" && onSwitch("main")} data-testid="draft-main" title="The model in architecture/">
+            Main model
+          </button>
+        </li>
+        {state.drafts.map((d) => (
+          <DraftRow
+            key={d.id}
+            d={d}
+            active={state.model.ref === `draft:${d.id}`}
+            readOnly={state.readOnly}
+            onOpen={() => state.model.ref !== `draft:${d.id}` && onSwitch(`draft:${d.id}`)}
+            onRename={() => onRename(d)}
+            onEditDescription={() => onEditDescription(d)}
+            onDiscard={() => onDiscard(d)}
+          />
         ))}
       </ul>
       {!state.readOnly && (
@@ -132,6 +220,7 @@ export function VersionStrip({
         </label>
       )}
       {s && <SummaryChips s={s} compact />}
+      {isDraft && <BehindBadge n={state.drafts.find((d) => `draft:${d.id}` === state.model.ref)?.behind ?? 0} />}
       {isDraft && (
         <button className="small" onClick={onPlan} title="What to build, and how much of it the code already does" data-testid="draft-plan">
           Coding plan…
@@ -192,14 +281,22 @@ export function ApplyDialog({ draftId, title, onClose, onApplied }: { draftId: s
   const [busy, setBusy] = useState(false);
   const [withCode, setWithCode] = useState(true);
   useEffect(() => {
+    // The answers of an earlier choice (conflicts, an error) do not belong to this one.
     setPreview(null);
+    setConflicts([]);
+    setError(null);
+    let current = true;
     api
       .applyPreview(draftId, withCode)
       .then((p) => {
+        if (!current) return;
         setPreview(p);
         setConflicts(p.conflicts);
       })
-      .catch((e) => setError(String(e instanceof Error ? e.message : e)));
+      .catch((e) => current && setError(errorMessage(e)));
+    return () => {
+      current = false;
+    };
   }, [draftId, withCode]);
   const apply = async () => {
     setBusy(true);
@@ -208,13 +305,14 @@ export function ApplyDialog({ draftId, title, onClose, onApplied }: { draftId: s
       onApplied();
     } catch (e) {
       if (e instanceof ApiError && e.conflicts.length) setConflicts(e.conflicts);
-      else setError(e instanceof Error ? e.message : String(e));
+      else setError(errorMessage(e));
     } finally {
       setBusy(false);
     }
   };
   const cs = preview?.changes;
-  const empty = cs && cs.summary.added + cs.summary.changed + cs.summary.removed + cs.summary.layout === 0;
+  const empty = cs && cs.summary.added + cs.summary.changed + cs.summary.removed + cs.summary.layout + cs.summary.code === 0;
+  const writesCode = withCode && !!preview && preview.code.length > 0;
   return (
     <Modal title={`Apply "${title}" to the main model`} onClose={onClose} wide>
       {!preview && !error && <p className="muted">Checking…</p>}
@@ -244,8 +342,10 @@ export function ApplyDialog({ draftId, title, onClose, onApplied }: { draftId: s
       {cs && conflicts.length === 0 && (
         <>
           <p>
-            The main model will get these changes. Changes made to the main model since the draft was made are kept. Applying is one step you
-            can undo; the draft is then removed.
+            The main model will get these changes; changes made to it since the draft was made are kept.{" "}
+            {writesCode
+              ? "The code edits are written to the code folder and the draft is deleted. Undo restores the model only, not those files or the draft."
+              : "The draft is then deleted. Undo restores the model, not the draft."}
           </p>
           <SummaryChips s={cs.summary} />
           {empty ? <p className="muted">The draft changes nothing.</p> : <ChangeList changes={cs} />}
@@ -411,24 +511,43 @@ export function PlanDialog({ state, draftId, onClose, onSaved }: { state: AppSta
   const [plan, setPlan] = useState<CodingPlan | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const copiedTimer = useRef<number>(0);
+  useEffect(() => () => window.clearTimeout(copiedTimer.current), []);
+  // The branch last saved (or being saved), so Enter followed by the blur it causes saves once.
+  const savedBranch = useRef(draft?.branch ?? "");
   useEffect(() => {
+    let current = true;
     setError(null);
+    setPlan(null);
     api
       .plan(draftId, against === "none" ? null : against)
-      .then(setPlan)
+      .then((p) => current && setPlan(p))
       .catch((e) => {
-        setError(e instanceof Error ? e.message : String(e));
-        if (against !== "none") setAgainst("none");
+        if (!current) return;
+        setError(`The check failed: ${errorMessage(e)}`);
+        // Still show the steps, unchecked, under the error.
+        if (against !== "none")
+          api
+            .plan(draftId, null)
+            .then((p) => current && setPlan(p))
+            .catch(() => undefined);
       });
+    return () => {
+      current = false;
+    };
   }, [draftId, against]);
   const saveBranch = async () => {
-    if (branch.trim() === (draft?.branch ?? "")) return;
+    const v = branch.trim();
+    if (v === savedBranch.current) return;
+    const before = savedBranch.current;
+    savedBranch.current = v;
     try {
-      await api.updateDraft(draftId, { branch: branch.trim() });
+      await api.updateDraft(draftId, { branch: v });
       onSaved();
-      if (branch.trim() && state.git) setAgainst(`ref:${branch.trim()}`);
+      if (v && state.git) setAgainst(`ref:${v}`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      savedBranch.current = before;
+      setError(errorMessage(e));
     }
   };
   const copy = async () => {
@@ -436,7 +555,8 @@ export function PlanDialog({ state, draftId, onClose, onSaved }: { state: AppSta
     try {
       await navigator.clipboard.writeText(plan.markdown);
       setCopied(true);
-      window.setTimeout(() => setCopied(false), 1500);
+      window.clearTimeout(copiedTimer.current);
+      copiedTimer.current = window.setTimeout(() => setCopied(false), 1500);
     } catch {
       setError("Copying is not allowed here; select the text in the Markdown view instead.");
     }
@@ -455,7 +575,7 @@ export function PlanDialog({ state, draftId, onClose, onSaved }: { state: AppSta
       <div className="row plan-controls">
         <label className="field inline">
           <span>Branch</span>
-          <input value={branch} placeholder="e.g. feature/audit-log" onChange={(e) => setBranch(e.target.value)} onBlur={saveBranch} onKeyDown={(e) => e.key === "Enter" && saveBranch()} disabled={state.readOnly} data-testid="plan-branch" />
+          <input value={branch} placeholder="e.g. feature/audit-log" onChange={(e) => setBranch(e.target.value)} onBlur={() => void saveBranch()} onKeyDown={(e) => e.key === "Enter" && void saveBranch()} disabled={state.readOnly} data-testid="plan-branch" />
         </label>
         <label className="field inline">
           <span>Check against</span>
@@ -466,7 +586,16 @@ export function PlanDialog({ state, draftId, onClose, onSaved }: { state: AppSta
           </select>
         </label>
       </div>
-      {error && <p className="danger-text">{error}</p>}
+      {!plan && !error && (
+        <p className="muted" data-testid="plan-loading">
+          Checking…
+        </p>
+      )}
+      {error && (
+        <p className="danger-text" data-testid="plan-error">
+          {error}
+        </p>
+      )}
       {plan?.checkedAgainst && (
         <p data-testid="plan-summary">
           Checked against {plan.checkedAgainst}: <strong>{plan.summary.done} done</strong> · {plan.summary.open} open · {plan.summary.manual} to check by hand
@@ -510,9 +639,100 @@ export function PlanDialog({ state, draftId, onClose, onSaved }: { state: AppSta
       <div className="modal-actions">
         <button className="ghost" onClick={() => setShowMd(!showMd)}>{showMd ? "Show list" : "Show Markdown"}</button>
         <span className="spacer" />
-        <button onClick={copy} disabled={!plan} data-testid="plan-copy">{copied ? "Copied" : "Copy Markdown"}</button>
+        <button onClick={() => void copy()} disabled={!plan} data-testid="plan-copy" aria-live="polite">{copied ? "Copied" : "Copy Markdown"}</button>
         <button className="primary" onClick={onClose}>Close</button>
       </div>
+    </Modal>
+  );
+}
+
+/**
+ * The form for a draft's name and description: "New draft" (both fields), or just one of them from the
+ * row menu. `onSubmit` may throw: its message (a duplicate title, say) is shown in the dialog.
+ */
+export function DraftDialog({
+  mode,
+  draft,
+  onSubmit,
+  onClose,
+}: {
+  mode: "new" | "rename" | "description";
+  draft?: DraftInfo;
+  onSubmit(values: { title: string; description: string }): Promise<void>;
+  onClose(): void;
+}) {
+  const [title, setTitle] = useState(draft?.title ?? "");
+  const [description, setDescription] = useState(draft?.description ?? "");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const canSubmit = title.trim() !== "" && !busy;
+  const submit = async () => {
+    if (!canSubmit) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await onSubmit({ title: title.trim(), description: description.trim() });
+      onClose();
+    } catch (e) {
+      setError(errorMessage(e));
+      setBusy(false);
+    }
+  };
+  const heading = mode === "new" ? "New draft" : mode === "rename" ? "Rename draft" : "Edit description";
+  return (
+    <Modal title={heading} onClose={onClose} testId={mode === "new" ? "new-draft-dialog" : "edit-draft-dialog"}>
+      <form
+        className="draft-form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void submit();
+        }}
+      >
+        {mode === "new" && <p className="muted small">A draft is a planned change: a copy of the model you edit, then apply or discard.</p>}
+        {mode !== "description" && (
+          <label className="field">
+            <span>Title</span>
+            <input
+              type="text"
+              autoFocus
+              value={title}
+              maxLength={120}
+              placeholder="e.g. Add audit log"
+              onChange={(e) => setTitle(e.target.value)}
+              onFocus={(e) => e.currentTarget.select()}
+              aria-invalid={error ? true : undefined}
+              data-testid="draft-title"
+            />
+          </label>
+        )}
+        {mode !== "rename" && (
+          <label className="field">
+            <span>Description (optional)</span>
+            <textarea
+              rows={4}
+              value={description}
+              autoFocus={mode === "description"}
+              placeholder="What this change is for, and why"
+              onChange={(e) => setDescription(e.target.value)}
+              onKeyDown={(e) => (e.metaKey || e.ctrlKey) && e.key === "Enter" && (e.preventDefault(), void submit())}
+              data-testid="draft-description"
+            />
+          </label>
+        )}
+        {error && (
+          <div className="dialog-error" role="alert" data-testid="draft-error">
+            {error}
+          </div>
+        )}
+        <div className="modal-actions">
+          <button type="button" onClick={onClose}>
+            Cancel
+          </button>
+          <button type="submit" className="primary" disabled={!canSubmit} data-testid={mode === "new" ? "draft-create" : "draft-save"}>
+            {mode === "new" ? "Create" : "Save"}
+          </button>
+        </div>
+      </form>
     </Modal>
   );
 }

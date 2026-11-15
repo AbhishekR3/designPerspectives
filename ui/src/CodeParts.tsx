@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "./api";
 import { Modal } from "./fields";
-import { confirmDialog } from "./dialogs";
+import { confirmDialog, promptDialog } from "./dialogs";
 
 /** Browse the code folder and pick a file or folder. */
 export function CodePicker({ onPick, onClose }: { onPick(path: string): void; onClose(): void }) {
@@ -43,6 +43,25 @@ export function CodePicker({ onPick, onClose }: { onPick(path: string): void; on
         {entries.length === 0 && !error && <li className="muted">Empty folder</li>}
       </ul>
     </Modal>
+  );
+}
+
+/**
+ * "+ New planned file" (drafts only): ask for a path, plan the file in the draft and map the path to
+ * `ownerId` (an element or a relationship), as one request: both happen or neither. Then open it.
+ */
+export function NewPlannedFile({ ownerId, paths, mutate, onOpenFile }: { ownerId: string; paths: string[]; mutate(fn: () => Promise<unknown>): Promise<boolean>; onOpenFile(path: string): void }) {
+  const create = async () => {
+    const folder = paths.find((x) => !/\.[A-Za-z0-9]+$/.test(x)) ?? paths[0]?.replace(/[^/]*$/, "") ?? "";
+    const path = await promptDialog({ title: "Path of the new file", label: "Relative to the code folder", initial: folder ? `${folder.replace(/\/$/, "")}/` : "", confirmLabel: "Create" });
+    if (!path) return;
+    const done = await mutate(() => api.newCodeFile(path, "", ownerId));
+    if (done) onOpenFile(path);
+  };
+  return (
+    <button onClick={() => void create()} data-testid="new-planned-file">
+      + New planned file
+    </button>
   );
 }
 
@@ -144,8 +163,10 @@ export function FileEditor({ path, onClose, inDraft = false, onChanged }: { path
     }
   };
   const dirty = content !== null && content !== orig;
+  const frozen = readOnly || planned === "deleted";
+  const canSave = dirty && !readOnly && planned !== "deleted";
   const save = async () => {
-    if (content === null) return;
+    if (content === null || !canSave) return;
     try {
       const r = await api.saveCodeFile(path, content, mtime);
       setMtime(r.mtime);
@@ -188,11 +209,12 @@ export function FileEditor({ path, onClose, inDraft = false, onChanged }: { path
           {error}
         </div>
       )}
+      {content === null && !error && <p className="muted" data-testid="code-loading">Loading…</p>}
       {content !== null && (
         <textarea
           className="code-editor"
           value={content}
-          readOnly={readOnly || planned === "deleted"}
+          readOnly={frozen}
           spellCheck={false}
           onChange={(e) => {
             setContent(e.target.value);
@@ -201,9 +223,9 @@ export function FileEditor({ path, onClose, inDraft = false, onChanged }: { path
           onKeyDown={(e) => {
             if ((e.metaKey || e.ctrlKey) && e.key === "s") {
               e.preventDefault();
-              save();
+              if (canSave) void save();
             }
-            if (e.key === "Tab") {
+            if (e.key === "Tab" && !frozen) {
               e.preventDefault();
               const t = e.currentTarget;
               const { selectionStart: a, selectionEnd: b } = t;
@@ -218,7 +240,7 @@ export function FileEditor({ path, onClose, inDraft = false, onChanged }: { path
         <span className="muted small">{saved ? (inDraft ? "Saved to the draft." : "Saved.") : dirty ? "Unsaved changes" : readOnly ? "" : inDraft ? "Ctrl/Cmd+S saves to the draft" : "Ctrl/Cmd+S saves to the file"}</span>
         <span className="spacer" />
         <button onClick={close}>Close</button>
-        <button className="primary" onClick={save} disabled={!dirty || readOnly} data-testid="code-save">
+        <button className="primary" onClick={save} disabled={!canSave} data-testid="code-save">
           Save
         </button>
       </div>

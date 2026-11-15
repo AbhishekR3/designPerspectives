@@ -86,11 +86,10 @@ test("Tab stays inside the dialog", async ({ page }) => {
 
 test("a prompt with only spaces cannot be confirmed", async ({ page, server }) => {
   await openDiagram(page, "landscape");
-  await page.getByTestId("new-draft").click();
+  await page.getByTestId("ws-name").click();
   await expect(dialog(page)).toBeVisible();
   const confirm = page.getByTestId("dialog-confirm");
   await expect(page.getByTestId("dialog-input")).toBeFocused();
-  await expect(confirm).toBeDisabled();
   await page.getByTestId("dialog-input").fill("    ");
   await expect(confirm).toBeDisabled();
   await page.keyboard.press("Enter");
@@ -99,21 +98,18 @@ test("a prompt with only spaces cannot be confirmed", async ({ page, server }) =
   await expect(confirm).toBeEnabled();
   await page.keyboard.press("Enter");
   await expect(dialog(page)).toHaveCount(0);
-  const drafts = await waitUntil(async () => {
-    const d = (await api(server, "/state")).drafts;
-    return d.length ? d : null;
-  });
-  expect(drafts[0].title).toBe("Plan A");
+  await waitUntil(async () => (await api(server, "/state")).workspace.name === "Plan A");
 });
 
-test("cancelling a prompt creates nothing", async ({ page, server }) => {
+test("cancelling a prompt changes nothing", async ({ page, server }) => {
   await openDiagram(page, "landscape");
-  await page.getByTestId("new-draft").click();
+  const name = (await api(server, "/state")).workspace.name;
+  await page.getByTestId("ws-name").click();
   await page.getByTestId("dialog-input").fill("Nope");
   await page.keyboard.press("Escape");
   await expect(dialog(page)).toHaveCount(0);
   await page.waitForTimeout(300);
-  expect((await api(server, "/state")).drafts).toEqual([]);
+  expect((await api(server, "/state")).workspace.name).toBe(name);
 });
 
 test("focus returns to the control that opened the dialog", async ({ page }) => {

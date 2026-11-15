@@ -702,6 +702,24 @@ export interface UpdateOptions {
   reslug?: boolean;
 }
 
+function codeOwner(ws: Workspace, ownerId: string): Element | Relationship {
+  const idx = buildIndex(ws);
+  const owner = idx.elements.get(ownerId) ?? idx.relationships.get(ownerId);
+  if (!owner) throw new ModelError(`No element or relationship with ID "${ownerId}".`);
+  return owner;
+}
+
+/** Is `rel` already one of the object's code paths, or inside one of its mapped folders? */
+export function codePathCovered(ws: Workspace, ownerId: string, rel: string): boolean {
+  return getJson<string>(codeOwner(ws, ownerId), CODE_KEY).some((x) => rel === x || rel.startsWith(x.replace(/\/$/, "") + "/"));
+}
+
+/** Add a code path to an element or relationship. */
+export function addCodePath(ws: Workspace, ownerId: string, rel: string): void {
+  const owner = codeOwner(ws, ownerId);
+  setJson(owner, CODE_KEY, cleanPaths([...getJson<string>(owner, CODE_KEY), rel]));
+}
+
 /** Change an element's fields. Returns the element's ID: a new one if `opts.reslug` re-slugged it. */
 export function updateElement(ws: Workspace, sidecar: Sidecar, elementId: string, patch: Obj, opts: UpdateOptions = {}): string {
   const idx = buildIndex(ws);

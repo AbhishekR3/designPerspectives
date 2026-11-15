@@ -10,21 +10,25 @@ land model and code together. Everything here runs locally; git is the only coll
 | **Draft** | A copy of the model you edit without touching the main model. Holds the planned model and, optionally, planned code edits. | `architecture/drafts/<id>/` (`workspace.json`, `designperspectives.json`, `base/`, `draft.json`, `code.json` + `code/`) |
 | **Changes overlay** | Colours what a draft (or a git version) adds, changes and removes, down to code files and imports. | Dock → Changes; the strip above the canvas |
 | **Coding plan** | The work the draft implies, per system and container, with an automatic progress check where the code can show it. | Strip → Coding plan…; `dp plan <draft>` |
-| **Apply** | Merges the draft into the main model (and, if you want, writes its planned code edits), as one undo step. | Strip → Apply… |
+| **Apply** | Merges the draft into the main model (and, if you want, writes its planned code edits). Undo restores the model only. | Strip → Apply… |
 | **`dp diff`** | What changed in the model and in mapped code since a git ref, as Markdown for a pull request. | CLI / CI |
 
 ## The workflow
 
 ### 1. Plan the change in a draft
 
-1. Sidebar → **Drafts → + New draft**. Name it after the change ("Add audit log").
+1. Sidebar → **Drafts → + New draft**. Give it a title after the change ("Add audit log") and, if you
+   like, a description. The draft remembers who started it (your git `user.name`) and the date; both
+   show in the list. The **⋯** menu on a draft (or right-click) renames it, edits its description or
+   discards it.
 2. Edit the diagrams as usual: add, connect, change technology, remove. The strip shows `+added ~changed −removed`.
 3. **Map new objects to code**: in the object panel, add the code paths the new component or container
    will live in (a file or a folder, even if it does not exist yet). Without code paths, the plan can
    only list the step; with them, it can check it.
 4. Optional: **sketch code inside the draft**. Open a mapped file from a code diagram (double-click a
-   file box) and edit it, or use **+ New planned file** in the code panel. These edits are saved in the
-   draft (`code/`), not in your code folder. They show as changed/added files on the code diagram.
+   file box) and edit it, or use **+ New planned file** in the code panel or in the object panel's
+   Code section (for a new component with no code path yet: the file is planned and its path added to the
+   object in one step). These edits are saved in the draft (`code/`), not in your code folder. They show as changed/added files on the code diagram.
    Use this for interfaces, skeletons or examples, not for whole features.
 
 ### 2. Agree it
@@ -78,7 +82,9 @@ changes (descriptions, tags, cost, ratings, owners) need no code work and are li
 - **One draft per change.** Drafts merge object by object; two drafts touching the same object
   conflict when the second is applied.
 - **Keep the main model current.** The draft remembers the main model it started from (`base/`), so
-  main can keep changing; only objects changed on both sides conflict.
+  main can keep changing; only objects changed on both sides conflict. A muted **main +N** next to a
+  draft (in the list and on the strip) says main changed N objects since the draft started; Apply merges
+  them and shows conflicts first.
 - **Map early.** Code paths on new objects are what turn plan steps from "check by hand" into checked.
 - **Draft code is a sketch.** Real implementation belongs on the branch; the plan checks the branch.
 

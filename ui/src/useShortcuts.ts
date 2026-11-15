@@ -1,7 +1,7 @@
 import { useEffect, type Dispatch, type RefObject, type SetStateAction } from "react";
-import type { CanvasHandle } from "./Canvas";
+import type { CanvasHandle, ContextTarget } from "./Canvas";
 import type { NodeActions } from "./canvasParts";
-import { selectedNodeIds, type AppState, type Diagram, type Selection } from "./types";
+import { selectedNodeIds, type AppState, type Diagram, type Pt, type Selection } from "./types";
 import { dialogOpen, isTyping } from "./fields";
 import { diagramEditable, relationshipToDelete } from "./menus";
 
@@ -11,7 +11,8 @@ import { diagramEditable, relationshipToDelete } from "./menus";
  * - editor-style keys: Ctrl/Cmd+C/V/D copy, paste, duplicate; Ctrl/Cmd+0/=/+/- fit and zoom;
  *   Escape clears the selection; arrows nudge the selected box; F2 renames;
  * - Delete/Backspace removes the selection, one box, several boxes or a line (only where the right-click menu offers Delete);
- * - Ctrl/Cmd+K opens the search box; ? toggles the help card.
+ * - Ctrl/Cmd+K opens the search box; ? toggles the help card;
+ * - Shift+F10 and the ContextMenu key open the right-click menu for the selected box or line, or for the canvas.
  * None of them act while a dialog is open or while typing (`isTyping`).
  */
 export function useShortcuts(p: {
@@ -29,8 +30,9 @@ export function useShortcuts(p: {
   nodeActions: NodeActions | null;
   toggleHelp(): void;
   canvasRef: RefObject<CanvasHandle | null>;
+  openMenu(target: ContextTarget, at: Pt, keyboard?: boolean): void;
 }) {
-  const { state, diagram, selection, setSelection, setFocusName, setRenameId, setSearchOpen, doHistory, clipboard, pasteFrom, deleteRelationship, nodeActions, toggleHelp, canvasRef } = p;
+  const { state, diagram, selection, setSelection, setFocusName, setRenameId, setSearchOpen, doHistory, clipboard, pasteFrom, deleteRelationship, nodeActions, toggleHelp, canvasRef, openMenu } = p;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -125,4 +127,19 @@ export function useShortcuts(p: {
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- setSearchOpen is stable (a state setter or ref); toggleHelp only flips state, so a stale copy is harmless
   }, []);
+
+  // Shift+F10 / the ContextMenu key: the right-click menu without a mouse.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.key === "ContextMenu" || (e.key === "F10" && e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey))) return;
+      if (dialogOpen() || isTyping(e.target) || !diagram) return;
+      const spot = canvasRef.current?.menuSpot(selection);
+      if (!spot) return;
+      e.preventDefault();
+      openMenu(spot.target, spot.client, true);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- canvasRef is a ref and openMenu is stable (useCallback with no dependencies)
+  }, [selection, diagram]);
 }

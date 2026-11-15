@@ -43,6 +43,15 @@ export function findRepo(modelDir: string): Repo | null {
   }
 }
 
+/** `git config user.name` as seen from `dir`, or null (no git, no name set). */
+export function gitUserName(dir: string): string | null {
+  try {
+    return git(dir, ["config", "--get", "user.name"]).trim().slice(0, 80) || null;
+  } catch {
+    return null;
+  }
+}
+
 /** Reject anything that is not a plain ref name or commit hash (see git-check-ref-format). */
 export function checkRef(ref: string): string {
   const r = ref.trim();

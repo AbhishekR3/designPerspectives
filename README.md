@@ -188,6 +188,20 @@ Stage P2 additions:
   one undo step.
 - **Sidebar**: every software system is listed. A system with no containers is marked "(empty)".
 
+Stage P3 additions:
+
+- **Drafts with a title**: a new draft has a title and an optional description. Drafts show their author
+  (from `git config user.name` for now) and date. Rename, edit the description or discard from the row menu.
+- **How far main moved**: a draft shows "main +N", the number of objects main changed since the draft started.
+- **Planned files from the element panel**: "+ New planned file" creates the file and maps its path in one step.
+- **Newer versions picked up**: when the window regains focus, the UI reloads if the model changed, for
+  example after a git checkout, in another tab or from the CLI.
+- **Safer version switching**: a draft or git ref that cannot load keeps the previous version on screen,
+  with the error shown. A main model that cannot load has a Retry button.
+- **Right-click menu**: scrolling inside it no longer closes it; Shift+F10 or the menu key opens it.
+
+Plan and limits: [docs/planned-change.md](docs/planned-change.md).
+
 ## Develop
 
 Everything is TypeScript: the server, the CLI and the browser UI share one set of API types

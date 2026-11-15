@@ -249,34 +249,43 @@ export function diagramActions(c: {
   return { newFlow, addItem, connectToEmpty, connect, savePositions };
 }
 
-/** Starting and discarding a draft (a planned change, edited on a copy of the model). */
+/** Starting, editing and discarding a draft (a planned change, edited on a copy of the model). */
 export function draftActions(c: {
   state: AppState;
   draftId: string | null;
   switchVersion(model: string, compare: string | null): Promise<void>;
+  refresh(): Promise<unknown>;
 }) {
-  const { state, draftId, switchVersion } = c;
-  const newDraft = async () => {
-    const title = await promptDialog({ title: "Name of the new draft", label: "A planned change, edited on a copy of the model", confirmLabel: "Create" });
-    if (!title) return;
-    await run(async () => {
-      const { id } = await api.createDraft({ title });
-      await switchVersion(`draft:${id}`, "base");
-    });
+  const { state, draftId, switchVersion, refresh } = c;
+  /** Create a draft and open it with its changes shown. Throws when the server refuses (the dialog shows why). */
+  const createDraft = async (title: string, description: string) => {
+    const { id } = await api.createDraft({ title, ...(description ? { description } : {}) });
+    await switchVersion(`draft:${id}`, "base");
   };
-  const discardDraft = async () => {
-    if (!draftId) return;
+  /** Change a draft's title or description. Throws when the server refuses. */
+  const updateDraft = async (id: string, patch: { title?: string; description?: string }) => {
+    await api.updateDraft(id, patch);
+    await refresh().catch(() => undefined);
+  };
+  /** Discard a draft after a question; the open one goes back to the main model. */
+  const discardDraft = async (id: string | null = draftId, title?: string) => {
+    if (!id) return;
+    const name = title ?? state.drafts.find((d) => d.id === id)?.title ?? id;
     const yes = await confirmDialog({
-      title: `Discard "${state.model.title.replace(/^Draft: /, "")}"?`,
-      message: "The draft and all its changes are deleted.",
+      title: `Discard "${name}"?`,
+      message: "The draft and all its changes, including planned code edits, are deleted. This cannot be undone.",
       confirmLabel: "Discard",
       danger: true,
     });
     if (!yes) return;
-    await run(async () => {
-      await api.deleteDraft(draftId);
-      await switchVersion("main", null);
-    });
+    await run(
+      async () => {
+        await api.deleteDraft(id);
+        if (id === draftId) await switchVersion("main", null);
+        else await refresh().catch(() => undefined);
+      },
+      { success: `Discarded "${name}".` },
+    );
   };
-  return { newDraft, discardDraft };
+  return { createDraft, updateDraft, discardDraft };
 }

@@ -239,3 +239,15 @@ Entry format: **ID — title** · date · status · who decided · what was deci
 - Decision: two built-in lenses ship next to Engineer. **Architect** shows all levels and all sections. **Overview** shows the landscape and context levels, and hides the cost, notes, trade-offs, sensitive and code sections, and technology. The state response has `defaultLens`: Architect when the model has no containers, otherwise Engineer. The lens a person picks is remembered per project in the browser (the key includes the project folder). The resolved default is saved on the first load. This refines DEC-008: Engineer stays the default once the model has containers.
 - Why: a model with no containers has nothing below the landscape for the Engineer lens to show, so the broad lens fits better there. Overview gives a summary for readers who do not need detail.
 - Trade-off: the same person can see a different default lens in different projects. The saved default does not change when the model gains containers, so a user who started with Architect stays on it until they switch to Engineer by hand.
+
+## DEC-039 — The UI applies only the newest response and rechecks the model on window focus
+- Date: 2026-11-15 · Status: Proposal (built in Stage P3) · Decided by: [Proposal]
+- Decision: each request gets a ticket, and the UI applies only the response to the newest one. A slower, older response is dropped. The state response carries a `version`. When the window regains focus, the UI checks it and reloads only if the model changed. There is no timer. The check waits while the user is typing or a dialog is open.
+- Why: quick edits and drags could apply responses out of order, so a box jumped back. A focus check picks up git checkouts, other tabs and CLI edits without a push connection.
+- Trade-off: there is no live push, so a change made elsewhere shows only when the window regains focus. A superseded response is dropped silently.
+
+## DEC-040 — Drafts record an author and show how far main has moved
+- Date: 2026-11-15 · Status: Proposal (built in Stage P3) · Decided by: [Proposal]
+- Decision: a draft has an optional `author`. The client sends it; otherwise the server uses `git config user.name`. The author shows in the drafts list and in the `dp plan` Markdown header. A draft shows "main +N": the number of objects main changed since the draft's base. This is a diff of the base against main, cached by main's revision.
+- Why: with several drafts, a label shows who started each change. The count shows whether a draft is out of date before apply.
+- Trade-off: the author is a plain label, not an identity check, so any name can be written. The count costs one diff per main revision per draft. There is no rebase yet, so the count only reports the gap.

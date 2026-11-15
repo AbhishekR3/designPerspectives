@@ -1,7 +1,7 @@
 /**
  * Drafts: planned changes edited on a copy of the model, then applied to it or discarded.
  *
- *   architecture/drafts/<id>/draft.json                 title, description, created (date)
+ *   architecture/drafts/<id>/draft.json                 title, description, created (date), author, branch, link
  *   architecture/drafts/<id>/workspace.json             the draft (edited like the main model)
  *   architecture/drafts/<id>/designperspectives.json
  *   architecture/drafts/<id>/base/workspace.json         the main model when the draft was made
@@ -46,8 +46,14 @@ export class Drafts {
   readonly dir: string;
   private open = new Map<string, Project>();
   private bases = new Map<string, FileSnapshot>();
+  /** How far main has moved from each draft's base, by the revisions of the two models. */
+  private behindCache = new Map<string, { key: string; n: number }>();
 
-  constructor(readonly main: Project) {
+  /** `author`: who new drafts are credited to when the client does not say (e.g. the git user name). */
+  constructor(
+    readonly main: Project,
+    private readonly author: string | null = null,
+  ) {
     this.dir = path.join(main.dir, DRAFTS_DIR);
   }
 
@@ -83,10 +89,29 @@ export class Drafts {
       title: s(meta.title) || id,
       description: s(meta.description),
       created: s(meta.created),
+      ...(s(meta.author) ? { author: s(meta.author) } : {}),
+      behind: this.behind(id),
       branch: s(meta.branch),
       link: s(meta.link),
       plannedFiles: new CodePlan(f).files().size,
     };
+  }
+
+  /** Objects added, changed or removed in main since the draft started. Cached by the two models' revisions. */
+  private behind(id: string): number {
+    try {
+      this.main.reloadIfChanged();
+      const base = this.base(id);
+      const key = `${this.main.revision}|${base.revision}`;
+      const hit = this.behindCache.get(id);
+      if (hit?.key === key) return hit.n;
+      const { added, changed, removed } = diffModels(base, this.main, "main").summary;
+      const n = added + changed + removed;
+      this.behindCache.set(id, { key, n });
+      return n;
+    } catch {
+      return 0; // no readable base copy (an older or hand-made draft)
+    }
   }
 
   /** The draft's planned code edits. */
@@ -121,7 +146,7 @@ export class Drafts {
     return b;
   }
 
-  create(title: string, description = ""): string {
+  create(title: string, description = "", author?: string | null): string {
     const t = title.trim();
     if (!t) throw new ModelError("A draft needs a name.");
     if (this.list().some((d) => d.title === t)) throw new ModelError(`A draft named "${t}" already exists.`);
@@ -135,7 +160,8 @@ export class Drafts {
       atomicWrite(path.join(dir, WORKSPACE_FILE), ws);
       atomicWrite(path.join(dir, SIDECAR_FILE), sc);
     }
-    atomicWrite(path.join(f, DRAFT_FILE), stableJson({ title: t, description: description.trim(), created: new Date().toISOString().slice(0, 10) }));
+    const by = author?.trim() || this.author;
+    atomicWrite(path.join(f, DRAFT_FILE), stableJson({ title: t, description: description.trim(), created: new Date().toISOString().slice(0, 10), ...(by ? { author: by } : {}) }));
     return id;
   }
 
@@ -146,6 +172,7 @@ export class Drafts {
     if (title !== cur.title && this.list().some((d) => d.title === title)) throw new ModelError(`A draft named "${title}" already exists.`);
     const pick = (v: string | undefined, old: string) => (v === undefined ? old : v.trim());
     const meta: Record<string, string> = { title, description: pick(patch.description, cur.description), created: cur.created };
+    if (cur.author) meta.author = cur.author;
     const branch = pick(patch.branch, cur.branch);
     const link = pick(patch.link, cur.link);
     if (branch) meta.branch = branch;
@@ -159,6 +186,7 @@ export class Drafts {
     fs.rmSync(f, { recursive: true, force: true });
     this.open.delete(id);
     this.bases.delete(id);
+    this.behindCache.delete(id);
   }
 
   /** What applying would change in the main model, and what stops it. */

@@ -51,13 +51,17 @@ export function ContextMenu({ x, y, items, onClose, keyboard = false }: { x: num
       if (!(e.target as HTMLElement | null)?.closest?.(".ctx-menu")) onClose();
     };
     const close = () => onClose();
+    // Scrolling the menu itself (it can be taller than the window) must not close it.
+    const wheel = (e: WheelEvent) => {
+      if (!(e.target as HTMLElement | null)?.closest?.(".ctx-menu")) onClose();
+    };
     window.addEventListener("pointerdown", down, true);
-    window.addEventListener("wheel", close, { passive: true });
+    window.addEventListener("wheel", wheel, { passive: true });
     window.addEventListener("resize", close);
     window.addEventListener("blur", close);
     return () => {
       window.removeEventListener("pointerdown", down, true);
-      window.removeEventListener("wheel", close);
+      window.removeEventListener("wheel", wheel);
       window.removeEventListener("resize", close);
       window.removeEventListener("blur", close);
     };

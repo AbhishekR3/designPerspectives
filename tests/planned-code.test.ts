@@ -67,6 +67,26 @@ describe("code edits in a draft", () => {
     expect(read(dir, "sample_code/api/email_sender.py")).not.toBeNull();
   });
 
+  it("a new planned file can be mapped to an element in one call, both or neither", async () => {
+    const dir = demoDir();
+    const c = client(dir);
+    const { id } = await ok(c.post("/api/drafts", { title: "Map" }));
+    const d = c.at(`draft:${id}`);
+    const { id: el } = await ok(d.post("/api/elements", { kind: "component", parentId: "api-application", name: "Audit Log" }));
+    await ok(d.post("/api/code/file", { path: "sample_code/api/audit.py", content: "x = 1\n", mapTo: el }));
+    const e = (await ok(d.get("/api/state"))).elements.find((x: any) => x.id === el);
+    expect(e.codePaths).toEqual(["sample_code/api/audit.py"]);
+    expect((await ok(d.get("/api/code/file", { path: "sample_code/api/audit.py" }))).planned).toBe("added");
+
+    // A refused mapping leaves no planned file behind.
+    const bad = await d.post("/api/code/file", { path: "sample_code/api/other.py", content: "", mapTo: "no-such-element" });
+    expect(bad.status).toBe(422);
+    expect((await ok(c.get("/api/state"))).drafts[0].plannedFiles).toBe(1);
+    expect((await d.get("/api/code/file", { path: "sample_code/api/other.py" })).status).not.toBe(200);
+    // Not inside a draft: refused as before.
+    expect((await c.post("/api/code/file", { path: "sample_code/api/other.py", content: "", mapTo: el })).status).toBe(422);
+  });
+
   it("refuses to overwrite code changed since it was planned, unless applying the model only", async () => {
     const dir = demoDir();
     const c = client(dir);

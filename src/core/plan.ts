@@ -239,6 +239,7 @@ export function codingPlan(info: DraftInfo, items: Item[], target: CodeSource | 
     draftId: info.id,
     title: info.title,
     description: info.description,
+    ...(info.author ? { author: info.author } : {}),
     branch: info.branch,
     link: info.link,
     checkedAgainst: target ? target.label : null,
@@ -256,6 +257,7 @@ export function planMarkdown(p: CodingPlan): string {
   const out: string[] = [`# Coding plan: ${p.title}`, ""];
   if (p.description) out.push(p.description, "");
   const meta = [`Draft \`${p.draftId}\``];
+  if (p.author) meta.push(`by ${p.author}`);
   if (p.branch) meta.push(`branch \`${p.branch}\``);
   if (p.link) meta.push(p.link);
   out.push(meta.join(" · "), "");

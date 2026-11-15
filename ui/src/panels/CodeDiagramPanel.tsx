@@ -1,7 +1,6 @@
 import { api } from "../api";
-import { CodePaths } from "../CodeParts";
+import { CodePaths, NewPlannedFile } from "../CodeParts";
 import type { Common } from "./common";
-import { promptDialog } from "../dialogs";
 
 export function CodeDiagramPanel(p: Common) {
   const { state, diagram, mutate } = p;
@@ -19,24 +18,7 @@ export function CodeDiagramPanel(p: Common) {
       <CodePaths paths={diagram.code.paths} onSave={save} />
       {diagram.code.missing.length > 0 && <p className="warning">Not found in the code folder: {diagram.code.missing.join(", ")}</p>}
       {diagram.code.truncated && <p className="muted small">Only the first files are shown.</p>}
-      {state.model.ref.startsWith("draft:") && diagram.code.hasRoot && (
-        <button
-          onClick={async () => {
-            const folder = diagram.code!.paths.find((x) => !/\.[A-Za-z0-9]+$/.test(x)) ?? diagram.code!.paths[0]?.replace(/[^/]*$/, "") ?? "";
-            const path = await promptDialog({ title: "Path of the new file", label: "Relative to the code folder", initial: folder ? `${folder.replace(/\/$/, "")}/` : "", confirmLabel: "Create" });
-            if (!path) return;
-            const covered = diagram.code!.paths.some((x) => path === x || path.startsWith(x.replace(/\/$/, "") + "/"));
-            const done = await mutate(async () => {
-              await api.newCodeFile(path);
-              if (!covered) await (isRel ? api.updateRelationship(ownerId, { codePaths: [...diagram.code!.paths, path] }) : api.updateElement(ownerId, { codePaths: [...diagram.code!.paths, path] }));
-            });
-            if (done) p.onOpenFile(path);
-          }}
-          data-testid="new-planned-file"
-        >
-          + New planned file
-        </button>
-      )}
+      {state.model.ref.startsWith("draft:") && !state.readOnly && diagram.code.hasRoot && <NewPlannedFile ownerId={ownerId} paths={diagram.code.paths} mutate={mutate} onOpenFile={p.onOpenFile} />}
     </div>
   );
 }
