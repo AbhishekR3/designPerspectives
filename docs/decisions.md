@@ -185,3 +185,21 @@ Entry format: **ID — title** · date · status · who decided · what was deci
 - Decision: pulling information from other websites, tools and competitors is allowed as research input. The naming rule from DEC-015 stays: they are not named or compared in repository files, commit messages or pull requests. Ideas are written in our own terms.
 - Why: the owner wants to learn from existing products without the repository becoming a comparison document.
 - Trade-off: sources for a feature idea cannot be cited in the repository, so the reasoning must stand on its own.
+
+## DEC-030 — Request protection for the local server
+- Date: 2026-11-14 · Status: Accepted (built in Stage P1) · Decided by: [Proposal]
+- Decision: the server checks every request. When it is bound to loopback, the Host header must be `localhost`, `127.0.0.1` or `[::1]`; `dp serve --allow-host <name>` adds names. Changes to `/api/*` (any method other than GET, HEAD or OPTIONS) are refused with 403 when Origin is not the server's own origin or Sec-Fetch-Site is cross-site. A body must be `application/json` (415 otherwise) and at most 5 MB (413 above). Every response carries a Content-Security-Policy (own origin only, inline styles allowed), `X-Frame-Options: DENY`, `nosniff` and `no-referrer`. Binding a non-loopback host turns the Host check off and prints a warning that there is no login. Unexpected errors return a generic message; the detail goes to the server log only.
+- Why: before this, any web page open in the browser could send a plain POST to 127.0.0.1:8765 and change the model or apply a draft. The Host check stops DNS rebinding.
+- Trade-off: scripts using curl must send `-H 'Content-Type: application/json'`. The UI cannot be embedded in a frame, so editor preview panes cannot show it. A non-loopback bind has no login; the warning is the only guard.
+
+## DEC-031 — Hidden paths are off limits
+- Date: 2026-11-14 · Status: Accepted · Decided by: Owner [Owner, 2026-11-14]
+- Decision: files and folders whose name starts with a dot (`.git`, `.env`, `.ssh`, `.github` and others) are never read, written, listed or planned through dp. This covers the code folder, a draft's planned edits and git versions. Symlinks that point to them are refused. Code file writes are capped at 1 MB, the same as reads.
+- Why: writing `.git/config` allowed commands to run the next time dp called git. Dot files often hold secrets.
+- Trade-off: a component cannot be mapped to `.github/workflows`, and `.eslintrc.json` cannot be shown. Secrets with ordinary names (for example `config/secrets.yaml`) are not covered.
+
+## DEC-032 — Apply writes code first, then the model, with rollback
+- Date: 2026-11-14 · Status: Accepted (built in Stage P1) · Decided by: [Proposal]
+- Decision: apply with code writes the code files first, keeping a backup of each. Then it writes the model. Then it deletes the draft. If a file write or the model step fails, every file is restored and the draft stays.
+- Why: a failed file write used to leave the model applied and the draft in place, so the model and the code could disagree.
+- Trade-off: restore is best effort. Content and permissions come back, modification times do not, and a failed restore is logged. A crash between the steps is not covered. Deleting the draft is not rolled back.

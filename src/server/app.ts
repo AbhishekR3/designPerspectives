@@ -4,12 +4,15 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import fs from "node:fs";
 import path from "node:path";
 import { Hono, type Context } from "hono";
+import { bodyLimit } from "hono/body-limit";
+import { HTTPException } from "hono/http-exception";
+import { secureHeaders } from "hono/secure-headers";
 import * as codemod from "../core/code.js";
 import { compareDiagram, diagramOf } from "../core/compare.js";
 import * as diagrams from "../core/diagrams.js";
 import { diffModels } from "../core/diff.js";
 import { ApplyConflict, Drafts } from "../core/drafts.js";
-import { cleanRel, DiskCode, NO_CODE, type CodeSource } from "../core/codefs.js";
+import { codeRel, DiskCode, NO_CODE, type CodeSource } from "../core/codefs.js";
 import { currentBranch, GitCodes, GitError, GitModels, listRefs } from "../core/git.js";
 import * as flows from "../core/flows.js";
 import { isObj, str, type Obj } from "../core/json.js";
@@ -168,6 +171,47 @@ function edgeLayout(v: unknown): EdgeLayout {
 export interface AppOptions {
   codeRoot?: string | null;
   readOnly?: boolean;
+  /** Host names (as in the Host header, without the port; IPv6 in brackets) the server answers to.
+   *  Default: the loopback names. null turns the check off (a server bound to another interface). */
+  allowedHosts?: string[] | null;
+}
+
+/** The names a browser uses for a server bound to a loopback address. */
+export const LOOPBACK_HOSTS = ["localhost", "127.0.0.1", "[::1]"];
+
+/** Largest request body the API accepts. */
+export const MAX_BODY_BYTES = 5 * 1024 * 1024;
+
+const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+
+/** Content-Security-Policy for the built UI (no inline scripts; React sets inline styles). */
+const CSP = {
+  defaultSrc: ["'self'"],
+  scriptSrc: ["'self'"],
+  styleSrc: ["'self'", "'unsafe-inline'"],
+  imgSrc: ["'self'", "data:", "blob:"],
+  fontSrc: ["'self'", "data:"],
+  connectSrc: ["'self'"],
+  workerSrc: ["'self'", "blob:"],
+  frameAncestors: ["'none'"],
+  baseUri: ["'self'"],
+  formAction: ["'self'"],
+};
+
+/** "host[:port]" as a URL with `protocol` would normalise it (lower case, default port dropped), or null. */
+function normHost(host: string, protocol = "http:"): URL | null {
+  try {
+    return new URL(`${protocol}//${host}`);
+  } catch {
+    return null;
+  }
+}
+
+/** The Host the request was sent to (the header; the request URL when there is none, as in tests). */
+const requestHost = (c: Context): string => c.req.header("host") ?? new URL(c.req.url).host;
+
+function isJsonType(ct: string | undefined): boolean {
+  return (ct ?? "").split(";")[0]!.trim().toLowerCase() === "application/json";
 }
 
 export function createApp(root: string, opts: AppOptions = {}): Hono {
@@ -230,8 +274,75 @@ export function createApp(root: string, opts: AppOptions = {}): Hono {
     if (err instanceof ModelError) return c.json({ detail: err.message }, 422);
     if (err instanceof HttpError) return c.json({ detail: err.message }, err.status as 400);
     if (err instanceof diagrams.UnknownDiagram) return c.json({ detail: `No diagram ${err.message}` }, 404);
+    if (err instanceof HTTPException) return c.json({ detail: err.message || "Bad request." }, err.status);
+    // Unexpected: the details (paths, stack) go to the server log, not to the browser.
     console.error(err);
-    return c.json({ detail: `Internal error: ${(err as Error).message}` }, 500);
+    return c.json({ detail: "Internal error. See the server log." }, 500);
+  });
+
+  // ------------------------------------------------------------ request protection
+
+  app.use(
+    "*",
+    secureHeaders({
+      contentSecurityPolicy: CSP,
+      xFrameOptions: "DENY",
+      referrerPolicy: "no-referrer",
+      strictTransportSecurity: false, // plain HTTP on a local port
+    }),
+  );
+
+  // DNS rebinding: a page on evil.example whose name resolves to 127.0.0.1 sends Host: evil.example.
+  const allowedHosts = opts.allowedHosts === undefined ? LOOPBACK_HOSTS : opts.allowedHosts;
+  const hostSet = allowedHosts ? new Set(allowedHosts.map((h) => h.toLowerCase())) : null;
+  // Names the user added (--allow-host): a proxy in front may rewrite Host, so the page's Origin
+  // carries the public name while Host is the local one.
+  const extraHosts = new Set([...(hostSet ?? [])].filter((h) => !LOOPBACK_HOSTS.includes(h) && !/^127\./.test(h)));
+  if (hostSet) {
+    app.use("*", async (c, next) => {
+      const name = normHost(requestHost(c))?.hostname;
+      if (!name || !hostSet.has(name)) return c.json({ detail: "This server only answers requests addressed to localhost." }, 403);
+      await next();
+    });
+  }
+
+  // Cross-site requests: another site's page must not change the model or the code folder.
+  app.use("/api/*", async (c, next) => {
+    if (!SAFE_METHODS.has(c.req.method)) {
+      if (c.req.header("sec-fetch-site")?.toLowerCase() === "cross-site") {
+        return c.json({ detail: "Cross-site requests are not allowed." }, 403);
+      }
+      const origin = c.req.header("origin");
+      if (origin !== undefined) {
+        // Same origin: the page's host:port is the one this request was sent to ("null" never is).
+        let o: URL | null = null;
+        try {
+          o = new URL(origin);
+        } catch {
+          /* "null" or garbage */
+        }
+        const sameOrigin = o !== null && (o.protocol === "http:" || o.protocol === "https:") && (o.host === normHost(requestHost(c), o.protocol)?.host || extraHosts.has(o.hostname));
+        if (!sameOrigin) return c.json({ detail: "Cross-origin requests are not allowed." }, 403);
+      }
+    }
+    await next();
+  });
+
+  app.use(
+    "/api/*",
+    bodyLimit({ maxSize: MAX_BODY_BYTES, onError: (c) => c.json({ detail: "The request body is too large (over 5 MB)." }, 413) }),
+  );
+
+  // A request body must be JSON. A web page can send a text/plain POST without asking first; it
+  // cannot send application/json to another origin without a preflight, which this server refuses.
+  app.use("/api/*", async (c, next) => {
+    if (!SAFE_METHODS.has(c.req.method) && c.req.raw.body) {
+      const text = await c.req.text(); // cached: handlers read it again
+      if (text.length && !isJsonType(c.req.header("content-type"))) {
+        return c.json({ detail: "The request body must be JSON (Content-Type: application/json)." }, 415);
+      }
+    }
+    await next();
   });
 
   // Viewer role: the model can be read but not changed (and code files cannot be saved).
@@ -643,7 +754,7 @@ export function createApp(root: string, opts: AppOptions = {}): Hono {
     return { draft: s.ref.startsWith("draft:") ? draftId(s.ref) : null, git: s.ref.startsWith("ref:"), code: s.code };
   };
   const relOf = (p: unknown): string => {
-    const rel = cleanRel(str(p));
+    const rel = codeRel(str(p));
     if (!rel) throw new ModelError("That path is outside the code folder.");
     if (project.codeRoot === null) throw new ModelError("No code folder is set. Start the app with --code-root <folder>.");
     return rel;
@@ -753,7 +864,12 @@ export function createApp(root: string, opts: AppOptions = {}): Hono {
   const ui = staticDir();
   if (ui) {
     app.get("/*", (c) => {
-      const rel = decodeURIComponent(new URL(c.req.url).pathname).replace(/^\/+/, "");
+      let rel: string;
+      try {
+        rel = decodeURIComponent(new URL(c.req.url).pathname).replace(/^\/+/, "");
+      } catch {
+        return c.json({ detail: "Bad path." }, 400);
+      }
       const f = path.resolve(ui, rel);
       const insideUi = f.startsWith(path.resolve(ui) + path.sep);
       if (rel && insideUi && fs.existsSync(f) && fs.statSync(f).isFile()) {

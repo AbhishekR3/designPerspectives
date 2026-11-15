@@ -22,10 +22,37 @@
   toward `--exit-code`.
 - Right-click menus on boxes, lines and the empty canvas, with copy and paste style and keyboard
   navigation.
+- `dp serve --allow-host <name>` lets the server answer to another host name (a tunnel or proxy in
+  front of it).
+
+### Changed
+- API clients must send `Content-Type: application/json` with a request body (415 otherwise).
 
 ### Fixed
 - `dp plan --against <ref>` exits 2 when there is no code to check against (for example, the code
   folder is not in a git repository). It used to pass.
+- A model that already has a duplicate (for example two systems with the same name, from a
+  hand-edited file) no longer refuses edits that do not add another one. Duplicates can be repaired
+  one at a time.
+- Copying an element no longer copies its code paths or work items. Cost and the other fields are kept.
+- Styles and layout entries for code files are removed when no object maps that path any more.
+- Validation reports a relationship between an element and its own parent or child (hand-edited files).
+- Apply with code is all or nothing: if a file write or the model step fails, every file is restored
+  and the draft stays.
+- A mapped path such as `./src/api` keeps its code-diagram layout.
+
+### Security
+- Requests must be addressed to a loopback host (`localhost`, `127.0.0.1`, `[::1]`) when the server
+  is bound to loopback. This stops DNS rebinding. Binding another `--host` turns the check off and
+  prints a warning that there is no login.
+- Changes to `/api/*` are refused (403) when the request comes from another origin or site.
+- Request bodies must be JSON (415 otherwise) and at most 5 MB (413 otherwise).
+- Every response carries a Content-Security-Policy, `X-Frame-Options: DENY`, `nosniff` and
+  `no-referrer`. The UI cannot be embedded in a frame.
+- Unexpected errors return a generic message; the detail is written to the server log only.
+- Hidden files and folders (names starting with a dot, such as `.git` and `.env`) are never read,
+  written, listed or planned through dp, in the code folder, in drafts or in git versions. Symlinks to
+  them are refused. Code file writes are capped at 1 MB.
 
 ## 0.3.0 — 2026-11-14
 

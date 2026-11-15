@@ -13,7 +13,7 @@ import { Drafts } from "./core/drafts.js";
 import { GitCodes, GitError, GitModels } from "./core/git.js";
 import { checkProject, diffMarkdown } from "./core/report.js";
 import { AlreadyExists, ARCH_DIR, initProject, NotFound, Project, version, WORKSPACE_FILE } from "./core/store.js";
-import { createApp } from "./server/app.js";
+import { createApp, LOOPBACK_HOSTS } from "./server/app.js";
 
 function openBrowser(url: string): void {
   const cmd = process.platform === "darwin" ? "open" : process.platform === "win32" ? "cmd" : "xdg-open";
@@ -23,6 +23,18 @@ function openBrowser(url: string): void {
   } catch {
     /* no browser available: the URL is printed anyway */
   }
+}
+
+/** The Host-header names to accept when binding `host`: loopback names for a loopback address,
+ *  null (any name) otherwise, since other machines reach the server under names we cannot know. */
+export function allowedHostsFor(host: string): string[] | null {
+  const h = host.trim().toLowerCase().replace(/^\[(.*)\]$/, "$1");
+  if (h === "0:0:0:0:0:0:0:1" || /^::ffff:127(?:\.\d{1,3}){3}$/.test(h)) return LOOPBACK_HOSTS;
+  if (h === "localhost" || h === "::1" || /^127(?:\.\d{1,3}){3}$/.test(h)) {
+    const name = h.includes(":") ? `[${h}]` : h;
+    return LOOPBACK_HOSTS.includes(name) ? LOOPBACK_HOSTS : [...LOOPBACK_HOSTS, name];
+  }
+  return null;
 }
 
 export function program(): Command {
@@ -53,14 +65,20 @@ export function program(): Command {
     .argument("[path]", "Project folder containing architecture/.", ".")
     .addOption(new Option("--port <port>", "Port to listen on.").default(8765).argParser((v) => parseInt(v, 10)))
     .option("--host <host>", "Interface to bind. Keep the default unless you know you need another.", "127.0.0.1")
+    .option("--allow-host <name>", "Also answer requests addressed to this host name (a tunnel or proxy in front of the server). Repeat for more.", (v: string, all: string[]) => [...all, v], [] as string[])
     .option("--no-open", "Do not open the browser.")
     .option("--read-only", "Viewer role: browse only; every change is refused.")
     .option("--code-root <folder>", "Folder holding the source code that components point to (default: the project folder).")
-    .action((dir: string, o: { port: number; host: string; open: boolean; readOnly?: boolean; codeRoot?: string }) => {
+    .action((dir: string, o: { port: number; host: string; allowHost: string[]; open: boolean; readOnly?: boolean; codeRoot?: string }) => {
       if (!fs.existsSync(path.join(dir, ARCH_DIR, WORKSPACE_FILE))) {
         console.log(`No model found; created the demo model in ${initProject(dir, { demo: true })}`);
       }
-      const app = createApp(dir, { codeRoot: o.codeRoot ?? null, readOnly: Boolean(o.readOnly) });
+      const loopback = allowedHostsFor(o.host);
+      const allowedHosts = loopback && [...loopback, ...o.allowHost.map((h) => h.trim().toLowerCase())];
+      if (allowedHosts === null) {
+        console.error(`Warning: listening on ${o.host}, so other machines can reach this server, and it has no login: anyone who can reach it can read and change the model and the code folder.`);
+      }
+      const app = createApp(dir, { codeRoot: o.codeRoot ?? null, readOnly: Boolean(o.readOnly), allowedHosts });
       const url = `http://${o.host}:${o.port}/`;
       const server = serve({ fetch: app.fetch, port: o.port, hostname: o.host }, () => {
         console.log(`designPerspectives: ${url}  (Ctrl+C to stop)`);

@@ -1,8 +1,10 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
-import { client, demoDir, ok } from "./helpers.js";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { ModelError } from "../src/core/ops.js";
+import { Project } from "../src/core/store.js";
+import { client, demoDir, ok, type Client } from "./helpers.js";
 
 const tsx = path.resolve("node_modules", ".bin", "tsx");
 const hasGit = spawnSync("git", ["--version"]).status === 0;
@@ -165,5 +167,75 @@ describe("coding plan", () => {
     expect(onBranch.summary).toMatchObject({ done: 2, open: 1 }); // the old e-mail file is still on the branch
     const onDisk = await ok(c.get(`/api/drafts/${id}/plan`, { against: "disk" }));
     expect(onDisk.summary.done).toBe(0);
+  });
+});
+
+describe("applying a draft with code", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  /** A draft that changes the model and plans a changed, a removed and a new file (in new folders). */
+  async function setup(): Promise<{ dir: string; c: Client; id: string; snapshot: () => Record<string, string | null> }> {
+    const dir = demoDir();
+    const c = client(dir);
+    const { id } = await ok(c.post("/api/drafts", { title: "All or nothing" }));
+    const d = c.at(`draft:${id}`);
+    await ok(d.patch("/api/workspace", { name: "Renamed in the draft" }));
+    await ok(d.put("/api/code/file", { path: "sample_code/api/accounts.py", content: "# v2\n" }));
+    await ok(d.delete("/api/code/file?path=sample_code/api/email_sender.py"));
+    await ok(d.post("/api/code/file", { path: "sample_code/newdir/sub/new.py", content: "x = 1\n" }));
+    const files = ["sample_code/api/accounts.py", "sample_code/api/email_sender.py", "sample_code/newdir/sub/new.py", "architecture/workspace.json", "architecture/designperspectives.json"];
+    const snapshot = () => ({
+      ...Object.fromEntries(files.map((f) => [f, read(dir, f)])),
+      newdir: String(fs.existsSync(file(dir, "sample_code/newdir"))),
+    });
+    return { dir, c, id, snapshot };
+  }
+
+  async function unchanged(c: Client, id: string, planned: number, before: Record<string, string | null>, after: Record<string, string | null>) {
+    expect(after).toEqual(before);
+    expect(after.newdir).toBe("false");
+    const st = await ok(c.get("/api/state"));
+    expect(st.workspace.name).not.toBe("Renamed in the draft");
+    expect(st.drafts.map((x: any) => [x.id, x.plannedFiles])).toEqual([[id, planned]]);
+    expect(st.canUndo).toBe(false);
+  }
+
+  it("puts every file back when a code write fails", async () => {
+    const { dir, c, id, snapshot } = await setup();
+    // Planned last (paths are applied in order): its folder is an existing regular file.
+    fs.writeFileSync(file(dir, "zz_blocker.txt"), "a file, not a folder\n");
+    await ok(c.at(`draft:${id}`).post("/api/code/file", { path: "zz_blocker.txt/x.py", content: "" }));
+    const before = snapshot();
+    const r = await c.post(`/api/drafts/${id}/apply`, { code: true });
+    expect(r.status).toBe(422);
+    expect(r.json().detail).toMatch(/^Could not write zz_blocker\.txt\/x\.py in the code folder.*Nothing was applied\.$/);
+    await unchanged(c, id, 4, before, snapshot());
+    expect(read(dir, "zz_blocker.txt")).toBe("a file, not a folder\n");
+    // Once the obstacle is gone, the same draft applies.
+    fs.rmSync(file(dir, "zz_blocker.txt"));
+    await ok(c.post(`/api/drafts/${id}/apply`, { code: true }));
+    expect(read(dir, "sample_code/api/accounts.py")).toBe("# v2\n");
+    expect(read(dir, "zz_blocker.txt/x.py")).toBe("");
+  });
+
+  it("puts every file back when the model step fails", async () => {
+    const { dir, c, id, snapshot } = await setup();
+    const before = snapshot();
+    vi.spyOn(Project.prototype, "edit").mockImplementationOnce(() => {
+      throw new ModelError("The model could not be saved.");
+    });
+    const r = await c.post(`/api/drafts/${id}/apply`, { code: true });
+    expect(r.status).toBe(422);
+    expect(r.json().detail).toBe("The model could not be saved.");
+    await unchanged(c, id, 3, before, snapshot());
+    // Without the failure it applies: model, code and draft removal together.
+    await ok(c.post(`/api/drafts/${id}/apply`, { code: true }));
+    expect((await ok(c.get("/api/state"))).workspace.name).toBe("Renamed in the draft");
+    expect(read(dir, "sample_code/api/accounts.py")).toBe("# v2\n");
+    expect(read(dir, "sample_code/api/email_sender.py")).toBeNull();
+    expect(read(dir, "sample_code/newdir/sub/new.py")).toBe("x = 1\n");
+    expect((await ok(c.get("/api/state"))).drafts).toEqual([]);
   });
 });

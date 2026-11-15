@@ -7,6 +7,7 @@ import * as code from "../src/core/code.js";
 import * as diagrams from "../src/core/diagrams.js";
 import { buildIndex } from "../src/core/ops.js";
 import { emptySidecar, sidecarData } from "../src/core/sidecar.js";
+import { Project } from "../src/core/store.js";
 import { client, Client, demoDir, demoWs, element, ok, tmpDir } from "./helpers.js";
 
 describe("features", () => {
@@ -101,6 +102,35 @@ describe("features", () => {
     expect((await ok(c.get("/api/state"))).styles["file:sample_code/api/store.py"]).toEqual({ fill: "#123456" });
     await ok(c.put("/api/styles/file:sample_code/api/store.py", null));
     expect((await ok(c.get("/api/state"))).styles).not.toHaveProperty("file:sample_code/api/store.py");
+  });
+
+  test("an edit that worsens an existing model error is refused", () => {
+    const dir = tmpDir();
+    const arch = path.join(dir, "architecture");
+    fs.mkdirSync(arch);
+    const sys = (id: string) => ({ id, name: "X" });
+    fs.writeFileSync(
+      path.join(arch, "workspace.json"),
+      JSON.stringify({ name: "T", model: { softwareSystems: [sys("a"), sys("b")] }, views: {} }),
+    );
+    const p = new Project(dir);
+    expect(p.loadErrors).toHaveLength(1);
+    // Unrelated edits still work on a model that already has the problem.
+    p.edit((ws) => {
+      ws.model.softwareSystems[0]!.description = "ok";
+    });
+    expect(() => p.edit((ws) => ws.model.softwareSystems.push({ ...sys("c"), relationships: [], containers: [] } as never))).toThrow(/3 of them/);
+    expect(p.workspace.model.softwareSystems).toHaveLength(2);
+  });
+
+  test("file styles are pruned when the code mapping goes away", async () => {
+    const c = client();
+    const f = "file:sample_code/api/store.py";
+    await ok(c.put(`/api/styles/${f}`, { fill: "#123456" }));
+    expect((await ok(c.get("/api/state"))).styles).toHaveProperty(f);
+    const mapped = (await ok(c.get("/api/state"))).elements.filter((e: any) => (e.codePaths ?? []).length);
+    for (const e of mapped) await ok(c.patch(`/api/elements/${e.id}`, { codePaths: [] }));
+    expect((await ok(c.get("/api/state"))).styles).not.toHaveProperty(f);
   });
 
   test("layout sizes and edge geometry", async () => {

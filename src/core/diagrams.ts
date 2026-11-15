@@ -449,10 +449,7 @@ export function diagramList(ws: Workspace): DiagramInfo[] {
   const idx = buildIndex(ws);
   const drawn = drawnInMap(idx);
   const refs = new Map(diagramRefs(idx).map((r) => [r.key, r]));
-  const put = (r: DiagramRef) => {
-    if (refs.has(r.key)) refs.set(r.key, r);
-    else refs.set(r.key, r);
-  };
+  const put = (r: DiagramRef) => refs.set(r.key, r);
   // Code diagrams for mapped elements; connector details for connectors with stages or code.
   for (const [elId, el] of idx.elements) if (getJson(el, CODE_KEY).length) put(ref("code", elId));
   for (const [rid, rel] of idx.relationships) {

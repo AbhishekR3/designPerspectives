@@ -17,7 +17,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { prune, syncViews } from "./diagrams.js";
 import { writeCodeFile } from "./code.js";
-import { CodePlan, DiskCode, OverlayCode, safePath, sha1 } from "./codefs.js";
+import { CodePlan, DiskCode, OverlayCode, safePath, sha1, type PlannedFile } from "./codefs.js";
 import { diffModels, type Snapshot } from "./diff.js";
 import { buildPlanItems, codingPlan } from "./plan.js";
 import type { CodeSource } from "./codefs.js";
@@ -27,7 +27,7 @@ import { merge3 } from "./merge.js";
 import { ModelError, slugify, unique } from "./ops.js";
 import { FileSnapshot, NotFound, Project, SIDECAR_FILE, WORKSPACE_FILE, atomicWrite } from "./store.js";
 import { flatten, unflatten, UnitError } from "./units.js";
-import { errors } from "./validate.js";
+import { addedErrors, errors } from "./validate.js";
 import type { ApplyPreview, CodingPlan, Conflict, DraftInfo } from "../shared/types.js";
 
 export const DRAFTS_DIR = "drafts";
@@ -200,33 +200,61 @@ export class Drafts {
   }
 
   /** Merge the draft into the main model (one undo step there); with `code`, also write the planned
-   *  code edits to the code folder. Then delete the draft. */
+   *  code edits to the code folder. Then delete the draft.
+   *
+   *  All or nothing: the code files are written first, each one backed up; then the model is
+   *  applied. If either step fails, every touched file is put back as it was (created files and
+   *  folders removed), the error is rethrown, and the draft stays. */
   apply(id: string, opts: { code?: boolean } = {}): void {
     const withCode = opts.code ?? true;
     const { merged, conflicts } = this.merged(id);
     const all = [...conflicts, ...(withCode ? this.codeConflicts(id) : [])];
     if (all.length || !merged) throw new ApplyConflict(all);
-    this.main.edit((ws, sc) => {
-      replaceContents(ws, merged.workspace);
-      replaceContents(sc, merged.sidecar);
-    });
-    if (withCode) this.writeCode(id);
+    const journal = new CodeJournal();
+    try {
+      if (withCode) this.writeCode(id, journal);
+      this.main.edit((ws, sc) => {
+        replaceContents(ws, merged.workspace);
+        replaceContents(sc, merged.sidecar);
+      });
+    } catch (e) {
+      journal.rollback();
+      throw e;
+    }
     this.remove(id);
   }
 
-  private writeCode(id: string): void {
+  private writeCode(id: string, journal: CodeJournal): void {
     const plan = this.codePlan(id);
     const root = this.main.codeRoot;
     for (const [rel, p] of plan.files()) {
-      const target = safePath(root, rel);
-      if (p.change === "deleted") {
-        fs.rmSync(target, { force: true });
-        continue;
+      try {
+        this.writeOne(root, rel, p, plan, journal);
+      } catch (e) {
+        if (e instanceof ModelError) throw e;
+        // A file system error (e.g. ENOTDIR, EACCES): name the file, not the absolute path.
+        const code = (e as NodeJS.ErrnoException).code;
+        throw new ModelError(`Could not write ${rel} in the code folder${code ? ` (${code})` : ""}. Nothing was applied.`);
       }
-      const content = plan.content(rel) ?? "";
-      if (fs.existsSync(target)) {
-        if (fs.readFileSync(target, "utf-8") !== content) writeCodeFile(root, rel, content, null);
-      } else atomicWrite(target, content);
+    }
+  }
+
+  private writeOne(root: string | null, rel: string, p: PlannedFile, plan: CodePlan, journal: CodeJournal): void {
+    const target = safePath(root, rel);
+    if (p.change === "deleted") {
+      if (!fs.existsSync(target)) return;
+      journal.backup(target);
+      fs.rmSync(target, { force: true });
+      return;
+    }
+    const content = plan.content(rel) ?? "";
+    if (fs.existsSync(target)) {
+      if (fs.readFileSync(target, "utf-8") === content) return;
+      journal.backup(target);
+      writeCodeFile(root, rel, content, null);
+    } else {
+      journal.backup(target);
+      atomicWrite(target, content);
     }
   }
 
@@ -254,10 +282,57 @@ export class Drafts {
     }
     // Model rules (e.g. both sides added a container with the same name) are checked here so the
     // preview can show them; errors already in the main model do not count.
-    const before = new Set(this.main.loadErrors);
-    const added = errors(result.workspace, result.sidecar).filter((e) => !before.has(e));
+    const added = addedErrors(this.main.loadErrors, errors(result.workspace, result.sidecar));
     if (added.length) return { merged: null, conflicts: added.map((reason) => ({ label: "Model rule", reason })) };
     return { merged: result, conflicts: [] };
+  }
+}
+
+/** Files and folders touched while applying a draft's code edits, so they can be put back. */
+class CodeJournal {
+  private files: { file: string; content: Buffer | null; mode: number }[] = [];
+  private dirs: string[] = [];
+
+  /** Record `file` as it is now (or that it does not exist), and the folders a write would create. */
+  backup(file: string): void {
+    if (fs.existsSync(file)) {
+      const st = fs.statSync(file);
+      this.files.push({ file, content: fs.readFileSync(file), mode: st.mode & 0o7777 });
+      return;
+    }
+    this.files.push({ file, content: null, mode: 0 });
+    // The topmost missing folder: removing it removes everything this apply created below it.
+    let top: string | null = null;
+    for (let d = path.dirname(file); !fs.existsSync(d); d = path.dirname(d)) {
+      top = d;
+      if (path.dirname(d) === d) break;
+    }
+    if (top) this.dirs.push(top);
+  }
+
+  /** Put every recorded file back, newest first. Failures are logged; the rest still run. */
+  rollback(): void {
+    for (const b of this.files.splice(0).reverse()) {
+      try {
+        if (b.content === null) {
+          if (fs.existsSync(b.file)) fs.rmSync(b.file, { force: true });
+        }
+        else {
+          fs.mkdirSync(path.dirname(b.file), { recursive: true });
+          fs.writeFileSync(b.file, b.content);
+          fs.chmodSync(b.file, b.mode);
+        }
+      } catch (e) {
+        console.error(`Could not restore ${b.file}:`, e);
+      }
+    }
+    for (const d of this.dirs.splice(0).reverse()) {
+      try {
+        fs.rmSync(d, { recursive: true, force: true });
+      } catch (e) {
+        console.error(`Could not remove ${d}:`, e);
+      }
+    }
   }
 }
 

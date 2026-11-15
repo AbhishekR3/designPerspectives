@@ -4,7 +4,8 @@
  * through a `CodeSource`, so they work the same for every model version.
  *
  * Paths are relative to the code root, with "/" separators. Disk access stays confined to the
- * code root (symlinks resolved), as before.
+ * code root (symlinks resolved), as before. Hidden files and folders (any path segment starting
+ * with ".", e.g. .git, .env, .ssh) are never read, written, listed or planned, by every source.
  */
 
 import { createHash } from "node:crypto";
@@ -56,6 +57,28 @@ export function cleanRel(rel: string): string | null {
   return p;
 }
 
+export const HIDDEN_MESSAGE = "Hidden files and folders (names starting with a dot) cannot be opened here.";
+export const OUTSIDE_MESSAGE = "That path is outside the code folder.";
+export const TOO_LARGE_MESSAGE = "The file is too large to save here (over 1 MB).";
+
+/** True if any segment of a clean relative path starts with "." (.git, .env, a/.hidden/x). */
+export function isHidden(rel: string): boolean {
+  return rel.split(/[\\/]/).some((part) => part.startsWith(".") && part !== "." && part !== "..");
+}
+
+/** A clean relative path that stays inside the code root and is not hidden; ModelError otherwise. */
+export function codeRel(rel: string): string {
+  const p = cleanRel(rel);
+  if (p === null) throw new ModelError(OUTSIDE_MESSAGE);
+  if (isHidden(p)) throw new ModelError(HIDDEN_MESSAGE);
+  return p;
+}
+
+/** Refuse content that could not be opened again (reads stop at MAX_BYTES). */
+export function checkSize(content: string): void {
+  if (Buffer.byteLength(content, "utf-8") > MAX_BYTES) throw new ModelError(TOO_LARGE_MESSAGE);
+}
+
 // ------------------------------------------------------------------ disk
 
 /** Resolve symlinks for the part of `p` that exists, then append the rest. */
@@ -81,12 +104,14 @@ function inside(root: string, target: string): boolean {
   return rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel));
 }
 
-/** Resolve `rel` under the code root, refusing anything that escapes it. */
+/** Resolve `rel` under the code root, refusing anything that escapes it or is hidden (checked
+ *  after symlinks are resolved, so a link to .git/config is refused too). */
 export function safePath(codeRoot: string | null, rel: string): string {
   if (codeRoot === null) throw new ModelError("No code folder is set. Start the app with --code-root <folder>.");
   const root = resolveLoose(codeRoot);
   const target = resolveLoose(path.resolve(root, rel));
-  if (!inside(root, target)) throw new ModelError("That path is outside the code folder.");
+  if (!inside(root, target)) throw new ModelError(OUTSIDE_MESSAGE);
+  if (isHidden(path.relative(root, target))) throw new ModelError(HIDDEN_MESSAGE);
   return target;
 }
 
@@ -121,6 +146,7 @@ export class DiskCode implements CodeSource {
     if (!a || statKind(a) !== "dir") return [];
     const out: CodeEntry[] = [];
     for (const name of fs.readdirSync(a)) {
+      if (name.startsWith(".")) continue;
       const k = statKind(path.join(a, name));
       if (k) out.push({ name, type: k });
     }
@@ -165,7 +191,7 @@ export class CodePlan {
       const files = isObj(data) && isObj(data.files) ? data.files : {};
       for (const [rel, v] of Object.entries(files)) {
         const p = cleanRel(rel);
-        if (!p || !isObj(v)) continue;
+        if (!p || isHidden(p) || !isObj(v)) continue;
         const change = v.change === "added" || v.change === "deleted" ? v.change : "changed";
         m.set(p, { change, base: typeof v.base === "string" ? v.base : null });
       }
@@ -185,8 +211,11 @@ export class CodePlan {
     atomicWrite(this.manifest, stableJson({ files: Object.fromEntries(sorted.map(([k, v]) => [k, { change: v.change, base: v.base }])) }));
   }
 
+  /** Where the planned content of `rel` is kept; refuses paths that leave the plan or are hidden. */
   private contentPath(rel: string): string {
-    return path.join(this.dir, ...rel.split("/"));
+    const p = codeRel(rel);
+    if (!p) throw new ModelError(OUTSIDE_MESSAGE);
+    return path.join(this.dir, ...p.split("/"));
   }
 
   content(rel: string): string | null {
@@ -207,6 +236,7 @@ export class CodePlan {
 
   /** Plan new content for a file; `current` is the file as it is in the code folder (null: none). */
   write(rel: string, content: string, current: string | null): void {
+    checkSize(content);
     const files = this.files();
     const prev = files.get(rel);
     const base = prev ? prev.base : current === null ? null : sha1(current);
@@ -252,6 +282,7 @@ export class OverlayCode implements CodeSource {
     this.planned = plan.files();
   }
   kind(rel: string) {
+    if (isHidden(rel)) return null;
     const p = this.planned.get(rel);
     if (p) return p.change === "deleted" ? null : "file";
     const k = this.base.kind(rel);
@@ -261,6 +292,7 @@ export class OverlayCode implements CodeSource {
     return null;
   }
   list(rel: string): CodeEntry[] {
+    if (isHidden(rel)) return [];
     const out = new Map(this.base.list(rel).map((e) => [e.name, e]));
     const prefix = rel ? `${rel}/` : "";
     for (const [f, v] of this.planned) {
@@ -274,6 +306,7 @@ export class OverlayCode implements CodeSource {
     return [...out.values()];
   }
   read(rel: string): string | null {
+    if (isHidden(rel)) return null;
     const p = this.planned.get(rel);
     if (!p) return this.base.read(rel);
     return p.change === "deleted" ? null : (this.plan.content(rel) ?? "").slice(0, MAX_BYTES);
@@ -307,6 +340,7 @@ export class GitCode implements CodeSource {
     for (const full of out.split("\0")) {
       if (!full || !full.startsWith(this.prefix)) continue;
       const rel = full.slice(this.prefix.length);
+      if (isHidden(rel)) continue;
       this.all.add(rel);
       const parts = rel.split("/");
       for (let i = 1; i < parts.length; i++) this.dirs.add(parts.slice(0, i).join("/"));

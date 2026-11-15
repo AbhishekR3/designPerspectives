@@ -729,7 +729,8 @@ export function updateElement(ws: Workspace, sidecar: Sidecar, elementId: string
   }
 }
 
-/** Copy one element (not its children or connections) next to the original. */
+/** Copy one element (not its children or connections) next to the original. The copy keeps cost, tags
+ *  and the rest, but not the code paths (it would map to the same files) or work items (they would be doubled). */
 export function duplicateElement(ws: Workspace, sidecar: Sidecar, elementId: string): string {
   const idx = buildIndex(ws);
   const src = idx.el(elementId);
@@ -747,6 +748,8 @@ export function duplicateElement(ws: Workspace, sidecar: Sidecar, elementId: str
   const copy = buildIndex(ws).el(newId);
   copy.url = src.url ?? null;
   copy.properties = src.properties ? { ...src.properties } : null;
+  setJson(copy, CODE_KEY, []);
+  setJson(copy, WORK_KEY, []);
   if (sidecar.styles[elementId]) sidecar.styles[newId] = structuredClone(sidecar.styles[elementId]!);
   return newId;
 }
@@ -919,10 +922,32 @@ export function cleanStyle(patch: Obj): Style {
   return Object.fromEntries(STYLE_KEYS.filter((k) => k in out).map((k) => [k, out[k]])) as Style;
 }
 
+const mappedPathsOf = new WeakMap<Index, string[]>();
+
+/** Every code path mapped to an element or relationship in the model (no disk access). */
+function mappedPaths(idx: Index): string[] {
+  let out = mappedPathsOf.get(idx);
+  if (!out) {
+    out = [...idx.elements.values(), ...idx.relationships.values()].flatMap((o) => getJson<string>(o, CODE_KEY)).map((p) => normpath(String(p).replace(/\\/g, "/")));
+    mappedPathsOf.set(idx, out);
+  }
+  return out;
+}
+
+/** Whether a file path is one of the mapped paths or lies inside a mapped folder ("." maps everything). */
+function underMappedPath(idx: Index, file: string): boolean {
+  return mappedPaths(idx).some((p) => p === "." || p === file || file.startsWith(`${p.replace(/\/+$/, "")}/`));
+}
+
 /** Whether an ID (element, relationship, or a synthetic diagram ID) still refers to something. */
 export function idStillValid(idx: Index, key: string): boolean {
   if (idx.elements.has(key) || idx.relationships.has(key)) return true;
-  if (key.startsWith("file:")) return true;
+  if (key.startsWith("file:")) {
+    // A file ("file:<path>") or an import between two files ("file:<a>-><b>") that is still under a mapped path.
+    const rest = key.slice("file:".length);
+    const i = rest.indexOf("->");
+    return i < 0 ? underMappedPath(idx, rest) : underMappedPath(idx, rest.slice(0, i)) && underMappedPath(idx, rest.slice(i + 2));
+  }
   if (key.startsWith("stage:") || key.startsWith("conn:")) return idx.relationships.has(key.split(":")[1] ?? "");
   if (key.startsWith("derived:") && key.includes("->")) {
     const rest = key.slice("derived:".length);

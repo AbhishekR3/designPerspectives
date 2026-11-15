@@ -9,14 +9,15 @@
  *
  * Files are read through a `CodeSource` (codefs.ts): the code folder on disk, a draft's planned edits
  * over it, or a git commit. Disk read/write is restricted to the code root: paths are resolved
- * (symlinks included) and must stay inside it.
+ * (symlinks included) and must stay inside it, and hidden paths (a segment starting with ".") are
+ * refused everywhere (codefs.ts).
  */
 
 import fs from "node:fs";
 import path from "node:path";
 import { blankNode } from "./connectors.js";
 import { scopeName, titleOf, type DiagramRef, type RawDiagram, type RawEdge, type RawNode } from "./diagrams.js";
-import { cleanRel, DiskCode, MAX_BYTES, safePath, sha1, type CodeSource } from "./codefs.js";
+import { checkSize, cleanRel, codeRel, DiskCode, MAX_BYTES, safePath, sha1, type CodeSource } from "./codefs.js";
 import { CODE_KEY, getJson, ModelError, normpath, type Index } from "./ops.js";
 
 export { MAX_BYTES, safePath };
@@ -310,8 +311,7 @@ export interface TreeEntry {
 export function listTree(code: CodeInput, rel = ""): TreeEntry[] {
   const src = asSource(code);
   if (typeof code === "string" || code === null) safePath(code, rel); // explain a missing code folder or an escape
-  const dir = cleanRel(rel);
-  if (dir === null) throw new ModelError("That path is outside the code folder.");
+  const dir = codeRel(rel);
   if (src.kind(dir) !== "dir") throw new ModelError("That is not a folder.");
   const out: TreeEntry[] = [];
   for (const e of src.list(dir)) {
@@ -340,6 +340,7 @@ export function writeCodeFile(
   expectedMtime?: number | null,
 ): { path: string; mtime: number } {
   const target = safePath(codeRoot, rel);
+  checkSize(content);
   if (!isFileOn(target)) throw new ModelError("No such file. New files cannot be created from here.");
   if (expectedMtime !== null && expectedMtime !== undefined && Math.abs(mtimeOf(target) - expectedMtime) > 0.001) {
     throw new ModelError("The file changed on disk since you opened it. Reopen it to see the new version.");

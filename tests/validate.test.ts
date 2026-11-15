@@ -13,6 +13,31 @@ describe("validate", () => {
     expect(errors(w, emptySidecar())).toEqual(['A person or software system named "X" already exists.']);
   });
 
+  test("a worsening duplicate gives a different message", () => {
+    const sys = (id: string) => ({ id, name: "X" });
+    const two = errors(ws({ model: { softwareSystems: [sys("a"), sys("b")] } }), emptySidecar());
+    const three = errors(ws({ model: { softwareSystems: [sys("a"), sys("b"), sys("c")] } }), emptySidecar());
+    expect(three).toHaveLength(1);
+    expect(three[0]).not.toBe(two[0]);
+    expect(three[0]).toContain("3");
+  });
+
+  test("relationship between an element and its own parent or child", () => {
+    const w = ws({
+      model: {
+        softwareSystems: [
+          {
+            id: "s",
+            name: "S",
+            relationships: [{ id: "r1", sourceId: "s", destinationId: "c", description: "Uses" }],
+            containers: [{ id: "c", name: "C" }],
+          },
+        ],
+      },
+    });
+    expect(errors(w, emptySidecar())).toEqual(['Relationship "r1" joins "S" and "C", one of which contains the other.']);
+  });
+
   test("duplicate IDs", () => {
     const w = ws({ model: { people: [{ id: "a", name: "X" }, { id: "a", name: "Y" }] } });
     expect(errors(w, emptySidecar())[0]).toContain("share the ID");
@@ -57,5 +82,20 @@ describe("validate", () => {
     expect(e).toContain('"A" has "Huge" for tag group "Risk", which is not one of its values.');
     expect(e).toContain('"A" has a value for tag group "Cost", which is not defined.');
     expect(e).toContain('Lens "X" uses tag group "Nope", which is not defined.');
+  });
+});
+
+describe("addedErrors", () => {
+  test("counts a problem getting worse as new, and one getting better as not new", async () => {
+    const { addedErrors } = await import("../src/core/validate.js");
+    const two = 'A container named "X" already exists within "S".';
+    const three = `${two} There are 3 of them.`;
+    const four = `${two} There are 4 of them.`;
+    expect(addedErrors([two], [three])).toEqual([three]);
+    expect(addedErrors([three], [four])).toEqual([four]);
+    expect(addedErrors([three], [two])).toEqual([]); // repairing duplicates one by one
+    expect(addedErrors([four], [three])).toEqual([]);
+    expect(addedErrors([three], [three, "Other."])).toEqual(["Other."]);
+    expect(addedErrors([], [two])).toEqual([two]);
   });
 });

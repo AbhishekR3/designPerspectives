@@ -26,6 +26,7 @@ dp serve PATH       # serve a model in another folder (PATH/architecture/)
 dp serve --code-root SRC   # folder holding the source code components point to (default: the project folder)
 dp serve --read-only       # viewer role: nothing can be changed
 dp serve --port 9000 --no-open
+dp serve --allow-host NAME   # also answer to this host name (tunnel or proxy in front)
 dp check            # check the model, its drafts and its code mapping; exit code 1 on problems
 dp check --strict   # also fail on warnings (mapped code paths that do not exist); `dp validate` = `dp check`
 dp diff --base main          # what changed in the model since a git branch/tag/commit, as Markdown
@@ -37,7 +38,7 @@ dp plan <draft> --against <branch> # check the plan against a git branch, tag or
 dp --version
 ```
 
-The server listens on `127.0.0.1:8765` only. Stop it with Ctrl+C.
+The server listens on `127.0.0.1:8765` only. It answers only requests addressed to localhost and refuses changes sent from other websites. Hidden files and folders (names starting with a dot) in the code folder cannot be opened. Stop it with Ctrl+C.
 
 Model files written by the earlier Python version (0.2) open unchanged.
 
@@ -89,7 +90,7 @@ Stage A2 additions:
   queue, pipeline, web, mobile, cache, storage, cloud, document, service), **notes**, **tradeoffs**,
   **usage** (who, how often), and **sensitive** labels (public to restricted) on objects; lenses
   choose which of these sections and badges show.
-- **Editing like draw.io / Lucidchart**: resize boxes, connect from any side, drag line ends to any
+- **Direct editing on the canvas**: resize boxes, connect from any side, drag line ends to any
   point on a box, bend lines, straight/curved/right-angle lines, slide a line's label, colours,
   line style/width, text size, arrows, duplicate, undo/redo (Ctrl/Cmd+Z), copy/paste (Ctrl/Cmd+C/V/D), arrow-key nudge, Back/Forward between diagrams, a Download menu (PNG/SVG), details tables on objects, example data per flow step, drag the sidebar edges.
 - `dp serve --read-only` gives a viewer role: nothing can be changed.

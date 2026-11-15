@@ -21,7 +21,7 @@ import { syncFlows } from "./flows.js";
 import { stableJson } from "./json.js";
 import { ModelError } from "./ops.js";
 import { emptySidecar, parseSidecar, sidecarData, type Sidecar } from "./sidecar.js";
-import { errors } from "./validate.js";
+import { addedErrors, errors } from "./validate.js";
 import { dumpWorkspace, emptyWorkspace, readWorkspace, type Workspace } from "./workspace.js";
 
 export const ARCH_DIR = "architecture";
@@ -147,8 +147,7 @@ export class Project implements ModelSource {
     syncViews(ws);
     syncFlows(ws);
     prune(ws, sc);
-    const before = new Set(this.loadErrors);
-    const added = errors(ws, sc).filter((e) => !before.has(e));
+    const added = addedErrors(this.loadErrors, errors(ws, sc));
     if (added.length) throw new ModelError(added.join(" "));
     if (record) {
       this.undoStack.push([this.workspace, this.sidecar]);

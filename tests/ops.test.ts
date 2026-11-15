@@ -110,4 +110,36 @@ describe("ops", () => {
     expect(ops.cleanPaths(["a/./b/", "a\\c", "a/b"])).toEqual(["a/b", "a/c"]);
     for (const bad of ["../x", "/etc", "C:/x", "a/../../x"]) expect(() => ops.cleanPaths([bad])).toThrow(ModelError);
   });
+
+  test("duplicate drops code paths and work items but keeps cost", () => {
+    const w = ws();
+    const a = el(w, "softwareSystem", "Shop");
+    const sc = emptySidecar();
+    const cost = [{ item: "Hosting", monthly: 50, note: "" }];
+    ops.updateElement(w, sc, a, {
+      codePaths: ["src/shop"],
+      work: [{ type: "issue", title: "Fix it", url: "", status: "open", severity: "", note: "" }],
+      cost,
+    } as never);
+    const copyId = ops.duplicateElement(w, sc, a);
+    const copy = buildIndex(w).el(copyId);
+    const props = ops.getProps(copy);
+    expect(props).not.toHaveProperty(ops.CODE_KEY);
+    expect(props).not.toHaveProperty(ops.WORK_KEY);
+    expect(ops.getJson(copy, ops.COST_KEY)).toHaveLength(1);
+  });
+
+  test("file styles are pruned when no mapped path covers them", () => {
+    const w = ws();
+    const a = el(w, "softwareSystem", "Shop");
+    const sc = emptySidecar();
+    ops.updateElement(w, sc, a, { codePaths: ["src/shop"] } as never);
+    const idx = buildIndex(w);
+    expect(ops.idStillValid(idx, "file:src/shop/a.py")).toBe(true);
+    expect(ops.idStillValid(idx, "file:src/shop/a.py->src/shop/b.py")).toBe(true);
+    expect(ops.idStillValid(idx, "file:src/shopping/a.py")).toBe(false);
+    expect(ops.idStillValid(idx, "file:src/other/a.py")).toBe(false);
+    ops.updateElement(w, sc, a, { codePaths: [] } as never);
+    expect(ops.idStillValid(buildIndex(w), "file:src/shop/a.py")).toBe(false);
+  });
 });

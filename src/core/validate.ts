@@ -16,6 +16,26 @@ function counts<T>(items: T[], key: (t: T) => string = String): Map<string, numb
   return m;
 }
 
+/** Wording for a problem found `c` times: the plain message for two, a count above that, so that
+ *  `Project.edit` (which refuses messages that were not there before) notices a problem getting worse. */
+const times = (c: number) => (c > 2 ? ` There are ${c} of them.` : "");
+const TIMES = / There are (\d+) of them\.$/;
+
+/** The messages in `after` that are new or worse than in `before`: a message that was not there, or
+ *  a counted problem whose count went up. A count going down (repairing duplicates one by one) is not new. */
+export function addedErrors(before: string[], after: string[]): string[] {
+  const split = (e: string): [string, number] => {
+    const m = TIMES.exec(e);
+    return m ? [e.slice(0, m.index), Number(m[1])] : [e, 1];
+  };
+  const had = new Map(before.map(split));
+  return after.filter((e) => {
+    const [base, n] = split(e);
+    const was = had.get(base);
+    return was === undefined || n > was;
+  });
+}
+
 export function errors(ws: Workspace, sidecar: Sidecar): string[] {
   const out: string[] = [];
   let idx: Index;
@@ -28,15 +48,15 @@ export function errors(ws: Workspace, sidecar: Sidecar): string[] {
 
   // Names (Structurizr Model.hydrate)
   for (const [n, c] of counts([...ws.model.people, ...ws.model.softwareSystems], (e) => e.name)) {
-    if (c > 1) out.push(`A person or software system named "${n}" already exists.`);
+    if (c > 1) out.push(`A person or software system named "${n}" already exists.${times(c)}`);
   }
   for (const s of ws.model.softwareSystems) {
     for (const [n, c] of counts(s.containers ?? [], (x) => x.name)) {
-      if (c > 1) out.push(`A container named "${n}" already exists within "${s.name}".`);
+      if (c > 1) out.push(`A container named "${n}" already exists within "${s.name}".${times(c)}`);
     }
     for (const cont of s.containers ?? []) {
       for (const [n, c] of counts(cont.components ?? [], (x) => x.name)) {
-        if (c > 1) out.push(`A component named "${n}" already exists within "${cont.name}".`);
+        if (c > 1) out.push(`A component named "${n}" already exists within "${cont.name}".${times(c)}`);
       }
     }
   }
@@ -56,12 +76,20 @@ export function errors(ws: Workspace, sidecar: Sidecar): string[] {
   }
   for (const { a, b, d, n } of pairs.values()) {
     if (n > 1) {
-      out.push(`A relationship with the description "${d}" already exists between "${idx.elements.get(a)!.name}" and "${idx.elements.get(b)!.name}".`);
+      out.push(`A relationship with the description "${d}" already exists between "${idx.elements.get(a)!.name}" and "${idx.elements.get(b)!.name}".${times(n)}`);
+    }
+  }
+  // A relationship cannot join an element and its own parent or child (Structurizr refuses to add one).
+  // Self-relationships are not flagged: Structurizr models can legitimately contain them.
+  for (const r of idx.relationships.values()) {
+    if (!idx.elements.has(r.sourceId) || !idx.elements.has(r.destinationId) || r.sourceId === r.destinationId) continue;
+    if (idx.ancestors(r.sourceId).includes(r.destinationId) || idx.ancestors(r.destinationId).includes(r.sourceId)) {
+      out.push(`Relationship "${r.id}" joins "${idx.elements.get(r.sourceId)!.name}" and "${idx.elements.get(r.destinationId)!.name}", one of which contains the other.`);
     }
   }
 
   // Views
-  for (const [k, c] of counts(allViews(ws), (v) => v.key)) if (c > 1) out.push(`A view with the key ${k} already exists.`);
+  for (const [k, c] of counts(allViews(ws), (v) => v.key)) if (c > 1) out.push(`A view with the key ${k} already exists.${times(c)}`);
   // Element checks only for view types we model; deployment views hold deployment nodes.
   for (const list of VIEW_LISTS) {
     for (const v of ws.views[list]) {
