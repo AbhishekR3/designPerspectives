@@ -304,6 +304,35 @@ export interface Enums {
   severities: string[];
 }
 
+// ------------------------------------------------------------------ sign-in and roles (Stage P4)
+
+/** What a signed-in person may do: architect (everything), engineer (drafts), viewer (read only). */
+export type Role = "architect" | "engineer" | "viewer";
+
+export interface SessionUser {
+  name: string;
+  role: Role;
+}
+
+/** GET /api/me (always reachable); POST /api/login returns { user }. */
+export interface MeResponse {
+  /** True when the server has a users file: every other API call needs a session. */
+  loginRequired: boolean;
+  user: SessionUser | null;
+}
+
+/** What the request's user may do, for the version the request selected. */
+export interface Permissions {
+  /** Change the selected version (main or a draft): model edits, positions, undo/redo, planned code edits. */
+  editThis: boolean;
+  createDraft: boolean;
+  applyDraft: boolean;
+  /** Discard the open draft (false when no draft is open). */
+  discardDraft: boolean;
+  /** Save, create or delete real code files (main model only). */
+  writeCode: boolean;
+}
+
 export interface AppState {
   workspace: { name: string; description: string };
   root: string;
@@ -315,7 +344,8 @@ export interface AppState {
   characteristics: CharacteristicDef[];
   costSettings: CostSettings;
   lenses: Lens[];
-  /** Lens to start in when the browser has no saved choice: "architect" while the model has no containers, else "engineer". */
+  /** Lens to start in when the browser has no saved choice. With sign-in: by role (architect: "architect",
+   *  engineer: "engineer", viewer: "overview"). Without: "architect" while the model has no containers, else "engineer". */
   defaultLens: string;
   flows: Flow[];
   loadErrors: string[];
@@ -325,7 +355,12 @@ export interface AppState {
   sections: Section[];
   canUndo: boolean;
   canRedo: boolean;
+  /** `!can.editThis`: true for git versions, a --read-only server, and versions the user's role cannot change. */
   readOnly: boolean;
+  /** The signed-in user (null when sign-in is off). */
+  me: SessionUser | null;
+  loginRequired: boolean;
+  can: Permissions;
   /** The model shown: "main", "draft:<id>" or "ref:<git ref>" (read-only). */
   model: { ref: string; title: string };
   /** Changes whenever the shown model (or the one it is compared with) is edited or changed on disk;
@@ -416,6 +451,8 @@ export interface DraftInfo {
   link: string;
   /** Number of planned code edits in the draft. */
   plannedFiles: number;
+  /** Whether the requesting user may discard this draft (set in GET /api/state). */
+  canDiscard?: boolean;
 }
 
 export interface ApplyPreview {

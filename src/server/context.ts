@@ -15,7 +15,8 @@ import { buildIndex, elementSummary, relationshipSummary } from "../core/ops.js"
 import { BUILTIN_LENSES, lensData, SECTIONS, styleData, type Sidecar } from "../core/sidecar.js";
 import { Project, type ModelSource } from "../core/store.js";
 import type { Workspace } from "../core/workspace.js";
-import type { AppState, Lens, Style } from "../shared/types.js";
+import type { AppState, DraftInfo, Lens, Permissions, SessionUser, Style } from "../shared/types.js";
+import { Auth, defaultLensFor, permissions, type Who } from "./auth.js";
 
 /** An HTTP error with a status code; the body is {"detail": message}. */
 export class HttpError extends Error {
@@ -48,8 +49,27 @@ export function codePair(sel: Selection) {
   return sel.cmpCode ? { before: sel.cmpCode, after: sel.code, planned: sel.planned } : undefined;
 }
 
-export function state(project: Project, readOnly = false, sel?: Selection, drafts?: Drafts, gitModels?: GitModels): AppState {
+/** The request's user and what they may do (see auth.ts); `state()` without it acts as before sign-in existed. */
+export interface Access {
+  me: SessionUser | null;
+  loginRequired: boolean;
+  can: Permissions;
+  /** Lens for a signed-in user's role, or null for the model-based default. */
+  defaultLens: string | null;
+  canDiscard: (d: DraftInfo) => boolean;
+}
+
+export function state(project: Project, readOnly = false, sel?: Selection, drafts?: Drafts, gitModels?: GitModels, access?: Access): AppState {
   const src = sel?.src ?? project;
+  const legacyEdit = !(readOnly || src.readOnly);
+  const can: Permissions = access?.can ?? {
+    editThis: legacyEdit,
+    createDraft: !readOnly,
+    applyDraft: !readOnly,
+    discardDraft: !readOnly && (sel?.ref ?? "main").startsWith("draft:"),
+    writeCode: legacyEdit && (sel?.ref ?? "main") === "main",
+  };
+  const draftList = drafts?.list() ?? [];
   const ws = src.workspace;
   const sc = src.sidecar;
   const editable = src instanceof Project ? src : null;
@@ -64,7 +84,7 @@ export function state(project: Project, readOnly = false, sel?: Selection, draft
     characteristics: sc.characteristics.map((c) => ({ name: c.name, description: c.description })),
     costSettings: { currency: sc.cost.currency, bands: sc.cost.bands.map((b) => ({ name: b.name, max: b.max ?? null, color: b.color })) },
     lenses: [...BUILTIN_LENSES, ...sc.lenses].map((l) => ({ ...lensData(l), defaultOverlay: l.defaultOverlay ?? null, builtin: l.builtin }) as unknown as Lens),
-    defaultLens: [...idx.elements.keys()].some((id) => idx.kindOf(id) === "container") ? "engineer" : "architect",
+    defaultLens: access?.defaultLens ?? ([...idx.elements.keys()].some((id) => idx.kindOf(id) === "container") ? "engineer" : "architect"),
     flows: flows.listFlows(ws),
     loadErrors: src.loadErrors,
     enums: ops.ENUMS,
@@ -74,10 +94,13 @@ export function state(project: Project, readOnly = false, sel?: Selection, draft
     canRedo: (editable?.redoStack.length ?? 0) > 0,
     codeRoot: project.codeRoot,
     sections: [...SECTIONS],
-    readOnly: readOnly || src.readOnly,
+    readOnly: !can.editThis,
+    me: access?.me ?? null,
+    loginRequired: access?.loginRequired ?? false,
+    can,
     model: { ref: sel?.ref ?? "main", title: sel?.title ?? "Main model" },
     version: `${src.revision}/${sel?.cmp?.revision ?? ""}`,
-    drafts: drafts?.list() ?? [],
+    drafts: access ? draftList.map((d) => ({ ...d, canDiscard: access.canDiscard(d) })) : draftList,
     git: (() => {
       const repo = gitModels?.get();
       return repo ? { branch: currentBranch(repo), refs: listRefs(repo) } : null;
@@ -140,6 +163,10 @@ export function strList(v: unknown, what: string): string[] {
 export interface AppOptions {
   codeRoot?: string | null;
   readOnly?: boolean;
+  /** Users file for sign-in (default `<root>/.dp/users.json`; sign-in is off when it does not exist). */
+  usersFile?: string | null;
+  /** Clock in milliseconds for sessions and sign-in lockout (tests). */
+  now?: () => number;
   /** Host names (as in the Host header, without the port; IPv6 in brackets) the server answers to.
    *  Default: the loopback names. null turns the check off (a server bound to another interface). */
   allowedHosts?: string[] | null;
@@ -148,6 +175,11 @@ export interface AppOptions {
 /** Everything the route modules work with, built once per app by `createContext`. */
 export interface Ctx {
   readOnly: boolean;
+  auth: Auth;
+  /** The request's user and role (set by the sign-in middleware). */
+  who: (c: Context) => Who;
+  /** The request's user and what they may do on the selected version. */
+  access: (c: Context) => Access;
   project: Project;
   drafts: Drafts;
   gitModels: GitModels;
@@ -167,6 +199,7 @@ export interface Ctx {
 export function createContext(root: string, opts: AppOptions = {}): Ctx {
   const readOnly = opts.readOnly ?? false;
   const project = new Project(root, opts.codeRoot);
+  const auth = new Auth(root, { usersFile: opts.usersFile, readOnly, codeRoot: project.codeRoot, now: opts.now });
   const drafts = new Drafts(project, gitUserName(project.dir));
   const gitModels = new GitModels(project.dir);
   const gitCodes = new GitCodes(project.codeRoot);
@@ -232,5 +265,25 @@ export function createContext(root: string, opts: AppOptions = {}): Ctx {
     await selection.run({ src: s, ref, title, cmp, cmpRef: against, cmpTitle, code, cmpCode, planned }, next);
   };
 
-  return { readOnly, project, drafts, gitModels, gitCodes, disk, ok, sel, writable, edit, draftId, selectVersion };
+  const who = (c: Context): Who => c.get("dpWho") ?? { user: null, role: readOnly ? "viewer" : "architect", loginRequired: false, readOnlyServer: readOnly };
+  const access = (c: Context): Access => {
+    const w = who(c);
+    const { ref } = sel();
+    const authorOf = (id: string) => {
+      try {
+        return drafts.info(id).author ?? null;
+      } catch {
+        return null;
+      }
+    };
+    return {
+      me: w.user,
+      loginRequired: w.loginRequired,
+      can: permissions(w, ref, ref.startsWith("draft:") ? authorOf(draftId(ref)) : null),
+      defaultLens: defaultLensFor(w),
+      canDiscard: (d) => permissions(w, `draft:${d.id}`, d.author ?? null).discardDraft,
+    };
+  };
+
+  return { readOnly, auth, who, access, project, drafts, gitModels, gitCodes, disk, ok, sel, writable, edit, draftId, selectVersion };
 }

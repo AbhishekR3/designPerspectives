@@ -13,6 +13,7 @@ import { Drafts } from "./core/drafts.js";
 import { GitCodes, GitError, GitModels } from "./core/git.js";
 import { checkProject, diffMarkdown } from "./core/report.js";
 import { AlreadyExists, ARCH_DIR, initProject, NotFound, Project, version, WORKSPACE_FILE } from "./core/store.js";
+import { addUser, ensureGitignored, initUsers, needUsers, readUsers, removeUser, setPassword, usersPath, UsersError, type NewPassword } from "./core/users.js";
 import { createApp, LOOPBACK_HOSTS } from "./server/app.js";
 
 function openBrowser(url: string): void {
@@ -71,7 +72,19 @@ export function program(): Command {
     .option("--demo", "If the folder has no model, create the sample model (with its sample code) instead of an empty one.")
     .option("--read-only", "Viewer role: browse only; every change is refused.")
     .option("--code-root <folder>", "Folder holding the source code that components point to (default: the project folder).")
-    .action((dir: string, o: { port: number; host: string; allowHost: string[]; open: boolean; demo?: boolean; readOnly?: boolean; codeRoot?: string }) => {
+    .option("--users <file>", "Users file for sign-in (default: <path>/.dp/users.json; sign-in is off without it).")
+    .action((dir: string, o: { port: number; host: string; allowHost: string[]; open: boolean; demo?: boolean; readOnly?: boolean; codeRoot?: string; users?: string }) => {
+      const usersFile = path.resolve(o.users ?? usersPath(dir));
+      let users: ReturnType<typeof readUsers>;
+      try {
+        // A users file that is given but missing, or not valid, stops the server: never run without the login it asks for.
+        if (o.users && !fs.existsSync(usersFile)) throw new UsersError(`There is no users file at ${usersFile}.`);
+        users = readUsers(usersFile);
+      } catch (e) {
+        if (!(e instanceof UsersError)) throw e;
+        console.error(`Cannot start: ${e.message}`);
+        process.exit(1);
+      }
       if (!fs.existsSync(path.join(dir, ARCH_DIR, WORKSPACE_FILE))) {
         const demo = Boolean(o.demo);
         const made = initProject(dir, { demo });
@@ -79,10 +92,25 @@ export function program(): Command {
       }
       const loopback = allowedHostsFor(o.host);
       const allowedHosts = loopback && [...loopback, ...o.allowHost.map((h) => h.trim().toLowerCase())];
-      if (allowedHosts === null) {
-        console.error(`Warning: listening on ${o.host}, so other machines can reach this server, and it has no login: anyone who can reach it can read and change the model and the code folder.`);
+      let app: ReturnType<typeof createApp>;
+      try {
+        app = createApp(dir, { codeRoot: o.codeRoot ?? null, readOnly: Boolean(o.readOnly), allowedHosts, usersFile: o.users ?? null });
+      } catch (e) {
+        if (e instanceof UsersError) {
+          console.error(`Cannot start: ${e.message}`);
+          process.exit(1);
+        }
+        throw e;
       }
-      const app = createApp(dir, { codeRoot: o.codeRoot ?? null, readOnly: Boolean(o.readOnly), allowedHosts });
+      if (users) console.log(`Login is on (${users.length} user${users.length === 1 ? "" : "s"})`);
+      else console.log("Login is off (no .dp/users.json; run `dp users init` to add users)");
+      if (allowedHosts === null) {
+        console.error(
+          users
+            ? `Warning: listening on ${o.host}, so other machines can reach this server. Sign-in is on, but the connection is plain HTTP: put an HTTPS proxy in front of it.`
+            : `Warning: listening on ${o.host}, so other machines can reach this server, and it has no login: anyone who can reach it can read and change the model and the code folder.`,
+        );
+      }
       const url = `http://${o.host}:${o.port}/`;
       const server = serve({ fetch: app.fetch, port: o.port, hostname: o.host }, () => {
         console.log(`designPerspectives: ${url}  (Ctrl+C to stop)`);
@@ -195,7 +223,128 @@ export function program(): Command {
       if ((o.check || o.against) && plan.summary.open > 0) process.exit(1);
     });
 
+  usersCommands(p);
+
   return p;
+}
+
+/** `dp users ...`: the users file for sign-in. */
+function usersCommands(p: Command): void {
+  const users = p.command("users").description("Manage who can sign in (the users file, <path>/.dp/users.json). Sign-in is off while the file does not exist.");
+  const fileOpt = () => new Option("--users <file>", "Users file (default: <path>/.dp/users.json).");
+  const fileOf = (dir: string, o: { users?: string }) => path.resolve(o.users ?? usersPath(dir));
+  /** Run a users command: UsersError is printed and exits with 1. */
+  const run = (fn: () => void) => {
+    try {
+      fn();
+    } catch (e) {
+      if (e instanceof UsersError) {
+        console.error(e.message);
+        process.exit(1);
+      }
+      throw e;
+    }
+  };
+  const stdinPassword = (o: { passwordStdin?: boolean }): string | null => {
+    if (!o.passwordStdin) return null;
+    const line = fs.readFileSync(0, "utf-8").split(/\r?\n/)[0] ?? "";
+    if (!line) throw new UsersError("No password on standard input.");
+    return line;
+  };
+  const table = (rows: string[][]) => {
+    const w = rows[0]!.map((_, i) => Math.max(...rows.map((r) => r[i]!.length)));
+    for (const r of rows) console.log("  " + r.map((x, i) => x.padEnd(w[i]!)).join("  ").trimEnd());
+  };
+  const printPasswords = (made: NewPassword[]) => {
+    table([["name", "role", "password"], ...made.map((m) => [m.name, m.role, m.password])]);
+    console.log(made.length === 1 ? "The password is shown only this once." : "The passwords are shown only this once.");
+  };
+  /** After the default users file is created: keep it out of git. */
+  const afterCreate = (dir: string, o: { users?: string }) => {
+    if (!o.users) {
+      const done = ensureGitignored(dir);
+      if (done === "added") console.log("Added .dp/ to .gitignore.");
+      if (done === "created") console.log("Created .gitignore with .dp/.");
+    }
+  };
+  const reminder = (file: string) => console.log(`Reminder: never commit ${file}: it holds the password hashes.`);
+
+  users
+    .command("init")
+    .description("Create the users file with the users architect, engineer and viewer, each with a random password.")
+    .argument("[path]", "Project folder.", ".")
+    .addOption(fileOpt())
+    .action((dir: string, o: { users?: string }) =>
+      run(() => {
+        const file = fileOf(dir, o);
+        const made = initUsers(file);
+        console.log(`Created ${file} with ${made.length} users. Sign-in is on from the next request.`);
+        printPasswords(made);
+        afterCreate(dir, o);
+        reminder(file);
+      }),
+    );
+
+  users
+    .command("add")
+    .description("Add a user with a random password (or one read from standard input).")
+    .argument("<name>", "User name: 1 to 40 letters, digits, dots, dashes or underscores.")
+    .argument("[path]", "Project folder.", ".")
+    .addOption(new Option("--role <role>", "architect, engineer or viewer.").choices(["architect", "engineer", "viewer"]).makeOptionMandatory())
+    .option("--password-stdin", "Read the password from the first line of standard input instead of generating one.")
+    .addOption(fileOpt())
+    .action((name: string, dir: string, o: { role: string; passwordStdin?: boolean; users?: string }) =>
+      run(() => {
+        const file = fileOf(dir, o);
+        const existed = fs.existsSync(file);
+        const made = addUser(file, name, o.role, stdinPassword(o));
+        console.log(`Added ${made.name} (${made.role}) to ${file}.`);
+        if (!o.passwordStdin) printPasswords([made]);
+        if (!existed) afterCreate(dir, o);
+        reminder(file);
+      }),
+    );
+
+  users
+    .command("passwd")
+    .description("Set a new password for a user (random, or read from standard input). Signs that user out.")
+    .argument("<name>", "User name.")
+    .argument("[path]", "Project folder.", ".")
+    .option("--password-stdin", "Read the password from the first line of standard input instead of generating one.")
+    .addOption(fileOpt())
+    .action((name: string, dir: string, o: { passwordStdin?: boolean; users?: string }) =>
+      run(() => {
+        const made = setPassword(fileOf(dir, o), name, stdinPassword(o));
+        console.log(`New password set for ${made.name}.`);
+        if (!o.passwordStdin) printPasswords([made]);
+      }),
+    );
+
+  users
+    .command("remove")
+    .description("Remove a user (not the last architect). Signs that user out.")
+    .argument("<name>", "User name.")
+    .argument("[path]", "Project folder.", ".")
+    .addOption(fileOpt())
+    .action((name: string, dir: string, o: { users?: string }) =>
+      run(() => {
+        const gone = removeUser(fileOf(dir, o), name);
+        console.log(`Removed ${gone.name} (${gone.role}).`);
+      }),
+    );
+
+  users
+    .command("list")
+    .description("List the users and their roles.")
+    .argument("[path]", "Project folder.", ".")
+    .addOption(fileOpt())
+    .action((dir: string, o: { users?: string }) =>
+      run(() => {
+        const list = needUsers(fileOf(dir, o));
+        if (!list.length) console.log("No users: nobody can sign in. Add one with `dp users add <name> --role architect`.");
+        else table([["name", "role"], ...list.map((u) => [u.name, u.role])]);
+      }),
+    );
 }
 
 /** The code at a ref, or none when the code folder is not in that repository / has no such ref. */

@@ -1,5 +1,5 @@
 /** Request protection: security headers, Host check (DNS rebinding), cross-site and cross-origin
- *  checks, body size limit, JSON-only bodies, and the viewer role. */
+ *  checks, body size limit and JSON-only bodies. Who may change what is decided in auth.ts. */
 
 import type { Context, Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
@@ -45,9 +45,7 @@ function isJsonType(ct: string | undefined): boolean {
 }
 
 /** Install the protection middleware, in order, on `app`. */
-export function installProtection(app: Hono, opts: { readOnly: boolean; allowedHosts?: string[] | null }): void {
-  const { readOnly } = opts;
-
+export function installProtection(app: Hono, opts: { allowedHosts?: string[] | null }): void {
   app.use(
     "*",
     secureHeaders({
@@ -107,14 +105,6 @@ export function installProtection(app: Hono, opts: { readOnly: boolean; allowedH
       if (text.length && !isJsonType(c.req.header("content-type"))) {
         return c.json({ detail: "The request body must be JSON (Content-Type: application/json)." }, 415);
       }
-    }
-    await next();
-  });
-
-  // Viewer role: the model can be read but not changed (and code files cannot be saved).
-  app.use("*", async (c, next) => {
-    if (readOnly && !["GET", "HEAD", "OPTIONS"].includes(c.req.method)) {
-      return c.json({ detail: "This server is read-only (viewer role)." }, 403);
     }
     await next();
   });

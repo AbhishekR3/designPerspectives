@@ -6,6 +6,8 @@ import path from "node:path";
 import { afterEach, expect } from "vitest";
 import { readWorkspace, type Workspace } from "../src/core/workspace.js";
 import { initProject } from "../src/core/store.js";
+import { hashPassword, usersPath, writeUsers, type UserEntry } from "../src/core/users.js";
+import type { Role } from "../src/shared/types.js";
 import { createApp, type AppOptions } from "../src/server/app.js";
 
 const made: string[] = [];
@@ -47,11 +49,21 @@ export class Client {
     this.app = app ?? createApp(dir, opts);
   }
 
-  /** The same server, with requests on another model version (X-DP-Model / X-DP-Compare). */
+  /** The same server, with requests on another model version (X-DP-Model / X-DP-Compare); keeps the sign-in. */
   at(model: string, compare?: string): Client {
     const h: Record<string, string> = { "X-DP-Model": model };
     if (compare) h["X-DP-Compare"] = compare;
+    if (this.headers.Cookie) h.Cookie = this.headers.Cookie;
     return new Client("", {}, this.app, h);
+  }
+
+  /** The same server, signed in as `name` (password: `testPassword(name)` unless given). */
+  async as(name: string, password = testPassword(name)): Promise<Client> {
+    const r = await this.post("/api/login", { name, password });
+    expect(r.status, r.text).toBe(200);
+    const cookie = /dp_session=([^;]+)/.exec(r.headers.get("set-cookie") ?? "")?.[1];
+    expect(cookie).toBeTruthy();
+    return new Client("", {}, this.app, { ...this.headers, Cookie: `dp_session=${cookie}` });
   }
 
   async req(method: string, url: string, body?: unknown, query?: Record<string, string>): Promise<Res> {
@@ -74,8 +86,34 @@ export class Client {
   delete = (url: string) => this.req("DELETE", url);
 }
 
-export function client(dir = demoDir(), opts: AppOptions = {}): Client {
-  return new Client(dir, opts);
+/** Cheap hashing for tests (the parameters are stored in each hash, so the server accepts them). */
+export const TEST_HASH = { N: 1024, r: 8, p: 1 };
+export const testPassword = (name: string) => `${name.toLowerCase()}-password`;
+
+export interface TestUser {
+  name: string;
+  role: Role;
+  password?: string;
+}
+/** architect, engineer and viewer, each with `testPassword(name)`. */
+export const ROLE_USERS: TestUser[] = [
+  { name: "architect", role: "architect" },
+  { name: "engineer", role: "engineer" },
+  { name: "viewer", role: "viewer" },
+];
+
+/** Write `<dir>/.dp/users.json` (or `file`). */
+export function writeTestUsers(dir: string, users: TestUser[] = ROLE_USERS, file = usersPath(dir)): string {
+  const entries: UserEntry[] = users.map((u) => ({ name: u.name, role: u.role, password: hashPassword(u.password ?? testPassword(u.name), TEST_HASH) }));
+  writeUsers(file, entries);
+  return file;
+}
+
+/** `users`: turn sign-in on with these users (true: architect, engineer and viewer) before the app starts. */
+export function client(dir = demoDir(), opts: AppOptions & { users?: true | TestUser[] } = {}): Client {
+  const { users, ...rest } = opts;
+  if (users) writeTestUsers(dir, users === true ? ROLE_USERS : users);
+  return new Client(dir, rest);
 }
 
 /** Assert 200 and return the JSON body. */

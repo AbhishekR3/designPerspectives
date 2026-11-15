@@ -48,11 +48,11 @@ export function registerCode(app: Hono, ctx: Ctx): void {
       const rel = relOf(p);
       const plan = drafts.codePlan(v.draft);
       const planned = plan.files().get(rel);
-      if (planned && planned.change !== "deleted") return c.json({ path: rel, content: plan.content(rel) ?? "", mtime: plan.mtime(rel) ?? 0, planned: planned.change, readOnly: false });
+      if (planned && planned.change !== "deleted") return c.json({ path: rel, content: plan.content(rel) ?? "", mtime: plan.mtime(rel) ?? 0, planned: planned.change, readOnly: !ctx.access(c).can.editThis });
       const onDisk = codemod.readCodeFile(project.codeRoot, rel);
-      return c.json({ ...onDisk, planned: planned?.change ?? null, readOnly: false });
+      return c.json({ ...onDisk, planned: planned?.change ?? null, readOnly: !ctx.access(c).can.editThis });
     }
-    return c.json({ ...codemod.readCodeFile(project.codeRoot, p), planned: null, readOnly: false });
+    return c.json({ ...codemod.readCodeFile(project.codeRoot, p), planned: null, readOnly: !ctx.access(c).can.writeCode });
   });
 
   app.put("/api/code/file", async (c) => {

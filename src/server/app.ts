@@ -8,6 +8,7 @@ import * as diagrams from "../core/diagrams.js";
 import { ModelError } from "../core/ops.js";
 import { NotFound } from "../core/store.js";
 import { createContext, HttpError, type AppOptions } from "./context.js";
+import { authorize } from "./auth.js";
 import { installProtection } from "./protect.js";
 import { registerCode } from "./routes/code.js";
 import { registerDrafts } from "./routes/drafts.js";
@@ -18,7 +19,8 @@ import { registerRead } from "./routes/read.js";
 import { registerSidecar } from "./routes/sidecar.js";
 import { registerUi } from "./routes/ui.js";
 
-export { codePair, HttpError, state, type AppOptions, type Selection } from "./context.js";
+export { codePair, HttpError, state, type Access, type AppOptions, type Selection } from "./context.js";
+export { ROUTE_RULES } from "./auth.js";
 export { LOOPBACK_HOSTS, MAX_BODY_BYTES } from "./protect.js";
 
 export function createApp(root: string, opts: AppOptions = {}): Hono {
@@ -38,9 +40,15 @@ export function createApp(root: string, opts: AppOptions = {}): Hono {
     return c.json({ detail: "Internal error. See the server log." }, 500);
   });
 
-  installProtection(app, { readOnly: ctx.readOnly, allowedHosts: opts.allowedHosts });
+  installProtection(app, { allowedHosts: opts.allowedHosts });
 
+  // Sign-in first (401 before anything about the model is looked at), then the model version,
+  // then the role check, which needs the version: one place decides every change (auth.ts).
+  app.use("/api/*", ctx.auth.authenticate);
   app.use("/api/*", ctx.selectVersion);
+  app.use("/api/*", authorize(ctx));
+
+  ctx.auth.register(app);
 
   registerRead(app, ctx);
   registerDrafts(app, ctx);
