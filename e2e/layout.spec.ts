@@ -450,3 +450,13 @@ test.describe("the first-run card", () => {
     });
   }
 });
+
+test.describe("collapsed palette", () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+  test("is only its button, not an empty box", async ({ page }) => {
+    await expect(page.getByTestId("add-softwareSystem").or(page.getByTestId("add-container")).first()).toBeVisible();
+    await page.getByTestId("palette-toggle").click();
+    const b = await page.locator(".palette").boundingBox();
+    expect(b!.height).toBeLessThan(50);
+  });
+});

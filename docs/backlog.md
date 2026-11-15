@@ -1,6 +1,6 @@
 # Future plans and backlog
 
-Last updated: 2026-11-15. Baseline: release 0.3.0 (TypeScript rewrite, feature parity with 0.2.0; see `reviews/rewrite-ts_review.md`).
+Last updated: 2026-11-15. Current version: 1.0.0 (see `../CHANGELOG.md`). Latest review: `reviews/prod-p6_review.md`.
 
 This file collects work that is not built yet. Nothing here is scheduled or rejected; items are revisited after feedback on the current stage.
 
@@ -108,6 +108,13 @@ Open questions for the owner [Proposal]:
 - Custom roles. Roles are fixed at Architect, Engineer and Viewer (DEC-041).
 - Draft ownership rules: whether engineers may edit only drafts they started (open question for the owner).
 - Rebase a draft onto a newer main, so "main +N" can be resolved rather than only shown (also open in Stage P3).
+
+### Release and layout (after Stage P6) [Review, prod-p5, prod-p6]
+- Light theme. The app is dark only today [Review, prod-p5].
+- Windows under 760 px wide. Below that the app shows the canvas with both panels collapsed; nothing more is promised [Review, prod-p5].
+- Automated accessibility audit. Labels, focus and keyboard reach were checked by hand and only partly by tests [Review, prod-p5].
+- Apply and enforce Prettier. It is configured but not applied to the code [Review, prod-p6].
+- Run the sample CI jobs in a real repository. The jobs in `docs/examples/ci/` have not been run [Review, prod-p6].
 
 ### Permissions and scale
 - Permissions beyond lenses: decision-rights matrix per role, signed approvals, encrypted files; approval rules (cost threshold, cross-team, security) [Notes].

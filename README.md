@@ -1,10 +1,23 @@
 # designPerspectives
 
 An open-source (MIT), model-based architecture tool using the [C4 model](https://c4model.com).
-Every diagram is a view of one model, so a change made once shows everywhere. **Lenses** show
-the same model differently for different audiences.
+You describe your system once, as a model: people, software systems, containers, components and
+the connections between them. Every diagram is a view of that model, so a change made once shows
+everywhere.
 
-Version **0.3.0**. Stage reviews are in `docs/reviews/`; changes per version are in `CHANGELOG.md`.
+- **Start from an empty canvas** and build the model by adding and connecting boxes.
+- **Plan a change in a draft**: edit a copy of the model, see what was added, changed and removed,
+  then apply it to the main model.
+- **Lenses** show the same model differently for different audiences.
+- The model is two JSON files in your repository (`architecture/`), written for clean `git diff`.
+  It runs on your machine; nothing is sent anywhere.
+
+![A container diagram with the object panel open](docs/images/canvas.png)
+
+![A draft compared with the main model: one container added, one changed](docs/images/draft-changes.png)
+
+Version **1.0.0**. Changes per version are in [CHANGELOG.md](CHANGELOG.md); how to contribute is in
+[CONTRIBUTING.md](CONTRIBUTING.md); how to report a security problem is in [SECURITY.md](SECURITY.md).
 
 ## Run it
 

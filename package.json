@@ -1,6 +1,6 @@
 {
   "name": "designperspectives",
-  "version": "0.3.0",
+  "version": "1.0.0",
   "description": "Open-source, model-based C4 architecture tool with lenses for different audiences.",
   "license": "MIT",
   "author": "Abhishek Ramesh",
@@ -39,7 +39,7 @@
     "ui:build": "npm --prefix ui run build"
   },
   "dependencies": {
-    "@hono/node-server": "^1.13.0",
+    "@hono/node-server": "^2.1.8",
     "commander": "^12.1.0",
     "hono": "^4.6.0"
   },

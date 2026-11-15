@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.0 — 2026-11-15
 
 ### Added
 - Drafts: a planned change in `architecture/drafts/<id>/`, with a changes overlay (added, changed,
@@ -52,6 +52,9 @@
 - User chip with role and Sign out. Default lens by role (Architect, Engineer, Overview for viewers), remembered per user and project; anyone can still switch lens. "View only" badge for viewers and a "Start a draft" banner for engineers on the main model.
 - `dp users init`, `add`, `passwd`, `remove` and `list`, and `dp serve --users <file>`.
 - Side panels have a real read-only mode, and controls a role cannot use are hidden.
+- Open-source project files: CONTRIBUTING.md, CODE_OF_CONDUCT.md and SECURITY.md (how to report a problem, and the threat model).
+- Issue templates for bugs, features and configuration, and a pull request template, under `.github/`.
+- README front page rewritten: what it is, two screenshots (`docs/images/`, made from the demo model), a three-command quick start from an empty folder, then the features.
 
 ### Changed
 - API clients must send `Content-Type: application/json` with a request body (415 otherwise).
@@ -70,6 +73,13 @@
 - File editor: Ctrl/Cmd+S saves only when Save is enabled. Tab no longer edits a read-only file. A Loading… state is shown, and long paths wrap.
 - Right-click menu: scrolling inside it no longer closes it. Shift+F10 or the menu key opens it for the selection.
 - A removed (ghost) file box no longer shows an editable file panel.
+- Top area is two rows that wrap. The breadcrumb truncates (middle first), the search collapses to an icon and the lens label truncates. Nothing overlaps down to a 420 px canvas column.
+- Draft strip and role banner are one row that wraps. Apply, Discard and Back to main always stay visible.
+- Add palette collapses to a button (remembered; starts collapsed on a narrow canvas) and scrolls inside itself. Palette and dock share one column.
+- Fit-to-view fits the area not covered by bars, palette, dock and zoom buttons. The diagram re-fits when the canvas size changes, until the user pans or zooms.
+- Side panels cannot shrink the canvas below 420 px. The right panel collapses to a slim rail (starts collapsed under 1100 px).
+- Feedback: a loading bar on diagram and version switches; busy state on Apply, Create, Save and Move; one focus ring; labels on every icon-only button; the help card lists all shortcuts; reduced-motion support.
+- An empty flow no longer gets a step.
 
 ### Fixed
 - `dp plan --against <ref>` exits 2 when there is no code to check against (for example, the code
@@ -103,8 +113,12 @@
 - Ctrl/Cmd+S on a file planned for deletion no longer drops the planned deletion silently.
 - Side panels looked editable on git versions and in read-only views. They now have a real read-only mode.
 - Boxes could be dragged or resized in read-only views. They can no longer be there.
+- Long names (120 characters) and long unbroken tokens (80 characters) wrap or truncate in boxes, boundary labels, edge labels, panels, change lists, the breadcrumb, menus, toasts, dialogs and the sidebar tree. Panels have no horizontal scrollbar.
+- Dialogs fit the window, with scrolling content and visible buttons.
+- The quick bar above a selected box stays inside the canvas.
 
 ### Security
+- The HTTP server package is updated to its current major version; the runtime dependencies have no known advisories.
 - Requests must be addressed to a loopback host (`localhost`, `127.0.0.1`, `[::1]`) when the server
   is bound to loopback. This stops DNS rebinding. Binding another `--host` turns the check off and
   prints a warning that there is no login.

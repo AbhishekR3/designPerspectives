@@ -401,6 +401,8 @@
 }
 .palette.closed {
   width: auto;
+  min-height: 0;
+  flex: none;
 }
 .palette-head {
   font-weight: 600;
