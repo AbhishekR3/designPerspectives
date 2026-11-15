@@ -58,7 +58,7 @@ export function useHashSync(p: {
   setKey: Dispatch<SetStateAction<string | null>>;
   versionRef: RefObject<{ model: string; compare: string | null }>;
   loadDiagram(k: string): Promise<void>;
-  switchVersion(model: string, compare: string | null): Promise<void>;
+  switchVersion(model: string, compare: string | null, opts?: { key?: string | null }): Promise<void>;
   setSelection: Dispatch<SetStateAction<Selection>>;
   /** Reset when another diagram opens: the right-click menu and the flow player. */
   setMenu(m: null): void;
@@ -89,7 +89,12 @@ export function useHashSync(p: {
     const onHash = () => {
       const h = fromHash();
       const v = versionRef.current;
-      if (h.model !== v.model || h.compare !== v.compare) void switchVersion(h.model, h.compare);
+      // Another version (Back/Forward across a version switch, or an edited URL): switch to it and to the
+      // diagram in the URL together, so the switch cannot rewrite the URL with the old diagram.
+      if (h.model !== v.model || h.compare !== v.compare) {
+        void switchVersion(h.model, h.compare, { key: h.key });
+        return;
+      }
       const k = h.key;
       if (k && k !== keyRef.current) {
         setSelection(null);

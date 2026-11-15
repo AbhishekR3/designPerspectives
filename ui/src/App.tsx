@@ -40,12 +40,14 @@ export default function App() {
   const lensState = useLensState();
   const { overlay, setOverlay, filters, setFilters } = lensState;
   const { key, setKey, keyRef, open, pickChange } = useNavigation(setSelection);
-  const { state, setState, diagram, version, versionRef, changes, error, loadDiagram, refresh, switchVersion, mutate, doHistory } = useModel({
+  const { state, diagram, version, versionRef, changes, loadError, retryLoad, loadDiagram, refresh, switchVersion, mutate, doHistory } = useModel({
     keyRef,
     setKey,
     setSelection,
     setLensId: lensState.setLensId,
+    overlay,
     setOverlay,
+    filters,
     setFilters,
   });
   const [showAllLevels, setShowAllLevels] = useState(false);
@@ -74,7 +76,7 @@ export default function App() {
   useHashSync({ key, keyRef, setKey, versionRef, loadDiagram, switchVersion, setSelection, setMenu, setFlowStep, setPlaying });
   const flow = useFlowAutoplay(diagram, player);
   const reveal = useReveal(state, diagram, setKey, setSelection);
-  const { lens, chooseLens, chooseLensAfterSave, activeOverlay, decorate } = useLens({ state, setState, diagram, open, lensState });
+  const { lens, chooseLens, chooseLensAfterSave, activeOverlay, decorate } = useLens({ state, refresh, diagram, open, lensState });
   const clip = useClipboard({ keyRef, mutate, setSelection });
   const { pasteFrom } = clip;
   const { deleteRelationship, nodeActions, renameElement } = useElementActions({ state, mutate, pasteFrom, open, setSelection, setRenameId, fresh });
@@ -90,7 +92,20 @@ export default function App() {
   useShortcuts({ state, diagram, selection, setSelection, setFocusName, setRenameId, setSearchOpen, doHistory, clipboard: clip.clipboard, pasteFrom, deleteRelationship, nodeActions, toggleHelp: () => setHelpOpen((o) => !o), canvasRef });
 
   if (!state || !lens) {
-    return <div className="loading">{error ? `Could not load: ${error}` : "Loading…"}</div>;
+    return (
+      <div className="loading">
+        {loadError ? (
+          <>
+            Could not load: {loadError}{" "}
+            <button onClick={() => void retryLoad()} data-testid="retry-load">
+              Retry
+            </button>
+          </>
+        ) : (
+          "Loading…"
+        )}
+      </div>
+    );
   }
 
   const visibleGroups = state.tagGroups.filter((g) => !lens.hiddenTagGroups.includes(g.name));

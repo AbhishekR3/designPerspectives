@@ -7,13 +7,20 @@ import { Icon } from "./icons";
  * there is a single visible mechanism: <Toasts /> (rendered once in App).
  */
 
+/** A button offered with an error, such as "Retry". */
+export interface ErrorAction {
+  label: string;
+  run(): void;
+}
+
 interface Snapshot {
   error: string | null;
+  errorAction: ErrorAction | null;
   successes: { id: number; message: string; kind: "success" | "info" }[];
 }
 
 const SUCCESS_MS = 3000;
-let snap: Snapshot = { error: null, successes: [] };
+let snap: Snapshot = { error: null, errorAction: null, successes: [] };
 let nextId = 1;
 const listeners = new Set<() => void>();
 
@@ -27,12 +34,12 @@ const subscribe = (l: () => void) => {
 };
 const getSnapshot = () => snap;
 
-const setError = (message: string | null) => {
-  if (snap.error !== message) set({ error: message });
+const setError = (message: string | null, action: ErrorAction | null = null) => {
+  if (snap.error !== message || snap.errorAction !== action) set({ error: message, errorAction: message === null ? null : action });
 };
 
 export const notify = {
-  error: (message: string) => setError(message),
+  error: (message: string, action?: ErrorAction) => setError(message, action ?? null),
   clearError: () => setError(null),
   success: (message: string) => toast(message, "success"),
   /** A short notice that is not an error: it disappears by itself, like a success. */
@@ -59,15 +66,15 @@ export async function run<T>(action: () => Promise<T>, opts?: { success?: string
   }
 }
 
-/** The current error and a setter for it (null clears it). */
-export function useErrorSlot(): [string | null, (message: string | null) => void] {
+/** The current error and a setter for it (null clears it; an optional action is offered as a button). */
+export function useErrorSlot(): [string | null, (message: string | null, action?: ErrorAction | null) => void] {
   const { error } = useSyncExternalStore(subscribe, getSnapshot);
   return [error, setError];
 }
 
 /** The toast host: `children` (such as the read-only banner) are shown above the toasts. */
 export function Toasts({ children }: { children?: ReactNode }) {
-  const { error, successes } = useSyncExternalStore(subscribe, getSnapshot);
+  const { error, errorAction, successes } = useSyncExternalStore(subscribe, getSnapshot);
   if (!children && !error && successes.length === 0) return null;
   return (
     <div className="hud top-center">
@@ -80,6 +87,11 @@ export function Toasts({ children }: { children?: ReactNode }) {
       {error && (
         <div className="float toast error" role="alert" data-testid="error">
           <span className="toast-msg">{error}</span>
+          {errorAction && (
+            <button className="ghost" onClick={() => errorAction.run()} data-testid="error-action">
+              {errorAction.label}
+            </button>
+          )}
           <button className="ghost icon" onClick={() => notify.clearError()} aria-label="Dismiss">
             <Icon name="close" size={13} />
           </button>

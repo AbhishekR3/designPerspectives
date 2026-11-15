@@ -1,5 +1,4 @@
-import { useCallback, useMemo, useState, type Dispatch, type SetStateAction } from "react";
-import { api } from "./api";
+import { useCallback, useMemo, useState } from "react";
 import type { NodeDecor } from "./Canvas";
 import { decodeSpec, formatMoney, matchesFilter, overlayOf, specExists, specLabel, techColors, type Filter, type OverlaySpec } from "./overlays";
 import { run } from "./notify";
@@ -35,12 +34,13 @@ export function useLensState() {
 /** The lens in use, the overlay that applies to it, how each box is decorated, and choosing a lens. */
 export function useLens(p: {
   state: AppState | null;
-  setState: Dispatch<SetStateAction<AppState | null>>;
+  /** Reload the model (see useModel); resolves with the state shown, or null when a newer reload took over. */
+  refresh(): Promise<AppState | null>;
   diagram: Diagram | null;
   open(k: string): void;
   lensState: ReturnType<typeof useLensState>;
 }) {
-  const { state, setState, diagram, open } = p;
+  const { state, refresh, diagram, open } = p;
   const { lensId, setLensId, overlay, setOverlay, filters } = p.lensState;
 
   const lens: Lens | null = useMemo(
@@ -91,18 +91,15 @@ export function useLens(p: {
   );
 
   function chooseLensAfterSave(id: string) {
-    // State is refreshed by mutate before this runs; re-read lenses on the next tick.
-    window.setTimeout(() => {
-      void run(async () => {
-        const s = await api.state();
-        setState(s);
-        const l = s.lenses.find((x) => x.id === id);
-        if (!l) return;
-        setLensId(id);
-        storage.set(lensKey(s.root), id);
-        setOverlay(lensOverlay(l, s));
-      });
-    }, 0);
+    // `state` here predates the save: reload (with the compared version's changes) to see the saved lens.
+    void run(async () => {
+      const s = await refresh();
+      const l = s?.lenses.find((x) => x.id === id);
+      if (!s || !l) return;
+      setLensId(id);
+      storage.set(lensKey(s.root), id);
+      setOverlay(lensOverlay(l, s));
+    });
   }
 
   return { lens, chooseLens, chooseLensAfterSave, activeOverlay, decorate };

@@ -328,6 +328,9 @@ export interface AppState {
   readOnly: boolean;
   /** The model shown: "main", "draft:<id>" or "ref:<git ref>" (read-only). */
   model: { ref: string; title: string };
+  /** Changes whenever the shown model (or the one it is compared with) is edited or changed on disk;
+   *  positions and layouts included, which the rest of this summary does not show. */
+  version: string;
   drafts: DraftInfo[];
   /** Set when the model is compared with another version (overlay "Changes"). */
   compare: { against: string; title: string; summary: ChangeSummary } | null;

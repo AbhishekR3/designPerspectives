@@ -150,6 +150,25 @@ describe("API", () => {
     expect((await ok(c.get("/api/state"))).workspace.name).toBe("Changed on disk");
   });
 
+  test("state version changes after an edit and after an external file change, not otherwise", async () => {
+    const dir = demoDir();
+    const c = new Client(dir);
+    const v0 = (await ok(c.get("/api/state"))).version;
+    expect(typeof v0).toBe("string");
+    expect((await ok(c.get("/api/state"))).version).toBe(v0);
+    // A position-only edit, which nothing else in the state summary shows.
+    await ok(c.put("/api/diagrams/landscape/positions", { positions: { atm: { x: 5, y: 5 } } }));
+    const v1 = (await ok(c.get("/api/state"))).version;
+    expect(v1).not.toBe(v0);
+    const file = path.join(dir, "architecture", "workspace.json");
+    const data = JSON.parse(fs.readFileSync(file, "utf-8"));
+    data.description = "Changed on disk";
+    fs.writeFileSync(file, JSON.stringify(data, null, 2));
+    const v2 = (await ok(c.get("/api/state"))).version;
+    expect(v2).not.toBe(v1);
+    expect((await ok(c.get("/api/state"))).version).toBe(v2);
+  });
+
   test("delete element and relationship", async () => {
     const c = client();
     await ok(c.delete("/api/relationships/security-component--database"));

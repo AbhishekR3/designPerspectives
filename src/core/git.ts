@@ -100,6 +100,8 @@ export class GitSnapshot implements ModelSource {
   readonly loadErrors: string[];
   /** False when the commit has no model files (everything then shows as added). */
   readonly present: boolean;
+  /** Commits never change. */
+  readonly revision: string;
 
   constructor(
     repo: Repo,
@@ -108,6 +110,7 @@ export class GitSnapshot implements ModelSource {
     const ws = readAt(repo, sha, WORKSPACE_FILE);
     const sc = readAt(repo, sha, SIDECAR_FILE);
     this.present = ws !== null;
+    this.revision = `git:${sha}`;
     try {
       this.workspace = ws === null ? emptyWorkspace("(no model in this commit)") : parseWorkspace(ws);
       this.sidecar = sc === null ? emptySidecar() : parseSidecar(sc);

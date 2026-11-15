@@ -47,9 +47,15 @@ function stampOf(file: string): string {
   }
 }
 
+/** A new revision tag; unique within the server process, so a reloaded or replaced model never repeats one. */
+let revisions = 0;
+export const nextRevision = (): string => `r${++revisions}`;
+
 /** A model version the server can show: the main model, a draft, or a read-only copy. */
 export interface ModelSource {
   readonly workspace: Workspace;
+  /** Changes whenever the model is written or reloaded from disk (the UI's cheap "anything changed?" check). */
+  readonly revision: string;
   readonly sidecar: Sidecar;
   readonly loadErrors: string[];
   readonly readOnly: boolean;
@@ -62,6 +68,7 @@ export class FileSnapshot implements ModelSource {
   workspace!: Workspace;
   sidecar!: Sidecar;
   loadErrors: string[] = [];
+  revision = "";
   private stamp = "";
 
   constructor(
@@ -79,6 +86,7 @@ export class FileSnapshot implements ModelSource {
     this.sidecar = fs.existsSync(this.scPath) ? parseSidecar(fs.readFileSync(this.scPath, "utf-8")) : emptySidecar();
     this.loadErrors = errors(this.workspace, this.sidecar);
     this.stamp = now;
+    this.revision = nextRevision();
     return true;
   }
 }
@@ -96,6 +104,7 @@ export class Project implements ModelSource {
   loadErrors: string[] = [];
   undoStack: Snapshot[] = [];
   redoStack: Snapshot[] = [];
+  revision = "";
   private stamp: Stamp = "";
 
   /** `dir`: the folder holding the two files (default `<root>/architecture`; drafts live elsewhere). */
@@ -118,6 +127,7 @@ export class Project implements ModelSource {
     this.sidecar = fs.existsSync(this.scPath) ? parseSidecar(fs.readFileSync(this.scPath, "utf-8")) : emptySidecar();
     this.loadErrors = errors(this.workspace, this.sidecar);
     this.stamp = this.fileStamp();
+    this.revision = nextRevision();
     this.undoStack = [];
     this.redoStack = [];
   }
@@ -175,6 +185,7 @@ export class Project implements ModelSource {
     this.sidecar = sc;
     this.loadErrors = errors(ws, sc);
     this.stamp = this.fileStamp();
+    this.revision = nextRevision();
   }
 }
 

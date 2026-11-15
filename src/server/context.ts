@@ -76,6 +76,7 @@ export function state(project: Project, readOnly = false, sel?: Selection, draft
     sections: [...SECTIONS],
     readOnly: readOnly || src.readOnly,
     model: { ref: sel?.ref ?? "main", title: sel?.title ?? "Main model" },
+    version: `${src.revision}/${sel?.cmp?.revision ?? ""}`,
     drafts: drafts?.list() ?? [],
     git: (() => {
       const repo = gitModels?.get();
