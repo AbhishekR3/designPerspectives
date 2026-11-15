@@ -172,6 +172,22 @@ Stage C4 additions (planned code changes). See [docs/planned-change.md](docs/pla
   not apply (read-only server, flows, objects from a compared version) are left out. Arrow keys,
   Enter and Escape work in the menu.
 
+Stage P2 additions:
+
+- **Start empty**: `dp serve` and `dp init` make an empty model; `dp serve --demo` loads the sample
+  model with its sample code. An empty landscape shows a "Start your architecture" card with three steps.
+- **Lenses**: the built-in **Architect** lens (all levels and sections) and **Overview** (landscape and
+  context only, fewer sections). The default is Architect until the model has a container, then
+  Engineer. Your pick is remembered per project folder.
+- **Move**: a container can move to another software system, and a component to another container.
+  A move is refused when the name is already taken there.
+- **Readable IDs**: the first rename of a new box also renames its ID, so `new-system` becomes `loans`.
+- **Add and connect**: a person or software system added on a context, container or component diagram
+  comes with its line. Dragging a line onto empty canvas offers the kinds the diagram can add.
+- **Several boxes**: Shift+click or Shift+drag to select them. Move, nudge or delete them together, with
+  one undo step.
+- **Sidebar**: every software system is listed. A system with no containers is marked "(empty)".
+
 ## Develop
 
 Everything is TypeScript: the server, the CLI and the browser UI share one set of API types

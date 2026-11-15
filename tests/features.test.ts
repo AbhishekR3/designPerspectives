@@ -417,6 +417,43 @@ describe("diagramming from scratch", () => {
     expect(st.elements.some((e: any) => e.id === "inside" || e.name === "New person")).toBe(false);
   });
 
+  test("delete several elements in one undo step", async () => {
+    const c = client();
+    const before = await ok(c.get("/api/state"));
+    // "api-application" has components; "components" go with it, so listing one of them too must not fail.
+    const child = before.elements.find((e: any) => e.parentId === "api-application")!.id;
+    const gone = await ok(c.post("/api/elements/delete", { ids: ["api-application", child, "atm", "atm"] }));
+    expect(gone.deleted).toEqual(expect.arrayContaining(["api-application", child, "atm"]));
+    let st = await ok(c.get("/api/state"));
+    for (const id of ["api-application", child, "atm"]) expect(st.elements.some((e: any) => e.id === id)).toBe(false);
+
+    await ok(c.post("/api/undo"));
+    st = await ok(c.get("/api/state"));
+    expect(st.elements.map((e: any) => e.id).sort()).toEqual(before.elements.map((e: any) => e.id).sort());
+    expect(st.relationships.length).toBe(before.relationships.length);
+    expect(st.canUndo).toBe(false);
+
+    // An unknown id refuses everything before anything is deleted; so does an empty or malformed list.
+    const bad = await c.post("/api/elements/delete", { ids: ["atm", "nope"] });
+    expect(bad.status).toBe(422);
+    expect(bad.json().detail).toMatch(/No element with ID "nope"/);
+    expect((await c.post("/api/elements/delete", { ids: [] })).status).toBe(422);
+    expect((await c.post("/api/elements/delete", {})).status).toBe(422);
+    st = await ok(c.get("/api/state"));
+    expect(st.elements.some((e: any) => e.id === "atm")).toBe(true);
+    expect(st.canUndo).toBe(false);
+  });
+
+  test("a layout detail saved with auto=true is not a separate undo step", async () => {
+    const c = client();
+    const made = await ok(c.post("/api/elements", { kind: "container", parentId: "internet-banking-system", name: "Extra", connectFrom: "web-application" }));
+    await ok(c.put("/api/diagrams/containers-internet-banking-system/layout?auto=true", { edges: { [made.relationshipId]: { sourceAnchor: { x: 1, y: 0.5 } } } }));
+    await ok(c.post("/api/undo"));
+    const st = await ok(c.get("/api/state"));
+    expect(st.elements.some((e: any) => e.id === "extra")).toBe(false);
+    expect(st.canUndo).toBe(false);
+  });
+
   test("the first rename after creating can give the element a readable ID", async () => {
     const c = client();
     const { id } = await ok(c.post("/api/elements", { kind: "softwareSystem", name: "New system", connectFrom: "personal-banking-customer" }));

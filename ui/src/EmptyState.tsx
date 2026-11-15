@@ -7,11 +7,11 @@ export function emptyHint(level: DiagramLevel, readOnly: boolean): string {
     case "landscape":
       return "This model is empty.";
     case "context":
-      return "Nothing here yet. Add a person or a software system from the palette.";
+      return "Nothing here yet. Add a person or a software system from the palette; it is connected to this system.";
     case "container":
-      return "Nothing inside this system yet. Add a container from the palette.";
+      return "Nothing inside this system yet. Add a container from the palette. Then select a container to add a person or system connected to it.";
     case "component":
-      return "Nothing inside this container yet. Add a component from the palette.";
+      return "Nothing inside this container yet. Add a component from the palette. Then select a component to add a person or system connected to it.";
     case "connector":
       return "No stages yet. Add a stage from the palette.";
     case "flow":

@@ -1,5 +1,5 @@
 import { Icon } from "./icons";
-import type { AppState, Lens, Level, TagGroup } from "./types";
+import type { AppState, DiagramInfo, Lens, Level, TagGroup } from "./types";
 
 export function Sidebar({
   state,
@@ -37,8 +37,23 @@ export function Sidebar({
   /** The Drafts section (main model and planned changes). */
   draftsSection?: React.ReactNode;
 }) {
-  const diagrams = state.diagrams.filter((d) => showAllLevels || d.level === "connector" || lens.visibleLevels.includes(d.level as Level));
-  const hidden = state.diagrams.length - diagrams.length;
+  const visible = (d: DiagramInfo) => showAllLevels || d.level === "connector" || lens.visibleLevels.includes(d.level as Level);
+  // A software system with nothing inside is one entry (not a context and an empty containers diagram), marked "(empty)".
+  const emptySystems = new Set(state.elements.filter((e) => e.kind === "softwareSystem" && e.childCount === 0).map((e) => e.id));
+  const rows: { d: DiagramInfo; empty: boolean }[] = [];
+  let hidden = 0;
+  for (const d of state.diagrams) {
+    const isEmptyScope = !!d.scope && emptySystems.has(d.scope) && (d.level === "context" || d.level === "container");
+    if (!isEmptyScope) {
+      if (visible(d)) rows.push({ d, empty: false });
+      else hidden++;
+    } else if (d.level === "context") {
+      const containers = state.diagrams.find((x) => x.key === `containers-${d.scope}`);
+      const shown = containers && visible(containers) ? containers : visible(d) ? d : null;
+      if (shown) rows.push({ d: { ...shown, depth: d.depth }, empty: true });
+      else hidden++;
+    }
+  }
   return (
     <aside className="sidebar">
       <div className="brand row between">
@@ -56,11 +71,12 @@ export function Sidebar({
       <section>
         <h3>Diagrams</h3>
         <ul className="tree" data-testid="diagram-list">
-          {diagrams.map((d) => (
+          {rows.map(({ d, empty }) => (
             <li key={d.key} style={{ paddingLeft: d.depth * 14 }}>
-              <button className={`link ${d.key === currentKey ? "active" : ""}`} onClick={() => onOpen(d.key)} data-testid={`diagram-${d.key}`} title={d.title}>
+              <button className={`link ${d.key === currentKey ? "active" : ""}`} onClick={() => onOpen(d.key)} data-testid={`diagram-${d.key}`} title={empty ? `${d.title}: nothing inside yet` : d.title}>
                 <span className={`level-tag c4-${d.c4}`} data-testid={`level-${d.key}`}>{d.c4}</span> {d.level === "connector" ? "⇢ " : ""}
                 {d.level === "landscape" ? "System landscape" : d.level === "context" ? `${d.label} (context)` : d.label}
+                {empty && <span className="muted"> (empty)</span>}
               </button>
             </li>
           ))}

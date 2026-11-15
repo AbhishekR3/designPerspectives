@@ -23,8 +23,9 @@ test("checklist steps 1 to 4", async ({ page, server }) => {
   await expect(node(page, "atm")).toBeVisible();
   await page.getByTestId("add-softwareSystem").click();
   await renameSelected(page, "Loans");
-  await expect(page.getByTestId("node-new-system")).toContainText("Loans");
-  await page.getByTestId("node-new-system").dblclick();
+  // The first rename gives the box a readable ID.
+  await expect(node(page, "loans")).toContainText("Loans");
+  await node(page, "loans").dblclick();
   await expect(page.getByTestId("breadcrumb")).toContainText("Loans");
   for (const name of ["Loan UI", "Loan API", "Loan DB"]) {
     await page.getByTestId("add-container").click();
@@ -40,13 +41,13 @@ test("checklist steps 1 to 4", async ({ page, server }) => {
     await src.hover();
     await src.locator(".connect-handle.h-r").dragTo(node(page, b));
   };
-  await connect("new-container", "new-container-2");
+  await connect("loan-ui", "loan-api");
   await expect(page.getByTestId("edge-panel")).toBeVisible();
   await page.getByTestId("field-rel-description").fill("Calls");
   await page.getByTestId("field-rel-description").press("Enter");
-  await connect("new-container-2", "new-container-3");
+  await connect("loan-api", "loan-db");
   await expect(page.locator(".edge-label")).toHaveCount(2);
-  await expect(page.getByTestId("edge-new-container--new-container-2")).toContainText("Calls");
+  await expect(page.getByTestId("edge-loan-ui--loan-api")).toContainText("Calls");
 
   // 3. Drill from landscape to containers to components, and back with the breadcrumb.
   await page.getByTestId("crumb-landscape").click();

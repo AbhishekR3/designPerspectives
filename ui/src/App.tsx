@@ -4,21 +4,22 @@ import { draftActions, diagramActions, useElementActions } from "./actions";
 import { api } from "./api";
 import { ApplyDialog, ChangeDetails, ChangeList, DraftList, GhostPanel, PlanDialog, VersionStrip } from "./ChangesPanel";
 import { Canvas, type CanvasHandle } from "./Canvas";
-import { ContextMenu } from "./ContextMenu";
+import { ContextMenu, type MenuItem } from "./ContextMenu";
 import { Dock } from "./Dock";
 import { CharacteristicsEditor, CostSettingsEditor, LensEditor, TagGroupEditor } from "./editors";
 import { FlowCard } from "./FlowCard";
 import { FlowPanel } from "./FlowPanel";
 import { Icon } from "./icons";
 import { diagramEditable, menuItems, useContextMenu } from "./menus";
+import { canMove, MoveDialog } from "./MoveDialog";
 import { EmptyStart, emptyHint } from "./EmptyState";
 import { Palette, paletteItems } from "./Palette";
 import { formatMoney, overlayable } from "./overlays";
 import { FileEditor } from "./CodeParts";
-import { CodeDiagramPanel, ConnectorPanel, EdgePanel, FilePanel, ObjectPanel, StagePanel } from "./panels";
+import { CodeDiagramPanel, ConnectorPanel, EdgePanel, FilePanel, MultiPanel, ObjectPanel, StagePanel } from "./panels";
 import { SearchBox } from "./SearchBox";
 import { Sidebar } from "./Sidebar";
-import { LEVEL_LABEL, type Lens, type TagGroup } from "./types";
+import { LEVEL_LABEL, type Lens, type Pt, type TagGroup } from "./types";
 import { useClipboard } from "./useClipboard";
 import { useFlowAutoplay, useFlowPlayer } from "./useFlowPlayer";
 import { inLens, useLens, useLensState } from "./useLens";
@@ -35,7 +36,7 @@ type ModalState = { type: "tag"; group: TagGroup | null } | { type: "lens"; lens
 export default function App() {
   // State. Hook order matters only for effects, which run in this order: first load (useModel),
   // URL/history sync (useHashSync), flow autoplay, keyboard shortcuts.
-  const { selection, setSelection, focusName, setFocusName, renameId, setRenameId, clearRename, select, startRename } = useSelection();
+  const { selection, setSelection, focusName, setFocusName, renameId, setRenameId, clearRename, select, startRename, fresh } = useSelection();
   const lensState = useLensState();
   const { overlay, setOverlay, filters, setFilters } = lensState;
   const { key, setKey, keyRef, open, pickChange } = useNavigation(setSelection);
@@ -43,7 +44,6 @@ export default function App() {
     keyRef,
     setKey,
     setSelection,
-    lensId: lensState.lensId,
     setLensId: lensState.setLensId,
     setOverlay,
     setFilters,
@@ -54,6 +54,12 @@ export default function App() {
   const [exportOpen, setExportOpen] = useState(false);
   const [modal, setModal] = useState<ModalState>(null);
   const [openFile, setOpenFile] = useState<string | null>(null);
+  // The "Move to…" dialog (the element being moved), and the move just done, waiting for the model to reload so the element can be shown.
+  const [moveId, setMoveId] = useState<string | null>(null);
+  const [movedTo, setMovedTo] = useState<{ id: string; parentId: string } | null>(null);
+  // A small menu of choices at a screen point (the kind of box a line dragged onto empty canvas adds).
+  const [choiceMenu, setChoiceMenu] = useState<{ x: number; y: number; items: MenuItem[]; seq: number } | null>(null);
+  const choiceSeq = useRef(0);
   const { menu, setMenu, closeMenu, openMenu } = useContextMenu({ setFocusName, setSelection, setExportOpen });
   const player = useFlowPlayer();
   const { flowStep, setFlowStep, playing, setPlaying } = player;
@@ -71,7 +77,16 @@ export default function App() {
   const { lens, chooseLens, chooseLensAfterSave, activeOverlay, decorate } = useLens({ state, setState, diagram, open, lensState });
   const clip = useClipboard({ keyRef, mutate, setSelection });
   const { pasteFrom } = clip;
-  const { deleteRelationship, nodeActions } = useElementActions({ state, mutate, pasteFrom, open, setSelection });
+  const { deleteRelationship, nodeActions, renameElement } = useElementActions({ state, mutate, pasteFrom, open, setSelection, setRenameId, fresh });
+
+  // After a move: show the moved box, selected, where it now is (its new parent's diagram).
+  useEffect(() => {
+    if (!movedTo || !state) return;
+    if (state.elements.find((e) => e.id === movedTo.id)?.parentId === movedTo.parentId) {
+      setMovedTo(null);
+      reveal(movedTo.id, { home: true });
+    }
+  }, [movedTo, state, reveal]);
   useShortcuts({ state, diagram, selection, setSelection, setFocusName, setRenameId, setSearchOpen, doHistory, clipboard: clip.clipboard, pasteFrom, deleteRelationship, nodeActions, toggleHelp: () => setHelpOpen((o) => !o), canvasRef });
 
   if (!state || !lens) {
@@ -83,18 +98,33 @@ export default function App() {
   const { newDraft, discardDraft } = draftActions({ state, draftId, switchVersion });
   const changeOf = (id: string) => (changes ? [...changes.elements, ...changes.relationships].find((c) => c.id === id) : undefined);
   const againstLabel = state.compare?.title ?? "the compared version";
-  const { newFlow, addItem, connectToEmpty, connect, savePositions } = diagramActions({ state, diagram, key, mutate, open, canvasRef, startRename, setSelection, setFocusName });
+  const { newFlow, addItem, connectToEmpty, connect, savePositions } = diagramActions({
+    state,
+    diagram,
+    key,
+    mutate,
+    open,
+    canvasRef,
+    startRename,
+    selection,
+    setSelection,
+    setFocusName,
+    openChoiceMenu: (at: Pt, items: MenuItem[]) => setChoiceMenu({ x: at.x, y: at.y, items, seq: ++choiceSeq.current }),
+  });
+  const canDeleteHere = !!nodeActions && diagramEditable(state, diagram);
 
   const shownMenu = menu
-    ? menuItems(menu, { state, diagram, key, mutate, open, select, setFocusName, setRenameId, setOpenFile, clip, nodeActions, deleteRelationship, addItem, doHistory, canvasRef })
+    ? menuItems(menu, { state, diagram, key, mutate, open, select, setFocusName, setRenameId, setOpenFile, clip, nodeActions, deleteRelationship, selection, deleteMany: (ids) => nodeActions?.removeMany(ids), openMove: setMoveId, addItem, doHistory, canvasRef })
     : [];
 
   const selectedNode = selection?.type === "node" ? diagram?.nodes.find((n) => n.id === selection.id) : undefined;
   const selectedEdge = selection?.type === "edge" ? diagram?.edges.find((e) => e.id === selection.id) : undefined;
-  const selectedChange = selection ? changeOf(selection.id) : undefined;
+  const selectedChange = selection && selection.type !== "nodes" ? changeOf(selection.id) : undefined;
   const showGhost = !!(selectedNode?.ghost || selectedEdge?.ghost || (selection && diagram?.compare?.removed));
   const selectedElement = selection?.type === "node" ? state.elements.find((e) => e.id === selection.id) : undefined;
-  const panelProps = { state, diagram: diagram!, lens, mutate, onSelect: select, onOpen: open, onReveal: reveal, onOpenFile: setOpenFile, focusName };
+  const panelProps = { state, diagram: diagram!, lens, mutate, onSelect: select, onOpen: open, onReveal: reveal, onOpenFile: setOpenFile, focusName, onRename: renameElement, onMove: setMoveId };
+  const multiIds = selection?.type === "nodes" ? selection.ids : null;
+  const movingEl = moveId ? state.elements.find((e) => e.id === moveId) : undefined;
 
   const diagramCost = diagram ? overlayable(diagram).reduce((sum, n) => sum + (n.costRollup ?? 0), 0) : 0;
   const tools = (
@@ -294,7 +324,9 @@ export default function App() {
                   <li>Right-click a box, a line or empty space for a menu of what you can do there (open, rename, copy and paste, symbol, line shape, arrows, style, add here, layout, zoom).</li>
                   <li>Double-click a system or container to open the next level.</li>
                   <li>Add: drag a database, queue, pipeline, service and more from the palette on the left onto the diagram, or click it.</li>
-                  <li>Drag from a dot on any side of a box to another box to connect them, or to empty space to add a connected box.</li>
+                  <li>Drag from a dot on any side of a box to another box to connect them, or to empty space to pick a kind and add a connected box.</li>
+                  <li>Shift+click boxes, or Shift+drag over empty canvas, to select several: drag or use the arrow keys to move them together, Delete removes them (one undo step).</li>
+                  <li>On a context, container or component diagram a new person or system is connected to the system, or to the box you selected. Right-click a container or component, then Move to…, to put it in another parent.</li>
                   <li>Rename on the canvas: select a box, then click its name (or press F2). The bar above a selected box also changes its symbol, opens it, duplicates or deletes it.</li>
                   <li>Select a box to resize it; select a line to drag its ends, bend it, or slide its label along it.</li>
                   <li>Double-click a line to open the connector behind it.</li>
@@ -349,6 +381,14 @@ export default function App() {
         {showGhost && (
           <GhostPanel node={selectedNode} edge={selectedEdge} change={selectedChange} against={againstLabel} />
         )}
+        {multiIds && diagram && (
+          <MultiPanel
+            state={state}
+            ids={multiIds}
+            canDelete={canDeleteHere}
+            onDelete={() => nodeActions?.removeMany(multiIds.filter((id) => state.elements.some((x) => x.id === id) && !diagram.nodes.find((n) => n.id === id)?.ghost))}
+          />
+        )}
         {!showGhost && selectedChange && selectedChange.change !== "added" && <ChangeDetails change={selectedChange} against={againstLabel} />}
         {!showGhost && selectedElement && diagram && <ObjectPanel key={selectedElement.id} element={selectedElement} {...panelProps} />}
         {!showGhost && !selectedElement && selectedNode?.kind === "stage" && diagram && <StagePanel key={selectedNode.id} node={selectedNode} {...panelProps} />}
@@ -394,6 +434,20 @@ export default function App() {
       </aside>
 
       {menu && shownMenu.length > 0 && <ContextMenu key={menu.seq} x={menu.x} y={menu.y} items={shownMenu} onClose={closeMenu} />}
+      {choiceMenu && <ContextMenu key={`choice-${choiceMenu.seq}`} x={choiceMenu.x} y={choiceMenu.y} items={choiceMenu.items} keyboard onClose={() => setChoiceMenu(null)} />}
+      {movingEl && canMove(movingEl) && (
+        <MoveDialog
+          state={state}
+          element={movingEl}
+          onClose={() => setMoveId(null)}
+          onMove={async (parentId) => {
+            await api.moveElement(movingEl.id, parentId);
+            setMoveId(null);
+            setMovedTo({ id: movingEl.id, parentId });
+            await refresh().catch(() => undefined);
+          }}
+        />
+      )}
       {openFile && <FileEditor path={openFile} onClose={() => setOpenFile(null)} inDraft={!!draftId} onChanged={() => void refresh().catch(() => undefined)} />}
       {modal?.type === "plan" && <PlanDialog state={state} draftId={modal.draftId} onClose={() => setModal(null)} onSaved={() => void refresh().catch(() => undefined)} />}
       {searchOpen && (

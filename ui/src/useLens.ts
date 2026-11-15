@@ -3,7 +3,7 @@ import { api } from "./api";
 import type { NodeDecor } from "./Canvas";
 import { decodeSpec, formatMoney, matchesFilter, overlayOf, specExists, specLabel, techColors, type Filter, type OverlaySpec } from "./overlays";
 import { run } from "./notify";
-import { LENS_KEY, storage } from "./storage";
+import { lensKey, LENS_KEY, storage } from "./storage";
 import type { AppState, Diagram, DiagramLevel, DiagramNode, Lens, Level } from "./types";
 
 export const inLens = (lens: Lens, level: DiagramLevel) => level === "flow" || level === "connector" || lens.visibleLevels.includes(level as Level);
@@ -20,10 +20,13 @@ export function pickLens(s: AppState, saved: string | null): Lens {
   return s.lenses.find((l) => l.id === saved) ?? s.lenses.find((l) => l.id === s.defaultLens) ?? s.lenses[0];
 }
 
-/** The chosen lens (remembered in localStorage), the colour overlay and the Focus/Hide filters. */
+/** The lens remembered for this project, else the one remembered before lenses were kept per project. */
+export const savedLens = (root: string): string | null => storage.get(lensKey(root)) ?? storage.get(LENS_KEY);
+
+/** The chosen lens (remembered in localStorage per project), the colour overlay and the Focus/Hide filters. */
 export function useLensState() {
-  // The saved choice, or null until the first load resolves it (see `pickLens`).
-  const [lensId, setLensId] = useState<string | null>(() => storage.get(LENS_KEY));
+  // Null until the first load resolves it (see `pickLens`, `savedLens`).
+  const [lensId, setLensId] = useState<string | null>(null);
   const [overlay, setOverlay] = useState<OverlaySpec | null>(null);
   const [filters, setFilters] = useState<Filter[]>([]);
   return { lensId, setLensId, overlay, setOverlay, filters, setFilters };
@@ -50,7 +53,7 @@ export function useLens(p: {
     const l = state.lenses.find((x) => x.id === id);
     if (!l) return;
     setLensId(id);
-    storage.set(LENS_KEY, id);
+    storage.set(lensKey(state.root), id);
     setOverlay(lensOverlay(l, state));
     if (diagram && !inLens(l, diagram.level)) {
       const first = state.diagrams.find((d) => inLens(l, d.level));
@@ -96,7 +99,7 @@ export function useLens(p: {
         const l = s.lenses.find((x) => x.id === id);
         if (!l) return;
         setLensId(id);
-        storage.set(LENS_KEY, id);
+        storage.set(lensKey(s.root), id);
         setOverlay(lensOverlay(l, s));
       });
     }, 0);

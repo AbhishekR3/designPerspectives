@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { addBlockedReason, needsConnection } from "./connectRequired";
 import { Icon, iconFor } from "./icons";
 import type { Diagram } from "./types";
 
@@ -62,25 +63,34 @@ export function Palette({ diagram, onAdd }: { diagram: Diagram; onAdd(item: Pale
       {open && (
         <>
           <div className="palette-items">
-            {items.map((it) => (
-              <button
-                key={it.testId}
-                className="palette-item ghost"
-                draggable
-                onDragStart={(e) => {
-                  e.dataTransfer.setData(DRAG_TYPE, JSON.stringify(it));
-                  e.dataTransfer.effectAllowed = "copy";
-                }}
-                onClick={() => onAdd(it)}
-                title={`${it.label}: drag onto the diagram, or click to add`}
-                data-testid={it.testId}
-              >
-                <Icon name={it.kind === "stage" ? "stage" : iconFor(it.kind, it.archType)} size={15} />
-                <span>{it.label}</span>
-              </button>
-            ))}
+            {items.map((it) => {
+              // A person or system that must connect to a box inside is off while the boundary is empty.
+              const blocked = addBlockedReason(diagram, it.kind);
+              const connects = needsConnection(diagram, it.kind);
+              return (
+                <button
+                  key={it.testId}
+                  className="palette-item ghost"
+                  draggable={!blocked}
+                  disabled={!!blocked}
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData(DRAG_TYPE, JSON.stringify(it));
+                    e.dataTransfer.effectAllowed = "copy";
+                  }}
+                  onClick={() => onAdd(it)}
+                  title={blocked ?? `${it.label}: drag onto the diagram, or click to add${connects ? (diagram.level === "context" ? ". It is connected to the system." : ". It is connected to the selected box.") : ""}`}
+                  data-testid={it.testId}
+                >
+                  <Icon name={it.kind === "stage" ? "stage" : iconFor(it.kind, it.archType)} size={15} />
+                  <span>{it.label}</span>
+                </button>
+              );
+            })}
           </div>
-          <div className="palette-hint muted">Drag onto the diagram, or click. Drag from a box's dot to empty space to add a connected box.</div>
+          <div className="palette-hint muted">
+            Drag onto the diagram, or click. Drag from a box's dot to empty space to add a connected box.
+            {(diagram.connectRequired ?? []).length > 0 && diagram.level !== "context" && " A person or system is connected to the selected box."}
+          </div>
         </>
       )}
     </div>

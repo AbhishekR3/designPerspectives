@@ -19,7 +19,7 @@ import { CharacteristicsEditor, CostEditor, WorkEditor } from "./valueEditors";
 import { confirmDeleteElement } from "../dialogs";
 
 export function ObjectPanel({ element, ...p }: Common & { element: ElementSummary }) {
-  const { state, lens, mutate } = p;
+  const { state, lens, mutate, diagram } = p;
   const save = (patch: object) => mutate(() => api.updateElement(element.id, patch));
   const has = (s: (typeof lens.visibleSections)[number]) => lens.visibleSections.includes(s);
   const subtree = new Set([element.id]);
@@ -46,7 +46,7 @@ export function ObjectPanel({ element, ...p }: Common & { element: ElementSummar
         {KIND_LABEL[element.kind]}
         {parent && <span className="muted"> in {parent.name}</span>}
       </div>
-      <TextField label="Name" value={element.name} onCommit={(v) => save({ name: v })} testId="field-name" autoFocus={p.focusName} />
+      <TextField label="Name" value={element.name} onCommit={(v) => p.onRename(element.id, v)} testId="field-name" autoFocus={p.focusName} />
       <TextField label="Description" value={element.description} multiline onCommit={(v) => save({ description: v })} testId="field-description" />
       {element.kind !== "person" && (
         <label className="field">
@@ -180,6 +180,11 @@ export function ObjectPanel({ element, ...p }: Common & { element: ElementSummar
         <button onClick={() => mutate(() => api.duplicate(element.id))} data-testid="duplicate-element">
           Duplicate
         </button>
+        {(element.kind === "container" || element.kind === "component") && !state.readOnly && !diagram.compare?.removed && !diagram.nodes.find((n) => n.id === element.id)?.ghost && (
+          <button onClick={() => p.onMove(element.id)} title={`Move to another ${element.kind === "container" ? "software system" : "container"}`} data-testid="move-element">
+            Move to…
+          </button>
+        )}
         <button
           className="danger"
           data-testid="delete-element"

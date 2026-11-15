@@ -49,10 +49,9 @@ test("click a palette item, and the quick bar", async ({ page, server }) => {
   await waitUntil(async () => !(await elements(server)).some((e) => e.id === el.id));
 });
 
-test("a line to empty space adds a connected box", async ({ page, server }) => {
-  await openDiagram(page, "containers-internet-banking-system");
-  const before = new Set((await elements(server)).map((e) => e.id));
-  const src = page.getByTestId("node-api-application");
+/** Drag from a box's right-hand dot onto empty canvas; the kind menu opens at the drop point. */
+async function dragToEmpty(page: Page, id: string) {
+  const src = page.getByTestId(`node-${id}`);
   await src.hover();
   const h = (await src.locator(".connect-handle.h-r").boundingBox())!;
   const box = (await page.getByTestId("canvas").boundingBox())!;
@@ -60,6 +59,41 @@ test("a line to empty space adds a connected box", async ({ page, server }) => {
   await page.mouse.down();
   await page.mouse.move(box.x + box.width - 120, box.y + box.height / 2 + 40, { steps: 12 });
   await page.mouse.up();
+}
+
+test("a line to empty space offers a kind, and Escape adds nothing", async ({ page, server }) => {
+  await openDiagram(page, "containers-internet-banking-system");
+  const before = (await elements(server)).length;
+  await dragToEmpty(page, "api-application");
+  await expect(page.getByTestId("context-menu")).toBeVisible();
+  for (const k of ["container", "person", "softwareSystem"]) await expect(page.getByTestId(`connect-kind-${k}`)).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("context-menu")).toHaveCount(0);
+  await page.waitForTimeout(300);
+  expect((await elements(server)).length).toBe(before);
+});
+
+test("a line to empty space: pick another kind", async ({ page, server }) => {
+  await openDiagram(page, "containers-internet-banking-system");
+  const before = new Set((await elements(server)).map((e) => e.id));
+  await dragToEmpty(page, "api-application");
+  await page.getByTestId("connect-kind-person").click();
+  await expect(page.getByTestId("inline-name")).toBeFocused();
+  await page.getByTestId("inline-name").fill("Auditor");
+  await page.getByTestId("inline-name").press("Enter");
+  const added = await waitUntil(async () => (await elements(server)).filter((e) => !before.has(e.id)).find((e) => e.name === "Auditor"));
+  expect(added).toMatchObject({ kind: "person", id: "auditor" });
+  const rels = (await api(server, "/state")).relationships;
+  expect(rels.some((r: any) => r.sourceId === "api-application" && r.destinationId === "auditor")).toBe(true);
+  await expect(page.getByTestId("node-auditor")).toBeVisible();
+});
+
+test("a line to empty space adds a connected box", async ({ page, server }) => {
+  await openDiagram(page, "containers-internet-banking-system");
+  const before = new Set((await elements(server)).map((e) => e.id));
+  await dragToEmpty(page, "api-application");
+  await expect(page.getByTestId("context-menu")).toBeVisible();
+  await page.keyboard.press("Enter"); // the usual kind is preselected
   await expect(page.getByTestId("inline-name")).toBeFocused();
   await page.getByTestId("inline-name").press("Escape");
   const added = await waitUntil(async () => {

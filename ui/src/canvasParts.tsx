@@ -115,9 +115,13 @@ export type Rect4 = { x: number; y: number; width: number; height: number };
 /** Edits offered on the canvas itself, next to the selected box. */
 export interface NodeActions {
   rename(id: string, name: string): void;
+  /** The inline rename of a box ended without a new name: it keeps its ID. */
+  keepId(id: string): void;
   setArchType(id: string, archType: string): void;
   duplicate(id: string): void;
   remove(id: string): void;
+  /** Delete several boxes after one question (one undo step). */
+  removeMany(ids: string[]): void;
   open(key: string): void;
 }
 
@@ -138,6 +142,8 @@ export type C4NodeData = {
   costLabel: string | null;
   actions: NodeActions | null;
   archTypes: { id: string; label: string }[];
+  /** Part of a selection of several boxes: no quick bar, resize handles or click-to-rename. */
+  multi: boolean;
   renameNow: boolean; // start inline rename (new box, or F2)
   onRenameStarted(): void;
   onResize(id: string, r: Rect4): void;
@@ -224,6 +230,7 @@ export function C4Node({ data, selected }: NodeProps<C4NodeType>) {
   const secOpen = workOpen.filter((w) => w.type === "security").length;
   const cls = [
     "c4-node",
+    "nokey", // Shift+click on a box toggles it in the selection instead of starting a selection box
     `kind-${el.kind}`,
     outline ? "outline" : "card",
     selected ? "selected" : "",
@@ -260,6 +267,11 @@ export function C4Node({ data, selected }: NodeProps<C4NodeType>) {
           <Icon name="search" size={11} /> {el.childCount}
         </div>
       )}
+      {el.drillKey && el.childCount === 0 && (
+        <div className="drill-mark open-mark" title="Nothing inside yet; double-click to open and add" data-testid={`open-mark-${el.id}`}>
+          <Icon name="search" size={11} /> open
+        </div>
+      )}
       {overlay && (
         <div className={`ov-chip${overlay.color ? "" : " none"}`} data-testid={`badge-${el.id}`} title={`${overlay.group}: ${overlay.value ?? "no value"}`}>
           {overlay.color && <span className="dot" style={{ background: overlay.color }} />}
@@ -280,6 +292,7 @@ export function C4Node({ data, selected }: NodeProps<C4NodeType>) {
               onDone={(v) => {
                 setRenaming(false);
                 if (v) act.rename(el.id, v);
+                else act.keepId(el.id);
               }}
             />
           ) : (
@@ -289,7 +302,7 @@ export function C4Node({ data, selected }: NodeProps<C4NodeType>) {
               onClick={() => {
                 // Clicking the name of a box that is already selected renames it, unless the click
                 // turns out to be the first half of a double-click (which opens the box).
-                if (!act || !selected) return;
+                if (!act || !selected || data.multi) return;
                 window.clearTimeout(renameTimer.current);
                 renameTimer.current = window.setTimeout(() => setRenaming(true), 350);
               }}
@@ -338,7 +351,7 @@ export function C4Node({ data, selected }: NodeProps<C4NodeType>) {
         </div>
       </div>
       {act && (
-        <NodeToolbar isVisible={selected && !renaming} position={Position.Top} offset={14} className="quick-bar nodrag nopan" align="center">
+        <NodeToolbar isVisible={selected && !renaming && !data.multi} position={Position.Top} offset={14} className="quick-bar nodrag nopan" align="center">
           <button className="ghost icon" onClick={() => setRenaming(true)} title="Rename (or double-click the name)" aria-label="Rename" data-testid="qb-rename">
             ✎
           </button>
@@ -365,7 +378,7 @@ export function C4Node({ data, selected }: NodeProps<C4NodeType>) {
         </NodeToolbar>
       )}
       <NodeResizer
-        isVisible={selected && data.editable}
+        isVisible={selected && data.editable && !data.multi}
         minWidth={120}
         minHeight={60}
         lineClassName="resize-line"

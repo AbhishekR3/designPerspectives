@@ -5,3 +5,4 @@ export { FilePanel } from "./FilePanel";
 export { EdgePanel } from "./EdgePanel";
 export { ConnectorPanel } from "./ConnectorPanel";
 export { CodeDiagramPanel } from "./CodeDiagramPanel";
+export { MultiPanel } from "./MultiPanel";

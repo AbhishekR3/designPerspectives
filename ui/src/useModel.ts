@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type Dispatch, type RefObject, type SetStateAction } from "react";
 import { api, ApiError, setContext } from "./api";
-import { inLens, lensOverlay, pickLens } from "./useLens";
+import { inLens, lensOverlay, pickLens, savedLens } from "./useLens";
+import { lensKey, storage } from "./storage";
 import { errorMessage, useErrorSlot } from "./notify";
 import { fromHash, hashFor } from "./useNavigation";
 import type { Filter, OverlaySpec } from "./overlays";
@@ -15,12 +16,11 @@ export function useModel(p: {
   keyRef: RefObject<string | null>;
   setKey: Dispatch<SetStateAction<string | null>>;
   setSelection: Dispatch<SetStateAction<Selection>>;
-  lensId: string | null;
   setLensId: Dispatch<SetStateAction<string | null>>;
   setOverlay: Dispatch<SetStateAction<OverlaySpec | null>>;
   setFilters: Dispatch<SetStateAction<Filter[]>>;
 }) {
-  const { keyRef, setKey, setSelection, lensId, setLensId, setOverlay, setFilters } = p;
+  const { keyRef, setKey, setSelection, setLensId, setOverlay, setFilters } = p;
   const [state, setState] = useState<AppState | null>(null);
   const [diagram, setDiagram] = useState<Diagram | null>(null);
   // Model version shown (main or a draft) and the version it is compared with; sent with every request.
@@ -100,9 +100,11 @@ export function useModel(p: {
       .then(async (s) => {
         setState(s);
         if (versionRef.current.compare) setChanges(await api.changes());
-        const l = pickLens(s, lensId);
-        // Fix the choice now (not saved): the default must not flip when the first container is added.
+        const l = pickLens(s, savedLens(s.root));
+        // Fix the choice now and remember it for this project: the default (Architect for an empty
+        // model) must not flip to another lens when the first container is added and the page reloads.
         setLensId(l.id);
+        storage.set(lensKey(s.root), l.id);
         setOverlay(versionRef.current.compare ? { kind: "changes" } : lensOverlay(l, s));
         if (!keyRef.current) {
           const first = s.diagrams.find((d) => inLens(l, d.level)) ?? s.diagrams[0];

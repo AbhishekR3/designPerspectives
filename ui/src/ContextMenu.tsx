@@ -43,9 +43,9 @@ export const keys = (s: string) => (isMac ? s.replace(/Mod\+/g, "⌘").replace(/
 /**
  * A right-click menu at a screen point, kept inside the window. Arrow keys move, Right/Enter open a
  * submenu, Left closes it, Enter runs an item, Escape closes. Clicking elsewhere, scrolling or
- * resizing closes it.
+ * resizing closes it. With `keyboard` the first row starts highlighted, so Enter takes it.
  */
-export function ContextMenu({ x, y, items, onClose }: { x: number; y: number; items: MenuItem[]; onClose(): void }) {
+export function ContextMenu({ x, y, items, onClose, keyboard = false }: { x: number; y: number; items: MenuItem[]; onClose(): void; keyboard?: boolean }) {
   useEffect(() => {
     const down = (e: PointerEvent) => {
       if (!(e.target as HTMLElement | null)?.closest?.(".ctx-menu")) onClose();
@@ -63,7 +63,7 @@ export function ContextMenu({ x, y, items, onClose }: { x: number; y: number; it
     };
   }, [onClose]);
   const anchor = useMemo(() => ({ left: x, right: x, top: y }), [x, y]);
-  return <MenuList items={items} anchor={anchor} onDone={onClose} testId="context-menu" />;
+  return <MenuList items={items} anchor={anchor} onDone={onClose} keyboard={keyboard} testId="context-menu" />;
 }
 
 interface Anchor {

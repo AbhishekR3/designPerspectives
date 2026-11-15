@@ -25,10 +25,34 @@
 - `dp serve --allow-host <name>` lets the server answer to another host name (a tunnel or proxy in
   front of it).
 
+- Move to…: a container can move to another software system, and a component to another container
+  (`POST /api/elements/:id/move`). The ID, children and relationships are kept. Works in drafts: the
+  change list shows Parent before → after. See DEC-037.
+- Readable IDs: the first rename of a box added in this session also renames its ID and every
+  reference to it (relationships, views, flows, stages, styles, layouts). The rename request takes
+  `reslug`. In a draft, the box is not shown as removed and added.
+- Add and connect: a person or software system added on a context, container or component diagram is
+  created together with its line, in one undo step. Dragging a line onto empty canvas offers a menu of
+  the kinds the diagram can add.
+- Multi-select: Shift+click and Shift+drag select several boxes. Drag and arrow keys move them
+  together. Delete asks once and is one undo step (`POST /api/elements/delete`).
+- Built-in lenses **Architect** (all levels and sections) and **Overview** (landscape and context
+  only, fewer sections). The chosen lens is remembered per project folder. See DEC-038.
+- First-run card "Start your architecture" on an empty landscape; other empty diagrams show a hint.
+- `dp serve --demo` and `dp init --demo` create the sample model with its sample code.
+
 ### Changed
 - API clients must send `Content-Type: application/json` with a request body (415 otherwise).
 - In-app dialogs and toasts replace the browser's prompt and confirm boxes. Destructive confirms name the action (Delete, Discard).
 - Internal: the UI shell, the server routes, the object panel and the stylesheet are split into smaller files; ESLint runs in CI.
+
+- **Behaviour change:** `dp serve` and `dp init` create an empty model. Before, a new folder got the
+  sample model, and `sample_code/` was copied into it. Use `--demo` for the sample. `--empty` is still
+  accepted. See DEC-036.
+- The default lens is Architect when the model has no containers, otherwise Engineer (DEC-038).
+- The sidebar lists every software system. A system with no containers is one entry marked "(empty)".
+- Boxes that can be opened show a muted open mark on hover.
+- The toolbar hides Undo, Redo and Auto-layout in read-only views.
 
 ### Fixed
 - `dp plan --against <ref>` exits 2 when there is no code to check against (for example, the code
@@ -45,6 +69,15 @@
 - Errors from layout, auto-layout, image export and lens refetch are now shown. They used to fail silently.
 - Escape in a dialog no longer clears the canvas selection.
 - Keyboard shortcuts no longer act on the canvas while a dialog is open.
+
+- Cut is removed from the canvas. It deleted the element, so Paste did nothing.
+- A person or software system added on a context, container or component diagram is no longer lost
+  because it has no line. Such a diagram only draws outside elements that are connected to something
+  inside it.
+- A double click on a palette item adds one box.
+- The Delete key respects read-only and compare-only views, and uses the same confirm wording as the menu.
+- One rename request is sent per Enter.
+- Shortcuts do not fire while you type in a field. `?` toggles the help.
 
 ### Security
 - Requests must be addressed to a loopback host (`localhost`, `127.0.0.1`, `[::1]`) when the server

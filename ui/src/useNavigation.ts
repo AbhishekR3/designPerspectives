@@ -102,7 +102,10 @@ export function useHashSync(p: {
   }, [switchVersion]);
 }
 
-/** Show an element: select it on this diagram, or open the diagram it belongs to. */
+/**
+ * Show an element: select it on this diagram, or open the diagram it belongs to. With `home` it always opens
+ * the diagram it belongs to (after a move, to see the element in its new place).
+ */
 export function useReveal(
   state: AppState | null,
   diagram: Diagram | null,
@@ -110,13 +113,13 @@ export function useReveal(
   setSelection: Dispatch<SetStateAction<Selection>>,
 ) {
   return useCallback(
-    (id: string) => {
+    (id: string, opts: { home?: boolean } = {}) => {
       if (!state) return;
-      if (diagram?.nodes.some((n) => n.id === id)) {
+      const el = state.elements.find((e) => e.id === id);
+      if (diagram?.nodes.some((n) => n.id === id) && !(opts.home && el && diagram.key !== homeDiagramOf(el))) {
         setSelection({ type: "node", id });
         return;
       }
-      const el = state.elements.find((e) => e.id === id);
       if (!el) return;
       setKey(homeDiagramOf(el));
       setSelection({ type: "node", id });

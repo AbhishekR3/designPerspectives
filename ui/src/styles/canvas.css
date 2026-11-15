@@ -100,6 +100,16 @@
   gap: 2px;
   z-index: var(--z-drill-mark);
 }
+/* A box with a diagram behind it but nothing inside yet: a muted "open" shown on hover or selection. */
+.drill-mark.open-mark {
+  color: var(--muted, #8b919a);
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.c4-node:hover .open-mark,
+.c4-node.selected .open-mark {
+  opacity: 1;
+}
 .ov-chip {
   position: absolute;
   top: -10px;
@@ -466,4 +476,9 @@
 .edge-label.ghost {
   opacity: 0.6;
   text-decoration: line-through;
+}
+
+/* Shift+drag selects several boxes; they are moved, nudged and deleted together (no frame of its own). */
+.react-flow__nodesselection {
+  display: none;
 }

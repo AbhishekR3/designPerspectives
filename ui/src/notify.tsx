@@ -9,7 +9,7 @@ import { Icon } from "./icons";
 
 interface Snapshot {
   error: string | null;
-  successes: { id: number; message: string }[];
+  successes: { id: number; message: string; kind: "success" | "info" }[];
 }
 
 const SUCCESS_MS = 3000;
@@ -34,12 +34,16 @@ const setError = (message: string | null) => {
 export const notify = {
   error: (message: string) => setError(message),
   clearError: () => setError(null),
-  success(message: string) {
-    const id = nextId++;
-    set({ successes: [...snap.successes, { id, message }] });
-    window.setTimeout(() => set({ successes: snap.successes.filter((s) => s.id !== id) }), SUCCESS_MS);
-  },
+  success: (message: string) => toast(message, "success"),
+  /** A short notice that is not an error: it disappears by itself, like a success. */
+  info: (message: string) => toast(message, "info"),
 };
+
+function toast(message: string, kind: "success" | "info") {
+  const id = nextId++;
+  set({ successes: [...snap.successes, { id, message, kind }] });
+  window.setTimeout(() => set({ successes: snap.successes.filter((s) => s.id !== id) }), SUCCESS_MS);
+}
 
 export const errorMessage = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
@@ -69,7 +73,7 @@ export function Toasts({ children }: { children?: ReactNode }) {
     <div className="hud top-center">
       {children}
       {successes.map((s) => (
-        <div className="float toast success" role="status" key={s.id} data-testid="toast-success">
+        <div className={`float toast ${s.kind}`} role="status" key={s.id} data-testid={`toast-${s.kind}`}>
           <span className="toast-msg">{s.message}</span>
         </div>
       ))}

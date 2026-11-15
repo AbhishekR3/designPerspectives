@@ -7,8 +7,9 @@ import type { NodeActions } from "./canvasParts";
 import { keys, tidy, type MenuItem } from "./ContextMenu";
 import { iconFor } from "./icons";
 import { defaultSize } from "./layout";
+import { addBlockedReason } from "./connectRequired";
 import { paletteItems, type PaletteItem } from "./Palette";
-import type { AppState, Diagram, DiagramEdge, DiagramNode, EdgeLayout, Pt, Selection, Style } from "./types";
+import { selectedNodeIds, type AppState, type Diagram, type DiagramEdge, type DiagramNode, type EdgeLayout, type Pt, type Selection, type Style } from "./types";
 import type { Clipboard } from "./useClipboard";
 
 /** Choices in the line menus; labels match the panel. */
@@ -56,7 +57,8 @@ export function useContextMenu(p: {
   const openMenu = useCallback((target: ContextTarget, at: Pt) => {
     if (target.type !== "pane") {
       setFocusName(false);
-      setSelection(target);
+      // A box that is one of several selected keeps the selection: the menu then acts on all of them.
+      setSelection((cur) => (cur?.type === "nodes" && target.type === "node" && cur.ids.includes(target.id) ? cur : target));
     }
     setExportOpen(false);
     setMenu({ x: at.x, y: at.y, target, seq: ++menuSeq.current });
@@ -95,6 +97,12 @@ export interface MenuContext {
   clip: Clipboard;
   nodeActions: NodeActions | null;
   deleteRelationship(relId: string): void;
+  /** What is selected (several boxes: the box menu acts on all of them). */
+  selection: Selection;
+  /** Delete several boxes after one question. */
+  deleteMany(ids: string[]): void;
+  /** Open the "Move to…" dialog for a container or component. */
+  openMove(id: string): void;
   addItem(item: PaletteItem, at?: Pt): Promise<string | null | undefined>;
   doHistory(dir: "undo" | "redo"): Promise<void>;
   canvasRef: RefObject<CanvasHandle | null>;
@@ -102,7 +110,7 @@ export interface MenuContext {
 
 /** The items of the open menu (empty when none is open or its box or line is gone). */
 export function menuItems(menu: MenuState | null, c: MenuContext): MenuItem[] {
-  const { state, diagram, key, mutate, open, select, setFocusName, setRenameId, setOpenFile, nodeActions, deleteRelationship, addItem, doHistory, canvasRef } = c;
+  const { state, diagram, key, mutate, open, select, setFocusName, setRenameId, setOpenFile, nodeActions, deleteRelationship, addItem, doHistory, canvasRef, selection, deleteMany, openMove } = c;
   const { clipboard, styleClip, pasteFrom, pasteStyle } = c.clip;
   const frozen = !!diagram?.compare?.removed;
 
@@ -111,6 +119,16 @@ export function menuItems(menu: MenuState | null, c: MenuContext): MenuItem[] {
     canEdit && { label: "Paste style", icon: "brush", testId: "ctx-paste-style", disabled: !styleClip.current, onSelect: () => pasteStyle(target, kind) },
     canEdit && { label: "Reset style", testId: "ctx-reset-style", disabled: Object.keys(style).length === 0, onSelect: () => void mutate(() => api.style(target, null)) },
   ].filter(Boolean) as MenuItem[];
+
+  /** Right-click on one of several selected boxes: only what makes sense for all of them. */
+  const multiMenu = (ids: string[]): MenuItem[] => {
+    const canEdit = !state.readOnly && !frozen;
+    const deletable = ids.filter((id) => diagram?.nodes.some((n) => n.id === id && !n.ghost) && state.elements.some((x) => x.id === id));
+    return tidy([
+      canEdit && deletable.length > 0 && { label: `Delete ${deletable.length} objects`, icon: "trash", shortcut: "Del", danger: true, testId: "ctx-delete", onSelect: () => deleteMany(deletable) },
+      canEdit && { label: "Auto-layout", icon: "layout", testId: "ctx-auto-layout", onSelect: () => void canvasRef.current?.relayout() },
+    ]);
+  };
 
   const nodeMenu = (n: DiagramNode): MenuItem[] => {
     const el = state.elements.find((x) => x.id === n.id);
@@ -146,6 +164,13 @@ export function menuItems(menu: MenuState | null, c: MenuContext): MenuItem[] {
       el && { label: "Copy", icon: "copy", shortcut: keys("Mod+C"), testId: "ctx-copy", onSelect: () => (clipboard.current = n.id) },
       el && canEdit && { label: "Paste", icon: "paste", shortcut: keys("Mod+V"), testId: "ctx-paste", disabled: !clip, onSelect: () => clip && void pasteFrom(clip) },
       canEditEl && { label: "Duplicate", icon: "copy", shortcut: keys("Mod+D"), testId: "ctx-duplicate", onSelect: () => void pasteFrom(n.id) },
+      canEditEl &&
+        (n.kind === "container" || n.kind === "component") && {
+          label: "Move to…",
+          icon: "forward",
+          testId: "ctx-move",
+          onSelect: () => openMove(n.id),
+        },
       { sep: true },
       ...styleItems(n.id, n.style ?? {}, "node", canEdit),
       canEdit && diagram?.level !== "flow" && { label: "Reset size", icon: "resize", testId: "ctx-reset-size", disabled: !n.size, onSelect: () => key && void mutate(() => api.layout(key, { sizes: { [n.id]: null } })) },
@@ -234,7 +259,9 @@ export function menuItems(menu: MenuState | null, c: MenuContext): MenuItem[] {
         icon: "plus",
         testId: "ctx-add",
         submenu: addable.map((it) => ({
-          label: it.label,
+          // A person or system that needs a box to connect to (see connectRequired.ts) is off while there is none.
+          label: addBlockedReason(diagram, it.kind) ? `${it.label} (add a box first)` : it.label,
+          disabled: !!addBlockedReason(diagram, it.kind),
           icon: it.kind === "stage" ? "stage" : iconFor(it.kind, it.archType),
           testId: `ctx-${it.testId}`,
           onSelect: () => void addItem(it, canvasRef.current?.spotAt(at, defaultSize(it.kind))),
@@ -272,6 +299,7 @@ export function menuItems(menu: MenuState | null, c: MenuContext): MenuItem[] {
   if (t.type === "pane") return paneMenu(t.at);
   if (t.type === "node") {
     const n = diagram?.nodes.find((x) => x.id === t.id);
+    if (selection?.type === "nodes" && selectedNodeIds(selection).includes(t.id)) return multiMenu(selection.ids);
     return n ? nodeMenu(n) : [];
   }
   const e = diagram?.edges.find((x) => x.id === t.id);

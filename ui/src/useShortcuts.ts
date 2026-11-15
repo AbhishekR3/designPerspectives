@@ -1,7 +1,7 @@
 import { useEffect, type Dispatch, type RefObject, type SetStateAction } from "react";
 import type { CanvasHandle } from "./Canvas";
 import type { NodeActions } from "./canvasParts";
-import type { AppState, Diagram, Selection } from "./types";
+import { selectedNodeIds, type AppState, type Diagram, type Selection } from "./types";
 import { dialogOpen, isTyping } from "./fields";
 import { diagramEditable, relationshipToDelete } from "./menus";
 
@@ -10,7 +10,7 @@ import { diagramEditable, relationshipToDelete } from "./menus";
  * - Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z, Ctrl/Cmd+Y: undo, redo;
  * - editor-style keys: Ctrl/Cmd+C/V/D copy, paste, duplicate; Ctrl/Cmd+0/=/+/- fit and zoom;
  *   Escape clears the selection; arrows nudge the selected box; F2 renames;
- * - Delete/Backspace removes the selection (only where the right-click menu offers Delete);
+ * - Delete/Backspace removes the selection, one box, several boxes or a line (only where the right-click menu offers Delete);
  * - Ctrl/Cmd+K opens the search box; ? toggles the help card.
  * None of them act while a dialog is open or while typing (`isTyping`).
  */
@@ -57,6 +57,7 @@ export function useShortcuts(p: {
       const mod = e.metaKey || e.ctrlKey;
       const k = e.key.toLowerCase();
       const nodeId = selection?.type === "node" ? selection.id : null;
+      const boxIds = selectedNodeIds(selection); // one box or several (arrows move them together)
       const isElement = nodeId ? state?.elements.some((x) => x.id === nodeId) : false;
       if (mod && !e.altKey) {
         if (k === "c" && isElement) clipboard.current = nodeId;
@@ -70,14 +71,14 @@ export function useShortcuts(p: {
         return;
       }
       if (e.key === "Escape") setSelection(null);
-      else if (e.key.startsWith("Arrow") && nodeId) {
+      else if (e.key.startsWith("Arrow") && boxIds.length > 0) {
         const step = e.shiftKey ? 40 : 10;
         const d = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[e.key] as number[];
-        canvasRef.current?.nudge(nodeId, d[0], d[1]);
+        canvasRef.current?.nudge(boxIds, d[0], d[1]);
       } else if (e.key === "F2" && nodeId) {
         // Rename on the canvas.
         setRenameId(nodeId);
-      } else if (e.key === "F2" && selection) setFocusName(true);
+      } else if (e.key === "F2" && selection && selection.type !== "nodes") setFocusName(true);
       else return;
       e.preventDefault();
     };
@@ -92,7 +93,11 @@ export function useShortcuts(p: {
       if (e.key !== "Delete" && e.key !== "Backspace") return;
       if (dialogOpen() || isTyping(e.target)) return;
       if (!selection || !state || !diagramEditable(state, diagram)) return;
-      if (selection.type === "node") {
+      if (selection.type === "nodes") {
+        // Several boxes: one question, one undo step. Only boxes that a single Delete would also remove.
+        const ids = selection.ids.filter((id) => diagram?.nodes.some((n) => n.id === id && !n.ghost) && state.elements.some((x) => x.id === id));
+        if (ids.length > 0) nodeActions?.removeMany(ids);
+      } else if (selection.type === "node") {
         const n = diagram?.nodes.find((x) => x.id === selection.id);
         if (n && !n.ghost && state.elements.some((x) => x.id === n.id)) nodeActions?.remove(n.id);
       } else {

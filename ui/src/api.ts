@@ -68,7 +68,9 @@ export const api = {
       edges?: Record<string, EdgeLayout | null>;
       positions?: Record<string, Pt | null>;
     },
-  ) => request("PUT", `/diagrams/${enc(key)}/layout`, patch),
+    /** A detail of the edit just made (not a separate undo step). */
+    auto = false,
+  ) => request("PUT", `/diagrams/${enc(key)}/layout${auto ? "?auto=true" : ""}`, patch),
   style: (target: string, style: Style | null) => request("PUT", `/styles/${target.split("/").map(enc).join("/")}`, style),
   /** Copy an element; with `place`, put the copy at that point of a diagram (one undo step). */
   duplicate: (id: string, place?: { diagramKey: string; position: Pt }) => request<{ id: string }>("POST", `/elements/${enc(id)}/duplicate`, place),
@@ -81,9 +83,15 @@ export const api = {
   revertCodeFile: (path: string) => request("POST", "/code/revert", { path }),
   saveCodeFile: (path: string, content: string, mtime: number) => request<{ path: string; mtime: number }>("PUT", "/code/file", { path, content, mtime }),
   workspace: (patch: object) => request("PATCH", "/workspace", patch),
-  createElement: (body: object) => request<{ id: string }>("POST", "/elements", body),
-  updateElement: (id: string, patch: object) => request("PATCH", `/elements/${enc(id)}`, patch),
+  /** With `connectTo` / `connectFrom` (an element id) the new element and its relationship are one edit. */
+  createElement: (body: object) => request<{ id: string; relationshipId?: string }>("POST", "/elements", body),
+  /** `reslug` (with a rename): the first rename of a new element also makes its ID from the new name; the answer has the ID, which may be new. */
+  updateElement: (id: string, patch: object) => request<{ ok: boolean; id: string }>("PATCH", `/elements/${enc(id)}`, patch),
   deleteElement: (id: string) => request("DELETE", `/elements/${enc(id)}`),
+  /** Delete several elements as one undo step. */
+  deleteElements: (ids: string[]) => request<{ deleted: string[] }>("POST", "/elements/delete", { ids }),
+  /** Move a container to another software system, or a component to another container. */
+  moveElement: (id: string, parentId: string) => request<{ ok: boolean; id: string; parentId: string }>("POST", `/elements/${enc(id)}/move`, { parentId }),
   createRelationship: (body: object) => request<{ id: string }>("POST", "/relationships", body),
   updateRelationship: (id: string, patch: object) => request("PATCH", `/relationships/${enc(id)}`, patch),
   deleteRelationship: (id: string) => request("DELETE", `/relationships/${enc(id)}`),

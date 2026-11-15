@@ -205,6 +205,8 @@ export function registerSidecar(app: Hono, ctx: Ctx): void {
   app.put("/api/diagrams/:key/layout", async (c) => {
     const key = c.req.param("key");
     const patch = await objBody(c);
+    // auto=true: a detail saved together with the edit before it (such as which side a new line leaves from); not a separate undo step.
+    const auto = ["true", "1", "yes", "on"].includes((c.req.query("auto") ?? "").toLowerCase());
     edit((ws, sc) => {
       if (!diagrams.keyIsValid(ws, buildIndex(ws), key)) throw new HttpError(404, `No diagram ${key}`);
       const lay = (sc.layouts[key] ??= emptyLayout());
@@ -223,7 +225,7 @@ export function registerSidecar(app: Hono, ctx: Ctx): void {
         if (v === null) delete lay.positions[id];
         else lay.positions[id] = point(v, "position");
       }
-    });
+    }, !auto);
     return ok(c);
   });
 

@@ -12,6 +12,7 @@ import {
   type Edge,
   type Node,
   type NodeChange,
+  type NodeSelectionChange,
 } from "@xyflow/react";
 import { toPng, toSvg } from "html-to-image";
 import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type Ref } from "react";
@@ -20,7 +21,7 @@ import { errorMessage, notify, run } from "./notify";
 import { CHANGE_COLORS } from "./overlays";
 import { DRAG_TYPE, type PaletteItem } from "./Palette";
 import { NODE_H, NODE_W, autoLayout, defaultSize, findFreeSpot, placeMissing, type Rect, type Size } from "./layout";
-import type { Diagram, DiagramNode, EdgeLayout, Lens, Pt, Selection } from "./types";
+import { nodeSelection, selectedNodeIds, type Diagram, type DiagramNode, type EdgeLayout, type Lens, type Pt, type Selection } from "./types";
 
 export interface CanvasHandle {
   freeSpot(size?: Size): Pt;
@@ -28,7 +29,8 @@ export interface CanvasHandle {
   spotAt(center: Pt, size: Size): Pt;
   relayout(): Promise<void>;
   exportImage(format: "svg" | "png"): Promise<void>;
-  nudge(id: string, dx: number, dy: number): void;
+  /** Move boxes by a step; several boxes are saved in one request. */
+  nudge(ids: string[], dx: number, dy: number): void;
   fit(): void;
   zoom(dir: 1 | -1): void;
 }
@@ -59,7 +61,8 @@ interface Props {
   renameId: string | null;
   onRenameStarted(): void;
   onDropItem(item: PaletteItem, topLeft: Pt): void;
-  onConnectToEmpty(sourceId: string, at: Pt, sourceAnchor?: Pt): void;
+  /** `at` in diagram coordinates, `client` the same point on screen (for a menu there). */
+  onConnectToEmpty(sourceId: string, at: Pt, sourceAnchor: Pt | undefined, client: Pt): void;
   flowStep: number | null;
   /** Colour lines by change (the Changes overlay is on). */
   showChanges: boolean;
@@ -82,6 +85,9 @@ export type ContextTarget = { type: "node"; id: string } | { type: "edge"; id: s
 /** Room for the floating bars around the canvas, so fitting the view does not put boxes under them. */
 const FIT = { padding: { top: "110px", bottom: "130px", left: "200px", right: "60px" } } as const;
 
+/** Kinds of box that can be part of a selection of several. */
+const MULTI_KINDS = new Set(["person", "softwareSystem", "container", "component"]);
+
 const groupedIds = (d: Diagram) => (d.boundary ? d.nodes.filter((n) => n.inScope).map((n) => n.id) : []);
 const BOUNDARY_PAD = 40;
 
@@ -91,6 +97,26 @@ export function Canvas({ diagram, lens, decorate, actions, archTypes, renameId, 
   const [sizeOverride, setSizeOverride] = useState<Record<string, Size>>({});
   const wrapper = useRef<HTMLDivElement>(null);
   const fitFor = useRef<string | null>(null);
+  // Selecting several boxes: the current selection (also right after a change, before the next render),
+  // whether a selection box is being drawn, and whether Shift was down when the pointer went down.
+  const selRef = useRef(selection);
+  selRef.current = selection;
+  const boxing = useRef(false);
+  const shiftDown = useRef(false);
+  const multiIds = useMemo(() => (selection?.type === "nodes" ? new Set(selection.ids) : null), [selection]);
+  /** Ghosts (boxes of the compared version), stages and files cannot be part of a multi-selection. */
+  const multiOk = useCallback((id: string) => {
+    const n = diagram.nodes.find((x) => x.id === id);
+    return !!n && !n.ghost && MULTI_KINDS.has(n.kind);
+  }, [diagram]);
+  const commitSelection = useCallback(
+    (ids: string[]) => {
+      const next = nodeSelection(ids);
+      selRef.current = next;
+      onSelect(next);
+    },
+    [onSelect],
+  );
 
   const baseSizes = useMemo(() => {
     const m: Record<string, Size> = {};
@@ -224,6 +250,7 @@ export function Canvas({ diagram, lens, decorate, actions, archTypes, renameId, 
         showTechnology: lens.showTechnology,
         showDescriptions: lens.showDescriptions,
         sections: lens.visibleSections,
+        multi: !!multiIds,
         flowActive: activeNodes.has(n.id),
         dimmed: (!!step && !activeNodes.has(n.id)) || dec.outOfFocus,
         focused: dec.focused,
@@ -243,14 +270,14 @@ export function Canvas({ diagram, lens, decorate, actions, archTypes, renameId, 
         data,
         width: sz.w,
         height: sz.h,
-        selected: selection?.type === "node" && selection.id === n.id,
+        selected: (selection?.type === "node" && selection.id === n.id) || !!multiIds?.has(n.id),
         connectable: canConnect && !n.ghost,
         draggable: editable && !n.ghost,
         measured: { width: sz.w, height: sz.h },
       });
     }
     return out;
-  }, [diagram, positions, decorate, actions, archTypes, renameId, onRenameStarted, lens, activeNodes, step, selection, sizeOf, editable, canConnect, onResize, onResizeEnd]);
+  }, [diagram, positions, decorate, actions, archTypes, renameId, onRenameStarted, lens, activeNodes, step, selection, multiIds, sizeOf, editable, canConnect, onResize, onResizeEnd]);
 
   const openEdge = useCallback(
     (id: string) => {
@@ -325,15 +352,29 @@ export function Canvas({ diagram, lens, decorate, actions, archTypes, renameId, 
     });
   }, [diagram, nodes, decorate, flow, flowStep, step, stepRel, selection, editable, onLayout, onSelect, openEdge, showChanges, onContextMenu]);
 
-  const onNodesChange = useCallback((changes: NodeChange[]) => {
-    const moves = changes.filter((c) => c.type === "position" && !c.id.startsWith("boundary:"));
-    if (!moves.length) return;
-    setPositions((prev) => {
-      const asNodes = Object.entries(prev).map(([id, position]) => ({ id, position, data: {} }) as Node);
-      const next = applyNodeChanges(moves, asNodes);
-      return Object.fromEntries(next.map((n) => [n.id, n.position]));
-    });
-  }, []);
+  const onNodesChange = useCallback(
+    (changes: NodeChange[]) => {
+      // Selecting is ours (see `selection`). Two cases take what React Flow reports: the box being drawn with
+      // Shift+drag, and a plain press on a box while several are selected (so the press does not drag them along).
+      const picks = changes.filter((c): c is NodeSelectionChange => c.type === "select");
+      if (picks.length && (boxing.current || (selRef.current?.type === "nodes" && !shiftDown.current))) {
+        const ids = new Set(selectedNodeIds(selRef.current).filter(multiOk));
+        for (const c of picks) {
+          if (c.selected && multiOk(c.id)) ids.add(c.id);
+          else if (!c.selected) ids.delete(c.id);
+        }
+        commitSelection([...ids]);
+      }
+      const moves = changes.filter((c) => c.type === "position" && !c.id.startsWith("boundary:"));
+      if (!moves.length) return;
+      setPositions((prev) => {
+        const asNodes = Object.entries(prev).map(([id, position]) => ({ id, position, data: {} }) as Node);
+        const next = applyNodeChanges(moves, asNodes);
+        return Object.fromEntries(next.map((n) => [n.id, n.position]));
+      });
+    },
+    [multiOk, commitSelection],
+  );
 
   const rects = useCallback(
     (except?: string): Rect[] =>
@@ -369,12 +410,16 @@ export function Canvas({ diagram, lens, decorate, actions, archTypes, renameId, 
         if (Object.keys(keep).length) onPositions(keep);
         requestAnimationFrame(() => rf.fitView({ ...FIT, duration: 300 }));
       },
-      nudge(id, dx, dy) {
-        const n = nodes.find((x) => x.id === id);
-        if (!n || !editable || ghosts.has(id)) return;
-        const p = { x: Math.round(n.position.x + dx), y: Math.round(n.position.y + dy) };
-        setPositions((prev) => ({ ...prev, [id]: p }));
-        onPositions({ [id]: p });
+      nudge(ids, dx, dy) {
+        if (!editable) return;
+        const moved: P = {};
+        for (const id of ids) {
+          const n = nodes.find((x) => x.id === id);
+          if (n && !ghosts.has(id)) moved[id] = { x: Math.round(n.position.x + dx), y: Math.round(n.position.y + dy) };
+        }
+        if (!Object.keys(moved).length) return;
+        setPositions((prev) => ({ ...prev, ...moved }));
+        onPositions(moved);
       },
       fit() {
         rf.fitView({ ...FIT, duration: 200 });
@@ -411,7 +456,7 @@ export function Canvas({ diagram, lens, decorate, actions, archTypes, renameId, 
   );
 
   return (
-    <div className="canvas" ref={wrapper} data-testid="canvas">
+    <div className="canvas" ref={wrapper} data-testid="canvas" onPointerDownCapture={(e) => (shiftDown.current = e.shiftKey)}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -432,7 +477,14 @@ export function Canvas({ diagram, lens, decorate, actions, archTypes, renameId, 
           }
           if (Object.keys(moved).length && !frozen) onPositions(moved);
         }}
-        onNodeClick={(_, n) => onSelect({ type: "node", id: n.id.startsWith("boundary:") ? n.id.slice(9) : n.id })}
+        onNodeClick={(e, n) => {
+          const id = n.id.startsWith("boundary:") ? n.id.slice(9) : n.id;
+          if (e.shiftKey && multiOk(id)) {
+            // Shift+click adds the box to the selection, or takes it out.
+            const cur = selectedNodeIds(selRef.current).filter(multiOk);
+            commitSelection(cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]);
+          } else onSelect({ type: "node", id });
+        }}
         onNodeDoubleClick={(_, n) => {
           const el = diagram.nodes.find((x) => x.id === n.id);
           if (el?.filePath) onOpenFile(el.filePath);
@@ -470,7 +522,7 @@ export function Canvas({ diagram, lens, decorate, actions, archTypes, renameId, 
           if (target) return;
           const pt = "changedTouches" in event ? event.changedTouches[0] : (event as MouseEvent);
           const at = rf.screenToFlowPosition({ x: pt.clientX, y: pt.clientY });
-          onConnectToEmpty(cs.fromNode.id, at, cs.fromHandle?.id ? HANDLE_ANCHOR[cs.fromHandle.id] : undefined);
+          onConnectToEmpty(cs.fromNode.id, at, cs.fromHandle?.id ? HANDLE_ANCHOR[cs.fromHandle.id] : undefined, { x: pt.clientX, y: pt.clientY });
         }}
         onDragOver={(e) => {
           if (!editable || !e.dataTransfer.types.includes(DRAG_TYPE)) return;
@@ -490,8 +542,14 @@ export function Canvas({ diagram, lens, decorate, actions, archTypes, renameId, 
         connectionMode={ConnectionMode.Loose}
         connectionRadius={90}
         deleteKeyCode={null}
-        selectionKeyCode={null}
+        selectionKeyCode="Shift"
         multiSelectionKeyCode={null}
+        onSelectionStart={() => {
+          boxing.current = true;
+        }}
+        onSelectionEnd={() => {
+          boxing.current = false;
+        }}
         zoomOnDoubleClick={false}
         minZoom={0.1}
         maxZoom={2.5}

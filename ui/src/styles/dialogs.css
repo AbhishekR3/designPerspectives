@@ -266,3 +266,34 @@
   border-color: #1f5a3a;
   color: #bbf7d0;
 }
+
+/* "Move to…": the list of possible new parents. */
+.move-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: min(320px, 50vh);
+  overflow-y: auto;
+}
+.move-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.move-group-name {
+  padding: 2px 4px;
+}
+.move-target {
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 5px 8px;
+}
+.move-target:hover {
+  background: var(--panel-2, rgba(255, 255, 255, 0.06));
+}
+.move-target.on {
+  border-color: var(--accent);
+  background: rgba(255, 255, 255, 0.08);
+}

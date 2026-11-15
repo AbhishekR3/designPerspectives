@@ -91,6 +91,26 @@ export function registerModel(app: Hono, ctx: Ctx): void {
     return c.json({ ok: true, id: elementId, parentId });
   });
 
+  /** Delete several elements as one edit (one undo step). An id that went with an earlier one (a child) is skipped. */
+  app.post("/api/elements/delete", async (c) => {
+    const b = await objBody(c);
+    const ids = b.ids;
+    if (!Array.isArray(ids) || ids.length === 0 || !ids.every((x): x is string => typeof x === "string" && x !== "")) {
+      throw new HttpError(422, '"ids" must be a non-empty list of element IDs.');
+    }
+    const gone = edit((ws) => {
+      const idx = ops.buildIndex(ws);
+      for (const id of ids) idx.el(id); // unknown ids are refused before anything is deleted
+      const all = new Set<string>();
+      for (const id of ids) {
+        if (all.has(id)) continue;
+        for (const g of ops.deleteElement(ws, id)) all.add(g);
+      }
+      return all;
+    });
+    return c.json({ deleted: [...gone].sort() });
+  });
+
   app.delete("/api/elements/:id", (c) => {
     const gone = edit((ws) => ops.deleteElement(ws, c.req.param("id")));
     return c.json({ deleted: [...gone].sort() });
