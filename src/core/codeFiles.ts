@@ -12,7 +12,7 @@ import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { atomicWrite, isHidden, isObj, stableJson } from "./util.js";
+import { atomicWrite, isHidden, isObj, realLoose, stableJson } from "./util.js";
 import { ModelError, normpath } from "./ops.js";
 
 export const MAX_BYTES = 1_000_000;
@@ -66,24 +66,6 @@ export function checkSize(content: string): void {
 
 // ------------------------------------------------------------------ disk
 
-/** Resolve symlinks for the part of `p` that exists, then append the rest. */
-export function resolveLoose(p: string): string {
-  const abs = path.resolve(p);
-  const rest: string[] = [];
-  let cur = abs;
-  for (;;) {
-    try {
-      const real = fs.realpathSync(cur);
-      return rest.length ? path.join(real, ...rest.reverse()) : real;
-    } catch {
-      const parent = path.dirname(cur);
-      if (parent === cur) return abs;
-      rest.push(path.basename(cur));
-      cur = parent;
-    }
-  }
-}
-
 function inside(root: string, target: string): boolean {
   const rel = path.relative(root, target);
   return rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel));
@@ -104,9 +86,9 @@ export const PRIVATE_ROOT_MESSAGE = "The code folder is inside a .dp or .git fol
  *  inside, a .dp or .git folder is refused as a whole (defence in depth: no setting should lead there). */
 export function safePath(codeRoot: string | null, rel: string): string {
   if (codeRoot === null) throw new ModelError("No code folder is set. Start the app with --code-root <folder>.");
-  const root = resolveLoose(codeRoot);
+  const root = realLoose(codeRoot);
   if (inPrivateFolder(root)) throw new ModelError(PRIVATE_ROOT_MESSAGE);
-  const target = resolveLoose(path.resolve(root, rel));
+  const target = realLoose(path.resolve(root, rel));
   if (!inside(root, target)) throw new ModelError(OUTSIDE_MESSAGE);
   if (isHidden(path.relative(root, target))) throw new ModelError(HIDDEN_MESSAGE);
   return target;

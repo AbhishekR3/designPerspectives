@@ -57,6 +57,11 @@ export function ApplyDialog({ draftId, title, branch, onClose, onApplied }: { dr
           Also write the {preview.code.length} planned code edit{preview.code.length === 1 ? "" : "s"} to the code folder
         </label>
       )}
+      {!withCode && preview && preview.code.length > 0 && (
+        <p className="muted small" data-testid="apply-code-dropped">
+          The {preview.code.length} planned code edit{preview.code.length === 1 ? "" : "s"} will not be written. They are removed with the draft when it is applied.
+        </p>
+      )}
       {branch && preview && preview.code.length > 0 && (
         <p className="muted small" data-testid="apply-branch-hint">
           This draft has a branch ({branch}), so the code is expected to come from there.

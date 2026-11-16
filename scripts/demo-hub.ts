@@ -7,8 +7,6 @@
  * `dp init --hub --demo` copies it.
  */
 
-import fs from "node:fs";
-import path from "node:path";
 import * as decisions from "../src/core/decisions.js";
 import { prune, syncViews } from "../src/core/diagrams.js";
 import { syncFlows } from "../src/core/flows.js";
@@ -16,6 +14,7 @@ import { stableJson } from "../src/core/util.js";
 import * as ops from "../src/core/ops.js";
 import { emptySidecar, sidecarData, type Sidecar } from "../src/core/sidecar.js";
 import { errors } from "../src/core/validate.js";
+import { writeTree } from "./demo-tree.js";
 import { dumpWorkspace, emptyWorkspace, type Workspace } from "../src/core/workspace.js";
 import type { Decision } from "../src/shared/types.js";
 
@@ -173,24 +172,21 @@ export function buildPayments(catalog: Workspace): Built {
   return done(m);
 }
 
-function write(dir: string, b: Built): void {
-  const arch = path.join(dir, "architecture");
-  fs.mkdirSync(path.join(arch, decisions.DECISIONS_DIR), { recursive: true });
-  fs.writeFileSync(path.join(arch, "workspace.json"), dumpWorkspace(b.ws), "utf-8");
-  fs.writeFileSync(path.join(arch, "designperspectives.json"), stableJson(sidecarData(b.sc)), "utf-8");
-  for (const d of b.decs) fs.writeFileSync(path.join(arch, decisions.DECISIONS_DIR, d.file), decisions.serializeDecision(d), "utf-8");
+/** The files of a project folder: the model, the sidecar and the decisions (paths relative to the hub). */
+function files(dir: string, b: Built): Map<string, string> {
+  const out = new Map<string, string>();
+  out.set(`${dir}/architecture/workspace.json`, dumpWorkspace(b.ws));
+  out.set(`${dir}/architecture/designperspectives.json`, stableJson(sidecarData(b.sc)));
+  for (const d of b.decs) out.set(`${dir}/architecture/${decisions.DECISIONS_DIR}/${d.file}`, decisions.serializeDecision(d));
+  return out;
 }
 
-/** Write the demo hub to `dir` (replacing it). */
+/** Write the demo hub to `dir` (replacing it, file by file, so a concurrent copy never reads a half-written file). */
 export function writeDemoHub(dir: string): void {
-  fs.rmSync(dir, { recursive: true, force: true });
-  fs.mkdirSync(dir, { recursive: true });
   const catalog = buildCatalog();
-  write(path.join(dir, "catalog"), catalog);
-  write(path.join(dir, "onboarding"), buildOnboarding(catalog.ws));
-  write(path.join(dir, "payments"), buildPayments(catalog.ws));
-  fs.writeFileSync(
-    path.join(dir, "hub.json"),
+  const all = new Map([...files("catalog", catalog), ...files("onboarding", buildOnboarding(catalog.ws)), ...files("payments", buildPayments(catalog.ws))]);
+  all.set(
+    "hub.json",
     stableJson({
       version: 1,
       name: "Acme Retail Bank",
@@ -200,6 +196,6 @@ export function writeDemoHub(dir: string): void {
         { id: "payments", path: "payments", name: "Payments" },
       ],
     }),
-    "utf-8",
   );
+  writeTree(dir, all);
 }

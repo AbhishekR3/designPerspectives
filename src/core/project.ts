@@ -220,12 +220,23 @@ export class AlreadyExists extends Error {}
 
 export const DEMO_DIR = path.join(PACKAGE_ROOT, "demo");
 
-/** Create `<root>/architecture/` with an empty model (default) or the demo model. Never overwrites. */
+/** Files under `dir` (relative paths, with `/`); none when it does not exist. */
+function filesUnder(dir: string, prefix = ""): string[] {
+  if (!fs.existsSync(dir)) return [];
+  return fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? filesUnder(path.join(dir, e.name), `${prefix}${e.name}/`) : [`${prefix}${e.name}`]));
+}
+
+/** Create `<root>/architecture/` with an empty model (default) or the demo model. Never overwrites: it
+ *  refuses, before writing anything, when the model file exists or when a demo draft or decision file
+ *  would replace a file already in `drafts/` or `decisions/`. */
 export function initProject(root: string, opts: { demo?: boolean; name?: string | null } = {}): string {
   const demo = opts.demo ?? false;
   const arch = path.join(root, ARCH_DIR);
   const wsPath = path.join(arch, WORKSPACE_FILE);
   if (fs.existsSync(wsPath)) throw new AlreadyExists(`${wsPath} already exists`);
+  const demoCopies = demo ? [DECISIONS_DIR, "drafts"].flatMap((d) => filesUnder(path.join(DEMO_DIR, d)).map((f) => path.join(arch, d, f))) : [];
+  const clash = demoCopies.find((f) => fs.existsSync(f));
+  if (clash) throw new AlreadyExists(`${clash} already exists; the demo would overwrite it`);
   fs.mkdirSync(arch, { recursive: true });
   let wsText: string;
   let scText: string;

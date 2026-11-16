@@ -1,7 +1,9 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { checkHub, checkHubFolder, copyDemoHub, createHubApp, HubError, initHub } from "../src/server/hub.js";
+import { caseInsensitiveDisk } from "../src/core/util.js";
 import { roleIn, setRole, UsersError } from "../src/core/users.js";
 import { Client, client, demoDir, ok, tmpDir, writeTestUsers } from "./helpers.js";
 
@@ -324,6 +326,63 @@ describe("hub", () => {
     // A bad hub.json stops the server from starting.
     fs.writeFileSync(path.join(dir, "hub.json"), JSON.stringify({ version: 1, projects: [{ id: "a", path: "sneaky" }] }));
     expect(() => createHubApp(dir)).toThrow(HubError);
+  });
+
+  it("hub.json: a link to a hidden folder outside the hub (such as ~/.ssh) is refused, however deep", () => {
+    const dir = tmpDir();
+    const outside = tmpDir();
+    fs.mkdirSync(path.join(outside, ".ssh", "keys"), { recursive: true });
+    fs.symlinkSync(path.join(outside, ".ssh"), path.join(dir, "to-ssh"));
+    fs.symlinkSync(path.join(outside, ".ssh", "keys"), path.join(dir, "to-keys"));
+    for (const p of ["to-ssh", "to-ssh/x", "to-keys", "to-keys/x"]) {
+      expect(() => checkHub(dir, { projects: [{ id: "a", path: p }] }), p).toThrow(/hidden folder/);
+    }
+    expect(() => checkHub(dir, { projects: [], catalog: "to-ssh" })).toThrow(/catalog folder "to-ssh".*hidden/);
+  });
+
+  it.skipIf(!caseInsensitiveDisk(os.tmpdir()))("letter case does not make a folder look like another: no alias of a project, none nested in one (disk ignores case)", async () => {
+    const dir = demoHub();
+    writeTestUsers(dir);
+    const arch = await hubClient(dir, null).as("architect");
+    const before = fs.readFileSync(path.join(dir, "hub.json"), "utf-8");
+    for (const [id, folder] of [
+      ["alias", "PAYMENTS"],
+      ["alias2", "Payments/"],
+      ["nested", "Onboarding/sub"],
+      ["cat", "CATALOG"],
+      ["nested2", "payments/x"],
+    ]) {
+      const r = await arch.post("/api/hub/projects", { id, path: folder });
+      expect(r.status, `${folder}: ${r.text}`).toBe(422);
+    }
+    expect(fs.readFileSync(path.join(dir, "hub.json"), "utf-8")).toBe(before);
+    expect(fs.existsSync(path.join(dir, "onboarding", "sub"))).toBe(false);
+    // The same checks when hub.json is read (also for folders that do not exist yet).
+    for (const projects of [
+      [
+        { id: "a", path: "payments" },
+        { id: "b", path: "PAYMENTS" },
+      ],
+      [
+        { id: "a", path: "payments" },
+        { id: "b", path: "Payments/sub" },
+      ],
+      [
+        { id: "a", path: "Payments/sub" },
+        { id: "b", path: "payments" },
+      ],
+      [
+        { id: "a", path: "newone" },
+        { id: "b", path: "NewOne/sub" },
+      ],
+      [
+        { id: "a", path: "newone" },
+        { id: "b", path: "NEWONE" },
+      ],
+    ]) {
+      expect(() => checkHub(dir, { projects }), JSON.stringify(projects)).toThrow(HubError);
+    }
+    expect(() => checkHub(dir, { projects: [{ id: "a", path: "PAYMENTS/.." }] })).toThrow(/hub folder itself/);
   });
 
   it("project IDs that every JavaScript object has are refused, and never give a role by inheritance", async () => {

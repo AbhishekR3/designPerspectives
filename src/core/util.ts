@@ -18,6 +18,47 @@ export function atomicWrite(file: string, text: string, mode?: number): void {
   }
 }
 
+/** `p` made absolute with every existing part resolved to its real name (symlinks, and letter case on
+ *  case-insensitive disks: `realpathSync.native` asks the operating system, plain `realpathSync` keeps the
+ *  case as typed); the parts that do not exist yet are kept as given. */
+export function realLoose(p: string): string {
+  const abs = path.resolve(p);
+  const rest: string[] = [];
+  let cur = abs;
+  for (;;) {
+    try {
+      const real = fs.realpathSync.native(cur);
+      return rest.length ? path.join(real, ...rest.reverse()) : real;
+    } catch {
+      const parent = path.dirname(cur);
+      if (parent === cur) return abs;
+      rest.push(path.basename(cur));
+      cur = parent;
+    }
+  }
+}
+
+/** True if the disk holding `dir` ignores letter case in names (the default on macOS and Windows): the same
+ *  path in other letters reaches the same folder. Checked by looking the path up again in other case. */
+export function caseInsensitiveDisk(dir: string): boolean {
+  try {
+    const real = realLoose(dir);
+    const id = fs.statSync(real);
+    for (const alt of [real.toUpperCase(), real.toLowerCase()]) {
+      if (alt === real) continue;
+      try {
+        const s = fs.statSync(alt);
+        if (s.ino === id.ino && s.dev === id.dev) return true;
+      } catch {
+        /* not found in this case: keep looking */
+      }
+    }
+  } catch {
+    /* an unreadable folder: treat the disk as case-sensitive */
+  }
+  return false;
+}
+
 // ---- JSON and value helpers ----
 
 export type Obj = Record<string, unknown>;

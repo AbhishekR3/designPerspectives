@@ -24,7 +24,8 @@ export const AUTHOR_MAX = 80;
 export const MAX_THREADS = 5000;
 export const MAX_REPLIES = 200;
 /** Largest comments file a change may leave (10 MB): the per-item caps alone would allow gigabytes. A file
- *  already larger (written by hand) can still shrink: deleting and resolving keep working. */
+ *  already larger (written by hand) can still shrink: deleting a thread or a reply is always allowed, and
+ *  other changes are refused only when they make the threads larger than they were. */
 export const MAX_FILE_BYTES = 10 * 1024 * 1024;
 
 function stampOf(file: string): string {
@@ -33,14 +34,6 @@ function stampOf(file: string): string {
     return `${s.mtimeNs}:${s.size}`;
   } catch {
     return "-";
-  }
-}
-
-function sizeOf(file: string): number {
-  try {
-    return fs.statSync(file).size;
-  } catch {
-    return 0;
   }
 }
 
@@ -138,6 +131,8 @@ function threadData(t: CommentThread): Obj {
 export class CommentStore {
   private threads: CommentThread[] = [];
   private stamp = "";
+  /** Size of the threads as `save()` writes them, before the change being made (the cap compares against it). */
+  private baseSize = 0;
 
   constructor(
     readonly file: string,
@@ -151,20 +146,27 @@ export class CommentStore {
     if (s === this.stamp) return;
     this.threads = fs.existsSync(this.file) ? parseComments(fs.readFileSync(this.file, "utf-8")) : [];
     this.stamp = s;
+    this.baseSize = this.serialise().size;
   }
 
-  /** Write the threads. A change that would take the file over MAX_FILE_BYTES (and make it larger) is
-   *  refused and dropped: the next read takes the threads from the file again. */
-  private save(): void {
-    if (this.threads.length === 0 && !fs.existsSync(this.file)) return;
+  private serialise(): { text: string; size: number } {
     const text = stableJson({ threads: this.threads.map(threadData) });
-    const size = Buffer.byteLength(text, "utf-8");
-    if (size > MAX_FILE_BYTES && size > sizeOf(this.file)) {
+    return { text, size: Buffer.byteLength(text, "utf-8") };
+  }
+
+  /** Write the threads. A change that would take the file over MAX_FILE_BYTES (and make the threads
+   *  larger than before, measured the way they are written) is refused and dropped: the next read takes
+   *  the threads from the file again. `deleting`: removing a thread or a reply, always allowed. */
+  private save(deleting = false): void {
+    if (this.threads.length === 0 && !fs.existsSync(this.file)) return;
+    const { text, size } = this.serialise();
+    if (!deleting && size > MAX_FILE_BYTES && size > this.baseSize) {
       this.stamp = ""; // forget the refused change
       throw new ModelError(`The comments file would grow past ${MAX_FILE_BYTES / (1024 * 1024)} MB. Delete resolved threads first.`);
     }
     atomicWrite(this.file, text);
     this.stamp = stampOf(this.file);
+    this.baseSize = size;
   }
 
   private time(): string {
@@ -248,7 +250,7 @@ export class CommentStore {
     const i = this.threads.findIndex((t) => t.id === id);
     if (i < 0) throw new NotFound(GONE);
     this.threads.splice(i, 1);
-    this.save();
+    this.save(true);
   }
 
   removeReply(id: string, replyId: string): CommentThread {
@@ -256,7 +258,7 @@ export class CommentStore {
     const i = t.replies.findIndex((r) => r.id === replyId);
     if (i < 0) throw new NotFound("That reply no longer exists. It may have been deleted by someone else.");
     t.replies.splice(i, 1);
-    this.save();
+    this.save(true);
     return structuredClone(t);
   }
 }

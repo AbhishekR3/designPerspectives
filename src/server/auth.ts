@@ -30,7 +30,7 @@ import type { Context, Hono, MiddlewareHandler } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { matchedRoutes } from "hono/route";
 import { isHidden } from "../core/codeFiles.js";
-import { isObj } from "../core/util.js";
+import { isObj, realLoose } from "../core/util.js";
 import { dummyHash, MAX_PASSWORD, NO_ACCESS, readUsers, roleIn, usersPath, UsersError, verifyPassword, type ProjectRole, type UserEntry } from "../core/users.js";
 import type { MeResponse, Permissions, Role, SessionUser } from "../shared/types.js";
 import type { Ctx } from "./context.js";
@@ -257,25 +257,6 @@ function stampOf(file: string): string {
     return `${s.mtimeNs}:${s.size}:${s.ino}`;
   } catch {
     return "-";
-  }
-}
-
-/** A path with every existing part resolved to its real name (symlinks, and letter case on
- *  case-insensitive disks); the parts that do not exist yet are kept as given. */
-function realLoose(p: string): string {
-  const loose = path.resolve(p);
-  const rest: string[] = [];
-  let cur = loose;
-  for (;;) {
-    try {
-      const real = fs.realpathSync.native(cur);
-      return rest.length ? path.join(real, ...rest.reverse()) : real;
-    } catch {
-      const parent = path.dirname(cur);
-      if (parent === cur) return loose;
-      rest.push(path.basename(cur));
-      cur = parent;
-    }
   }
 }
 

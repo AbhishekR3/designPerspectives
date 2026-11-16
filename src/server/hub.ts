@@ -11,14 +11,16 @@
  * request to the project named by the `X-DP-Project` header. The sign-in is shared, so one session
  * covers every project. A project folder may not contain the hub folder or another project, so no
  * project's code routes can reach `hub.json`, the catalog or another project's model; and no project
- * folder may be hidden (such as `.dp` or `.git`), as written or through a link (`folderProblem`).
+ * folder may be hidden (such as `.dp` or `.git`), as written or through a link (`folderProblem`). Folders
+ * are compared by their real names, so letter case cannot make one folder look like two (on a disk that
+ * ignores case, `PAYMENTS` is the folder `payments`).
  */
 
 import fs from "node:fs";
 import path from "node:path";
 import { Hono } from "hono";
-import { isHidden, isObj, stableJson } from "../core/util.js";
-import { inPrivateFolder, resolveLoose } from "../core/codeFiles.js";
+import { caseInsensitiveDisk, isHidden, isObj, realLoose, stableJson } from "../core/util.js";
+import { inPrivateFolder } from "../core/codeFiles.js";
 import { ModelError } from "../core/ops.js";
 import { isProjectId } from "../core/users.js";
 import { syncCopies } from "../core/catalog.js";
@@ -47,20 +49,34 @@ export interface HubFile {
   projects: { id: string; path: string; name?: string }[];
 }
 
-const inside = (parent: string, child: string) => {
-  const rel = path.relative(parent, child);
+/** Comparison of resolved folders: `fold` (a disk that ignores letter case) compares ignoring case. */
+const fold = (p: string, ci: boolean) => (ci ? p.toLowerCase() : p);
+const inside = (parent: string, child: string, ci = false) => {
+  const rel = path.relative(fold(parent, ci), fold(child, ci));
   return rel === "" || (rel !== ".." && !rel.startsWith(`..${path.sep}`) && !path.isAbsolute(rel));
 };
+
+/** The part of `real` below the deepest folder it shares with `base` (both absolute). */
+function belowCommon(base: string, real: string, ci: boolean): string {
+  const a = base.split(path.sep);
+  const b = real.split(path.sep);
+  let i = 0;
+  while (i < a.length && i < b.length && fold(a[i]!, ci) === fold(b[i]!, ci)) i++;
+  return b.slice(i).join(path.sep);
+}
 
 /**
  * Why `p` cannot be a project's (or the catalog's) folder in the hub `dir`, or null when it can.
  *
  * Never a hidden folder (a segment starting with ".", such as `.dp` with the users and credentials, or
- * `.git`), as written or after following links, and never the hub folder itself: a project's code routes
- * read and write its folder. `strict` (a folder sent to `POST /api/hub/projects`): a relative path with no
- * `..`, inside the hub after following links. Otherwise (an entry in `hub.json`, which only someone with
- * the hub folder can write) a folder outside the hub (`../x`, or an absolute path) is allowed too (DEC-054).
- * Links are followed up to the deepest part that exists, so a folder not made yet can be checked.
+ * `.git`) as written, and never the hub folder itself: a project's code routes read and write its folder.
+ * After following links (up to the deepest part that exists, so a folder not made yet can be checked) the
+ * real folder is refused when it is, or is inside, a `.dp` or `.git` folder, or when any part of its real
+ * path below the folder it shares with the hub starts with "." (a link to `~/.ssh` is refused, a hub that
+ * itself lives in a hidden folder is fine). `strict` (a folder sent to `POST /api/hub/projects`): a relative
+ * path with no `..`, inside the hub after following links. Otherwise (an entry in `hub.json`, which only
+ * someone with the hub folder can write) a folder outside the hub (`../x`, or an absolute path) is allowed
+ * too (DEC-054).
  */
 export function folderProblem(dir: string, p: string, strict: boolean): string | null {
   const written = p.trim();
@@ -69,12 +85,12 @@ export function folderProblem(dir: string, p: string, strict: boolean): string |
   const parts = written.split(/[\\/]+/);
   if (strict && parts.includes("..")) return 'must be a folder inside the hub (no "..")';
   if (isHidden(written)) return "is a hidden folder (a name starting with a dot); hidden folders hold private files and are never served";
-  const hub = resolveLoose(dir);
-  const real = resolveLoose(path.resolve(dir, written));
-  if (real === hub) return "is the hub folder itself";
-  if (inside(hub, real)) {
-    if (isHidden(path.relative(hub, real))) return "leads into a hidden folder of the hub (through a link)";
-  } else if (strict) return "leads outside the hub folder (through a link)";
+  const ci = caseInsensitiveDisk(dir);
+  const hub = realLoose(dir);
+  const real = realLoose(path.resolve(dir, written));
+  if (fold(real, ci) === fold(hub, ci)) return "is the hub folder itself";
+  if (!inside(hub, real, ci) && strict) return "leads outside the hub folder (through a link)";
+  if (isHidden(belowCommon(hub, real, ci))) return "leads into a hidden folder (through a link)";
   if (inPrivateFolder(real)) return "leads into a .dp or .git folder";
   return null;
 }
@@ -116,14 +132,12 @@ export function checkHub(dir: string, raw: unknown, file = path.join(dir, HUB_FI
   }
   // Folders: none may hold the hub folder or another project (code routes of one could then write the
   // other). Compared after following links, so a link cannot hide that one folder holds another.
-  const roots = [
-    ...out.projects.map((p) => ({ id: p.id, root: resolveLoose(path.resolve(dir, p.path)) })),
-    ...(out.catalog ? [{ id: CATALOG_ID, root: resolveLoose(path.resolve(dir, out.catalog)) }] : []),
-  ];
-  const hub = resolveLoose(dir);
+  const ci = caseInsensitiveDisk(dir);
+  const roots = [...out.projects.map((p) => ({ id: p.id, root: realLoose(path.resolve(dir, p.path)) })), ...(out.catalog ? [{ id: CATALOG_ID, root: realLoose(path.resolve(dir, out.catalog)) }] : [])];
+  const hub = realLoose(dir);
   for (const a of roots) {
-    if (inside(a.root, hub)) throw new HubError(`Project "${a.id}" (${a.root}) holds the hub folder; give it a folder of its own.`);
-    for (const b of roots) if (a !== b && inside(a.root, b.root)) throw new HubError(`Project "${a.id}" holds the folder of project "${b.id}"; projects need separate folders.`);
+    if (inside(a.root, hub, ci)) throw new HubError(`Project "${a.id}" (${a.root}) holds the hub folder; give it a folder of its own.`);
+    for (const b of roots) if (a !== b && inside(a.root, b.root, ci)) throw new HubError(`Project "${a.id}" holds the folder of project "${b.id}"; projects need separate folders.`);
   }
   return out;
 }

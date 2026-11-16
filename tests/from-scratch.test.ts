@@ -6,7 +6,7 @@ import { spawnSync } from "node:child_process";
 import { describe, expect, test } from "vitest";
 import { BUILTIN_LENSES, emptySidecar, makeLens, sidecarData } from "../src/core/sidecar.js";
 import { errors } from "../src/core/validate.js";
-import { initProject } from "../src/core/project.js";
+import { AlreadyExists, DEMO_DIR, initProject } from "../src/core/project.js";
 import { emptyWorkspace } from "../src/core/workspace.js";
 import { Client, demoDir, ok, tmpDir } from "./helpers.js";
 
@@ -20,6 +20,31 @@ describe("blank by default", () => {
     const ws = JSON.parse(fs.readFileSync(path.join(d, "architecture", "workspace.json"), "utf-8"));
     expect(ws.model).toEqual({});
     expect(fs.existsSync(path.join(d, "sample_code"))).toBe(false);
+  });
+
+  test("initProject --demo never overwrites a draft or decision file already there: it refuses and writes nothing", () => {
+    const d = tmpDir();
+    const dec = fs.readdirSync(path.join(DEMO_DIR, "decisions"))[0]!;
+    const mine = path.join(d, "architecture", "decisions", dec);
+    fs.mkdirSync(path.dirname(mine), { recursive: true });
+    fs.writeFileSync(mine, "MY DECISION");
+    expect(() => initProject(d, { demo: true })).toThrow(AlreadyExists);
+    expect(fs.readFileSync(mine, "utf-8")).toBe("MY DECISION");
+    expect(fs.existsSync(path.join(d, "architecture", "workspace.json"))).toBe(false);
+    const draft = fs.readdirSync(path.join(DEMO_DIR, "drafts"))[0]!;
+    const d2 = tmpDir();
+    const own = path.join(d2, "architecture", "drafts", draft, "draft.json");
+    fs.mkdirSync(path.dirname(own), { recursive: true });
+    fs.writeFileSync(own, "MINE");
+    expect(() => initProject(d2, { demo: true })).toThrow(/would overwrite/);
+    expect(fs.readFileSync(own, "utf-8")).toBe("MINE");
+    // Other files in those folders do not stand in the way.
+    const d3 = tmpDir();
+    fs.mkdirSync(path.join(d3, "architecture", "drafts", "other"), { recursive: true });
+    fs.writeFileSync(path.join(d3, "architecture", "drafts", "other", "draft.json"), "{}");
+    initProject(d3, { demo: true });
+    expect(fs.existsSync(path.join(d3, "architecture", "drafts", "other", "draft.json"))).toBe(true);
+    expect(fs.existsSync(path.join(d3, "architecture", "workspace.json"))).toBe(true);
   });
 
   test("the demo brings its sample code", () => {

@@ -86,6 +86,9 @@ export function useModel(p: {
   const diagSeq = useRef(0);
   const committed = useRef<string | null>(null);
   const inFlight = useRef(0);
+  // A window-focus recheck skipped because an edit was in flight, and the recheck itself (set below).
+  const recheckPending = useRef(false);
+  const recheck = useRef<(() => void) | null>(null);
   const started = useRef(false);
 
   const applyVersion = (v: Version) => {
@@ -220,6 +223,15 @@ export function useModel(p: {
   );
   const switchVersion = useCallback((model: string, compare: string | null, opts: { key?: string | null } = {}) => track(() => switchRaw(model, compare, opts)), [switchRaw, track]);
 
+  /** An edit or undo is done: when a focus recheck was skipped meanwhile and nothing else is in flight, run it now. */
+  const endFlight = useCallback(() => {
+    inFlight.current--;
+    if (inFlight.current === 0 && recheckPending.current) {
+      recheckPending.current = false;
+      setTimeout(() => recheck.current?.(), 0); // after the state set by the reload has rendered
+    }
+  }, []);
+
   /** Run an edit, then reload. True when the edit was made (even if the reload after it failed). */
   const mutate = useCallback(
     async (fn: () => Promise<unknown>) => {
@@ -242,11 +254,11 @@ export function useModel(p: {
         }
         return true;
       } finally {
-        inFlight.current--;
+        endFlight();
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps -- setError is stable (a state setter or ref), so it is safe to leave out of the dependencies
-    [refresh, retryRefresh],
+    [refresh, retryRefresh, endFlight],
   );
 
   // First load. A version in the URL that cannot be opened falls back to the main model with a notice;
@@ -300,20 +312,24 @@ export function useModel(p: {
         }
         await refresh().catch(() => undefined);
       } finally {
-        inFlight.current--;
+        endFlight();
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps -- setError is stable (a state setter or ref), so it is safe to leave out of the dependencies
-    [refresh],
+    [refresh, endFlight],
   );
 
   // The model can change on disk (git checkout, another tab, the CLI). When the window comes back,
   // ask for the state once and reload only if it changed. Not while an edit or a version switch is
-  // under way, nor while the user types or a dialog is open: then the next focus checks again.
+  // under way (it then runs when the edit is done), nor while the user types or a dialog is open: then the next focus checks again.
   useEffect(() => {
     const check = async () => {
       const cur = stateRef.current;
-      if (!cur || inFlight.current > 0 || restorePoint.current || dialogOpen() || isTyping(document.activeElement)) return;
+      if (inFlight.current > 0) {
+        recheckPending.current = true; // retried when the edit in flight is done
+        return;
+      }
+      if (!cur || restorePoint.current || dialogOpen() || isTyping(document.activeElement)) return;
       const ep = epoch.current;
       const v = versionRef.current;
       let s: AppState;
@@ -327,7 +343,11 @@ export function useModel(p: {
         }
         return;
       }
-      if (ep !== epoch.current || inFlight.current > 0) return; // something newer has reloaded already
+      if (inFlight.current > 0) {
+        recheckPending.current = true;
+        return;
+      }
+      if (ep !== epoch.current) return; // something newer has reloaded already
       if (s.version === cur.version && JSON.stringify(s) === JSON.stringify(cur)) return;
       try {
         await refresh();
@@ -335,11 +355,13 @@ export function useModel(p: {
         setError(`The view could not be refreshed: ${errorMessage(e)}`, retryRefresh);
       }
     };
+    recheck.current = () => void check();
     const onFocus = () => void check();
     const onVisible = () => document.visibilityState === "visible" && void check();
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onVisible);
     return () => {
+      recheck.current = null;
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisible);
     };

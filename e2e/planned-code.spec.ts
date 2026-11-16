@@ -52,6 +52,8 @@ test("a draft with a branch does not write its planned code to the working copy 
   await page.getByTestId("draft-apply").click();
   await expect(page.getByTestId("apply-with-code")).not.toBeChecked();
   await expect(page.getByTestId("apply-branch-hint")).toHaveText("This draft has a branch (feature/accounts), so the code is expected to come from there.");
+  // Unticked: the planned edits go away with the draft, and the dialog says so.
+  await expect(page.getByTestId("apply-code-dropped")).toHaveText("The 1 planned code edit will not be written. They are removed with the draft when it is applied.");
   const before = fs.readFileSync(file, "utf-8");
   await page.getByTestId("apply-confirm").click();
   await expect(page.getByTestId("draft-banner")).toHaveCount(0);
@@ -69,6 +71,7 @@ test("a draft with a branch does not write its planned code to the working copy 
   await page.getByTestId(`draft-${other}`).click();
   await page.getByTestId("draft-apply").click();
   await page.getByTestId("apply-with-code").check();
+  await expect(page.getByTestId("apply-code-dropped")).toHaveCount(0);
   await page.getByTestId("apply-confirm").click();
   await expect(page.getByTestId("draft-banner")).toHaveCount(0);
   await expect.poll(() => fs.readFileSync(file, "utf-8")).toBe("# by hand\n");

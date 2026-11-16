@@ -156,6 +156,28 @@ describe("comment threads", () => {
     expect(store.list()).toHaveLength(count - 1);
   });
 
+  it("a file already over 10 MB (written compactly by hand) can shrink: deleting works, growing does not", () => {
+    const dir = tmpDir();
+    const file = path.join(dir, "comments.json");
+    const at = "2026-01-01T00:00:00.000Z";
+    const thread = (i: number) => ({ id: `c-${i}`, kind: "comment", target, author: "A", at, text: "x".repeat(3500), status: "open", replies: [{ id: `r-${i}`, author: "B", at, text: "y" }] });
+    const count = Math.ceil((MAX_FILE_BYTES * 1.03) / 3700);
+    fs.writeFileSync(file, JSON.stringify({ threads: Array.from({ length: count }, (_, i) => thread(i)) })); // compact: smaller than the store's layout
+    expect(fs.statSync(file).size).toBeGreaterThan(MAX_FILE_BYTES);
+    const store = new CommentStore(file);
+    expect(() => store.add({ kind: "comment", target, text: "z", author: "B" })).toThrow(/10 MB/);
+    expect(() => store.reply("c-1", { text: "z", author: "B" })).toThrow(/10 MB/);
+    expect(store.list()).toHaveLength(count);
+    store.removeReply("c-1", "r-1");
+    expect(store.get("c-1")!.replies).toEqual([]);
+    store.remove("c-0");
+    expect(store.list()).toHaveLength(count - 1);
+    // Deleting went through to the file, and a change that makes the threads smaller is allowed too.
+    expect(JSON.parse(fs.readFileSync(file, "utf-8")).threads).toHaveLength(count - 1);
+    store.edit("c-2", { text: "shorter" });
+    expect(store.get("c-2")!.text).toBe("shorter");
+  });
+
   it("picks up a file changed on disk", () => {
     const dir = tmpDir();
     const file = path.join(dir, "comments.json");

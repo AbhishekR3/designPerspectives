@@ -16,7 +16,7 @@ import os from "node:os";
 import path from "node:path";
 import { syncViews } from "../src/core/diagrams.js";
 import * as flows from "../src/core/flows.js";
-import { stableJson } from "../src/core/util.js";
+import { atomicWrite, stableJson } from "../src/core/util.js";
 import * as ops from "../src/core/ops.js";
 import { emptySidecar, makeLens, sidecarData, type Sidecar } from "../src/core/sidecar.js";
 import { errors } from "../src/core/validate.js";
@@ -25,6 +25,7 @@ import { DRAFT_FILE, Drafts } from "../src/core/drafts.js";
 import type { DemoHistory } from "../src/demo/demoHistory.js";
 import * as decisions from "../src/core/decisions.js";
 import { writeDemoHub } from "./demo-hub.js";
+import { readTree, writeTree } from "./demo-tree.js";
 import type { Decision } from "../src/shared/types.js";
 import { dumpWorkspace, emptyWorkspace, parseWorkspace, type Workspace } from "../src/core/workspace.js";
 
@@ -1238,12 +1239,12 @@ const SAMPLE_DRAFT = { title: "Tell customers when a payment is held", author: "
  * `dp init --demo` copies it, so drafts and the "compare" views have something to show on first run.
  */
 function writeSampleDraft(): void {
-  // The previous run's draft would be copied into the throw-away project below, and its title would be taken.
   const out = path.join(DEMO_DIR, "drafts");
-  fs.rmSync(out, { recursive: true, force: true });
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "dp-demo-draft-"));
   try {
     initProject(tmp, { demo: true });
+    // The previous run's draft was copied in with the demo, and its title would be taken.
+    fs.rmSync(path.join(tmp, ARCH_DIR, "drafts"), { recursive: true, force: true });
     const project = new Project(tmp);
     const drafts = new Drafts(project, SAMPLE_DRAFT.author);
     const id = drafts.create(
@@ -1280,7 +1281,7 @@ function writeSampleDraft(): void {
     const meta = path.join(drafts.dir, id, DRAFT_FILE);
     const fixed = { ...JSON.parse(fs.readFileSync(meta, "utf-8")), created: SAMPLE_DRAFT.created };
     fs.writeFileSync(meta, stableJson(fixed), "utf-8");
-    fs.cpSync(path.join(drafts.dir, id), path.join(out, id), { recursive: true });
+    writeTree(out, readTree(path.join(drafts.dir, id), `${id}/`));
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }
@@ -1288,14 +1289,11 @@ function writeSampleDraft(): void {
 
 function main(): void {
   const [ws, sc] = build();
-  fs.mkdirSync(DEMO_DIR, { recursive: true });
-  fs.writeFileSync(path.join(DEMO_DIR, "workspace.json"), dumpWorkspace(ws), "utf-8");
-  fs.writeFileSync(path.join(DEMO_DIR, "designperspectives.json"), stableJson(sidecarData(sc)), "utf-8");
-  fs.writeFileSync(path.join(DEMO_DIR, "history.json"), JSON.stringify(history(ws), null, 1) + "\n", "utf-8");
-  const decDir = path.join(DEMO_DIR, decisions.DECISIONS_DIR);
-  fs.rmSync(decDir, { recursive: true, force: true });
-  fs.mkdirSync(decDir, { recursive: true });
-  for (const d of demoDecisions()) fs.writeFileSync(path.join(decDir, d.file), decisions.serializeDecision(d), "utf-8");
+  // Files are written atomically (never half-written), as tests may copy demo/ while this runs.
+  atomicWrite(path.join(DEMO_DIR, "workspace.json"), dumpWorkspace(ws));
+  atomicWrite(path.join(DEMO_DIR, "designperspectives.json"), stableJson(sidecarData(sc)));
+  atomicWrite(path.join(DEMO_DIR, "history.json"), JSON.stringify(history(ws), null, 1) + "\n");
+  writeTree(path.join(DEMO_DIR, decisions.DECISIONS_DIR), new Map(demoDecisions().map((d) => [d.file, decisions.serializeDecision(d)])));
   writeSampleDraft();
   writeDemoHub(path.join(DEMO_DIR, "hub"));
   console.log(`Wrote ${DEMO_DIR}`);

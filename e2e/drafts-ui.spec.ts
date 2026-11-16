@@ -71,11 +71,8 @@ test("plan a change in a draft, apply it, undo it, discard another", async ({ pa
 
   // Main changes meanwhile: the badge appears after a focus event.
   await call(server, "PATCH", "/elements/atm", { body: { description: "Changed in main" } });
-  // The check is skipped while a save (the nudge above) is still under way, so the focus event is sent again until it takes.
-  await expect(async () => {
-    await page.evaluate(() => window.dispatchEvent(new Event("focus")));
-    await expect(page.getByTestId("draft-banner").getByTestId("draft-behind")).toHaveText("main +1", { timeout: 1500 });
-  }).toPass();
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(page.getByTestId("draft-banner").getByTestId("draft-behind")).toHaveText("main +1");
   await expect(page.getByTestId("draft-banner").getByTestId("draft-behind")).toHaveAttribute("title", /changed 1 object since this draft started/);
   await expect(page.getByTestId("draft-list").getByTestId("draft-behind")).toHaveText("main +1");
 
