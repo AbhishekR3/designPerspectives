@@ -75,3 +75,34 @@ test("search reveals object", async ({ page }) => {
   await expect(page.getByTestId("node-pii-masker")).toBeVisible();
   await expect(page.getByTestId("object-panel")).toBeVisible();
 });
+
+test("search is a modal dialog: Tab stays inside, Escape returns focus and keeps the selection", async ({ page }) => {
+  await openDiagram(page, "containers-internet-banking-system");
+  await page.getByTestId("node-web-application").click();
+  await expect(page.getByTestId("object-panel")).toBeVisible();
+  const opener = page.getByTestId("new-draft");
+  await opener.focus();
+  await expect(opener).toBeFocused();
+
+  await page.keyboard.press("Control+k");
+  const dialog = page.getByRole("dialog", { name: "Search" });
+  await expect(dialog).toHaveAttribute("aria-modal", "true");
+  await expect(page.getByTestId("search-input")).toBeFocused();
+  await page.getByTestId("search-input").fill("a");
+  const controls = await dialog.locator("input, button:not([disabled])").count();
+  expect(controls).toBeGreaterThan(2);
+
+  // More presses than there are controls, both ways round: focus never leaves the dialog.
+  for (const key of ["Tab", "Shift+Tab"]) {
+    for (let i = 0; i < controls + 2; i++) {
+      await page.keyboard.press(key);
+      expect(await dialog.evaluate((d) => d.contains(document.activeElement))).toBe(true);
+    }
+  }
+
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+  await expect(opener).toBeFocused();
+  // Escape closed only the search; it did not clear the selection behind it.
+  await expect(page.getByTestId("object-panel")).toBeVisible();
+});

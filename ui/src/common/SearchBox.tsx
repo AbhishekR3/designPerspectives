@@ -1,9 +1,11 @@
 import { useState } from "react";
+import { useModalBehavior } from "../panels/fields";
 import { Icon, iconFor } from "./icons";
 import { KIND_LABEL, LEVEL_LABEL, type AppState } from "../types";
 
-/** Ctrl/Cmd+K: find an object or a diagram by name, description or technology. */
+/** Ctrl/Cmd+K: find an object or a diagram by name, description or technology. A modal dialog: focus stays inside and returns on close (useModalBehavior). */
 export function SearchBox({ state, onClose, onPick, onOpen }: { state: AppState; onClose(): void; onPick(id: string): void; onOpen(key: string): void }) {
+  const box = useModalBehavior(onClose);
   const [q, setQ] = useState("");
   const [cur, setCur] = useState(0);
   const t = q.trim().toLowerCase();
@@ -24,7 +26,7 @@ export function SearchBox({ state, onClose, onPick, onOpen }: { state: AppState;
   };
   return (
     <div className="modal-backdrop top" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="search-box" role="dialog" aria-label="Search">
+      <div className="search-box" role="dialog" aria-modal="true" aria-label="Search" tabIndex={-1} ref={box}>
         <div className="search-input">
           <Icon name="search" />
           <input
@@ -36,8 +38,7 @@ export function SearchBox({ state, onClose, onPick, onOpen }: { state: AppState;
               setCur(0);
             }}
             onKeyDown={(e) => {
-              if (e.key === "Escape") onClose();
-              else if (e.key === "ArrowDown") setCur(Math.min(items.length - 1, cur + 1));
+              if (e.key === "ArrowDown") setCur(Math.min(items.length - 1, cur + 1));
               else if (e.key === "ArrowUp") setCur(Math.max(0, cur - 1));
               else if (e.key === "Enter") pick(cur);
               else return;

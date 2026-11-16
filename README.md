@@ -343,7 +343,7 @@ Layout:
 | Path | What it holds |
 |---|---|
 | `src/shared/types.ts` | API types and constants used by both the server and the UI |
-| `src/core/` | `workspace.ts` file format, `sidecar.ts`, `ops.ts` edits and rules, `diagrams.ts` what each level shows, `connectors.ts`, `code.ts`, `flows.ts`, `validate.ts`, `store.ts` files and undo |
+| `src/core/` | `workspace.ts` file format, `sidecar.ts`, `ops.ts` edits and rules, `diagrams.ts` what each level shows, `connectors.ts`, `codeMap.ts`, `flows.ts`, `validate.ts`, `project.ts` files and undo |
 | `src/server/app.ts` | HTTP API ([Hono](https://hono.dev)) and the static UI |
 | `src/cli.ts` | the `dp` command |
 | `ui/` | React UI with xyflow and elkjs; builds into `static/` |

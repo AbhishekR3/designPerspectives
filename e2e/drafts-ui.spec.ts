@@ -136,6 +136,11 @@ test("a conflicting draft lists the conflict and applies nothing", async ({ page
 });
 
 test("a draft with only a planned code edit does not say it changes nothing", async ({ page, server }) => {
+  // A diagram nobody has laid out yet is laid out and saved by whoever opens it first, and a draft copies main as
+  // it is when made. If the draft is made first, opening it saves its own layout: "19 layout changes", and the
+  // draft no longer changes "nothing" once the code edits are left out. So let main's start diagram settle first.
+  await openDiagram(page, "containers-internet-banking-system");
+  await waitUntil(async () => (await api(server, "/diagrams/containers-internet-banking-system")).nodes.every((n: { position?: unknown }) => n.position));
   const id = await createDraft(server, "Code only");
   const f = await call(server, "GET", "/code/file?path=sample_code/api/accounts.py", { draft: id });
   await call(server, "PUT", "/code/file", { draft: id, body: { path: "sample_code/api/accounts.py", content: "# only code\n", mtime: f.mtime } });

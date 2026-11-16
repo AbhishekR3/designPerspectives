@@ -110,12 +110,12 @@ const FOCUSABLE =
 const modalStack: object[] = [];
 
 /**
- * A modal dialog: labelled for screen readers, focus moves in on open (to the element marked data-autofocus
- * or autoFocus, else the first control) and back to the previous element on close, Tab stays inside, and
- * Escape closes only the top dialog (the event stops there, so it does not also clear the canvas selection).
+ * The behaviour every modal dialog shares; attach the returned ref to the element that has role="dialog": focus
+ * moves in on open (to the element marked data-autofocus or autoFocus, else the first control) and back to the
+ * previous element on close, Tab stays inside, and Escape closes only the top dialog (the event stops there, so
+ * it does not also clear the canvas selection).
  */
-export function Modal({ title, onClose, children, wide = false, testId }: { title: string; onClose(): void; children: React.ReactNode; wide?: boolean; testId?: string }) {
-  const titleId = useId();
+export function useModalBehavior(onClose: () => void) {
   const box = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
@@ -167,6 +167,13 @@ export function Modal({ title, onClose, children, wide = false, testId }: { titl
       if (opener instanceof HTMLElement && opener !== document.body && opener.isConnected) opener.focus();
     };
   }, [opener]);
+  return box;
+}
+
+/** A modal dialog: labelled for screen readers; see useModalBehavior for how it takes and gives back focus. */
+export function Modal({ title, onClose, children, wide = false, testId }: { title: string; onClose(): void; children: React.ReactNode; wide?: boolean; testId?: string }) {
+  const titleId = useId();
+  const box = useModalBehavior(onClose);
 
   return (
     <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
