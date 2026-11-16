@@ -1,6 +1,6 @@
 # Future plans and backlog
 
-Last updated: 2026-11-15. Current version: 1.0.0 (see `../CHANGELOG.md`). Latest review: `reviews.md`.
+Last updated: 2026-11-16. Current version: 0.4.0 (see `../CHANGELOG.md`). Latest review: `reviews.md`.
 
 This file collects work that is not built yet. Nothing here is scheduled or rejected; items are revisited after feedback on the current stage.
 
@@ -10,10 +10,10 @@ Source markers: **[Owner]** stated by the project owner (date given) · **[Revie
 
 | Decision | Source | Trade-off |
 |---|---|---|
-| Local web app started by one command; no accounts, no hosted server | [Owner, 2026-11-13] | No desktop app yet; the UI could later be wrapped or published as a static demo |
+| Local web app started by one command; sign-in is optional (users and three roles, DEC-041); no hosted server | [Owner, 2026-11-13]; sign-in built in 1.0 work, kept in 0.4.0 | No desktop app yet; the UI could later be wrapped or published as a static demo |
 | Native model file is a Structurizr workspace JSON, plus one sidecar file (`designperspectives.json`) for data Structurizr has no field for | Owner delegated the choice; format chosen as [Proposal] | One large file per workspace (more merge conflicts); numeric Structurizr IDs replaced by readable slugs here |
 | Engineer is the default lens; more lenses are user-made; Business and Security presets are in the backlog | [Owner, 2026-11-13] "Engineer first starting lense" | Lens mechanism is built; presets are not |
-| MIT licence, single user, collaboration through git, LLM off by default | [Owner, 2026-11-11] | No real-time co-editing |
+| MIT licence, collaboration through git and optional sign-in, LLM off by default | [Owner, 2026-11-11]; sign-in added later (DEC-041) | No real-time co-editing |
 | All-TypeScript stack (Node server, `dp` CLI, React UI, shared API types) | [Owner, 2026-11-14]; reasoning in `reviews.md` | Python import scanning uses a hand-written tokenizer instead of `ast` |
 | Trade-offs are stated for every design decision | [Owner] | — |
 | Target own system first; optimize for other systems later; no LLM access and no cloud accounts during development | [Owner] | Integrations that need tokens or live APIs wait |
@@ -25,9 +25,9 @@ Stage A (model, diagrams, overlays, flows, lenses, demo) is built and extended i
 
 | Stage | Content | Status |
 |---|---|---|
-| B — Python codebase to model (deterministic) | `dp scan <path>` proposes containers (from `pyproject.toml`, `requirements*.txt`, Dockerfiles, docker-compose), components (Python packages) and connections (imports); proposals are accepted, edited or rejected one by one; accepted objects keep their source paths and a re-scan never changes them (new code appears as "unmapped") | **Moved to the Future stage** [Owner, 2026-11-14, DEC-026]. `src/core/codeMap.ts` already maps components to files and scans Python/JS/TS imports. LLM-assisted import design notes: section 4, "Stage B, codebase to model" [Owner, 2026-11-15] |
-| C — Planned change | C1 drafts: a separately edited copy of the workspace with a diff overlay (added / changed / removed) and apply or discard. C2 branch compare: scan two git refs and show the same overlay | Built: C1 drafts (DEC-016/017), C2 compare of the stored models at git refs (DEC-018), C3 `dp check` / `dp diff`; C4 planned code changes and the coding plan (`dp plan`). See `reviews.md`, `reviews.md` and `planned-change.md` |
-| D — LLM assist (optional, off by default; done by BMO, the project's agent, on any backend LLM; see section 4, "Stage B") | D-1 describe scan results; D-2 draft a model from a written description (planning a codebase); D-3 explain a diagram or object in the wording of the active lens | Not built |
+| B — Python codebase to model (deterministic) | `dp scan <path>` proposes containers (from `pyproject.toml`, `requirements*.txt`, Dockerfiles, docker-compose), components (Python packages) and connections (imports); proposals are accepted, edited or rejected one by one; accepted objects keep their source paths and a re-scan never changes them (new code appears as "unmapped") | **Next round (0.5.0), planned:** codebase to model with an import file and drafts [Owner, 2026-11-16, DEC-063]. Moved to the Future stage earlier [Owner, 2026-11-14, DEC-026]. `src/core/codeMap.ts` already maps components to files and scans Python/JS/TS imports. Design notes: section 4, "Stage B, codebase to model" [Owner, 2026-11-15] |
+| C — Planned change | C1 drafts: a separately edited copy of the workspace with a diff overlay (added / changed / removed) and apply or discard. C2 branch compare: scan two git refs and show the same overlay | Built: C1 drafts (DEC-016/017), C2 compare of the stored models at git refs (DEC-018), C3 `dp check` / `dp diff`; C4 planned code changes and the coding plan (`dp plan`). See `reviews.md` and `planned-change.md` |
+| D — LLM assist (optional, off by default; done by BMO, the project's agent, on any backend LLM; see section 4, "Stage B") | D-1 describe scan results; D-2 draft a model from a written description (planning a codebase); D-3 explain a diagram or object in the wording of the active lens | **Next round (0.5.0), planned:** BMO with a handoff backend first, then the Claude API, the OpenAI API and Ollama [Owner, 2026-11-16, DEC-063]. Not built |
 | Deployment (next) | Deployment diagrams on the native Structurizr deployment model: nested deployment nodes, infrastructure nodes and container instances, one environment per diagram; diagrams computed from container relationships; per-node diff/merge units; `dp check` rules [Owner, 2026-11-14, DEC-019, DEC-022]. Later on this track: system instances, deployment groups, side-by-side environment diff, cost per environment | Next stage; plan first |
 | Small batch (after Deployment) | Technology shown on connections (toggle); owner inherited from the parent; descriptions on tag groups and values; keyboard shortcuts menu; "appears in diagrams" list per object; CSV export (A8+) [Proposal, DEC-028] | Planned after Deployment |
 | Static export (after the small batch) | `dp export html`: the built UI plus a snapshot of the model, opened without a server; can be published from CI [Owner, 2026-11-14, DEC-024; order DEC-028] | Planned |
@@ -47,10 +47,7 @@ Principle [Proposal]: because the tool is local, single-user and has no cloud ac
 | B6 | Coverage overlay | Cobertura XML (e.g. from coverage.py [Training]) → % per object in High/Medium/Low bands | Small |
 | C3 | `dp check` and `dp diff` | Built (see `reviews.md`). "Unmapped code" (code no object points to) waits for Stage B; `dp check` warns about mapped paths that do not exist instead | Medium |
 
-Open questions for the owner [Proposal]:
-1. Accept B4–B6 and C3 into the plan, or keep all integrations in the backlog until Stage A feedback?
-2. Jira specifically, or any tracker (determines whether issue references follow a key format or are free-form URLs)?
-3. Is GitLab the primary host for CI/CD, or GitHub (current repo) with GitLab as a second template?
+Answered [Owner, 2026-11-16, DEC-063]: integrations stay in the backlog; any tracker, with GitHub first; GitHub CI first, GitLab CI as a later sample.
 
 ## 4. Backlog
 
@@ -189,9 +186,8 @@ The accept decision and any typed text stay in the import folder; nothing about 
 ### Planned change (after Stage C) [Review, stage-c]
 - Rebase a draft onto the current main model (today conflicts are only reported at apply time), and a merge editor for conflicts.
 - Undoing an apply could restore the draft too.
-- A sample draft in the demo model.
 - Compare scan results (Stage B, now in the Future stage) with the model, using the same diff.
-- Compare against a draft from the main model ("what would this draft change now"), not only draft vs its base.
+- Done: a sample draft in the demo model; comparing a draft with main as it is now (DEC-063).
 
 ### Model and diagrams
 - Business and Security lens presets.
@@ -237,17 +233,18 @@ The accept decision and any typed text stay in the import folder; nothing about 
 ### Sign-in and roles (after Stage P4) [Review, prod-p4]
 - Real-time collaboration: two people editing the same thing see each other's changes live. Deferred by the owner [Owner, 2026-11-14]; today the last write wins and the other sees it on focus.
 - Per-user undo. Undo history is per model version today, so one architect can undo another's edit.
-- Server-side lens filtering for viewers, so sensitive sections are not sent to a viewer at all. This would change DEC-008 and is an open question for the owner.
+- Server-side lens filtering for viewers, so sensitive sections are not sent to a viewer at all. Kept as it is: a lens is a default view and hides no data (DEC-008, DEC-063).
 - Custom roles. Roles are fixed at Architect, Engineer and Viewer (DEC-041).
-- Draft ownership rules: whether engineers may edit only drafts they started (open question for the owner).
+- Done: engineers change only the drafts they started; architects change any (DEC-063, amends DEC-041).
 - Rebase a draft onto a newer main, so "main +N" can be resolved rather than only shown (also open in Stage P3).
+- Two engineers cannot share one draft today (DEC-063 trade-off).
 
 ### Release and layout (after Stage P6) [Review, prod-p5, prod-p6]
 - Light theme. The app is dark only today [Review, prod-p5].
 - Windows under 760 px wide. Below that the app shows the canvas with both panels collapsed; nothing more is promised [Review, prod-p5].
 - Automated accessibility audit. Labels, focus and keyboard reach were checked by hand and only partly by tests [Review, prod-p5].
-- Apply and enforce Prettier. It is configured but not applied to the code [Review, prod-p6].
 - Run the sample CI jobs in a real repository. The jobs in `docs/examples/ci/` have not been run [Review, prod-p6].
+- Done: Prettier is enforced in CI (0.4.0).
 
 ### Sample data and the live UI inspector (after DEC-043, DEC-044) [Review, live-data]
 - Import a sample from a file in the code folder (a JSON fixture, a CSV row, a recorded message) instead of pasting it; show its schema (field names and types) when the sample is JSON.
@@ -260,9 +257,6 @@ The accept decision and any typed text stay in the import folder; nothing about 
 - A secret-name list the project can edit, and masking by the model's sensitive items, in addition to the built-in field names.
 - Highlight the touched elements on the diagram while the inspector is open, instead of a chip list.
 
-### Git process for this project [Owner, 2026-11-15]
-- Decide the Git process for this repository: branch naming and stacking (the 1.0.0 work was stacked branches), when to open pull requests, how large a change should be, commit message style, how the committed `static/` build and the regenerated `demo/` are handled (CI fails if they drift), and who merges. Think this through first, then record the outcome in `decisions.md`.
-
 ### Permissions and scale
 - Permissions beyond lenses: decision-rights matrix per role, signed approvals, encrypted files; approval rules (cost threshold, cross-team, security) [Notes].
 - More scan languages (TypeScript/JavaScript beyond imports, Java, Go, C#); more precise analysis.
@@ -270,9 +264,8 @@ The accept decision and any typed text stay in the import folder; nothing about 
 ## 5. Known limits and unverified items
 
 - Windows: the CLI's browser opening and paths were written for it but not run [Review, rewrite-ts].
-- `npm install -g github:AbhishekR3/designPerspectives` was not tested before merge; installing the packed tarball was tested and CI repeats it [Review, rewrite-ts].
-- Opening a workspace written by this tool in Structurizr's own tools (including the `dp.*` properties and the `dp.level` view property) was not run: Docker/Maven were not available when the stages were built; owner's checklist step 10 asks for it [Review, stage-a, stage-a2, stage-a3].
-- Linked work is entered by hand; nothing is fetched from GitHub or a tracker [Review, release-0.2].
+- For 0.4.0, installing the packed tarball was run (1.0 MB, 171 files; `dp init --demo`, `dp check` and `dp serve` worked). Not run: install from the GitHub URL `npm install -g github:AbhishekR3/designPerspectives`; Windows; Structurizr's own tools reading the files (including the `dp.*` properties and the `dp.level` view property; Docker/Maven were not available when the stages were built). These are the owner's steps [Review, release-0.4.0, DEC-063].
+- Linked work refresh from GitHub needs a stored token for private repositories; without one, only public repositories are read (DEC-059).
 - Line routing is drawn by the app; Structurizr ignores the sidecar `layouts`. Connector stages are not model elements and do not appear in Structurizr views [Review, stage-a2].
 - Import scanning handles Python and JS/TS relative imports only [Review, stage-a2].
-- Question left open: keep committing the built UI (`static/`) or build it only for releases (installing from git would then need Node) [Review, stage-a]. Current `CLAUDE.md` says it is committed.
+- The built UI (`static/`) is committed (decided, DEC-063; this closes the question on DEC-014).

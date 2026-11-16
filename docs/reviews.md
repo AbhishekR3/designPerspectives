@@ -6,6 +6,7 @@ File paths inside older sections are the paths at the time; see DEC-062 for the 
 
 ## Contents
 
+- [Release 0.4.0: one branch, answers applied, files regrouped, security fixes](#release-040-one-branch-answers-applied-files-regrouped-security-fixes)
 - [Orthogonal line routing (stage 1 and routing around boxes)](#orthogonal-line-routing-stage-1-and-routing-around-boxes)
 - [Stage H6 — roles per project, catalog copies that follow, history, GitHub status](#stage-h6--roles-per-project-catalog-copies-that-follow-history-github-status)
 - [Stages H2–H5 — home page, hub, shared catalog and data, credentials](#stages-h2h5--home-page-hub-shared-catalog-and-data-credentials)
@@ -25,6 +26,48 @@ File paths inside older sections are the paths at the time; see DEC-062 for the 
 - [Stage A3 review: canvas-first layout, characteristics and cost](#stage-a3-review-canvas-first-layout-characteristics-and-cost)
 - [Stage A2 review: feature round of 14 November](#stage-a2-review-feature-round-of-14-november)
 - [Stage A review — Model and diagrams (Proof of Concept)](#stage-a-review--model-and-diagrams-proof-of-concept)
+
+## Release 0.4.0: one branch, answers applied, files regrouped, security fixes
+
+Date: 2026-11-16. Branch: `release/0.4`, which merges the two lines of work (hub, home, catalog, decision records and line routing) with the release work. Decisions: [DEC-062](decisions.md#dec-062--files-are-grouped-by-area-with-plain-names) (layout) and [DEC-063](decisions.md#dec-063--owner-answers-to-the-open-review-questions-release-040) (owner answers).
+
+### What was built
+
+| # | Item | Where |
+|---|---|---|
+| 0.4 | **One branch.** The hub, home, catalog and decision work and the line routing work are merged on `release/0.4`. The version is 0.4.0; the earlier number 1.0.0 was never tagged or published. | `CHANGELOG.md` |
+| 0.4 | **Files regrouped (DEC-062).** Plain names in `src/core/`, one route module per area in `src/server/routes/`, the demo code in `src/demo/`, and UI folders `canvas/`, `panels/`, `pages/`, `drafts/`, `inspect/`, `hooks/` and `common/`. No behaviour change. | `src/`, `ui/src/` |
+| 0.4 | **Owner answers applied (DEC-063).** Network bind needs sign-in, `--read-only` or `--insecure`; hidden code paths refused; engineers change only the drafts they started; Ctrl/Cmd+click selects; draft compare "Since it started" or "Against main now"; a sample draft in the demo; the apply dialog starts unticked when the draft has a branch; install from GitHub only; CI runs `dp check --strict` on the demo; the test runner and Prettier are upgraded and enforced. | `src/cli.ts`, `src/server/auth.ts`, `ui/src/drafts/`, `ui/src/canvas/Canvas.tsx`, `src/demo/`, `.github/workflows/ci.yml` |
+| 0.4 | **Security fixes from the review.** Hub project folders added in the browser must be inside the hub and not hidden, and `hub.json` entries are checked on load; project IDs cannot be built-in object keys; GitHub links are checked before the stored token is used; `comments.json` is capped at 10 MB. | `src/server/hub.ts`, `src/core/users.ts`, `src/core/comments.ts`, `src/core/workStatus.ts` |
+| 0.4 | **Search dialog.** Ctrl/Cmd+K is a modal dialog with a focus trap. | `ui/src/common/SearchBox.tsx` |
+| 0.4 | **Hardening.** A timing-dependent drafts browser test was fixed. The install was tested from a packed tarball: 1.0 MB, 171 files; `dp init --demo`, `dp check` and `dp serve` all worked. | `e2e/`, `package.json` |
+
+### How it was checked
+
+Figures from the release run; they were not re-run for this docs pass.
+
+- Typecheck, lint and Prettier pass.
+- 424 unit and API tests and 147 browser tests pass.
+- `npm audit` reports 0 vulnerabilities.
+- `npm run make-demo` leaves `demo/` unchanged.
+- The UI build is reproducible, so the committed `static/` matches a fresh build.
+- Two Opus security reviews. Their findings are the fixes listed above.
+
+### Limits
+
+- Not run: Windows; Structurizr's own tools reading the files; CI on GitHub (the owner's steps); install from the GitHub URL.
+- A hand-written `hub.json` is trusted. Its entries may still point outside the hub folder (DEC-054, DEC-063).
+- A catalog architect changes names and descriptions in linked copies of projects where they have a lower role or none, because copies follow the catalog (DEC-057). Accepted for now (DEC-063).
+- Drafts with no author (made before sign-in was turned on) are architect-only once sign-in is on.
+- Two engineers cannot share one draft.
+
+### Questions for the owner
+
+None open. The next round is Stage B (codebase to model with an import file and drafts) and BMO (with a handoff backend first, then the Claude API, the OpenAI API and Ollama), planned for 0.5.0 (`docs/backlog.md`).
+
+### Owner feedback
+
+<!-- Please add feedback here. -->
 
 ## Orthogonal line routing (stage 1 and routing around boxes)
 

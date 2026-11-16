@@ -2,7 +2,18 @@
 
 ## Unreleased
 
+## 0.4.0 — 2026-11-16
+
+First release meant for other people. Earlier notes and commit messages that say 1.0.0 refer to this line of work.
+
 ### Added
+- Draft compare toggle: the draft strip compares a draft **Since it started** (only what the draft changed) or **Against main now** (also what main changed since the draft started) (DEC-063).
+- A sample draft in the demo: *Tell customers when a payment is held* adds a container, changes a description, adds a line and proposes a decision.
+- Ctrl/Cmd+click adds a box to the selection, as Shift+click does.
+- Search (Ctrl/Cmd+K) is a modal dialog with a focus trap.
+- Right-angle lines: automatic lines use rounded right angles, go around other boxes and spread their ends along each side of a box. Lines that share a gap are kept apart, and labels avoid other lines (DEC-052, DEC-061).
+- Per-diagram default line shape, set in the diagram details panel (`layouts[<diagram>].lineShape`), and a shape for each line (DEC-061).
+- Make room and Spread out: move boxes that are too close. They act on the selected boxes when two or more are selected, otherwise on the whole diagram. Each is one undo step (DEC-061).
 - "No access" to a hub project: role `none` per project hides the project from that user (projects,
   home page, catalog usage, history) and refuses every request to it (DEC-060).
 - Hub roles per project: a user's role can differ per project (`projects` in the users file,
@@ -84,19 +95,6 @@
   folder becomes a git repository with four made-up commits (`demo/history.json`; skipped inside an
   existing repository). `dp serve --demo` runs a demo bank web app on 127.0.0.1:4200 that writes
   traces, and the demo model points the Single-Page Application at it.
-
-### Changed
-- The demo model now looks like a bank in production: a Payments Service with fraud checks, a
-  Notification Service, a Payment Events topic, a Session Cache, a Statement Store, external payment,
-  SMS, push and monitoring services, and Fraud Analyst and Site Reliability Engineer people. It has
-  owners and runbook links, details tables (SLOs, endpoints, topic and cache settings, alert rules),
-  Tier and Hosting tag groups, Operations and Finance lenses, three more flows with example data, a
-  second pipeline connector, and TypeScript sample code behind the new components.
-- `docs/demo-tour.md`: a guided tour of the demo for new users.
-
-## 1.0.0 — 2026-11-15
-
-### Added
 - Drafts: a planned change in `architecture/drafts/<id>/`, with a changes overlay (added, changed,
   removed) against the main model. Apply merges it as one undo step (three-way merge, conflicts
   refused); Discard deletes it.
@@ -118,7 +116,6 @@
   navigation.
 - `dp serve --allow-host <name>` lets the server answer to another host name (a tunnel or proxy in
   front of it).
-
 - Move to…: a container can move to another software system, and a component to another container
   (`POST /api/elements/:id/move`). The ID, children and relationships are kept. Works in drafts: the
   change list shows Parent before → after. See DEC-037.
@@ -142,7 +139,7 @@
 - Success toasts for apply and discard.
 - The state response carries a `version`. When the window regains focus, the UI reloads only if the model changed (git checkout, another tab, the CLI).
 - Optional sign-in. A project with a `.dp/users.json` file shows a sign-in page. Three roles: Architect, Engineer and Viewer (DEC-041). Without the file nothing changes.
-- Role rules enforced on the server for every changing route. Engineers create and edit drafts but cannot change the main model, write code files or apply drafts. Viewers change nothing.
+- Role rules enforced on the server for every changing route. Engineers create drafts and change or discard only the drafts they started (see Changed). Engineers cannot change the main model, write code files or apply drafts. Viewers change nothing.
 - User chip with role and Sign out. Default lens by role (Architect, Engineer, Overview for viewers), remembered per user and project; anyone can still switch lens. "View only" badge for viewers and a "Start a draft" banner for engineers on the main model.
 - `dp users init`, `add`, `passwd`, `remove` and `list`, and `dp serve --users <file>`.
 - Side panels have a real read-only mode, and controls a role cannot use are hidden.
@@ -151,10 +148,22 @@
 - README front page rewritten: what it is, two screenshots (`docs/images/`, made from the demo model), a three-command quick start from an empty folder, then the features.
 
 ### Changed
+- Engineers change and discard only the drafts they started. They can read every draft, and a draft from another person opens read-only for them. Architects change any draft. A draft with no author (made before sign-in was turned on) can be changed by architects only (DEC-063, amends DEC-041).
+- Install from GitHub only (`npm install -g github:AbhishekR3/designPerspectives`). There is no npm registry package for now (DEC-063).
+- The apply dialog's "Also write the planned code edits" starts unticked when the draft has a branch (DEC-063).
+- Files are grouped by area with plain names: `project.ts`, `codeMap.ts`, `util.ts`, `diff.ts` in `src/core/`; the demo code in `src/demo/`; one route module per area; UI folders `canvas/`, `panels/`, `pages/`, `drafts/`, `inspect/`, `hooks/` and `common/`. No behaviour change (DEC-062).
+- The stage reviews are combined in one file, `docs/reviews.md`.
+- Prettier is enforced in CI (`npm run format:check`). CI also runs `dp check --strict` on a fresh demo model, and the test runner is upgraded to a new major version.
+- The demo model now looks like a bank in production: a Payments Service with fraud checks, a
+  Notification Service, a Payment Events topic, a Session Cache, a Statement Store, external payment,
+  SMS, push and monitoring services, and Fraud Analyst and Site Reliability Engineer people. It has
+  owners and runbook links, details tables (SLOs, endpoints, topic and cache settings, alert rules),
+  Tier and Hosting tag groups, Operations and Finance lenses, three more flows with example data, a
+  second pipeline connector, and TypeScript sample code behind the new components.
+- `docs/demo-tour.md`: a guided tour of the demo for new users.
 - API clients must send `Content-Type: application/json` with a request body (415 otherwise).
 - In-app dialogs and toasts replace the browser's prompt and confirm boxes. Destructive confirms name the action (Delete, Discard).
 - Internal: the UI shell, the server routes, the object panel and the stylesheet are split into smaller files; ESLint runs in CI.
-
 - **Behaviour change:** `dp serve` and `dp init` create an empty model. Before, a new folder got the
   sample model, and `sample_code/` was copied into it. Use `--demo` for the sample. `--empty` is still
   accepted. See DEC-036.
@@ -190,7 +199,6 @@
 - Errors from layout, auto-layout, image export and lens refetch are now shown. They used to fail silently.
 - Escape in a dialog no longer clears the canvas selection.
 - Keyboard shortcuts no longer act on the canvas while a dialog is open.
-
 - Cut is removed from the canvas. It deleted the element, so Paste did nothing.
 - A person or software system added on a context, container or component diagram is no longer lost
   because it has no line. Such a diagram only draws outside elements that are connected to something
@@ -212,10 +220,15 @@
 - The quick bar above a selected box stays inside the canvas.
 
 ### Security
+- A network bind needs sign-in, `--read-only` or `--insecure`. `dp serve --host` with an address other than loopback (127.x, `::1`, `localhost`) refuses to start unless a users file has at least one user, `--read-only` is given, or `--insecure` is given to say an open server is meant. This replaces the earlier warning (DEC-063, replaces DEC-030).
+- Hidden code paths are refused when entered: mapping an object to a path with a segment that starts with a dot is refused. A path a model already has still loads, and `dp check` warns about it (DEC-063, refines DEC-031).
+- Hub folders: a project folder added in the browser must be a folder inside the hub and must not be hidden. No project folder may hold the hub folder or another project. `hub.json` entries are checked when the hub loads (DEC-063).
+- Project IDs cannot be built-in object keys (such as `constructor`) (DEC-063).
+- GitHub links are checked before the stored `github` token is used.
+- `comments.json` is capped at 10 MB.
 - The HTTP server package is updated to its current major version; the runtime dependencies have no known advisories.
 - Requests must be addressed to a loopback host (`localhost`, `127.0.0.1`, `[::1]`) when the server
-  is bound to loopback. This stops DNS rebinding. Binding another `--host` turns the check off and
-  prints a warning that there is no login.
+  is bound to loopback. This stops DNS rebinding. Any other host name is refused unless the server is started with `--allow-host`.
 - Changes to `/api/*` are refused (403) when the request comes from another origin or site.
 - Request bodies must be JSON (415 otherwise) and at most 5 MB (413 otherwise).
 - Every response carries a Content-Security-Policy, `X-Frame-Options: DENY`, `nosniff` and

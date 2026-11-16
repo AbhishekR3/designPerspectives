@@ -123,13 +123,15 @@ Now click **Today's rates**. The call matches no endpoint (add it to a relations
 
 ## 10. Find anything
 
-Press **Ctrl/Cmd+K** and type `redis`, `fraud` or `kafka`. Search covers names, descriptions and technology. Press **?** for every keyboard shortcut.
+Press **Ctrl/Cmd+K** and type `redis`, `fraud` or `kafka`. Search covers names, descriptions and technology; it opens as a dialog. Press **?** for every keyboard shortcut.
+
+To select several boxes, Shift+click or Ctrl/Cmd+click them, or Shift+drag over empty canvas. Then drag them, use the arrow keys, or press Delete to remove them together.
 
 ## 11. Plan a change in a draft
 
 Real architecture changes are planned before they are built. A draft is a copy of the model you can change freely; the main model stays as it is until you apply the draft.
 
-The demo already has one: under **Drafts**, open *Tell customers when a payment is held*. It adds a container (**Held Payment Notifier**), changes the **Payments Service** description, adds a line between them and proposes a decision. In the draft strip, switch between **Since it started** (only what the draft changes) and **Against main now** (also what main has changed since). Then try the steps below on a draft of your own.
+The demo already has one: under **Drafts**, open *Tell customers when a payment is held* (its author is "Demo"). It adds a container (**Held Payment Notifier**), changes the **Payments Service** description, adds a line between them and proposes a decision. In the draft strip, switch between **Since it started** (only what the draft changes) and **Against main now** (also what main has changed since). Then try the steps below on a draft of your own.
 
 1. In the sidebar, under **Drafts**, click **+ New draft**. Title it *Open banking API* and describe it: *Let licensed third parties read account balances with the customer's consent.*
 2. On the containers diagram, drag a **Service / API** from the palette (left of the canvas) and name it *Open Banking API*. Connect it to **API Application** by dragging from one of its dots onto that box.
@@ -165,7 +167,7 @@ dp users init            # creates architect, engineer and viewer, and prints th
 dp serve
 ```
 
-Sign in as **engineer**: you can read everything and make drafts, but you cannot change the main model or apply a draft. Sign in as **viewer**: you can read everything and change nothing.
+Sign in as **engineer**: you can read everything and make drafts, but you cannot change the main model or apply a draft. An engineer changes and discards only the drafts they started. The sample draft belongs to "Demo", so for an engineer it is read-only; start a draft of your own to change one. An **architect** changes any draft. Sign in as **viewer**: you can read everything and change nothing.
 
 ## Start your own
 
