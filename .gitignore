@@ -13,3 +13,7 @@ __pycache__/
 *.egg-info/
 Books/
 competitor_features.md
+
+# local `dp serve --demo` output in the repo root (the bundled demo lives in demo/)
+/architecture/
+/sample_code/
