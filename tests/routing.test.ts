@@ -1,7 +1,7 @@
 /** Orthogonal edge routing: port planning, routes and default label places (ui/src/routing.ts). */
 
 import { describe, expect, test } from "vitest";
-import { defaultLabelT, orthoRoute, placeLabels, planPorts, type Box, type Port, type Pt, type RouteEdge } from "../ui/src/routing.js";
+import { defaultLabelT, orthoRoute, placeLabels, planPorts, separateRoutes, type Box, type Port, type Pt, type RouteEdge } from "../ui/src/routing.js";
 
 const OUT: Record<Port["side"], Pt> = { right: { x: 1, y: 0 }, bottom: { x: 0, y: 1 }, left: { x: -1, y: 0 }, top: { x: 0, y: -1 } };
 
@@ -698,5 +698,320 @@ describe("avoiding other boxes", () => {
     times.sort((a, b) => a - b);
     const median = times[10]!;
     expect(median).toBeLessThan(50);
+  });
+
+  // Label sizes of the same 27 lines (the canvas's estimate, in the order of LINES).
+  const LABEL_SIZES: [number, number][] = [
+    [160, 33],
+    [180, 34],
+    [180, 34],
+    [180, 34],
+    [180, 46],
+    [180, 46],
+    [180, 46],
+    [180, 63],
+    [149, 33],
+    [112, 33],
+    [112, 33],
+    [112, 33],
+    [112, 33],
+    [149, 33],
+    [128, 33],
+    [144, 33],
+    [180, 46],
+    [112, 33],
+    [112, 20],
+    [154, 33],
+    [96, 33],
+    [154, 33],
+    [170, 33],
+    [175, 33],
+    [112, 33],
+    [149, 33],
+    [175, 33],
+  ];
+
+  /** The canvas's whole pass over the demo containers diagram, with or without lanes and line-aware labels. */
+  function fullPass(lanes: boolean) {
+    const plan = planPorts(demoBoxes, demoLines, { avoidBoxes: true });
+    const all = Object.values(demoBoxes);
+    let routes: Record<string, Pt[]> = {};
+    for (const e of demoLines) routes[e.id] = orthoRoute(plan[e.id]!.source, plan[e.id]!.target, demoBoxes[e.source]!, demoBoxes[e.target]!, undefined, all);
+    const plain = routes;
+    if (lanes) routes = separateRoutes(routes, all);
+    const items = demoLines.map((e, i) => ({ id: e.id, pts: routes[e.id]!, size: { w: LABEL_SIZES[i]![0], h: LABEL_SIZES[i]![1] } }));
+    const lines = demoLines.map((e) => ({ id: e.id, pts: routes[e.id]! }));
+    const ts = placeLabels(items, all, lanes ? lines : undefined);
+    return { plan, routes, plain, items, ts };
+  }
+
+  /** Pairs of lines with a collinear overlap of more than 20px within 4px of each other (every segment counts). */
+  function sharedOverlaps(routes: Record<string, Pt[]>): number {
+    const ids = Object.keys(routes).sort();
+    let n = 0;
+    for (let a = 0; a < ids.length; a++)
+      for (let b = a + 1; b < ids.length; b++)
+        for (let i = 1; i < routes[ids[a]!]!.length; i++)
+          for (let j = 1; j < routes[ids[b]!]!.length; j++) {
+            const [p1, p2, q1, q2] = [routes[ids[a]!]![i - 1]!, routes[ids[a]!]![i]!, routes[ids[b]!]![j - 1]!, routes[ids[b]!]![j]!];
+            for (const h of [true, false]) {
+              const [c, d] = h ? [p1.y === p2.y ? p1.y : NaN, q1.y === q2.y ? q1.y : NaN] : [p1.x === p2.x ? p1.x : NaN, q1.x === q2.x ? q1.x : NaN];
+              if (!(Math.abs(c - d) <= 4)) continue;
+              const [l1, l2, m1, m2] = h ? [p1.x, p2.x, q1.x, q2.x] : [p1.y, p2.y, q1.y, q2.y];
+              if (Math.min(Math.max(l1, l2), Math.max(m1, m2)) - Math.max(Math.min(l1, l2), Math.min(m1, m2)) > 20) n++;
+            }
+          }
+    return n;
+  }
+
+  /** Interior pieces (between two turns) shorter than 12px. */
+  const tinyJogs = (routes: Record<string, Pt[]>) =>
+    Object.values(routes).reduce((n, pts) => n + pts.slice(1, -2).filter((p, k) => Math.abs(p.x - pts[k + 2]!.x) + Math.abs(p.y - pts[k + 2]!.y) < 12).length, 0);
+
+  /** Labels whose rectangle has a piece of another line strictly inside it. */
+  function labelsCrossed(res: ReturnType<typeof fullPass>): number {
+    let n = 0;
+    for (const it of res.items) {
+      const t = res.ts[it.id]!;
+      const total = it.pts.slice(1).reduce((s, p, i) => s + Math.abs(p.x - it.pts[i]!.x) + Math.abs(p.y - it.pts[i]!.y), 0);
+      let want = t * total;
+      let at = it.pts[0]!;
+      for (let i = 1; i < it.pts.length; i++) {
+        const len = Math.abs(it.pts[i]!.x - it.pts[i - 1]!.x) + Math.abs(it.pts[i]!.y - it.pts[i - 1]!.y);
+        if (want <= len || i === it.pts.length - 1) {
+          const k = len ? Math.min(want / len, 1) : 0;
+          at = { x: it.pts[i - 1]!.x + (it.pts[i]!.x - it.pts[i - 1]!.x) * k, y: it.pts[i - 1]!.y + (it.pts[i]!.y - it.pts[i - 1]!.y) * k };
+          break;
+        }
+        want -= len;
+      }
+      const r: Box = { x: at.x - it.size.w / 2, y: at.y - it.size.h / 2, w: it.size.w, h: it.size.h };
+      const hit = Object.entries(res.routes).some(
+        ([id, pts]) =>
+          id !== it.id &&
+          pts.some((q, i) => {
+            if (i === 0) return false;
+            const p = pts[i - 1]!;
+            return p.y === q.y
+              ? p.y > r.y && p.y < r.y + r.h && Math.max(p.x, q.x) > r.x && Math.min(p.x, q.x) < r.x + r.w
+              : p.x > r.x && p.x < r.x + r.w && Math.max(p.y, q.y) > r.y && Math.min(p.y, q.y) < r.y + r.h;
+          }),
+      );
+      if (hit) n++;
+    }
+    return n;
+  }
+
+  test("the demo containers diagram: lines are spread, jogs and crossed labels are fewer", () => {
+    const before = fullPass(false);
+    const after = fullPass(true);
+    // Measured on this geometry: shared overlaps 6 -> 1 (the one left is two pieces at ports, which stay put), tiny jogs 1 -> 1
+    // (the one left is a jog round a box's 15px clearance that cannot slide), labels crossed by another line 19 -> 11 (15 at a line weight of 2; 8 keeps label-label overlaps at 0 and label-box overlap area at 5, and moves labels from their default place by a median of 25px, mean 94px, at most 408px).
+    expect([sharedOverlaps(before.routes), tinyJogs(before.routes), labelsCrossed(before)]).toEqual([6, 1, 19]);
+    expect(sharedOverlaps(after.routes)).toBeLessThanOrEqual(1);
+    expect(tinyJogs(after.routes)).toBeLessThanOrEqual(1);
+    expect(labelsCrossed(after)).toBeLessThanOrEqual(11);
+    expect(labelsCrossed(after)).toBeLessThan(labelsCrossed(before));
+    // The ends stay where the ports are, and every line is still right-angled and has no repeated or collinear point.
+    for (const e of demoLines) {
+      const pts = after.routes[e.id]!;
+      const p = after.plan[e.id]!;
+      expect(pts[0]).toEqual({ x: p.source.x, y: p.source.y });
+      expect(pts[pts.length - 1]).toEqual({ x: p.target.x, y: p.target.y });
+      checkRoute(pts, p.source, p.target, demoBoxes[e.source]!, demoBoxes[e.target]!);
+    }
+  });
+
+  test("the whole pass, with lanes and line-aware labels, is fast", () => {
+    const pass = () => {
+      const plan = planPorts(demoBoxes, demoLines, { avoidBoxes: true });
+      const all = Object.values(demoBoxes);
+      const routes: Record<string, Pt[]> = {};
+      for (const e of demoLines) routes[e.id] = orthoRoute(plan[e.id]!.source, plan[e.id]!.target, demoBoxes[e.source]!, demoBoxes[e.target]!, undefined, all);
+      const lanes = separateRoutes(routes, all);
+      const items = demoLines.map((e, i) => ({ id: e.id, pts: lanes[e.id]!, size: { w: LABEL_SIZES[i]![0], h: LABEL_SIZES[i]![1] } }));
+      placeLabels(
+        items,
+        all,
+        items.map((it) => ({ id: it.id, pts: it.pts })),
+      );
+    };
+    for (let i = 0; i < 5; i++) pass();
+    const times: number[] = [];
+    for (let i = 0; i < 21; i++) {
+      const t0 = performance.now();
+      pass();
+      times.push(performance.now() - t0);
+    }
+    times.sort((a, b) => a - b);
+    expect(times[10]!).toBeLessThan(50); // measured about 2.6ms; the bound is loose so a slow machine does not fail it
+  });
+});
+
+describe("separateRoutes", () => {
+  const route = (...c: number[]): Pt[] => c.reduce<Pt[]>((out, v, i) => (i % 2 ? out : [...out, { x: v, y: c[i + 1]! }]), []);
+  /** Three lines crossing a corridor at y=100, each staggered so their order at both ends is the same (top to bottom: c, b, a). */
+  const corridor = (): Record<string, Pt[]> => ({
+    a: route(50, 0, 50, 100, 300, 100, 300, 200),
+    b: route(100, 0, 100, 100, 350, 100, 350, 200),
+    c: route(150, 0, 150, 100, 400, 100, 400, 200),
+  });
+  const orthogonal = (pts: Pt[]) => pts.every((p, i) => i === 0 || (p.x === pts[i - 1]!.x) !== (p.y === pts[i - 1]!.y));
+  const crossings = (r: Record<string, Pt[]>) => {
+    const ids = Object.keys(r);
+    let n = 0;
+    for (let i = 0; i < ids.length; i++) for (let j = i + 1; j < ids.length; j++) if (polylinesCross(r[ids[i]!]!, r[ids[j]!]!)) n++;
+    return n;
+  };
+
+  test("three lines in one corridor end up in lanes at least 8px apart, without new crossings", () => {
+    const before = corridor();
+    const out = separateRoutes(before, []);
+    const y = (id: string) => out[id]![1]!.y;
+    expect(y("c") < y("b") && y("b") < y("a")).toBe(true);
+    expect(y("b") - y("c")).toBeGreaterThanOrEqual(8);
+    expect(y("a") - y("b")).toBeGreaterThanOrEqual(8);
+    // Centred on where the bundle was.
+    expect((y("a") + y("c")) / 2).toBeCloseTo(100, 6);
+    expect(crossings(out)).toBeLessThanOrEqual(crossings(before));
+    for (const id of Object.keys(out)) expect(out[id]![1]!.y).toBe(out[id]![2]!.y);
+  });
+
+  test("the ends stay where they are and every route stays orthogonal, connected and free of collinear points", () => {
+    const before = corridor();
+    const out = separateRoutes(before, []);
+    for (const id of Object.keys(before)) {
+      expect(out[id]![0]).toEqual(before[id]![0]);
+      expect(out[id]![out[id]!.length - 1]).toEqual(before[id]![before[id]!.length - 1]);
+      expect(orthogonal(out[id]!)).toBe(true);
+      for (let i = 1; i + 1 < out[id]!.length; i++) {
+        const [p, q, r] = [out[id]![i - 1]!, out[id]![i]!, out[id]![i + 1]!];
+        expect((p.x === q.x && q.x === r.x) || (p.y === q.y && q.y === r.y)).toBe(false);
+      }
+    }
+    // The input is not changed.
+    expect(before).toEqual(corridor());
+  });
+
+  test("a bundle beside a box is not pushed into it", () => {
+    const grown = (b: Box, m: number): Box => ({ x: b.x - m, y: b.y - m, w: b.w + 2 * m, h: b.h + 2 * m });
+    // A box whose top is 11px below the corridor: the 10px and 8px spreads would bring the lowest lane within 1px and 3px of it.
+    const box: Box = { x: 180, y: 111, w: 60, h: 40 };
+    const out = separateRoutes(corridor(), [box]);
+    for (const pts of Object.values(out)) for (let i = 1; i < pts.length; i++) expect(crossesInside(pts[i - 1]!, pts[i]!, grown(box, 4.99))).toBe(false);
+    // Still spread (with a smaller gap).
+    const ys = Object.values(out)
+      .map((p) => p[1]!.y)
+      .sort((a, b) => a - b);
+    expect(ys[1]! - ys[0]!).toBeGreaterThanOrEqual(5.99);
+    expect(ys[2]! - 100).toBeLessThanOrEqual(6.01);
+    // A box so close that no lane can move towards it: the lines are not moved into it either.
+    const tight: Box = { x: 180, y: 102, w: 60, h: 40 };
+    for (const pts of Object.values(separateRoutes(corridor(), [tight]))) for (let i = 1; i < pts.length; i++) expect(crossesInside(pts[i - 1]!, pts[i]!, tight)).toBe(false);
+  });
+
+  test("lines that leave a bundle on opposite sides cross once rather than lie on top of each other", () => {
+    const r = { p: route(50, 0, 50, 100, 300, 100, 300, 200), q: route(100, 200, 100, 100, 250, 100, 250, 0) };
+    // p leaves the corridor downwards at both ends, q upwards, and they overlap only in the middle: the lanes are separate.
+    const out = separateRoutes(r, []);
+    expect(Math.abs(out.p![1]!.y - out.q![1]!.y)).toBeGreaterThanOrEqual(6);
+  });
+
+  test("a 6px jog in the middle of a route is made straight, the ends staying put", () => {
+    const r = { j: route(100, 0, 100, 50, 106, 50, 106, 150, 300, 150, 300, 200) };
+    const out = separateRoutes(r, []);
+    expect(out.j).toEqual(route(100, 0, 100, 150, 300, 150, 300, 200));
+    // A jog at the port (the first piece cannot move) is left as it is when the other side cannot move either.
+    const stuck = { j: route(100, 0, 100, 50, 106, 50, 106, 60) };
+    expect(separateRoutes(stuck, []).j).toEqual(stuck.j);
+  });
+
+  test("the same input gives the same result, whatever the order of the routes", () => {
+    const one = separateRoutes(corridor(), []);
+    expect(separateRoutes(corridor(), [])).toEqual(one);
+    const c = corridor();
+    const reversed = separateRoutes({ c: c.c!, b: c.b!, a: c.a! }, []);
+    expect(reversed).toEqual(one);
+  });
+});
+
+describe("planPorts: tiny jogs", () => {
+  // b3 has three lines on its left side and b1 two of them across a 10px gap: the spread slots miss each other by 1-2px.
+  const boxes: Record<string, Box> = { b0: { x: 89, y: 598, w: 191, h: 61 }, b1: { x: 354, y: 501, w: 122, h: 72 }, b3: { x: 486, y: 499, w: 180, h: 100 } };
+  const edges: RouteEdge[] = [
+    { id: "e0", source: "b3", target: "b0" },
+    { id: "e1", source: "b1", target: "b3" },
+    { id: "e2", source: "b3", target: "b1" },
+  ];
+
+  test("facing ports a few px off line up, so the lines are straight", () => {
+    const plan = planPorts(boxes, edges);
+    for (const id of ["e1", "e2"]) {
+      const e = edges.find((x) => x.id === id)!;
+      expect(plan[id]!.source.y).toBe(plan[id]!.target.y);
+      expect(orthoRoute(plan[id]!.source, plan[id]!.target, boxes[e.source]!, boxes[e.target]!)).toHaveLength(2);
+    }
+    // The slot rules still hold on b3's left side: at least 20px between the three ports.
+    const ys = [plan.e0!.source.y, plan.e1!.target.y, plan.e2!.source.y].sort((a, b) => a - b);
+    expect(ys[1]! - ys[0]!).toBeGreaterThanOrEqual(20);
+    expect(ys[2]! - ys[1]!).toBeGreaterThanOrEqual(20);
+  });
+
+  test("a hand-set anchor is never moved; the auto end facing it lines up with it", () => {
+    // The anchor sits 0.6px off where the other end would have been.
+    const anchored: RouteEdge[] = [edges[0]!, { ...edges[1]!, sourceAnchor: { x: 1, y: 0.38 } }, edges[2]!];
+    const plan = planPorts(boxes, anchored);
+    expect(plan.e1!.source).toEqual({ x: 476, y: 501 + 0.38 * 72, side: "right" });
+    expect(plan.e1!.target.y).toBe(plan.e1!.source.y);
+  });
+});
+
+describe("placeLabels: keeping off other lines", () => {
+  const SIZE = { w: 150, h: 32 };
+  const a: Pt[] = [
+    { x: 0, y: 100 },
+    { x: 600, y: 100 },
+  ];
+  const b: Pt[] = [
+    { x: 300, y: 0 },
+    { x: 300, y: 200 },
+  ];
+  const labelAt = (pts: Pt[], t: number): Box => ({ x: pts[0]!.x + (pts[1]!.x - pts[0]!.x) * t - SIZE.w / 2, y: pts[0]!.y + (pts[1]!.y - pts[0]!.y) * t - SIZE.h / 2, w: SIZE.w, h: SIZE.h });
+
+  test("a label moves off a line that crosses its default place when there is room", () => {
+    const items = [{ id: "a", pts: a, size: SIZE }];
+    const lines = [
+      { id: "a", pts: a },
+      { id: "b", pts: b },
+    ];
+    // Without the other lines the label sits in the middle, on b.
+    const plain = labelAt(a, placeLabels(items, [])["a"]!);
+    expect(plain.x < 300 && plain.x + plain.w > 300).toBe(true);
+    const r = labelAt(a, placeLabels(items, [], lines)["a"]!);
+    expect(r.x < 300 && r.x + r.w > 300).toBe(false);
+  });
+
+  test("a line's own pieces do not count against its label", () => {
+    // A U-shaped line: its own two arms are inside the default label place, which is fine.
+    const u: Pt[] = [
+      { x: 0, y: 0 },
+      { x: 0, y: 20 },
+      { x: 100, y: 20 },
+      { x: 100, y: 0 },
+    ];
+    const items = [{ id: "u", pts: u, size: SIZE }];
+    expect(placeLabels(items, [], [{ id: "u", pts: u }])).toEqual(placeLabels(items, []));
+  });
+
+  test("the same input gives the same result", () => {
+    const items = [
+      { id: "a", pts: a, size: SIZE },
+      { id: "b", pts: b, size: SIZE },
+    ];
+    const lines = [
+      { id: "a", pts: a },
+      { id: "b", pts: b },
+    ];
+    expect(placeLabels(items, [], lines)).toEqual(placeLabels([...items].reverse(), [], lines));
   });
 });

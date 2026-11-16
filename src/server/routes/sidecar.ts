@@ -5,11 +5,11 @@ import * as diagrams from "../../core/diagrams.js";
 import { isObj, type Obj } from "../../core/json.js";
 import * as ops from "../../core/ops.js";
 import { buildIndex, ModelError, slugify, unique } from "../../core/ops.js";
-import { BUILTIN_LENSES, edgeLayoutData, emptyLayout, makeLens, SECTIONS } from "../../core/sidecar.js";
+import { BUILTIN_LENSES, edgeLayoutData, emptyLayout, isLineShape, LINE_SHAPES, makeLens, SECTIONS } from "../../core/sidecar.js";
 import type { CharacteristicDef, CostBand, CostSettings, EdgeLayout, Lens, Level, Section } from "../../shared/types.js";
 import { body, HttpError, needStr, num, objBody, optStr, point, strList, type Ctx } from "../context.js";
 
-const ROUTINGS = ["straight", "curved", "smooth", "orthogonal", "rounded"];
+const ROUTINGS: readonly string[] = LINE_SHAPES;
 
 function edgeLayout(v: unknown): EdgeLayout {
   if (!isObj(v)) throw new HttpError(422, "An edge layout must be an object.");
@@ -200,16 +200,21 @@ export function registerSidecar(app: Hono, ctx: Ctx): void {
 
   // ------------------------------------------------------------ layout, styles, history
 
-  /** Merge sizes / edge geometry / positions (connector and code diagrams) into the sidecar.
-   *  A null value removes that entry. */
+  /** Merge the default line shape / sizes / edge geometry / positions (connector and code diagrams)
+   *  into the sidecar. A null value removes that entry (`lineShape: null` goes back to rounded right angles). */
   app.put("/api/diagrams/:key/layout", async (c) => {
     const key = c.req.param("key");
     const patch = await objBody(c);
     // auto=true: a detail saved together with the edit before it (such as which side a new line leaves from); not a separate undo step.
     const auto = ["true", "1", "yes", "on"].includes((c.req.query("auto") ?? "").toLowerCase());
+    if (patch.lineShape !== undefined && patch.lineShape !== null && !isLineShape(patch.lineShape)) {
+      throw new HttpError(422, `Line shape must be one of: ${LINE_SHAPES.join(", ")}.`);
+    }
     edit((ws, sc) => {
       if (!diagrams.keyIsValid(ws, buildIndex(ws), key)) throw new HttpError(404, `No diagram ${key}`);
       const lay = (sc.layouts[key] ??= emptyLayout());
+      if (patch.lineShape === null) delete lay.lineShape;
+      else if (isLineShape(patch.lineShape)) lay.lineShape = patch.lineShape;
       for (const [id, v] of Object.entries(isObj(patch.sizes) ? patch.sizes : {})) {
         if (v === null) delete lay.sizes[id];
         else {

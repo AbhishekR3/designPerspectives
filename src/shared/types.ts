@@ -234,6 +234,8 @@ export interface Diagram {
   nodes: DiagramNode[];
   edges: DiagramEdge[];
   addable: string[];
+  /** The default line shape of this diagram (lines without their own shape use it); null means rounded right angles. */
+  lineShape: NonNullable<EdgeLayout["routing"]> | null;
   /** Kinds in `addable` that only show on this diagram when created connected to an element drawn
    *  in scope here (POST /api/elements with `connectTo` or `connectFrom`). Missing means none. */
   connectRequired?: string[];

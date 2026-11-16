@@ -547,7 +547,7 @@ function toAnchor(r: R, p: Pt): Pt {
 type Poly = Pt[];
 const lengthOf = (pts: Poly) => pts.slice(1).reduce((s, p, i) => s + Math.hypot(p.x - pts[i].x, p.y - pts[i].y), 0);
 
-function pointAlong(pts: Poly, t: number): { p: Pt; nx: number; ny: number } {
+export function pointAlong(pts: Poly, t: number): { p: Pt; nx: number; ny: number } {
   const total = lengthOf(pts) || 1;
   let want = Math.min(Math.max(t, 0), 1) * total;
   for (let i = 1; i < pts.length; i++) {
@@ -607,6 +607,8 @@ export type C4EdgeData = {
   testId: string;
   style: Style;
   layout: EdgeLayout;
+  /** The diagram's default line shape, for a line with no shape of its own (null: rounded right angles). */
+  defaultRouting: EdgeLayout["routing"] | null;
   sensitivityLevel: string | null;
   hasNotes: boolean;
   stageCount: number;
@@ -672,7 +674,7 @@ export function C4Edge({ id, source, target, data, selected, markerEnd, markerSt
   const ny = ((ct.x - cs.x) / len) * flip;
   const parallel = { x: (cs.x + ct.x) / 2 + nx * data.offset, y: (cs.y + ct.y) / 2 + ny * data.offset };
   const aim = L.control ?? parallel;
-  const routing = L.routing ?? "rounded";
+  const routing = L.routing ?? data.defaultRouting ?? "rounded";
   const p1 = L.sourceAnchor ? anchorPoint(rs, L.sourceAnchor) : borderPoint(rs, aim);
   const p2 = L.targetAnchor ? anchorPoint(rt, L.targetAnchor) : borderPoint(rt, aim);
 

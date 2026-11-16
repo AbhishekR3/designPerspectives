@@ -48,6 +48,15 @@ const BEND = 40;
 const CLEARANCE = 15;
 /** Smaller clearance tried when the full one leaves no way through. */
 const TIGHT_CLEARANCE = 5;
+/** Two facing auto ports whose positions differ by less than this are moved into line (a straight line instead of a jog). */
+const JOG_MAX = 12;
+/** Distance between the lanes that lines sharing a corridor are spread into, and the largest gap that counts as sharing one. */
+const LANE_GAP = 10;
+const LANE_TOLERANCE = 6;
+/** Segments must overlap by more than this to count as sharing a corridor. */
+const LANE_MIN_OVERLAP = 2;
+/** A nudged segment keeps this much clearance from a box (or what it had, if less). */
+const LANE_CLEARANCE = 5;
 /** Tie-break for parallel lines between the same pair (px): small enough never to beat real geometry. */
 const PAIR_NUDGE = 0.01;
 
@@ -505,6 +514,40 @@ export function planPorts(boxes: Record<string, Box>, edges: RouteEdge[], opts: 
     done.add(k);
   }
 
+  // 4. Tiny jogs: two facing auto ports that miss each other by a few px make a Z with a short middle
+  // piece. Move one of them along its side onto the other's line when the slot rules still hold (it
+  // stays inside the corner margins, in the same order and no closer to its neighbours than it was, at
+  // least MIN_GAP from them when it can be). Hand-set anchors never move (an auto end facing one lines up with it).
+  const onSide = new Map<string, EndInfo[]>();
+  for (const x of ends) onSide.set(gkey(x.box, x.side), [...(onSide.get(gkey(x.box, x.side)) ?? []), x]);
+  const canMove = (x: EndInfo, c: number): boolean => {
+    const b = boxes[x.box]!;
+    const cur = along(placed.get(x)!, x.side);
+    const [lo, hi] = innerRange(b, x.side);
+    const outside = (v: number) => Math.max(lo - v, v - hi, 0);
+    if (outside(c) > outside(cur) + 1e-6) return false;
+    for (const q of onSide.get(gkey(x.box, x.side))!) {
+      if (q === x) continue;
+      const qc = along(placed.get(q)!, x.side);
+      if (Math.sign(c - qc) !== Math.sign(cur - qc)) return false;
+      const need = q.fixed ? ANCHOR_CLEAR : MIN_GAP;
+      if (Math.abs(c - qc) < Math.min(need, Math.abs(cur - qc)) - 1e-6) return false;
+    }
+    return true;
+  };
+  const moveTo = (x: EndInfo, c: number) => placed.set(x, pointOnSide(boxes[x.box]!, x.side, c - sideStart(boxes[x.box]!, x.side)));
+  for (const e of [...list].sort((p, q) => (p.id < q.id ? -1 : p.id > q.id ? 1 : 0))) {
+    if (e.source === e.target || e.control) continue;
+    const { source, target } = byEdge.get(e.id)!;
+    if ((source.fixed && target.fixed) || !facing(boxes[source.box]!, source.side, boxes[target.box]!, target.side)) continue;
+    const cs = along(placed.get(source)!, source.side);
+    const ct = along(placed.get(target)!, target.side);
+    const d = Math.abs(cs - ct);
+    if (d < 1e-6 || d >= JOG_MAX) continue;
+    if (!source.fixed && canMove(source, ct)) moveTo(source, ct);
+    else if (!target.fixed && canMove(target, cs)) moveTo(target, cs);
+  }
+
   const out: Record<string, PortPair> = {};
   for (const e of list) {
     const { source, target } = byEdge.get(e.id)!;
@@ -778,6 +821,273 @@ export function orthoRoute(src: Port, dst: Port, srcBox: Box, dstBox: Box, contr
   return base;
 }
 
+// ------------------------------------------------------------------ lanes
+
+/** Bundles up to this size try every lane order when the order from the ends adds crossings. */
+const MAX_PERMUTED = 5;
+
+/** All orders of 0..n-1, in lexicographic order. */
+function permutations(n: number): number[][] {
+  const out: number[][] = [];
+  const walk = (cur: number[], rest: number[]) => {
+    if (!rest.length) out.push(cur);
+    for (let k = 0; k < rest.length; k++) walk([...cur, rest[k]!], [...rest.slice(0, k), ...rest.slice(k + 1)]);
+  };
+  walk(
+    [],
+    Array.from({ length: n }, (_, k) => k),
+  );
+  return out;
+}
+
+/** One interior segment of a route: between `pts[i]` and `pts[i+1]`, with the way its two neighbours leave it. */
+interface LaneSeg {
+  id: string;
+  i: number;
+  /** Perpendicular coordinate (y of a horizontal segment, x of a vertical one). */
+  coord: number;
+  /** Extent along the segment. */
+  lo: number;
+  hi: number;
+  /** Side (-1 towards smaller coordinates, +1 towards larger) the neighbouring segment leaves at the `lo` and `hi` end. */
+  loDir: number;
+  hiDir: number;
+}
+
+/** Distance from an axis-aligned segment to a box (0 when they touch or overlap; the larger of the two axis gaps). */
+function segClearance(a: Pt, b: Pt, r: Box): number {
+  const dx = Math.max(r.x - Math.max(a.x, b.x), Math.min(a.x, b.x) - (r.x + r.w), 0);
+  const dy = Math.max(r.y - Math.max(a.y, b.y), Math.min(a.y, b.y) - (r.y + r.h), 0);
+  return Math.max(dx, dy);
+}
+
+/** Whether a line crosses another strictly inside both segments (touching ends and shared pieces do not count). */
+function crossCount(p: Pt[], q: Pt[]): number {
+  let n = 0;
+  for (let i = 1; i < p.length; i++)
+    for (let j = 1; j < q.length; j++) {
+      const [a, b, c, d] = [p[i - 1]!, p[i]!, q[j - 1]!, q[j]!];
+      const pv = a.x === b.x;
+      const qv = c.x === d.x;
+      if (pv === qv) continue;
+      const [v1, v2, h1, h2] = pv ? [a, b, c, d] : [c, d, a, b];
+      if (v1.x > Math.min(h1.x, h2.x) && v1.x < Math.max(h1.x, h2.x) && h1.y > Math.min(v1.y, v2.y) && h1.y < Math.max(v1.y, v2.y)) n++;
+    }
+  return n;
+}
+
+/** Number of crossings between the lines `ids` and every other line (a pair of lines in `ids` counts once). */
+function crossingsOf(ids: string[], routes: Record<string, Pt[]>): number {
+  const own = new Set(ids);
+  let n = 0;
+  for (const id of ids)
+    for (const other of Object.keys(routes)) {
+      if (other === id || (own.has(other) && other < id)) continue;
+      n += crossCount(routes[id]!, routes[other]!);
+    }
+  return n;
+}
+
+/**
+ * Spread lines that share a corridor into lanes, so they read as separate lines.
+ *
+ * Looks at the middle segments of the routes (not the first and last: those start at the ports, which
+ * stay where they are). Segments of different lines that run the same way, within 6px of each other,
+ * and overlap by more than 2px form a bundle. A bundle of n lines is moved to n lanes 10px apart,
+ * centred on where the bundle was (the gap shrinks to 8, then 6, when the room is tight). The order of
+ * the lanes follows where each line comes from and goes to, so the lines do not cross at the ends of
+ * the bundle; a bundle whose spreading would add a crossing, push a line into a box (or closer to one
+ * than 5px, or than it was) or make a neighbouring piece shorter than 12px or turn it round is left alone.
+ *
+ * A segment moves by changing its own coordinate and that of the two points it joins, so routes stay
+ * orthogonal and connected. Tiny jogs (a middle piece under 12px between two parallel pieces) are made straight
+ * when one of the pieces next to it can slide onto the other's line. Horizontal bundles are done first, then vertical ones (twice, as moving
+ * one can bring another into reach). Finally repeated and collinear points are dropped. Pure and
+ * deterministic: the result does not depend on the order of `routes`.
+ */
+export function separateRoutes(routes: Record<string, Pt[]>, boxes: Box[], opts: { gap?: number } = {}): Record<string, Pt[]> {
+  const gap = opts.gap ?? LANE_GAP;
+  const cur: Record<string, Pt[]> = {};
+  for (const id of Object.keys(routes).sort()) cur[id] = routes[id]!.map((p) => ({ x: p.x, y: p.y }));
+
+  const coordOf = (p: Pt, horizontal: boolean) => (horizontal ? p.y : p.x);
+  const alongOf = (p: Pt, horizontal: boolean) => (horizontal ? p.x : p.y);
+  const setCoord = (p: Pt, horizontal: boolean, v: number) => {
+    if (horizontal) p.y = v;
+    else p.x = v;
+  };
+
+  const segmentsOf = (horizontal: boolean): LaneSeg[] => {
+    const out: LaneSeg[] = [];
+    for (const [id, pts] of Object.entries(cur)) {
+      for (let i = 1; i + 2 < pts.length; i++) {
+        const a = pts[i]!;
+        const b = pts[i + 1]!;
+        if (Math.abs(coordOf(a, horizontal) - coordOf(b, horizontal)) > 1e-6 || Math.abs(alongOf(a, horizontal) - alongOf(b, horizontal)) < 1e-6) continue;
+        const c = coordOf(a, horizontal);
+        const dirA = Math.sign(coordOf(pts[i - 1]!, horizontal) - c);
+        const dirB = Math.sign(coordOf(pts[i + 2]!, horizontal) - c);
+        const aFirst = alongOf(a, horizontal) < alongOf(b, horizontal);
+        out.push({
+          id,
+          i,
+          coord: c,
+          lo: Math.min(alongOf(a, horizontal), alongOf(b, horizontal)),
+          hi: Math.max(alongOf(a, horizontal), alongOf(b, horizontal)),
+          loDir: aFirst ? dirA : dirB,
+          hiDir: aFirst ? dirB : dirA,
+        });
+      }
+    }
+    return out.sort((p, q) => p.coord - q.coord || (p.id < q.id ? -1 : p.id > q.id ? 1 : 0) || p.i - q.i);
+  };
+
+  /** Whether moving `pts[i]` and `pts[i+1]` to coordinate `v` keeps the segment and its two neighbours clear of the boxes and long enough. */
+  const fits = (pts: Pt[], i: number, horizontal: boolean, v: number, jog = -1): boolean => {
+    const n = pts.length;
+    const moved = (k: number): Pt => (k === i || k === i + 1 ? (horizontal ? { x: pts[k]!.x, y: v } : { x: v, y: pts[k]!.y }) : pts[k]!);
+    for (const k of [i - 1, i, i + 1]) {
+      const [oa, ob, na, nb] = [pts[k]!, pts[k + 1]!, moved(k), moved(k + 1)];
+      for (const r of boxes) {
+        if (hits(na, nb, r) && !hits(oa, ob, r)) return false;
+        if (segClearance(na, nb, r) < Math.min(LANE_CLEARANCE, segClearance(oa, ob, r)) - 1e-6) return false;
+      }
+      if (k !== i && k !== jog) {
+        // A neighbour keeps its direction and does not shrink to a stub: 12px (6px when it is the piece at a port).
+        const [o, w] = horizontal ? [ob.y - oa.y, nb.y - na.y] : [ob.x - oa.x, nb.x - na.x];
+        const atPort = k === 0 || k + 1 === n - 1;
+        if (Math.sign(o) !== Math.sign(w) || Math.abs(w) < Math.min(Math.abs(o), atPort ? 6 : JOG_MAX) - 1e-6) return false;
+      }
+    }
+    return true;
+  };
+
+  /**
+   * Make tiny jogs straight: a short middle piece (under 12px) between two parallel pieces goes away
+   * when one of those pieces can slide onto the other's line (not the pieces at the ports, which stay put).
+   */
+  const straightenJogs = () => {
+    for (const id of Object.keys(cur)) {
+      for (let pass = 0; pass < 4; pass++) {
+        const pts = cur[id]!;
+        let changed = false;
+        for (let i = 1; i + 2 < pts.length && !changed; i++) {
+          const [a, b] = [pts[i]!, pts[i + 1]!];
+          const jogHorizontal = Math.abs(a.y - b.y) < 1e-6;
+          const len = jogHorizontal ? Math.abs(a.x - b.x) : Math.abs(a.y - b.y);
+          if (len < 1e-6 || len >= JOG_MAX) continue;
+          // The neighbours run across the jog: slide the one before onto the one after, or the other way round.
+          const [before, after] = jogHorizontal ? [a.x, b.x] : [a.y, b.y];
+          const tries: [number, number][] = [];
+          if (i >= 2) tries.push([i - 1, after]);
+          if (i + 3 < pts.length) tries.push([i + 1, before]);
+          for (const [k, v] of tries) {
+            if (!fits(pts, k, !jogHorizontal, v, i)) continue;
+            setCoord(pts[k]!, !jogHorizontal, v);
+            setCoord(pts[k + 1]!, !jogHorizontal, v);
+            changed = true;
+            break;
+          }
+        }
+        if (!changed) break;
+        cur[id] = simplify(pts);
+      }
+    }
+  };
+
+  /** The order (smallest coordinate first) in which the lines of a bundle should take their lanes, from where each leaves and enters it. */
+  const laneOrder = (m: LaneSeg[]): number[] => {
+    const vote = m.map(() => m.map(() => 0));
+    for (let p = 0; p < m.length; p++)
+      for (let q = p + 1; q < m.length; q++) {
+        const [a, b] = [m[p]!, m[q]!];
+        let v = 0;
+        // At each end of the overlap the line whose neighbour starts there (the inner one) must be on the side that neighbour goes to.
+        if (Math.abs(a.lo - b.lo) > 1e-6) v += a.lo > b.lo ? -a.loDir : b.loDir;
+        if (Math.abs(a.hi - b.hi) > 1e-6) v += a.hi < b.hi ? -a.hiDir : b.hiDir;
+        vote[p]![q] = v;
+        vote[q]![p] = -v;
+      }
+    const left = m.map((_, k) => k);
+    const order: number[] = [];
+    while (left.length) {
+      // vote[j][k] > 0: j wants a smaller coordinate than k. Take the one that is wanted first by most.
+      let best = 0;
+      let bestScore = Infinity;
+      for (let a = 0; a < left.length; a++) {
+        const k = left[a]!;
+        let score = 0;
+        for (const j of left) if (j !== k) score += Math.sign(vote[k]![j]!) * -1;
+        if (score < bestScore - 1e-9) [best, bestScore] = [a, score];
+      }
+      order.push(left.splice(best, 1)[0]!);
+    }
+    return order;
+  };
+
+  const run = (horizontal: boolean) => {
+    const segs = segmentsOf(horizontal);
+    // Bundles: union of segments of different lines within the tolerance that overlap.
+    const root = segs.map((_, k) => k);
+    const find = (k: number): number => (root[k] === k ? k : (root[k] = find(root[k]!)));
+    for (let p = 0; p < segs.length; p++)
+      for (let q = p + 1; q < segs.length; q++) {
+        const [a, b] = [segs[p]!, segs[q]!];
+        if (b.coord - a.coord > LANE_TOLERANCE + 1e-6) break;
+        if (a.id === b.id) continue;
+        if (Math.min(a.hi, b.hi) - Math.max(a.lo, b.lo) > LANE_MIN_OVERLAP) root[find(q)] = find(p);
+      }
+    const bundles = new Map<number, LaneSeg[]>();
+    segs.forEach((s, k) => bundles.set(find(k), [...(bundles.get(find(k)) ?? []), s]));
+    for (const m of [...bundles.values()].sort((a, b) => a[0]!.coord - b[0]!.coord || (a[0]!.id < b[0]!.id ? -1 : 1))) {
+      if (m.length < 2) continue;
+      const ids = [...new Set(m.map((s) => s.id))];
+      const before = crossingsOf(ids, cur);
+      const centreCoord = (m[0]!.coord + m[m.length - 1]!.coord) / 2;
+      /** The routes of the bundle's lines with the lines taking their lanes in `order` (smallest coordinate first), or null when that does not fit. */
+      const spread = (order: number[], g: number): Record<string, Pt[]> | null => {
+        const trial: Record<string, Pt[]> = {};
+        for (const id of ids) trial[id] = cur[id]!.map((p) => ({ x: p.x, y: p.y }));
+        for (let lane = 0; lane < order.length; lane++) {
+          const s = m[order[lane]!]!;
+          const v = centreCoord + (lane - (m.length - 1) / 2) * g;
+          const pts = trial[s.id]!;
+          if (!fits(pts, s.i, horizontal, v)) return null;
+          setCoord(pts[s.i]!, horizontal, v);
+          setCoord(pts[s.i + 1]!, horizontal, v);
+        }
+        return trial;
+      };
+      for (const g of gap > 8 ? [gap, 8, 6] : [gap, gap - 2, gap - 4].filter((v) => v >= 4)) {
+        // The order from the ends of the bundle first; when that adds crossings, the best of all orders (small bundles).
+        const best: { trial: Record<string, Pt[]> | null; after: number } = { trial: null, after: Infinity };
+        const consider = (order: number[]) => {
+          const trial = spread(order, g);
+          if (!trial) return;
+          const after = crossingsOf(ids, { ...cur, ...trial });
+          if (after < best.after) [best.trial, best.after] = [trial, after];
+        };
+        consider(laneOrder(m));
+        if (best.after > before && m.length <= MAX_PERMUTED) for (const order of permutations(m.length)) consider(order);
+        if (!best.trial) continue;
+        for (const id of ids) cur[id] = best.trial[id]!;
+        break;
+      }
+    }
+  };
+
+  for (let round = 0; round < 2; round++) {
+    straightenJogs();
+    run(true);
+    for (const id of Object.keys(cur)) cur[id] = simplify(cur[id]!);
+    run(false);
+    for (const id of Object.keys(cur)) cur[id] = simplify(cur[id]!);
+  }
+  straightenJogs();
+  for (const id of Object.keys(cur)) cur[id] = simplify(cur[id]!);
+  return cur;
+}
+
 /**
  * Default place for a label, as a fraction along the line by length (as the canvas measures it):
  * the middle of the longest segment, so the label does not sit on a corner. Kept within 0.05..0.95.
@@ -809,6 +1119,10 @@ const LABEL_T_MIN = 0.05;
 const LABEL_T_MAX = 0.95;
 /** A segment this long also offers places a little off its middle ends (0.15 and 0.85). */
 const LONG_SEGMENT = 120;
+/** Score per px of another line inside a label: 8 moves labels off lines (11 of 27 crossed in the demo, 15 at 2) while the median move from the default place stays 25px. */
+const LINE_WEIGHT = 8;
+/** Spacing of the extra candidate places along a line. */
+const LABEL_STEP = 20;
 
 function polylineLength(pts: Pt[]): number {
   let total = 0;
@@ -840,6 +1154,21 @@ function overlapArea(a: Box, b: Box): number {
   return w > 0 && h > 0 ? w * h : 0;
 }
 
+/** Total length of the parts of a polyline's axis-aligned segments that lie strictly inside a rectangle. */
+function lengthInside(pts: Pt[], r: Box): number {
+  let total = 0;
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1]!;
+    const b = pts[i]!;
+    if (a.y === b.y) {
+      if (a.y > r.y && a.y < r.y + r.h) total += Math.max(0, Math.min(Math.max(a.x, b.x), r.x + r.w) - Math.max(Math.min(a.x, b.x), r.x));
+    } else if (a.x === b.x) {
+      if (a.x > r.x && a.x < r.x + r.w) total += Math.max(0, Math.min(Math.max(a.y, b.y), r.y + r.h) - Math.max(Math.min(a.y, b.y), r.y));
+    }
+  }
+  return total;
+}
+
 const labelBox = (p: Pt, size: { w: number; h: number }): Box => ({ x: p.x - size.w / 2, y: p.y - size.h / 2, w: size.w, h: size.h });
 
 /**
@@ -849,12 +1178,13 @@ const labelBox = (p: Pt, size: { w: number; h: number }): Box => ({ x: p.x - siz
  * Items with `fixedT` keep it and still count as obstacles for the rest. For the others the
  * candidates are 0.5, 0.3 and 0.7 of every segment (and 0.15, 0.85 on long ones), longest segment
  * first, clamped to 0.05..0.95; the label is centred on the point. The score is 10 x the area
- * shared with labels already placed, plus 4 x the area shared with boxes, plus 0.5 per pixel of
+ * shared with labels already placed, plus 4 x the area shared with boxes, plus 8 x the length of other
+ * lines inside the label (`lines`: every route, the label's own line does not count), plus 0.5 per pixel of
  * distance from the default place (the middle of the longest segment); the lowest score wins, the
  * first candidate on a tie. Lines are placed longest route first, then by id, so the result does
  * not depend on the order of `items`. Lines that already have a clear default place keep it.
  */
-export function placeLabels(items: LabelItem[], boxes: Box[]): Record<string, number> {
+export function placeLabels(items: LabelItem[], boxes: Box[], lines: { id: string; pts: Pt[] }[] = []): Record<string, number> {
   const out: Record<string, number> = {};
   const placed: Box[] = [];
   const clampT = (t: number) => Math.min(LABEL_T_MAX, Math.max(LABEL_T_MIN, t));
@@ -889,6 +1219,8 @@ export function placeLabels(items: LabelItem[], boxes: Box[]): Record<string, nu
       const fr = s.len > LONG_SEGMENT ? [0.5, 0.3, 0.7, 0.15, 0.85] : [0.5, 0.3, 0.7];
       for (const f of fr) cands.push((s.start + s.len * f) / total);
     }
+    // Then places every LABEL_STEP px along the line, for crowded diagrams where the fixed places are all crossed.
+    for (let d = LABEL_STEP / 2; d < total; d += LABEL_STEP) cands.push(d / total);
     let best = { t: dflt, score: Infinity };
     const seen = new Set<number>();
     for (const c of cands) {
@@ -901,6 +1233,7 @@ export function placeLabels(items: LabelItem[], boxes: Box[]): Record<string, nu
       let score = 0.5 * Math.hypot(p.x - home.x, p.y - home.y);
       for (const o of placed) score += 10 * overlapArea(r, o);
       for (const b of boxes) score += 4 * overlapArea(r, b);
+      for (const l of lines) if (l.id !== it.id) score += LINE_WEIGHT * lengthInside(l.pts, r);
       if (score < best.score - 1e-9) best = { t, score };
     }
     out[it.id] = best.t;

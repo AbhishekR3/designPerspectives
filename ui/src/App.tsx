@@ -15,7 +15,8 @@ import { FlowPanel } from "./FlowPanel";
 import { HelpCard } from "./HelpCard";
 import { Icon } from "./icons";
 import { UserChip } from "./UserChip";
-import { diagramEditable, menuItems, useContextMenu } from "./menus";
+import type { LineShape } from "./lineShapes";
+import { canSpread, diagramEditable, menuItems, useContextMenu } from "./menus";
 import { canMove, MoveDialog } from "./MoveDialog";
 import { LiveUiInspector } from "./LiveUiInspector";
 import { Backtrack } from "./Backtrack";
@@ -294,6 +295,28 @@ export default function App({ onSignOut }: { onSignOut(): void }) {
           </button>
           <button className="ghost icon" onClick={() => canvasRef.current?.relayout()} title="Auto-layout: lay the diagram out again" aria-label="Auto-layout" data-testid="auto-layout">
             <Icon name="layout" />
+          </button>
+        </>
+      )}
+      {canSpread(state, diagram) && (
+        <>
+          <button
+            className="ghost icon"
+            onClick={() => void canvasRef.current?.spread("room")}
+            title="Make room: add space where boxes, lines or labels are too close"
+            aria-label="Make room"
+            data-testid="make-room"
+          >
+            <Icon name="room" />
+          </button>
+          <button
+            className="ghost icon"
+            onClick={() => void canvasRef.current?.spread("out")}
+            title="Spread out: add about 20% more space between all boxes"
+            aria-label="Spread out"
+            data-testid="spread-out"
+          >
+            <Icon name="spread" />
           </button>
         </>
       )}
@@ -661,6 +684,22 @@ export default function App({ onSignOut }: { onSignOut(): void }) {
                     </>
                   )}
                 </dl>
+                {diagramEditable(state, diagram) && (
+                  <label className="field inline">
+                    <span>Line shape</span>
+                    <select
+                      value={diagram.lineShape ?? "rounded"}
+                      onChange={(e) => void mutate(() => api.layout(diagram.key, { lineShape: e.target.value as LineShape }))}
+                      data-testid="diagram-line-shape"
+                    >
+                      <option value="rounded">Rounded right angles (default)</option>
+                      <option value="orthogonal">Right angles</option>
+                      <option value="straight">Straight</option>
+                      <option value="curved">Curved</option>
+                      <option value="smooth">Smooth S-curve</option>
+                    </select>
+                  </label>
+                )}
                 <p className="muted small">Click an object or connection to see its details here. Press ? or use the help button at the top right.</p>
                 {changes && (
                   <>

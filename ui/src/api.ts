@@ -115,6 +115,8 @@ export const api = {
   layout: (
     key: string,
     patch: {
+      /** The diagram's default line shape; null goes back to rounded right angles. */
+      lineShape?: NonNullable<EdgeLayout["routing"]> | null;
       sizes?: Record<string, { w: number; h: number } | null>;
       edges?: Record<string, EdgeLayout | null>;
       positions?: Record<string, Pt | null>;

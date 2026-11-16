@@ -17,13 +17,14 @@ import {
 import { toPng, toSvg } from "html-to-image";
 import { canvasInsets } from "./insets";
 import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type Ref } from "react";
-import { CUSTOM_HEADS, FLOW_CURRENT, MarkerDefs, edgeColor, edgeTypes, nodeTypes, type C4EdgeData, type C4NodeData, type NodeActions, type OverlayInfo, type Rect4 } from "./canvasParts";
+import { CUSTOM_HEADS, FLOW_CURRENT, MarkerDefs, edgeColor, edgeTypes, nodeTypes, pointAlong, type C4EdgeData, type C4NodeData, type NodeActions, type OverlayInfo, type Rect4 } from "./canvasParts";
 import { errorMessage, notify, run } from "./notify";
 import { edgeCommentTarget, type CommentCount } from "./comments";
 import { CHANGE_COLORS } from "./overlays";
 import { DRAG_TYPE, type PaletteItem } from "./Palette";
 import { estimateLabelSize } from "./labelSize";
-import { orthoRoute, placeLabels, planPorts, type Box, type LabelItem, type RouteEdge } from "./routing";
+import { crowdedPairs, spreadLayout } from "./spread";
+import { orthoRoute, placeLabels, planPorts, separateRoutes, type Box, type LabelItem, type RouteEdge } from "./routing";
 import { NODE_H, NODE_W, autoLayout, defaultSize, findFreeSpot, placeMissing, type Rect, type Size } from "./layout";
 import { nodeSelection, selectedNodeIds, type CommentTarget, type Diagram, type DiagramNode, type EdgeLayout, type Lens, type Pt, type Selection } from "./types";
 
@@ -35,6 +36,11 @@ export interface CanvasHandle {
   exportImage(format: "svg" | "png"): Promise<void>;
   /** Move boxes by a step; several boxes are saved in one request. */
   nudge(ids: string[], dx: number, dy: number): void;
+  /**
+   * Add space between boxes. "room": only where boxes, lines or labels are too close (nothing is saved when nothing is).
+   * "out": the same, and every gap grows by about 20%. All moved boxes are saved in one request (one undo step).
+   */
+  spread(mode: "room" | "out"): Promise<void>;
   fit(): void;
   zoom(dir: 1 | -1): void;
   /** Where the right-click menu opens from the keyboard: on the selected box or line (its centre on
@@ -382,6 +388,9 @@ export function Canvas({
     [diagram.edges, onDrill, onSelect],
   );
 
+  /** The routes and label rectangles of the lines as drawn now (filled by `edges`); spread() counts what lies in each gap. */
+  const lineGeometry = useRef<{ routes: Pt[][]; labels: Rect[] }>({ routes: [], labels: [] });
+
   const edges: Edge[] = useMemo(() => {
     const groups = new Map<string, string[]>();
     for (const e of diagram.edges) {
@@ -398,7 +407,7 @@ export function Canvas({
     for (const n of nodes) if (!n.id.startsWith("boundary:")) boxes[n.id] = { x: n.position.x, y: n.position.y, w: n.width ?? NODE_W, h: n.height ?? NODE_H };
     const routed: RouteEdge[] = visible
       .filter((e) => {
-        const r = e.layout.routing ?? "rounded";
+        const r = e.layout.routing ?? diagram.lineShape ?? "rounded";
         return r === "orthogonal" || r === "rounded";
       })
       .map((e) => ({ id: e.id, source: e.source, target: e.target, sourceAnchor: e.layout.sourceAnchor, targetAnchor: e.layout.targetAnchor, control: e.layout.control }));
@@ -415,12 +424,14 @@ export function Canvas({
     };
     // Routes of the right-angle lines, then where each label sits so labels keep off each other and off the boxes.
     const routes: Record<string, Pt[]> = {};
+    const lanes: Record<string, Pt[]> = {}; // the lines free to move sideways (a line through a bend point the user set stays on it)
     const items: LabelItem[] = [];
     for (const e of visible) {
       const pp = ports[e.id];
       if (!pp) continue;
       const pts = orthoRoute(pp.source, pp.target, boxes[e.source]!, boxes[e.target]!, e.layout.control, obstacles);
       routes[e.id] = pts;
+      if (!e.layout.control) lanes[e.id] = pts;
       const c = commentsOf(e);
       const badges = [
         e.kind && e.kind.replace(/-/g, " "),
@@ -433,7 +444,23 @@ export function Canvas({
       const size = estimateLabelSize({ text: labelOf(e), technologies: e.technologies, badges, fontSize: e.style.fontSize ? e.style.fontSize - 2 : undefined });
       items.push({ id: e.id, pts, size, fixedT: e.layout.labelT });
     }
-    const labelTs = placeLabels(items, Object.values(boxes));
+    // Lines that share a corridor are spread into lanes; labels are placed on the final routes and keep off other lines.
+    Object.assign(routes, separateRoutes(lanes, obstacles));
+    for (const it of items) it.pts = routes[it.id]!;
+    const labelTs = placeLabels(
+      items,
+      obstacles,
+      items.map((it) => ({ id: it.id, pts: it.pts })),
+    );
+    lineGeometry.current = {
+      routes: items.map((it) => it.pts),
+      labels: items.flatMap((it) => {
+        const t = labelTs[it.id];
+        if (t === undefined) return [];
+        const c = pointAlong(it.pts, t).p;
+        return [{ x: c.x - it.size.w / 2, y: c.y - it.size.h / 2, w: it.size.w, h: it.size.h }];
+      }),
+    };
     return visible.map((e) => {
       const g = groups.get([e.source, e.target].sort().join("|"))!;
       const i = g.indexOf(e.id);
@@ -463,6 +490,7 @@ export function Canvas({
         testId: e.id,
         style: e.style,
         layout: e.layout,
+        defaultRouting: diagram.lineShape,
         sensitivityLevel: e.sensitivityLevel,
         hasNotes: e.hasNotes,
         stageCount: e.stageCount,
@@ -558,6 +586,30 @@ export function Canvas({
         if (!Object.keys(moved).length) return;
         setPositions((prev) => ({ ...prev, ...moved }));
         onPositions(moved);
+      },
+      async spread(mode) {
+        if (!editable) return;
+        const boxes = nodes.filter((n) => !n.id.startsWith("boundary:")).map((n) => ({ id: n.id, x: n.position.x, y: n.position.y, w: n.width ?? NODE_W, h: n.height ?? NODE_H }));
+        const shown = new Set(boxes.map((b) => b.id));
+        const input = { boxes, grouped: groupedIds(diagram).filter((id) => shown.has(id)), routes: lineGeometry.current.routes, labels: lineGeometry.current.labels };
+        if (mode === "room" && crowdedPairs(input) === 0) {
+          notify.info("Nothing is too close.");
+          return;
+        }
+        const next = spreadLayout(input, mode === "out" ? { factor: 1.2 } : undefined);
+        const moved: P = {};
+        for (const b of boxes) {
+          const q = next[b.id];
+          if (q && (q.x !== b.x || q.y !== b.y)) moved[b.id] = q;
+        }
+        if (!Object.keys(moved).length) {
+          notify.info("Nothing is too close.");
+          return;
+        }
+        setPositions((prev) => ({ ...prev, ...moved }));
+        const keep = savable(moved);
+        if (Object.keys(keep).length) onPositions(keep);
+        requestAnimationFrame(() => rf.fitView(fitOptions(wrapper.current, 300)));
       },
       fit() {
         rf.fitView(fitOptions(wrapper.current, 200));

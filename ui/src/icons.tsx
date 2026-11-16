@@ -14,6 +14,8 @@ const P: Record<string, string> = {
   undo: "M9 14 4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3",
   redo: "m15 14 5-5-5-5m5 5H10a6 6 0 0 0 0 12h3",
   layout: "M4 4h6v6H4zM14 4h6v6h-6zM9 14h6v6H9zM7 10v2h10v-2M12 12v2",
+  room: "M3 7h5v10H3zM16 7h5v10h-5zM10 12h4m-1.5-1.5L14 12l-1.5 1.5m-1-3L10 12l1.5 1.5",
+  spread: "M9 9 4 4m0 0h4M4 4v4m11 1 5-5m0 0h-4m4 0v4M9 15l-5 5m0 0h4m-4 0v-4m11-1 5 5m0 0h-4m4 0v-4",
   plus: "M12 5v14M5 12h14",
   comment: "M4 5h16v11H9l-5 4V5Zm4 4h8M8 12h5",
   close: "M6 6l12 12M18 6 6 18",

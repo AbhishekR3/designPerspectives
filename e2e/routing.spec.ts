@@ -129,3 +129,81 @@ test("no automatic line is drawn through a box it does not connect", async ({ pa
   // Measured: 26 crossings before lines avoided boxes (by the same sampling: see tests/routing.test.ts), none now.
   expect(crossings, crossings.join("\n")).toEqual([]);
 });
+
+test("automatic lines in one corridor are spread into lanes instead of lying on each other", async ({ page, server }) => {
+  await openDiagram(page, KEY);
+  const diagram = await api(server, `/diagrams/${KEY}`);
+  const ids: string[] = diagram.edges.map((e: { id: string }) => e.id);
+  // The straight pieces (the L commands of a rounded path) of every line, in diagram coordinates.
+  const pieces = await page.evaluate((list) => {
+    return list.map((id) => {
+      const path = document.querySelector(`[data-testid="rf__edge-${id}"] path.react-flow__edge-path`) as SVGPathElement | null;
+      const out: { x1: number; y1: number; x2: number; y2: number }[] = [];
+      let cur: [number, number] | null = null;
+      for (const m of (path?.getAttribute("d") ?? "").matchAll(/([MLQ])([^MLQ]*)/g)) {
+        const v = (m[2] ?? "")
+          .trim()
+          .split(/[\s,]+/)
+          .map(Number);
+        const to: [number, number] = [v[v.length - 2] ?? 0, v[v.length - 1] ?? 0];
+        if (m[1] === "L" && cur) out.push({ x1: cur[0], y1: cur[1], x2: to[0], y2: to[1] });
+        cur = to;
+      }
+      return out;
+    });
+  }, ids);
+  // Pieces of two different lines on the same row or column (within 4px) that share more than 20px.
+  const shared: string[] = [];
+  for (let a = 0; a < ids.length; a++)
+    for (let b = a + 1; b < ids.length; b++)
+      for (const p of pieces[a]!)
+        for (const q of pieces[b]!) {
+          const horizontal = Math.abs(p.y1 - p.y2) < 0.01 && Math.abs(q.y1 - q.y2) < 0.01;
+          const vertical = Math.abs(p.x1 - p.x2) < 0.01 && Math.abs(q.x1 - q.x2) < 0.01;
+          if (!horizontal && !vertical) continue;
+          const [c, d] = horizontal ? [p.y1, q.y1] : [p.x1, q.x1];
+          if (Math.abs(c - d) > 4) continue;
+          const [p1, p2, q1, q2] = horizontal ? [p.x1, p.x2, q.x1, q.x2] : [p.y1, p.y2, q.y1, q.y2];
+          const overlap = Math.min(Math.max(p1, p2), Math.max(q1, q2)) - Math.max(Math.min(p1, p2), Math.min(q1, q2));
+          if (overlap > 20) shared.push(`${ids[a]} ~ ${ids[b]}: ${overlap.toFixed(0)}px`);
+        }
+  // Measured on the demo geometry in tests/routing.test.ts: 6 before lanes, 1 now (two pieces at ports, which stay put).
+  // One more is allowed for differences in the real box sizes.
+  expect(shared.length, shared.join("\n")).toBeLessThanOrEqual(2);
+});
+
+test("few labels sit on another line", async ({ page, server }) => {
+  await openDiagram(page, KEY);
+  const diagram = await api(server, `/diagrams/${KEY}`);
+  const ids: string[] = diagram.edges.map((e: { id: string }) => e.id);
+  const crossed = await page.evaluate((list) => {
+    const out: string[] = [];
+    for (const el of document.querySelectorAll<HTMLElement>(".edge-label")) {
+      const own = (el.dataset.testid ?? "").replace(/^edge-/, "");
+      const r = el.getBoundingClientRect();
+      const inset = 2; // screen px: a line running along the label's border is not on it
+      let hit = false;
+      for (const id of list) {
+        if (id === own || hit) continue;
+        const path = document.querySelector(`[data-testid="rf__edge-${id}"] path.react-flow__edge-path`) as SVGPathElement | null;
+        if (!path) continue;
+        const m = path.getScreenCTM()!;
+        const total = path.getTotalLength();
+        const scale = Math.hypot(m.a, m.b) || 1;
+        const steps = Math.max(2, Math.ceil((total * scale) / 3));
+        for (let i = 0; i <= steps && !hit; i++) {
+          const p = path.getPointAtLength((total * i) / steps);
+          const x = p.x * m.a + p.y * m.c + m.e;
+          const y = p.x * m.b + p.y * m.d + m.f;
+          if (x > r.left + inset && x < r.right - inset && y > r.top + inset && y < r.bottom - inset) hit = true;
+        }
+      }
+      if (hit) out.push(own);
+    }
+    return out;
+  }, ids);
+  // Measured on the demo geometry in tests/routing.test.ts (estimated label sizes): 19 of 27 labels were crossed by another line
+  // before labels looked at lines, 11 now (the line weight is 8; 15 at 2); the diagram is dense, so some crossings cannot be avoided. Two more are allowed
+  // because real font metrics change the label sizes a little.
+  expect(crossed.length, crossed.join("\n")).toBeLessThanOrEqual(13);
+});
