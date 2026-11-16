@@ -77,7 +77,7 @@ ESLint (typescript-eslint recommended + react-hooks) is configured; Prettier is 
 ## Repo notes
 
 - `docs/README.md` indexes the docs. `docs/decisions.md` is the running list of decisions and their rationale: read it before changing a design choice, and add an entry (at the bottom) when a new decision is made. `docs/backlog.md` lists planned and unbuilt work. `docs/notes/` holds chapter notes on the two reference books (C4 model; Fundamentals of Software Architecture) with `→ designPerspectives` implications.
-- `docs/reviews/` holds per-stage review notes (`rewrite-ts_review.md` covers the move to TypeScript). Each stage ends with a review file: what was built, how it was checked, limits, questions, and an empty owner-feedback section.
+- `docs/reviews.md` holds the per-stage reviews in one file, newest first. Each stage adds a section at the top: what was built, how it was checked, limits, questions, and an empty owner-feedback part.
 - The demo model's source is credited in `NOTICE`.
 
 ## Working rules

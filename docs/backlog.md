@@ -1,6 +1,6 @@
 # Future plans and backlog
 
-Last updated: 2026-11-15. Current version: 1.0.0 (see `../CHANGELOG.md`). Latest review: `reviews/prod-p6_review.md`.
+Last updated: 2026-11-15. Current version: 1.0.0 (see `../CHANGELOG.md`). Latest review: `reviews.md`.
 
 This file collects work that is not built yet. Nothing here is scheduled or rejected; items are revisited after feedback on the current stage.
 
@@ -14,19 +14,19 @@ Source markers: **[Owner]** stated by the project owner (date given) · **[Revie
 | Native model file is a Structurizr workspace JSON, plus one sidecar file (`designperspectives.json`) for data Structurizr has no field for | Owner delegated the choice; format chosen as [Proposal] | One large file per workspace (more merge conflicts); numeric Structurizr IDs replaced by readable slugs here |
 | Engineer is the default lens; more lenses are user-made; Business and Security presets are in the backlog | [Owner, 2026-11-13] "Engineer first starting lense" | Lens mechanism is built; presets are not |
 | MIT licence, single user, collaboration through git, LLM off by default | [Owner, 2026-11-11] | No real-time co-editing |
-| All-TypeScript stack (Node server, `dp` CLI, React UI, shared API types) | [Owner, 2026-11-14]; reasoning in `reviews/rewrite-ts_review.md` | Python import scanning uses a hand-written tokenizer instead of `ast` |
+| All-TypeScript stack (Node server, `dp` CLI, React UI, shared API types) | [Owner, 2026-11-14]; reasoning in `reviews.md` | Python import scanning uses a hand-written tokenizer instead of `ast` |
 | Trade-offs are stated for every design decision | [Owner] | — |
 | Target own system first; optimize for other systems later; no LLM access and no cloud accounts during development | [Owner] | Integrations that need tokens or live APIs wait |
 | Review document at the end of each stage, with an owner-feedback section | [Owner, 2026-11-11] | — |
 
 ## 2. Planned stages (from the PoC plan)
 
-Stage A (model, diagrams, overlays, flows, lenses, demo) is built and extended in 0.2/0.3. Check the repo before relying on the status of B–D; the last review that states it is `reviews/rewrite-ts_review.md`.
+Stage A (model, diagrams, overlays, flows, lenses, demo) is built and extended in 0.2/0.3. Check the repo before relying on the status of B–D; the last review that states it is `reviews.md`.
 
 | Stage | Content | Status |
 |---|---|---|
 | B — Python codebase to model (deterministic) | `dp scan <path>` proposes containers (from `pyproject.toml`, `requirements*.txt`, Dockerfiles, docker-compose), components (Python packages) and connections (imports); proposals are accepted, edited or rejected one by one; accepted objects keep their source paths and a re-scan never changes them (new code appears as "unmapped") | **Moved to the Future stage** [Owner, 2026-11-14, DEC-026]. `src/core/codeMap.ts` already maps components to files and scans Python/JS/TS imports. LLM-assisted import design notes: section 4, "Stage B, codebase to model" [Owner, 2026-11-15] |
-| C — Planned change | C1 drafts: a separately edited copy of the workspace with a diff overlay (added / changed / removed) and apply or discard. C2 branch compare: scan two git refs and show the same overlay | Built: C1 drafts (DEC-016/017), C2 compare of the stored models at git refs (DEC-018), C3 `dp check` / `dp diff`; C4 planned code changes and the coding plan (`dp plan`). See `reviews/stage-c_review.md`, `reviews/stage-c4_review.md` and `planned-change.md` |
+| C — Planned change | C1 drafts: a separately edited copy of the workspace with a diff overlay (added / changed / removed) and apply or discard. C2 branch compare: scan two git refs and show the same overlay | Built: C1 drafts (DEC-016/017), C2 compare of the stored models at git refs (DEC-018), C3 `dp check` / `dp diff`; C4 planned code changes and the coding plan (`dp plan`). See `reviews.md`, `reviews.md` and `planned-change.md` |
 | D — LLM assist (optional, off by default; done by BMO, the project's agent, on any backend LLM; see section 4, "Stage B") | D-1 describe scan results; D-2 draft a model from a written description (planning a codebase); D-3 explain a diagram or object in the wording of the active lens | Not built |
 | Deployment (next) | Deployment diagrams on the native Structurizr deployment model: nested deployment nodes, infrastructure nodes and container instances, one environment per diagram; diagrams computed from container relationships; per-node diff/merge units; `dp check` rules [Owner, 2026-11-14, DEC-019, DEC-022]. Later on this track: system instances, deployment groups, side-by-side environment diff, cost per environment | Next stage; plan first |
 | Small batch (after Deployment) | Technology shown on connections (toggle); owner inherited from the parent; descriptions on tag groups and values; keyboard shortcuts menu; "appears in diagrams" list per object; CSV export (A8+) [Proposal, DEC-028] | Planned after Deployment |
@@ -45,7 +45,7 @@ Principle [Proposal]: because the tool is local, single-user and has no cloud ac
 | B4 | CODEOWNERS → owner proposals | Read `CODEOWNERS` (used by GitHub, GitLab and Bitbucket [Training]); propose the `owner` property for mapped objects | Small |
 | B5 | SARIF import → findings overlay | `dp import sarif <file>`; SARIF 2.1.0 is an OASIS standard written by Semgrep, CodeQL, Trivy and others [Training]; findings mapped to objects by file path; counts by severity as a "Security findings" overlay | Small–medium |
 | B6 | Coverage overlay | Cobertura XML (e.g. from coverage.py [Training]) → % per object in High/Medium/Low bands | Small |
-| C3 | `dp check` and `dp diff` | Built (see `reviews/stage-c_review.md`). "Unmapped code" (code no object points to) waits for Stage B; `dp check` warns about mapped paths that do not exist instead | Medium |
+| C3 | `dp check` and `dp diff` | Built (see `reviews.md`). "Unmapped code" (code no object points to) waits for Stage B; `dp check` warns about mapped paths that do not exist instead | Medium |
 
 Open questions for the owner [Proposal]:
 1. Accept B4–B6 and C3 into the plan, or keep all integrations in the backlog until Stage A feedback?

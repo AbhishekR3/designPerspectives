@@ -2,7 +2,7 @@
  * The subset of the Structurizr workspace JSON that designPerspectives uses.
  *
  * Field names follow the schema in structurizr/structurizr, module `structurizr-json/structurizr.yaml`
- * (see docs/reviews/stage-a_review.md, section A0).
+ * (see docs/reviews.md, section A0).
  *
  * Objects are kept as the plain JSON read from the file, so anything we do not model (deployment
  * nodes, documentation, styles, ...) survives a read and write unchanged. `dumpWorkspace` writes

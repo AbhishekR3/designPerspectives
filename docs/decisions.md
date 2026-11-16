@@ -63,13 +63,13 @@ Entry format: **ID — title** · date · status · who decided · what was deci
 - Trade-off: earlier work stays only in git history.
 
 ## DEC-010 — Diagram content is computed from the model
-- Date: 2026-11-14 · Status: Accepted (open to revisit) · Decided by: assistant (decision, per `reviews/stage-a_review.md`)
+- Date: 2026-11-14 · Status: Accepted (open to revisit) · Decided by: assistant (decision, per `reviews.md`)
 - Decision: each diagram shows everything at its level, like `include *` (a container diagram shows all containers of the system plus what they connect to). Lower-level relationships appear on higher-level diagrams as dashed derived lines, which are not written to the file. Positions are stored at twice the UI size in Structurizr units.
 - Why: a rename shows everywhere, and relationships are not duplicated in the file.
 - Trade-off: an element cannot be hidden from one diagram (per-diagram hiding is in the backlog); in Structurizr, our views show only explicit relationships.
 
 ## DEC-011 — Active lens is remembered per browser
-- Date: 2026-11-14 · Status: Accepted · Decided by: assistant (per `reviews/stage-a_review.md`)
+- Date: 2026-11-14 · Status: Accepted · Decided by: assistant (per `reviews.md`)
 - Decision: the active lens is stored in the browser (localStorage), not in the project files. Lens definitions stay in the sidecar.
 - Why: switching lenses should not create git changes.
 - Trade-off: the active lens does not follow the user to another browser.
@@ -80,13 +80,13 @@ Entry format: **ID — title** · date · status · who decided · what was deci
 - Why: removes hand-copied API types between server and UI, and keeps model rules reusable in the browser later. This reasoning is the assistant's assessment, not a measurement.
 - Options rejected: Python backend with TypeScript UI (two languages, types copied by hand); Rust (Tauri) with TypeScript UI (full rewrite, slower iteration).
 - Trade-off: Python import scanning uses a hand-written tokenizer instead of `ast` (a file with a syntax error still shows its imports); numbers are written as JavaScript writes them, so a project saved by 0.2 gets a one-time diff.
-- Details: `reviews/rewrite-ts_review.md`.
+- Details: `reviews.md`.
 
 ## DEC-013 — Dark theme only, with overlays for characteristics and cost
 - Date: 2026-11-14 · Status: Accepted (open question: light/dark switch) · Decided by: owner asked for a closer-to-reference layout and for cost and "-ility" information; specific design choices by the assistant
 - Decision: dark theme only; per-object characteristic ratings (1–5, with a "driving" flag) and monthly cost lines; cost rolls up from contained objects; editable cost bands.
 - Trade-off: exports have a dark background; ratings and cost live on objects only (not on relationships or flows).
-- Details: `reviews/stage-a3_review.md`.
+- Details: `reviews.md`.
 
 ## DEC-014 — Built UI is committed
 - Date: 2026-11-14 · Status: Accepted (owner was asked whether to keep this) · Decided by: assistant
