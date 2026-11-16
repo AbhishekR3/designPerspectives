@@ -7,6 +7,7 @@ import { CodePaths, OpenCodeDiagram } from "../CodeParts";
 import { Fields, Section, TagInput, TextField } from "../fields";
 import { openWork } from "../overlays";
 import { StylePanel } from "../StylePanel";
+import { automaticLabel } from "../lineShapes";
 import { type EdgeLayout, type Relationship } from "../types";
 import type { Common } from "./common";
 import { NotesEditor, SensitiveEditor } from "./sectionEditors";
@@ -39,7 +40,7 @@ export function EdgePanel({ edgeId, ...p }: Common & { edgeId: string }) {
           }}
           data-testid="line-shape"
         >
-          <option value="auto">Automatic</option>
+          <option value="auto">{automaticLabel(diagram.lineShape)}</option>
           <option value="straight">Straight</option>
           <option value="curved">Curved (through the bend point)</option>
           <option value="smooth">Smooth S-curve</option>

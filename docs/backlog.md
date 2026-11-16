@@ -196,6 +196,7 @@ The accept decision and any typed text stay in the import folder; nothing about 
 ### Model and diagrams
 - Business and Security lens presets.
 - Per-diagram hiding of elements (today a diagram shows everything at its level) [Review, stage-a].
+- Line routing, stage 2: route straight/curved/smooth lines in the same pass; give ELK the label sizes so auto-layout leaves room; optional hops where lines cross; an itemised "Line shape: rounded → straight" row in the change list (today a layout change); Make room / Spread out for the selected boxes only. Lanes for lines in a shared gap and label-versus-line avoidance are done in DEC-061. Stage 1 (right angles, spread ends) and routing around boxes are done in DEC-052. Size medium–large [Proposal, DEC-052, DEC-061].
 - Characteristic rating **targets** so overlays can show gaps; one-off costs and cost per environment; light/dark theme switch; a separate "Status" tab versus the Lifecycle tag group [Review, stage-a3 questions].
 - Ratings on relationships and whole flows (today objects only) [Review, stage-a3].
 - Add a pipeline as a **connector** (a line with stages) from the palette by picking two ends [Review, release-0.2].

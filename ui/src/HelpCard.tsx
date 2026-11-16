@@ -34,7 +34,7 @@ export function HelpCard({ onClose }: { onClose(): void }) {
     <div className="float help-card small" data-testid="help-card" role="region" aria-label="Help">
       <ul className="hints">
         <li>Click a box or line to see and edit it in the panel on the right.</li>
-        <li>Right-click a box, a line or empty space for a menu of what you can do there (open, rename, copy and paste, symbol, line shape, arrows, style, add here, layout, zoom).</li>
+        <li>Right-click a box, a line or empty space for a menu of what you can do there (open, rename, copy and paste, symbol, line shape, arrows, style, add here, layout, make room, spread out, zoom).</li>
         <li>Double-click a system or container to open the next level.</li>
         <li>Add: drag a database, queue, pipeline, service and more from the Add palette onto the diagram, or click it.</li>
         <li>Drag from a dot on any side of a box to another box to connect them, or to empty space to pick a kind and add a connected box.</li>

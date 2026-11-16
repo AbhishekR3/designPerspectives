@@ -8,6 +8,7 @@ import { keys, tidy, type MenuItem } from "./ContextMenu";
 import { iconFor } from "./icons";
 import { defaultSize } from "./layout";
 import { addBlockedReason } from "./connectRequired";
+import { automaticLabel } from "./lineShapes";
 import { paletteItems, type PaletteItem } from "./Palette";
 import { edgeCommentTarget } from "./comments";
 import { selectedNodeIds, type AppState, type CommentTarget, type Diagram, type DiagramEdge, type DiagramNode, type EdgeLayout, type Pt, type Selection, type Style } from "./types";
@@ -15,7 +16,7 @@ import type { Clipboard } from "./useClipboard";
 
 /** Choices in the line menus; labels match the panel. */
 const LINE_SHAPES: ["auto" | NonNullable<EdgeLayout["routing"]>, string][] = [
-  ["auto", "Automatic"],
+  ["auto", ""], // the label names the diagram's default: see automaticLabel
   ["straight", "Straight"],
   ["curved", "Curved"],
   ["smooth", "Smooth S-curve"],
@@ -67,6 +68,17 @@ export function useContextMenu(p: { setFocusName: Dispatch<SetStateAction<boolea
 }
 
 /** False in read-only mode and in views that are frozen (the removed side of a comparison). */
+/** Make room / Spread out: boxes can be moved here (not a flow, a read-only model or a removed diagram) and there are at least two. */
+export function canSpread(state: AppState, diagram: Diagram | null): boolean {
+  return diagramEditable(state, diagram) && !!diagram && diagram.level !== "flow" && diagram.nodes.length > 1;
+}
+
+/** Names of the two actions: with two or more boxes selected they act on those boxes only, and say so. */
+export function spreadLabels(selection: Selection): { room: string; out: string; scope: "selected" | "all" } {
+  const scoped = selectedNodeIds(selection).length >= 2;
+  return scoped ? { room: "Make room (selected boxes)", out: "Spread out (selected boxes)", scope: "selected" } : { room: "Make room", out: "Spread out", scope: "all" };
+}
+
 export function diagramEditable(state: AppState, diagram: Diagram | null): boolean {
   return !state.readOnly && !diagram?.compare?.removed;
 }
@@ -131,6 +143,8 @@ export function menuItems(menu: MenuState | null, c: MenuContext): MenuItem[] {
     return tidy([
       canEdit && deletable.length > 0 && { label: `Delete ${deletable.length} objects`, icon: "trash", shortcut: "Del", danger: true, testId: "ctx-delete", onSelect: () => deleteMany(deletable) },
       canEdit && { label: "Auto-layout", icon: "layout", testId: "ctx-auto-layout", onSelect: () => void canvasRef.current?.relayout() },
+      canSpread(state, diagram) && { label: spreadLabels(selection).room, icon: "room", testId: "ctx-make-room", onSelect: () => void canvasRef.current?.spread("room") },
+      canSpread(state, diagram) && { label: spreadLabels(selection).out, icon: "spread", testId: "ctx-spread-out", onSelect: () => void canvasRef.current?.spread("out") },
     ]);
   };
 
@@ -234,7 +248,7 @@ export function menuItems(menu: MenuState | null, c: MenuContext): MenuItem[] {
         icon: "line",
         testId: "ctx-line-shape",
         submenu: LINE_SHAPES.map(([v, label]) => ({
-          label,
+          label: v === "auto" ? automaticLabel(diagram?.lineShape ?? null) : label,
           checked: routing === v,
           testId: `ctx-line-${v}`,
           onSelect: () => {
@@ -299,6 +313,8 @@ export function menuItems(menu: MenuState | null, c: MenuContext): MenuItem[] {
       canEdit && { label: "Redo", icon: "redo", shortcut: keys("Mod+Shift+Z"), testId: "ctx-redo", disabled: !state.canRedo, onSelect: () => void doHistory("redo") },
       { sep: true },
       canEdit && diagram.nodes.length > 0 && { label: "Auto-layout", icon: "layout", testId: "ctx-auto-layout", onSelect: () => void canvasRef.current?.relayout() },
+      canSpread(state, diagram) && { label: spreadLabels(selection).room, icon: "room", testId: "ctx-make-room", onSelect: () => void canvasRef.current?.spread("room") },
+      canSpread(state, diagram) && { label: spreadLabels(selection).out, icon: "spread", testId: "ctx-spread-out", onSelect: () => void canvasRef.current?.spread("out") },
       { label: "Fit to screen", icon: "fit", shortcut: keys("Mod+0"), testId: "ctx-fit", onSelect: () => canvasRef.current?.fit() },
       { label: "Zoom in", icon: "zoomIn", shortcut: keys("Mod++"), onSelect: () => canvasRef.current?.zoom(1) },
       { label: "Zoom out", icon: "zoomOut", shortcut: keys("Mod+-"), onSelect: () => canvasRef.current?.zoom(-1) },

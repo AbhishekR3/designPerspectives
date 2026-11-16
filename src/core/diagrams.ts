@@ -26,7 +26,7 @@ import { codeDiagram, type CodeInput } from "./code.js";
 import { connectorDiagram } from "./connectors.js";
 import { roundHalfEven } from "./json.js";
 import { buildIndex, CODE_KEY, elementSummary, getJson, idStillValid, moveElement, relationshipSummary, STAGES_KEY, type Index } from "./ops.js";
-import { edgeLayoutData, styleData, type Sidecar } from "./sidecar.js";
+import { edgeLayoutData, isLineShape, styleData, type Sidecar } from "./sidecar.js";
 import { allViews, VIEW_LISTS, type View, type ViewList, type Workspace } from "./workspace.js";
 import type { Crumb, Diagram, DiagramEdge, DiagramInfo, DiagramNode, DrillTarget, Pt, Style } from "../shared/types.js";
 
@@ -66,7 +66,7 @@ export interface DiagramRef {
 /** A diagram as computed on the server, before styles and sizes are attached. */
 export type RawNode = Omit<DiagramNode, "style" | "size"> & Partial<Pick<DiagramNode, "style" | "size">>;
 export type RawEdge = Omit<DiagramEdge, "style" | "layout"> & Partial<Pick<DiagramEdge, "style" | "layout">>;
-export type RawDiagram = Omit<Diagram, "nodes" | "edges" | "breadcrumb" | "c4" | "addable"> & Partial<Pick<Diagram, "breadcrumb" | "c4" | "addable">> & { nodes: RawNode[]; edges: RawEdge[] };
+export type RawDiagram = Omit<Diagram, "nodes" | "edges" | "breadcrumb" | "c4" | "addable" | "lineShape"> & Partial<Pick<Diagram, "breadcrumb" | "c4" | "addable">> & { nodes: RawNode[]; edges: RawEdge[] };
 
 export function parseKey(key: string): DiagramRef | null {
   if (key === "landscape") return { key, level: "landscape", scope: null };
@@ -422,7 +422,7 @@ export function decorate(d: RawDiagram, sidecar: Sidecar | null): Diagram {
     const lay = layout?.edges[e.id];
     e.layout = lay ? edgeLayoutData(lay) : {};
   }
-  return d as Diagram;
+  return { ...d, lineShape: isLineShape(layout?.lineShape) ? layout.lineShape : null } as Diagram;
 }
 
 // --------------------------------------------------------------------------- diagram list

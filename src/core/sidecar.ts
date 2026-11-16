@@ -88,7 +88,16 @@ export interface Size {
   h: number;
 }
 
+export const LINE_SHAPES = ["straight", "curved", "smooth", "orthogonal", "rounded"] as const;
+export type LineShape = NonNullable<EdgeLayout["routing"]>;
+export const isLineShape = (v: unknown): v is LineShape => typeof v === "string" && (LINE_SHAPES as readonly string[]).includes(v);
+
 export interface DiagramLayout {
+  /**
+   * The default line shape of this diagram; absent means rounded right angles. A string that is not one of LINE_SHAPES
+   * (written by a newer version) is kept as it is so saving does not delete it; the diagram API treats it as absent.
+   */
+  lineShape?: LineShape | (string & {});
   sizes: Record<string, Size>;
   edges: Record<string, EdgeLayout>;
   positions: Record<string, Pt>;
@@ -182,9 +191,10 @@ export function toSidecar(data: unknown): Sidecar {
   for (const [k, v] of Object.entries(objOr(data.styles))) sc.styles[k] = objOr(v) as Style;
   sc.layouts = {};
   for (const [k, v] of Object.entries(objOr(data.layouts))) {
-    const o = objOr(v);
+    const { lineShape, ...o } = objOr(v);
     sc.layouts[k] = {
       ...o,
+      ...(typeof lineShape === "string" && lineShape !== "" ? { lineShape } : {}),
       sizes: objOr(o.sizes) as Record<string, Size>,
       edges: objOr(o.edges) as Record<string, EdgeLayout>,
       positions: objOr(o.positions) as Record<string, Pt>,
@@ -236,7 +246,7 @@ export function sidecarData(sc: Sidecar): Obj {
     o.sizes = Object.fromEntries(Object.entries(lay.sizes).map(([k, v]) => [k, ordered(v as unknown as Obj, ["w", "h"])]));
     o.edges = Object.fromEntries(Object.entries(lay.edges).map(([k, v]) => [k, edgeLayoutData(v)]));
     o.positions = Object.fromEntries(Object.entries(lay.positions).map(([k, v]) => [k, ordered(v as unknown as Obj, ["x", "y"])]));
-    const d = ordered(o, ["sizes", "edges", "positions"], (_k, v) => isObj(v) && Object.keys(v).length === 0);
+    const d = ordered(o, ["lineShape", "sizes", "edges", "positions"], (_k, v) => isObj(v) && Object.keys(v).length === 0);
     if (Object.keys(d).length) layouts[key] = d;
   }
   const out: Obj = {
