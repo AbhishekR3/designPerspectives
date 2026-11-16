@@ -9,16 +9,17 @@
  * user's role and the model version the request selected:
  *
  *   action          architect   engineer              viewer
- *   edit            yes         in a draft only        no      model, sidecar, positions, undo/redo
- *   code            yes         in a draft only        no      code files (main: the code folder; draft: planned edits)
+ *   edit            yes         in own drafts only     no      model, sidecar, positions, undo/redo
+ *   code            yes         in own drafts only     no      code files (main: the code folder; draft: planned edits)
  *   draft.create    yes         yes                    no
- *   draft.edit      yes         yes                    no      title, description, branch, link
+ *   draft.edit      yes         own drafts only        no      title, description, branch, link
  *   draft.discard   yes         own drafts only        no
  *   draft.apply     yes         no                     no
  *   comment         yes         yes                    yes     comments, ideas, questions, replies, resolving (own text only to change or delete; an architect any)
  *   (unlisted)      yes         no                     no      deny by default
  *
- * A git version (`ref:`) is read-only for everyone; --read-only makes everyone a viewer.
+ * An engineer's own drafts are those whose author is their user name (set by the server at creation);
+ * every role reads every draft. A git version (`ref:`) is read-only for everyone; --read-only makes everyone a viewer.
  * Lenses stay a default view: every role can read everything (DEC-008).
  */
 
@@ -155,8 +156,20 @@ declare module "hono" {
 const sameName = (a: string | null | undefined, b: string) => typeof a === "string" && a.toLowerCase() === b.toLowerCase();
 
 /**
- * Null if `who` may do `action` on the version `ref` (for draft.discard: of the draft whose author
- * is `author`); otherwise the reason, which says what the role can do instead.
+ * Null if the engineer `who` started the draft whose author is `author`. With sign-in on, a draft's author
+ * is always the signed-in user's name (routes/drafts.ts), and names are unique without regard to case, so
+ * the author is the owner. A draft with another author, or none (made before sign-in was on), is
+ * the architects' to change.
+ */
+function notOwn(who: Who, author: string | null | undefined): string | null {
+  if (who.user && sameName(author, who.user.name)) return null;
+  return author ? `This draft belongs to ${author}. Start your own draft, or ask an architect.` : "This draft has no recorded author, so only an architect can change it. Start your own draft, or ask an architect.";
+}
+
+/**
+ * Null if `who` may do `action` on the version `ref`; otherwise the reason, which says what the role can
+ * do instead. `author`: the author of the draft concerned (the one `ref` names for edit and code, the one
+ * in the path for draft.edit and draft.discard); engineers change only their own drafts.
  */
 export function decide(action: Action | undefined, who: Who, ref: string, author?: string | null): string | null {
   if (action === "open") return null;
@@ -173,12 +186,13 @@ export function decide(action: Action | undefined, who: Who, ref: string, author
   const inDraft = ref.startsWith("draft:");
   switch (action) {
     case "edit":
-      return inDraft ? null : "Engineers cannot change the main model. Start a draft to propose the change; an architect applies it.";
+      return inDraft ? notOwn(who, author) : "Engineers cannot change the main model. Start a draft to propose the change; an architect applies it.";
     case "code":
-      return inDraft ? null : "Engineers cannot change code files directly. Open a draft to plan code edits; an architect applies them.";
+      return inDraft ? notOwn(who, author) : "Engineers cannot change code files directly. Open a draft to plan code edits; an architect applies them.";
     case "draft.create":
-    case "draft.edit":
       return null;
+    case "draft.edit":
+      return notOwn(who, author);
     case "draft.discard":
       if (who.user && sameName(author, who.user.name)) return null;
       return `Engineers can discard only drafts they started. ${author ? `This draft was started by ${author}.` : "This draft has no author."} Ask an architect to discard it.`;
@@ -193,7 +207,7 @@ export function decide(action: Action | undefined, who: Who, ref: string, author
 export function permissions(who: Who, ref: string, openDraftAuthor: string | null = null): Permissions {
   const yes = (a: Action, r = ref, author?: string | null) => decide(a, who, r, author) === null;
   return {
-    editThis: yes("edit"),
+    editThis: yes("edit", ref, openDraftAuthor),
     createDraft: yes("draft.create"),
     applyDraft: yes("draft.apply"),
     discardDraft: ref.startsWith("draft:") && yes("draft.discard", ref, openDraftAuthor),
@@ -559,18 +573,24 @@ export function authorize(ctx: Ctx): MiddlewareHandler {
     // Keyed on the matched route's own method, so an "ALL" route (the 404 answer) finds its rule.
     const action = ROUTE_RULES[`${route.method} ${route.path}`];
     const who = c.get("dpWho");
+    const { ref } = ctx.sel();
     let author: string | null = null;
-    if (action === "draft.discard" && who.role === "engineer") {
-      const m = /^\/api\/drafts\/([^/]+)$/.exec(c.req.path);
-      let id = "";
-      try {
-        id = decodeURIComponent(m?.[1] ?? "");
-      } catch {
-        /* not a draft id: drafts.info says there is no such draft */
+    if (who.role === "engineer" && !who.readOnlyServer) {
+      if (action === "draft.discard" || action === "draft.edit") {
+        // The draft named in the path, whatever version the request shows.
+        const m = /^\/api\/drafts\/([^/]+)$/.exec(c.req.path);
+        let id = "";
+        try {
+          id = decodeURIComponent(m?.[1] ?? "");
+        } catch {
+          /* not a draft id: drafts.info says there is no such draft */
+        }
+        author = ctx.drafts.info(id).author ?? null;
+      } else if ((action === "edit" || action === "code") && ref.startsWith("draft:")) {
+        author = ctx.drafts.info(ctx.draftId(ref)).author ?? null; // the version selected was found, so the draft exists
       }
-      author = ctx.drafts.info(id).author ?? null;
     }
-    const why = decide(action, who, ctx.sel().ref, author);
+    const why = decide(action, who, ref, author);
     if (why) return c.json({ detail: why }, 403);
     await next();
   };

@@ -78,6 +78,12 @@ export function ordered(obj: Obj, keys: readonly string[], drop: (k: string, v: 
   return out;
 }
 
+/** True if any segment of a relative path starts with "." (.git, .env, a/.hidden/x): hidden files and
+ *  folders are never read, written, listed or mapped (DEC-031). Used by codeFiles.ts and the model rules. */
+export function isHidden(rel: string): boolean {
+  return rel.split(/[\\/]/).some((part) => part.startsWith(".") && part !== "." && part !== "..");
+}
+
 export function str(v: unknown): string {
   if (v === null || v === undefined) return "";
   return String(v);

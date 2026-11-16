@@ -62,6 +62,20 @@ export function allowedHostsFor(host: string): string[] | null {
   return null;
 }
 
+/**
+ * Why `dp serve` refuses to listen on `host`, or null when it may. A server other machines can reach
+ * (any host that is not loopback: 127.0.0.0/8, ::1, localhost) needs protection: a users file with at
+ * least one user (sign-in), --read-only, or --insecure to say the open server is meant.
+ */
+export function exposureProblem(host: string, o: { users: number; readOnly: boolean; insecure: boolean }): string | null {
+  if (allowedHostsFor(host) !== null || o.users > 0 || o.readOnly || o.insecure) return null;
+  return (
+    `--host ${host} lets other machines reach this server, and it has no sign-in, so anyone who can reach it could change the model and the code folder. ` +
+    "Do one of these: add users with `dp users init` (sign-in), add --read-only (nobody can change anything), " +
+    "or add --insecure (you accept that anyone who can reach it can change everything)."
+  );
+}
+
 export function program(): Command {
   const p = new Command("dp")
     .description("designPerspectives: C4 architecture models with lenses.")
@@ -97,7 +111,11 @@ export function program(): Command {
     .description("Serve the model in the browser. Creates an empty model first if the folder has none (--demo: the sample model).")
     .argument("[path]", "Project folder containing architecture/.", ".")
     .addOption(new Option("--port <port>", "Port to listen on.").default(8765).argParser((v) => parseInt(v, 10)))
-    .option("--host <host>", "Interface to bind. Keep the default unless you know you need another.", "127.0.0.1")
+    .option(
+      "--host <host>",
+      "Interface to bind. Keep the default unless you know you need another. Any other than this machine (127.x, ::1, localhost) needs sign-in (dp users init), --read-only or --insecure.",
+      "127.0.0.1",
+    )
     .option(
       "--allow-host <name>",
       "Also answer requests addressed to this host name (a tunnel or proxy in front of the server). Repeat for more.",
@@ -112,6 +130,7 @@ export function program(): Command {
     .option("--code-root <folder>", "Folder holding the source code that components point to (default: the project folder).")
     .option("--users <file>", "Users file for sign-in (default: <path>/.dp/users.json; sign-in is off without it).")
     .option("--hub", "<path> is a hub of projects (hub.json); creates one if missing (--demo: the demo hub). Each project's code folder is its own folder.")
+    .option("--insecure", "With --host on another interface: start even without sign-in or --read-only (anyone who can reach the server can change everything).")
     .action(
       (
         dir: string,
@@ -127,6 +146,7 @@ export function program(): Command {
           codeRoot?: string;
           users?: string;
           hub?: boolean;
+          insecure?: boolean;
         },
       ) => {
         const usersFile = path.resolve(o.users ?? usersPath(dir));
@@ -138,6 +158,12 @@ export function program(): Command {
         } catch (e) {
           if (!(e instanceof UsersError)) throw e;
           console.error(`Cannot start: ${e.message}`);
+          process.exit(1);
+        }
+        // Checked before anything is created: a refused start leaves the folder as it was.
+        const exposed = exposureProblem(o.host, { users: users?.length ?? 0, readOnly: Boolean(o.readOnly), insecure: Boolean(o.insecure) });
+        if (exposed) {
+          console.error(`Cannot start: ${exposed}`);
           process.exit(1);
         }
         if (o.hub && !fs.existsSync(path.join(dir, HUB_FILE))) {
@@ -177,9 +203,11 @@ export function program(): Command {
         else console.log("Login is off (no .dp/users.json; run `dp users init` to add users)");
         if (allowedHosts === null) {
           console.error(
-            users
+            users?.length
               ? `Warning: listening on ${o.host}, so other machines can reach this server. Sign-in is on, but the connection is plain HTTP: put an HTTPS proxy in front of it.`
-              : `Warning: listening on ${o.host}, so other machines can reach this server, and it has no login: anyone who can reach it can read and change the model and the code folder.`,
+              : o.readOnly
+                ? `Warning: listening on ${o.host}, so other machines can reach this server, and it has no login: anyone who can reach it can read the model and the code folder (--read-only: nobody can change them).`
+                : `Warning: listening on ${o.host}, so other machines can reach this server, and it has no login: anyone who can reach it can read and change the model and the code folder.`,
           );
         }
         const url = `http://${o.host}:${o.port}/`;

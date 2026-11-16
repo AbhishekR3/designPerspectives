@@ -9,6 +9,7 @@ import { decisionWarnings } from "./decisions.js";
 import { Drafts } from "./drafts.js";
 import type { Snapshot } from "./diff.js";
 import { buildIndex, CODE_KEY, getJson, type Index } from "./ops.js";
+import { isHidden } from "./util.js";
 import type { Project } from "./project.js";
 import type { ChangeSet, ObjectChange } from "../shared/types.js";
 
@@ -17,8 +18,8 @@ export interface CheckResult {
   warnings: string[];
 }
 
-/** Model rule errors in the main model and every draft; warnings for code paths that do not exist and
- *  for decisions about objects no longer in the model. */
+/** Model rule errors in the main model and every draft; warnings for code paths that do not exist or are
+ *  hidden, and for decisions about objects no longer in the model. */
 export function checkProject(main: Project): CheckResult {
   const errors = [...main.loadErrors];
   const warnings: string[] = [];
@@ -37,7 +38,11 @@ export function checkProject(main: Project): CheckResult {
     /* duplicate IDs: already an error */
   }
   if (idx) {
-    const check = (label: string, paths: string[]) => {
+    const check = (label: string, all: string[]) => {
+      // Hidden paths are never read (DEC-031): say so, rather than calling them missing.
+      const hidden = all.filter((p) => isHidden(String(p)));
+      for (const h of hidden) warnings.push(`${label} points to "${h}", a hidden path (a name starting with a dot); hidden files are never read, so it maps nothing.`);
+      const paths = all.filter((p) => !hidden.includes(p));
       if (!paths.length) return;
       const [, missing] = expandPaths(main.codeRoot, paths);
       for (const m of missing) warnings.push(`${label} points to "${m}", which does not exist in ${main.codeRoot}.`);

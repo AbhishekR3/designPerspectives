@@ -64,6 +64,8 @@ export interface Access {
   /** Lens for a signed-in user's role, or null for the model-based default. */
   defaultLens: string | null;
   canDiscard: (d: DraftInfo) => boolean;
+  /** Whether the user may change the draft: its model, planned code, title and details. */
+  canEdit: (d: DraftInfo) => boolean;
 }
 
 export function state(project: Project, readOnly = false, sel?: Selection, drafts?: Drafts, gitModels?: GitModels, access?: Access): AppState {
@@ -109,7 +111,7 @@ export function state(project: Project, readOnly = false, sel?: Selection, draft
     can,
     model: { ref: sel?.ref ?? "main", title: sel?.title ?? "Main model" },
     version: `${src.revision}/${sel?.cmp?.revision ?? ""}`,
-    drafts: access ? draftList.map((d) => ({ ...d, canDiscard: access.canDiscard(d) })) : draftList,
+    drafts: access ? draftList.map((d) => ({ ...d, canDiscard: access.canDiscard(d), canEdit: access.canEdit(d) })) : draftList,
     git: (() => {
       const repo = gitModels?.get();
       return repo ? { branch: currentBranch(repo), refs: listRefs(repo) } : null;
@@ -316,6 +318,7 @@ export function createContext(root: string, opts: AppOptions = {}): Ctx {
       can: permissions(w, ref, ref.startsWith("draft:") ? authorOf(draftId(ref)) : null),
       defaultLens: defaultLensFor(w),
       canDiscard: (d) => permissions(w, `draft:${d.id}`, d.author ?? null).discardDraft,
+      canEdit: (d) => permissions(w, `draft:${d.id}`, d.author ?? null).editThis,
     };
   };
 

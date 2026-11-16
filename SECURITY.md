@@ -25,9 +25,10 @@ designPerspectives is a local tool. In plain words:
 - It reads and writes the model in `architecture/` in the project folder.
 - For the code level, it reads and writes files only under the code folder (`--code-root`, default the project folder). It never opens files or folders whose names start with a dot.
 - Sign-in is optional. `dp users init` turns it on. It has three roles (architect, engineer, viewer), and the server enforces them on every change. The browser cannot bypass them.
+- With `--host` set to another interface (not 127.x, `::1` or `localhost`), `dp serve` refuses to start unless sign-in is on (a users file with at least one user), `--read-only` is given, or `--insecure` is given to say an open server is meant (it then prints a warning).
 - With `--host` set to another interface, the server speaks plain HTTP. Passwords and session cookies then travel in clear text. Put the server behind HTTPS (a TLS proxy) before you expose it.
 - To compare versions, it runs the `git` command. It only reads from git and never changes the repository.
-- In a hub (`dp serve --hub`), no project folder may hold the hub folder or another project, so one project's code routes cannot reach another's model, `hub.json` or the shared catalog.
+- In a hub (`dp serve --hub`), no project folder may hold the hub folder or another project, so one project's code routes cannot reach another's model, `hub.json` or the shared catalog. No project folder may be hidden (such as `.dp` or `.git`), as written or through a link, and a project added from the browser must be a folder inside the hub.
 - Integration credentials are kept in `.dp/credentials.json` (mode 0600, ignored by git), encrypted with AES-256-GCM when `DP_SECRET_KEY` is set. Their values are never sent to the browser or printed; only architects manage them.
 - The server reaches out to the network only when someone clicks **Refresh status from GitHub**: it calls `api.github.com` for the GitHub links in linked work, with the stored `github` credential if there is one.
 

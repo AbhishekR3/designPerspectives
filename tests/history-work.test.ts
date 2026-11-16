@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
 import { CredentialStore } from "../src/core/credentials.js";
-import type { Fetch } from "../src/core/workStatus.js";
+import { apiUrl, fetchStates, isGitHubWork, type Fetch } from "../src/core/workStatus.js";
 import { copyDemoHub, createHubApp } from "../src/server/hub.js";
 import { Client, client, demoDir, ok, tmpDir } from "./helpers.js";
 
@@ -121,6 +121,30 @@ describe("linked work status from GitHub", () => {
     expect((await ok(c.get("/api/state"))).elements.find((e: any) => e.id === "database").work[0].status).toBe("in-progress");
     // The token never leaves the server in an answer.
     expect(JSON.stringify(r)).not.toContain("ghp_testtoken");
+  });
+
+  it("sends the token only to the linked issue or pull request: no '.' or '..' names, no redirects", async () => {
+    for (const bad of [
+      "https://github.com/../user/issues/1",
+      "https://github.com/acme/../issues/1",
+      "https://github.com/acme/./issues/1",
+      "https://github.com/./bank/pull/1",
+      "https://github.com/ac.me/bank/issues/1",
+      "https://github.com/acme/ba%2fnk/issues/1",
+      "https://github.com/acme/bank/issues/1/../../../../user",
+    ]) {
+      expect(isGitHubWork(bad), bad).toBe(false);
+      expect(apiUrl(bad), bad).toBeNull();
+    }
+    expect(apiUrl("https://github.com/acme/my.repo_1/pull/7?x=1#y")).toBe("https://api.github.com/repos/acme/my.repo_1/pulls/7");
+    expect(apiUrl("https://github.com/acme/..hidden/issues/3")).toBe("https://api.github.com/repos/acme/..hidden/issues/3");
+    const seen: { url: string; redirect?: string }[] = [];
+    const states = await fetchStates(["https://github.com/acme/../issues/1", ISSUE], "tok", async (url, init) => {
+      seen.push({ url, redirect: init.redirect });
+      return { ok: true, status: 200, json: async () => ({ state: "open" }) };
+    });
+    expect(seen).toEqual([{ url: "https://api.github.com/repos/acme/bank/issues/12", redirect: "error" }]);
+    expect(states.get("https://github.com/acme/../issues/1")).toEqual({ error: "not a GitHub issue or pull request link" });
   });
 
   it("works without a credential (public repositories) and follows the role rules", async () => {

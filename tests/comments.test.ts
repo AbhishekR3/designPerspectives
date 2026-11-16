@@ -3,7 +3,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { COMMENT_MAX, CommentStore, parseComments } from "../src/core/comments.js";
+import { COMMENT_MAX, CommentStore, MAX_FILE_BYTES, parseComments } from "../src/core/comments.js";
+import { ModelError } from "../src/core/ops.js";
+import { stableJson } from "../src/core/util.js";
 import { client, demoDir, ok, tmpDir, type TestUser } from "./helpers.js";
 
 const target = { type: "element", id: "api-application" };
@@ -105,6 +107,38 @@ describe("comment threads", () => {
     expect(threads.map((t) => t.id)).toEqual(["c-1", "c-4"]);
     expect(threads[1]!.replies).toMatchObject([{ id: "r2", author: "Anonymous" }]);
     expect(parseComments("not json")).toEqual([]);
+  });
+
+  it("refuses a change that would take the file past 10 MB, and forgets it; deleting still works", () => {
+    const dir = tmpDir();
+    const file = path.join(dir, "comments.json");
+    // A file about 200 KB under the cap, in the layout the store writes.
+    const at = "2026-01-01T00:00:00.000Z";
+    const thread = (i: number) => ({ id: `c-${i}`, kind: "comment", target, author: "A", at, text: "x".repeat(3900), status: "open" });
+    const per = Buffer.byteLength(stableJson({ threads: [thread(1000), thread(1001)] })) - Buffer.byteLength(stableJson({ threads: [thread(1000)] }));
+    const count = Math.floor((MAX_FILE_BYTES - 200_000) / per);
+    fs.writeFileSync(file, stableJson({ threads: Array.from({ length: count }, (_, i) => thread(i)) }));
+    expect(fs.statSync(file).size).toBeLessThan(MAX_FILE_BYTES);
+    const store = new CommentStore(file);
+    const before = fs.readFileSync(file, "utf-8");
+    let refused: unknown = null;
+    for (let i = 0; i < 200 && !refused; i++) {
+      try {
+        store.reply("c-0", { text: "y".repeat(COMMENT_MAX), author: "B" });
+      } catch (e) {
+        refused = e;
+      }
+    }
+    expect(refused).toBeInstanceOf(ModelError);
+    expect((refused as Error).message).toBe("The comments file would grow past 10 MB. Delete resolved threads first.");
+    expect(fs.statSync(file).size).toBeLessThanOrEqual(MAX_FILE_BYTES);
+    expect(fs.readFileSync(file, "utf-8")).not.toBe(before); // the replies before the cap were kept
+    const n = store.get("c-0")!.replies.length;
+    expect(() => store.add({ kind: "comment", target, text: "z".repeat(COMMENT_MAX), author: "B" })).toThrow(/10 MB/);
+    expect(store.list()).toHaveLength(count); // the refused thread is not kept in memory either
+    expect(store.get("c-0")!.replies).toHaveLength(n);
+    store.remove("c-1");
+    expect(store.list()).toHaveLength(count - 1);
   });
 
   it("picks up a file changed on disk", () => {

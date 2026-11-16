@@ -11,13 +11,28 @@ import type { Sidecar } from "./sidecar.js";
 import type { Workspace } from "./workspace.js";
 import type { WorkItem, WorkRefresh } from "../shared/types.js";
 
-const GH = /^https:\/\/github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)\/(issues|pull)\/(\d+)\/?(?:[?#].*)?$/;
+/** GitHub's own name rules: an owner is letters, digits and dashes; a repository also dots and underscores,
+ *  but is never "." or "..", which would change the API path the token is sent to. */
+const GH = /^https:\/\/github\.com\/([A-Za-z0-9-]{1,39})\/((?!\.\.?\/)[A-Za-z0-9._-]{1,100})\/(issues|pull)\/(\d{1,12})\/?(?:[?#].*)?$/;
 const MAX_LINKS = 100;
 const PARALLEL = 4;
+const API_HOST = "api.github.com";
 
-export type Fetch = (url: string, init: { headers: Record<string, string>; signal: AbortSignal }) => Promise<{ ok: boolean; status: number; json(): Promise<unknown> }>;
+export type Fetch = (url: string, init: { headers: Record<string, string>; signal: AbortSignal; redirect?: "error" | "manual" | "follow" }) => Promise<{ ok: boolean; status: number; json(): Promise<unknown> }>;
 
 export const isGitHubWork = (url: string | undefined): boolean => !!url && GH.test(url);
+
+/** The API address for a GitHub issue or pull request link, or null when the link is not one. Built from
+ *  encoded parts and checked once more, so the token only ever goes to that one issue or pull request. */
+export function apiUrl(link: string): string | null {
+  const m = GH.exec(link);
+  if (!m) return null;
+  const [, owner, repo, kind, n] = m as unknown as [string, string, string, string, string];
+  const prefix = `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/`;
+  const url = new URL(`https://${API_HOST}${prefix}${kind === "pull" ? "pulls" : "issues"}/${n}`);
+  if (url.protocol !== "https:" || url.host !== API_HOST || !url.pathname.startsWith(prefix)) return null;
+  return url.href;
+}
 
 /** The GitHub links of every work item in the model, once each. */
 export function gitHubLinks(ws: Workspace): string[] {
@@ -34,12 +49,16 @@ export async function fetchStates(urls: string[], token: string | null, fetchImp
   const out = new Map<string, { state: "open" | "closed" } | { error: string }>();
   const queue = [...urls];
   const one = async (url: string) => {
-    const [, owner, repo, kind, n] = GH.exec(url)!;
-    const api = `https://api.github.com/repos/${owner}/${repo}/${kind === "pull" ? "pulls" : "issues"}/${n}`;
+    const api = apiUrl(url);
+    if (!api) {
+      out.set(url, { error: "not a GitHub issue or pull request link" });
+      return;
+    }
     const headers: Record<string, string> = { Accept: "application/vnd.github+json", "User-Agent": "designPerspectives", "X-GitHub-Api-Version": "2022-11-28" };
     if (token) headers.Authorization = `Bearer ${token}`;
     try {
-      const r = await fetchImpl(api, { headers, signal: AbortSignal.timeout(10_000) });
+      // No redirects: the token must not follow GitHub's answer to another address.
+      const r = await fetchImpl(api, { headers, signal: AbortSignal.timeout(10_000), redirect: "error" });
       if (!r.ok) {
         out.set(url, {
           error:

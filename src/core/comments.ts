@@ -23,6 +23,9 @@ export const COMMENT_MAX = 4000;
 export const AUTHOR_MAX = 80;
 export const MAX_THREADS = 5000;
 export const MAX_REPLIES = 200;
+/** Largest comments file a change may leave (10 MB): the per-item caps alone would allow gigabytes. A file
+ *  already larger (written by hand) can still shrink: deleting and resolving keep working. */
+export const MAX_FILE_BYTES = 10 * 1024 * 1024;
 
 function stampOf(file: string): string {
   try {
@@ -30,6 +33,14 @@ function stampOf(file: string): string {
     return `${s.mtimeNs}:${s.size}`;
   } catch {
     return "-";
+  }
+}
+
+function sizeOf(file: string): number {
+  try {
+    return fs.statSync(file).size;
+  } catch {
+    return 0;
   }
 }
 
@@ -142,9 +153,17 @@ export class CommentStore {
     this.stamp = s;
   }
 
+  /** Write the threads. A change that would take the file over MAX_FILE_BYTES (and make it larger) is
+   *  refused and dropped: the next read takes the threads from the file again. */
   private save(): void {
     if (this.threads.length === 0 && !fs.existsSync(this.file)) return;
-    atomicWrite(this.file, stableJson({ threads: this.threads.map(threadData) }));
+    const text = stableJson({ threads: this.threads.map(threadData) });
+    const size = Buffer.byteLength(text, "utf-8");
+    if (size > MAX_FILE_BYTES && size > sizeOf(this.file)) {
+      this.stamp = ""; // forget the refused change
+      throw new ModelError(`The comments file would grow past ${MAX_FILE_BYTES / (1024 * 1024)} MB. Delete resolved threads first.`);
+    }
+    atomicWrite(this.file, text);
     this.stamp = stampOf(this.file);
   }
 

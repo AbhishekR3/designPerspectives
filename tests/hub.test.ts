@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { checkHub, checkHubFolder, copyDemoHub, createHubApp, HubError, initHub } from "../src/server/hub.js";
-import { setRole, UsersError } from "../src/core/users.js";
+import { roleIn, setRole, UsersError } from "../src/core/users.js";
 import { Client, client, demoDir, ok, tmpDir, writeTestUsers } from "./helpers.js";
 
 function demoHub(): string {
@@ -262,6 +262,81 @@ describe("hub", () => {
     ]) {
       expect(() => checkHub(dir, bad), JSON.stringify(bad)).toThrow(HubError);
     }
+  });
+
+  it("a project added from the browser must be a plain folder inside the hub: never .dp, .git, absolute, '..' or a link out", async () => {
+    const dir = demoHub();
+    writeTestUsers(dir);
+    const outside = tmpDir();
+    fs.symlinkSync(path.join(dir, ".dp"), path.join(dir, "to-dp"));
+    fs.symlinkSync(outside, path.join(dir, "to-outside"));
+    fs.mkdirSync(path.join(dir, ".git"));
+    fs.writeFileSync(path.join(dir, ".git", "config"), "[core]\n");
+    const arch = await hubClient(dir, null).as("architect");
+    const before = fs.readFileSync(path.join(dir, "hub.json"), "utf-8");
+    for (const [id, folder] of [
+      ["dot", ".dp"],
+      ["git", ".git"],
+      ["deep", "a/.secret/b"],
+      ["abs", path.join(outside, "p")],
+      ["up", "../escape"],
+      ["up2", "x/../../escape"],
+      ["link-dp", "to-dp"],
+      ["link-dp2", "to-dp/sub"],
+      ["link-out", "to-outside"],
+      ["link-out2", "to-outside/new"],
+      ["self", "."],
+    ]) {
+      const r = await arch.post("/api/hub/projects", { id, path: folder });
+      expect(r.status, `${folder}: ${r.text}`).toBe(422);
+    }
+    expect((await arch.post("/api/hub/projects", { id: "dot", path: ".dp" })).json().detail).toMatch(/hidden folder/);
+    expect(fs.readFileSync(path.join(dir, "hub.json"), "utf-8")).toBe(before);
+    expect(fs.readdirSync(outside)).toEqual([]);
+    expect(fs.existsSync(path.join(dir, ".dp", "architecture"))).toBe(false);
+    // The users file and the git config stay out of reach of every project's code routes.
+    for (const id of ["onboarding", "payments", "catalog"]) {
+      expect((await on(arch, id).get("/api/code/file", { path: "../.dp/users.json" })).status).toBe(422);
+    }
+    // A plain new folder, also one nested a level down, is fine.
+    await ok(arch.post("/api/hub/projects", { id: "cards", path: "teams/cards" }));
+    expect(fs.existsSync(path.join(dir, "teams", "cards", "architecture", "workspace.json"))).toBe(true);
+  });
+
+  it("hub.json is checked on load: hidden folders and links into them are refused; a folder outside the hub may be listed by hand", () => {
+    const dir = tmpDir();
+    fs.mkdirSync(path.join(dir, ".dp"));
+    fs.symlinkSync(path.join(dir, ".dp"), path.join(dir, "sneaky"));
+    const outside = tmpDir();
+    fs.mkdirSync(path.join(outside, ".git"));
+    fs.symlinkSync(path.join(outside, ".git"), path.join(dir, "to-git"));
+    for (const p of [".dp", ".git", "a/.b", "sneaky", "sneaky/x", "to-git", `${outside}/.git`, `${outside}/.hidden/p`, "../.x"]) {
+      expect(() => checkHub(dir, { projects: [{ id: "a", path: p }] }), p).toThrow(HubError);
+    }
+    expect(() => checkHub(dir, { projects: [], catalog: ".dp" })).toThrow(/catalog folder ".dp".*hidden/);
+    // Written by hand by whoever has the hub folder: a folder outside the hub (DEC-054), relative or absolute.
+    const sibling = path.join(outside, "proj");
+    expect(checkHub(dir, { projects: [{ id: "a", path: sibling }] }).projects).toHaveLength(1);
+    expect(checkHub(dir, { projects: [{ id: "a", path: path.relative(dir, sibling) }] }).projects).toHaveLength(1);
+    // ...but not one that holds the hub, also through a link.
+    fs.symlinkSync(path.dirname(dir), path.join(outside, "up"));
+    expect(() => checkHub(dir, { projects: [{ id: "a", path: path.join(outside, "up") }] })).toThrow(/holds the hub folder/);
+    // A bad hub.json stops the server from starting.
+    fs.writeFileSync(path.join(dir, "hub.json"), JSON.stringify({ version: 1, projects: [{ id: "a", path: "sneaky" }] }));
+    expect(() => createHubApp(dir)).toThrow(HubError);
+  });
+
+  it("project IDs that every JavaScript object has are refused, and never give a role by inheritance", async () => {
+    expect(() => checkHub(tmpDir(), { projects: [{ id: "constructor", path: "a" }] })).toThrow(HubError);
+    const dir = demoHub();
+    writeTestUsers(dir);
+    const arch = await hubClient(dir, null).as("architect");
+    expect((await arch.post("/api/hub/projects", { id: "constructor" })).status).toBe(422);
+    expect(roleIn({ role: "viewer" }, "constructor")).toBe("viewer");
+    expect(roleIn({ role: "viewer", projects: {} }, "constructor")).toBe("viewer");
+    expect(roleIn({ role: "viewer", projects: JSON.parse('{"payments": "boss"}') }, "payments")).toBe("viewer"); // not a role
+    expect(roleIn({ role: "viewer", projects: { payments: "engineer" } }, "payments")).toBe("engineer");
+    expect(() => setRole(path.join(dir, ".dp", "users.json"), "viewer", "architect", "constructor")).toThrow(UsersError);
   });
 
   it("dp init --hub makes an empty hub; dp check --hub checks every project", async () => {

@@ -46,11 +46,13 @@ dp serve PATH       # serve a model in another folder (PATH/architecture/)
 dp serve --code-root SRC   # folder holding the source code components point to (default: the project folder)
 dp serve --read-only       # viewer role: nothing can be changed
 dp serve --port 9000 --no-open
+dp serve --host 0.0.0.0      # reachable from other machines: refused unless sign-in is on (dp users init),
+                             # or --read-only, or --insecure (anyone who can reach it can change everything)
 dp serve --allow-host NAME   # also answer to this host name (tunnel or proxy in front)
 dp serve --allow-ui-host NAME   # let the live UI inspector open an app on this host
 dp serve --traces FOLDER     # OpenTelemetry trace files (OTLP JSON) to read (default: PATH/traces)
 dp check            # check the model, its drafts and its code mapping; exit code 1 on problems
-dp check --strict   # also fail on warnings (mapped code paths that do not exist); `dp validate` = `dp check`
+dp check --strict   # also fail on warnings (mapped code paths that do not exist or are hidden); `dp validate` = `dp check`
 dp diff --base main          # what changed in the model since a git branch/tag/commit, as Markdown
 dp diff --base v1 --head v2 --format json --out diff.json
 dp diff --base origin/main --exit-code   # exit code 1 when the model changed

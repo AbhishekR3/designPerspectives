@@ -704,6 +704,9 @@ export interface DraftInfo {
   plannedFiles: number;
   /** Whether the requesting user may discard this draft (set in GET /api/state). */
   canDiscard?: boolean;
+  /** Whether the requesting user may change this draft: its model, planned code, title, description,
+   *  branch and link (set in GET /api/state). With sign-in on, engineers change only drafts they started. */
+  canEdit?: boolean;
 }
 
 export interface ApplyPreview {

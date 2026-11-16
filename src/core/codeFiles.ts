@@ -12,7 +12,7 @@ import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { atomicWrite, isObj, stableJson } from "./util.js";
+import { atomicWrite, isHidden, isObj, stableJson } from "./util.js";
 import { ModelError, normpath } from "./ops.js";
 
 export const MAX_BYTES = 1_000_000;
@@ -48,10 +48,8 @@ export const HIDDEN_MESSAGE = "Hidden files and folders (names starting with a d
 export const OUTSIDE_MESSAGE = "That path is outside the code folder.";
 export const TOO_LARGE_MESSAGE = "The file is too large to save here (over 1 MB).";
 
-/** True if any segment of a clean relative path starts with "." (.git, .env, a/.hidden/x). */
-export function isHidden(rel: string): boolean {
-  return rel.split(/[\\/]/).some((part) => part.startsWith(".") && part !== "." && part !== "..");
-}
+// The hidden-path rule lives in util.ts so the model rules (ops.ts) share it without an import cycle.
+export { isHidden };
 
 /** A clean relative path that stays inside the code root and is not hidden; ModelError otherwise. */
 export function codeRel(rel: string): string {
@@ -91,11 +89,23 @@ function inside(root: string, target: string): boolean {
   return rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel));
 }
 
+/** Folders that hold dp's own private files (users, credentials) or git's (whose config can run commands). */
+const PRIVATE_DIRS = new Set([".dp", ".git"]);
+
+/** True if the absolute path `abs` is, or is inside, a `.dp` or `.git` folder. */
+export function inPrivateFolder(abs: string): boolean {
+  return abs.split(/[\\/]/).some((part) => PRIVATE_DIRS.has(part.toLowerCase()));
+}
+
+export const PRIVATE_ROOT_MESSAGE = "The code folder is inside a .dp or .git folder, so its files cannot be opened here.";
+
 /** Resolve `rel` under the code root, refusing anything that escapes it or is hidden (checked
- *  after symlinks are resolved, so a link to .git/config is refused too). */
+ *  after symlinks are resolved, so a link to .git/config is refused too). A code root that is, or is
+ *  inside, a .dp or .git folder is refused as a whole (defence in depth: no setting should lead there). */
 export function safePath(codeRoot: string | null, rel: string): string {
   if (codeRoot === null) throw new ModelError("No code folder is set. Start the app with --code-root <folder>.");
   const root = resolveLoose(codeRoot);
+  if (inPrivateFolder(root)) throw new ModelError(PRIVATE_ROOT_MESSAGE);
   const target = resolveLoose(path.resolve(root, rel));
   if (!inside(root, target)) throw new ModelError(OUTSIDE_MESSAGE);
   if (isHidden(path.relative(root, target))) throw new ModelError(HIDDEN_MESSAGE);

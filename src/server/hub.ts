@@ -10,14 +10,17 @@
  * This app answers sign-in, the hub-level routes and the UI itself, and passes every other API
  * request to the project named by the `X-DP-Project` header. The sign-in is shared, so one session
  * covers every project. A project folder may not contain the hub folder or another project, so no
- * project's code routes can reach `hub.json`, the catalog or another project's model.
+ * project's code routes can reach `hub.json`, the catalog or another project's model; and no project
+ * folder may be hidden (such as `.dp` or `.git`), as written or through a link (`folderProblem`).
  */
 
 import fs from "node:fs";
 import path from "node:path";
 import { Hono } from "hono";
-import { isObj, stableJson } from "../core/util.js";
+import { isHidden, isObj, stableJson } from "../core/util.js";
+import { inPrivateFolder, resolveLoose } from "../core/codeFiles.js";
 import { ModelError } from "../core/ops.js";
+import { isProjectId } from "../core/users.js";
 import { syncCopies } from "../core/catalog.js";
 import { CredentialStore } from "../core/credentials.js";
 import { checkProject, type CheckResult } from "../core/report.js";
@@ -33,7 +36,6 @@ import { HttpError, objBody } from "./context.js";
 
 export const HUB_FILE = "hub.json";
 export const CATALOG_ID = "catalog";
-const ID_RE = /^[a-z0-9][a-z0-9-]{0,40}$/;
 
 export class HubError extends Error {}
 
@@ -47,8 +49,35 @@ export interface HubFile {
 
 const inside = (parent: string, child: string) => {
   const rel = path.relative(parent, child);
-  return rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel));
+  return rel === "" || (rel !== ".." && !rel.startsWith(`..${path.sep}`) && !path.isAbsolute(rel));
 };
+
+/**
+ * Why `p` cannot be a project's (or the catalog's) folder in the hub `dir`, or null when it can.
+ *
+ * Never a hidden folder (a segment starting with ".", such as `.dp` with the users and credentials, or
+ * `.git`), as written or after following links, and never the hub folder itself: a project's code routes
+ * read and write its folder. `strict` (a folder sent to `POST /api/hub/projects`): a relative path with no
+ * `..`, inside the hub after following links. Otherwise (an entry in `hub.json`, which only someone with
+ * the hub folder can write) a folder outside the hub (`../x`, or an absolute path) is allowed too (DEC-054).
+ * Links are followed up to the deepest part that exists, so a folder not made yet can be checked.
+ */
+export function folderProblem(dir: string, p: string, strict: boolean): string | null {
+  const written = p.trim();
+  if (!written) return "is empty";
+  if (strict && (path.isAbsolute(written) || path.win32.isAbsolute(written))) return "must be a folder inside the hub, written relative to it";
+  const parts = written.split(/[\\/]+/);
+  if (strict && parts.includes("..")) return 'must be a folder inside the hub (no "..")';
+  if (isHidden(written)) return "is a hidden folder (a name starting with a dot); hidden folders hold private files and are never served";
+  const hub = resolveLoose(dir);
+  const real = resolveLoose(path.resolve(dir, written));
+  if (real === hub) return "is the hub folder itself";
+  if (inside(hub, real)) {
+    if (isHidden(path.relative(hub, real))) return "leads into a hidden folder of the hub (through a link)";
+  } else if (strict) return "leads outside the hub folder (through a link)";
+  if (inPrivateFolder(real)) return "leads into a .dp or .git folder";
+  return null;
+}
 
 /** Read and check `hub.json`. Paths are resolved against the hub folder. */
 export function readHubFile(dir: string): HubFile {
@@ -71,19 +100,24 @@ export function checkHub(dir: string, raw: unknown, file = path.join(dir, HUB_FI
   if (raw.catalog !== undefined && raw.catalog !== null) {
     if (typeof raw.catalog !== "string" || !raw.catalog.trim()) throw new HubError(`"catalog" in ${file} must be a folder name or null.`);
     out.catalog = raw.catalog.trim();
+    const why = folderProblem(dir, out.catalog, false);
+    if (why) throw new HubError(`The catalog folder "${out.catalog}" in ${file} ${why}.`);
   }
   const ids = new Set<string>();
   for (const [i, p] of projects.entries()) {
     if (!isObj(p) || typeof p.id !== "string" || typeof p.path !== "string") throw new HubError(`Project ${i + 1} in ${file} needs "id" and "path".`);
-    if (!ID_RE.test(p.id)) throw new HubError(`Project ID "${p.id}" in ${file}: use lower-case letters, digits and dashes.`);
+    if (!isProjectId(p.id)) throw new HubError(`Project ID "${p.id}" in ${file}: use lower-case letters, digits and dashes.`);
     if (p.id === CATALOG_ID) throw new HubError(`The project ID "${CATALOG_ID}" is kept for the shared catalog.`);
     if (ids.has(p.id)) throw new HubError(`Two projects in ${file} have the ID "${p.id}".`);
+    const why = folderProblem(dir, p.path, false);
+    if (why) throw new HubError(`Project "${p.id}" in ${file}: the folder "${p.path}" ${why}.`);
     ids.add(p.id);
     out.projects.push({ id: p.id, path: p.path, ...(typeof p.name === "string" && p.name.trim() ? { name: p.name.trim() } : {}) });
   }
-  // Folders: none may hold the hub folder or another project (code routes of one could then write the other).
-  const roots = [...out.projects.map((p) => ({ id: p.id, root: path.resolve(dir, p.path) })), ...(out.catalog ? [{ id: CATALOG_ID, root: path.resolve(dir, out.catalog) }] : [])];
-  const hub = path.resolve(dir);
+  // Folders: none may hold the hub folder or another project (code routes of one could then write the
+  // other). Compared after following links, so a link cannot hide that one folder holds another.
+  const roots = [...out.projects.map((p) => ({ id: p.id, root: resolveLoose(path.resolve(dir, p.path)) })), ...(out.catalog ? [{ id: CATALOG_ID, root: resolveLoose(path.resolve(dir, out.catalog)) }] : [])];
+  const hub = resolveLoose(dir);
   for (const a of roots) {
     if (inside(a.root, hub)) throw new HubError(`Project "${a.id}" (${a.root}) holds the hub folder; give it a folder of its own.`);
     for (const b of roots) if (a !== b && inside(a.root, b.root)) throw new HubError(`Project "${a.id}" holds the folder of project "${b.id}"; projects need separate folders.`);
@@ -260,9 +294,12 @@ export class Hub {
   /** Add a project folder (a new empty or demo model) and list it in hub.json. */
   addProject(id: string, name: string, folder: string | null, template: "empty" | "demo"): void {
     this.reload();
-    if (!ID_RE.test(id)) throw new ModelError("A project ID uses lower-case letters, digits and dashes, and starts with a letter or digit.");
+    if (!isProjectId(id)) throw new ModelError("A project ID uses lower-case letters, digits and dashes, and starts with a letter or digit.");
     if (id === CATALOG_ID || this.file.projects.some((p) => p.id === id)) throw new ModelError(`There is already a project "${id}".`);
     const rel = folder?.trim() || id;
+    // From the browser: a new folder inside the hub only (hub.json itself may list folders elsewhere).
+    const why = folderProblem(this.dir, rel, true);
+    if (why) throw new ModelError(`The project folder "${rel}" ${why}.`);
     const next: HubFile = { ...this.file, projects: [...this.file.projects, { id, path: rel, ...(name.trim() ? { name: name.trim() } : {}) }] };
     // Check the new layout before touching the disk.
     try {

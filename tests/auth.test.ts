@@ -4,7 +4,9 @@ import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { hashPassword, parseUsers, readUsers, removeUser, setPassword, usersPath, UsersError, verifyPassword, writeUsers } from "../src/core/users.js";
+import { addUser, hashPassword, parseUsers, readUsers, removeUser, setPassword, usersPath, UsersError, verifyPassword, writeUsers } from "../src/core/users.js";
+import { Drafts } from "../src/core/drafts.js";
+import { Project } from "../src/core/project.js";
 import { createApp } from "../src/server/app.js";
 import { decide, LOCK_MS, readableAsCode, READ_ONLY_SERVER, READ_ONLY_VERSION, ROUTE_RULES, SESSION_IDLE_MS, SIGN_IN, USERS_UNAVAILABLE, WRONG_LOGIN, type Who } from "../src/server/auth.js";
 import { client, demoDir, ok, ROLE_USERS, TEST_HASH, testPassword, tmpDir, writeTestUsers, type Client } from "./helpers.js";
@@ -457,12 +459,12 @@ describe("roles", () => {
     expect(view.json().detail).toMatch(/^You are signed in as a viewer: you can look at everything, but not change it\./);
   });
 
-  it("drafts: create (architect, engineer), edit inside (architect, engineer), apply (architect)", async () => {
+  it("drafts: create (architect, engineer), edit inside (architect, engineer who started it), apply (architect)", async () => {
     const s = await setup();
     for (const r of ROLES) expect((await s.as[r].post("/api/drafts", { title: `New ${r}` })).status, r).toBe(ARCH_ENG[r]);
     expect((await s.as.viewer.post("/api/drafts", { title: "V" })).json().detail).toMatch(/viewer/);
 
-    const id = await s.draft("architect");
+    const id = await s.draft("engineer");
     const rows: [string, (c: Client) => ReturnType<Client["get"]>][] = [
       ["element", (c) => c.patch("/api/elements/atm", { description: `d ${Math.random()}` })],
       ["new element", (c) => c.post("/api/elements", { kind: "person", name: `P ${Math.random()}` })],
@@ -495,6 +497,70 @@ describe("roles", () => {
     expect((await s.as.engineer.post(`/api/drafts/${withCode}/apply`)).status).toBe(403);
     await ok(s.as.architect.post(`/api/drafts/${withCode}/apply`));
     expect(fs.readFileSync(path.join(s.dir, "sample_code/api/accounts.py"), "utf-8")).toBe("# planned\n");
+  });
+
+  it("engineers change only drafts they started; architects any; everyone reads every draft", async () => {
+    const s = await setup();
+    const archDraft = await s.draft("architect");
+    const engDraft = await s.draft("engineer");
+    // A second engineer, signed in under another name.
+    const file = usersPath(s.dir);
+    addUser(file, "eve", "engineer", testPassword("eve"), TEST_HASH);
+    const eve = await s.anon.as("eve");
+    const theirs = { architect: archDraft, engineer: engDraft };
+    for (const [owner, id] of Object.entries(theirs)) {
+      const d = eve.at(`draft:${id}`);
+      for (const res of [
+        await d.patch("/api/elements/atm", { description: "x" }),
+        await d.post("/api/elements", { kind: "person", name: "Eve's person" }),
+        await d.put("/api/diagrams/landscape/positions", { positions: { atm: { x: 1, y: 2 } } }),
+        await d.post("/api/undo"),
+        await d.put("/api/code/file", { path: "sample_code/api/accounts.py", content: "# eve\n" }),
+        await eve.patch(`/api/drafts/${id}`, { title: "Eve's now" }),
+        await eve.patch(`/api/drafts/${id}`, { branch: "eve" }),
+      ]) {
+        expect(res.status, res.text).toBe(403);
+        expect(res.json().detail).toBe(`This draft belongs to ${owner}. Start your own draft, or ask an architect.`);
+      }
+      expect((await eve.delete(`/api/drafts/${id}`)).status).toBe(403);
+      expect((await eve.post(`/api/drafts/${id}/apply`, { code: false })).status).toBe(403);
+      // Reading is open.
+      await ok(d.get("/api/state"));
+      await ok(eve.get(`/api/drafts/${id}/plan`));
+      await ok(eve.get(`/api/drafts/${id}/apply-preview`));
+      // Comments are not draft edits.
+      await ok(d.post("/api/comments", { kind: "question", target: { type: "element", id: "atm" }, text: "Why?" }));
+    }
+    // The state says which drafts the user may change, for the UI.
+    const st = await ok(eve.get("/api/state"));
+    const own = await ok(eve.post("/api/drafts", { title: "Eve's" }));
+    expect(Object.fromEntries(st.drafts.map((d: any) => [d.id, d.canEdit]))).toEqual({ [archDraft]: false, [engDraft]: false });
+    expect((await ok(eve.get("/api/state"))).drafts.find((d: any) => d.id === own.id).canEdit).toBe(true);
+    const inTheirs = await ok(eve.at(`draft:${engDraft}`).get("/api/state"));
+    expect(inTheirs.can.editThis).toBe(false);
+    expect(inTheirs.readOnly).toBe(true);
+    // Their own draft: everything.
+    await ok(eve.at(`draft:${own.id}`).patch("/api/elements/atm", { description: "Eve's change" }));
+    await ok(eve.patch(`/api/drafts/${own.id}`, { title: "Eve's plan" }));
+    // The architect changes and applies an engineer's draft.
+    await ok(s.as.architect.at(`draft:${engDraft}`).patch("/api/elements/atm", { description: "Reviewed" }));
+    await ok(s.as.architect.patch(`/api/drafts/${engDraft}`, { link: "https://example.com/pr/1" }));
+    expect((await ok(s.as.architect.get("/api/state"))).drafts.every((d: any) => d.canEdit)).toBe(true);
+    await ok(s.as.architect.post(`/api/drafts/${engDraft}/apply`, { code: false }));
+    // A draft with no recorded author (made before sign-in was on): architects only.
+    const anon = new Drafts(new Project(s.dir)).create("Before sign-in", "", null);
+    const r = await s.as.engineer.at(`draft:${anon}`).patch("/api/elements/atm", { description: "x" });
+    expect(r.status).toBe(403);
+    expect(r.json().detail).toMatch(/no recorded author/);
+    await ok(s.as.architect.at(`draft:${anon}`).patch("/api/elements/atm", { description: "x" }));
+  });
+
+  it("without sign-in, anyone changes any draft, as before", async () => {
+    const c = client(demoDir());
+    const { id } = await ok(c.post("/api/drafts", { title: "D", author: "Someone" }));
+    await ok(c.at(`draft:${id}`).patch("/api/elements/atm", { description: "x" }));
+    await ok(c.patch(`/api/drafts/${id}`, { title: "Renamed" }));
+    expect((await ok(c.get("/api/state"))).drafts[0]).toMatchObject({ id, canEdit: true, canDiscard: true });
   });
 
   it("discard: architect any draft, engineer only their own, viewer none", async () => {
@@ -560,7 +626,7 @@ describe("roles", () => {
     expect(st.drafts.find((d: any) => d.id === id).author).toBe("engineer");
   });
 
-  it("state: me, can, readOnly, defaultLens and canDiscard per role and version", async () => {
+  it("state: me, can, readOnly, defaultLens, canDiscard and canEdit per role and version", async () => {
     const s = await setup();
     const archDraft = await s.draft("architect");
     const engDraft = await s.draft("engineer");
@@ -579,14 +645,17 @@ describe("roles", () => {
       expect(st.defaultLens).toBe(lens[r]);
       const can = Object.fromEntries(st.drafts.map((d: any) => [d.id, d.canDiscard]));
       expect(can, r).toEqual({ [archDraft]: r === "architect", [engDraft]: r !== "viewer" });
+      const edit = Object.fromEntries(st.drafts.map((d: any) => [d.id, d.canEdit]));
+      expect(edit, r).toEqual({ [archDraft]: r === "architect", [engDraft]: r !== "viewer" });
 
       for (const [id, discard] of [
         [archDraft, r === "architect"],
         [engDraft, r !== "viewer"],
       ] as const) {
         const ds = await ok(s.as[r].at(`draft:${id}`).get("/api/state"));
-        expect(ds.can, `${r} in ${id}`).toEqual({ editThis: r !== "viewer", createDraft: r !== "viewer", applyDraft: r === "architect", discardDraft: discard, writeCode: false, comment: true });
-        expect(ds.readOnly).toBe(r === "viewer");
+        // An engineer changes (and discards) only drafts they started.
+        expect(ds.can, `${r} in ${id}`).toEqual({ editThis: discard, createDraft: r !== "viewer", applyDraft: r === "architect", discardDraft: discard, writeCode: false, comment: true });
+        expect(ds.readOnly).toBe(!discard);
       }
     }
   });

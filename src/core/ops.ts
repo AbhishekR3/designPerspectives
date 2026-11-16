@@ -44,7 +44,7 @@
  */
 
 import path from "node:path";
-import { inlineJson, isObj, round2, str, type Obj } from "./util.js";
+import { inlineJson, isHidden, isObj, round2, str, type Obj } from "./util.js";
 import { STYLE_KEYS, type Sidecar } from "./sidecar.js";
 import { tagsFor, VIEW_LISTS, type Element, type Kind, type Relationship, type Workspace } from "./workspace.js";
 import { DATA_KINDS, type DataAccess, type DataAsset, type DataKind } from "../shared/types.js";
@@ -592,7 +592,12 @@ export function normpath(p: string): string {
   return n;
 }
 
-export function cleanPaths(paths: unknown): string[] {
+/**
+ * A clean list of code paths. A hidden path (a segment starting with ".", e.g. `.github/workflows`) is
+ * refused: hidden files are never read (DEC-031), so it would map nothing. `existing`: the object's
+ * current paths; a hidden one already there (from an older model) may stay, so other edits still work.
+ */
+export function cleanPaths(paths: unknown, existing: readonly string[] = []): string[] {
   const out: string[] = [];
   if (paths !== null && paths !== undefined && !Array.isArray(paths)) throw new ModelError("Code paths must be a list.");
   for (const p0 of (paths as unknown[]) ?? []) {
@@ -601,6 +606,9 @@ export function cleanPaths(paths: unknown): string[] {
     const norm = normpath(p);
     if (norm.startsWith("/") || norm === ".." || norm.startsWith("../") || /^[A-Za-z]:/.test(norm)) {
       throw new ModelError(`Code paths must be inside the code folder: "${p}".`);
+    }
+    if (isHidden(norm) && !existing.some((x) => normpath(String(x).replace(/\\/g, "/")) === norm)) {
+      throw new ModelError(`"${p}" is a hidden path (a name starting with a dot). Hidden files and folders are never read, so it would map nothing.`);
     }
     if (!out.includes(norm)) out.push(norm);
   }
@@ -845,7 +853,8 @@ export function codePathCovered(ws: Workspace, ownerId: string, rel: string): bo
 /** Add a code path to an element or relationship. */
 export function addCodePath(ws: Workspace, ownerId: string, rel: string): void {
   const owner = codeOwner(ws, ownerId);
-  setJson(owner, CODE_KEY, cleanPaths([...getJson<string>(owner, CODE_KEY), rel]));
+  const current = getJson<string>(owner, CODE_KEY);
+  setJson(owner, CODE_KEY, cleanPaths([...current, rel], current));
 }
 
 /** Change an element's fields. Returns the element's ID: a new one if `opts.reslug` re-slugged it. */
@@ -896,7 +905,7 @@ export function updateElement(ws: Workspace, sidecar: Sidecar, elementId: string
   if ("tradeoffs" in patch) setJson(el, TRADEOFFS_KEY, cleanTradeoffs(patch.tradeoffs));
   if ("usage" in patch) setJson(el, USAGE_KEY, cleanUsage(patch.usage));
   if ("sensitive" in patch) setJson(el, SENSITIVE_KEY, cleanSensitive(patch.sensitive));
-  if ("codePaths" in patch) setJson(el, CODE_KEY, cleanPaths(patch.codePaths));
+  if ("codePaths" in patch) setJson(el, CODE_KEY, cleanPaths(patch.codePaths, getJson<string>(el, CODE_KEY)));
   if ("characteristics" in patch) {
     const allowed = new Set(sidecar.characteristics.map((c) => c.name));
     setJson(el, CHARS_KEY, cleanCharacteristics(patch.characteristics, allowed));
@@ -1186,7 +1195,7 @@ export function updateRelationship(ws: Workspace, relId: string, patch: Obj): vo
   if ("kind" in patch) setKind(r, patch.kind);
   if ("notes" in patch) setProp(r, NOTES_KEY, str(patch.notes).replace(/^\n+|\n+$/g, "") || null);
   if ("sensitive" in patch) setJson(r, SENSITIVE_KEY, cleanSensitive(patch.sensitive));
-  if ("codePaths" in patch) setJson(r, CODE_KEY, cleanPaths(patch.codePaths));
+  if ("codePaths" in patch) setJson(r, CODE_KEY, cleanPaths(patch.codePaths, getJson<string>(r, CODE_KEY)));
   if ("stages" in patch) setJson(r, STAGES_KEY, cleanStages(patch.stages, idx));
   if ("work" in patch) setJson(r, WORK_KEY, cleanWork(patch.work));
   if ("example" in patch) setProp(r, EXAMPLE_KEY, cleanExample(patch.example, "this relationship") || null);
