@@ -12,6 +12,7 @@ import { authorize } from "./auth.js";
 import { installProtection } from "./protect.js";
 import { registerComments } from "./routes/comments.js";
 import { registerCode } from "./routes/code.js";
+import { registerDecisions } from "./routes/decisions.js";
 import { registerDrafts } from "./routes/drafts.js";
 import { registerFlows } from "./routes/flows.js";
 import { registerHistory } from "./routes/history.js";
@@ -60,6 +61,7 @@ export function createApp(root: string, opts: AppOptions = {}): Hono {
   registerHistory(app, ctx);
   registerCode(app, ctx);
   registerFlows(app, ctx);
+  registerDecisions(app, ctx);
   registerInspect(app, ctx);
   registerBacktrack(app, ctx);
   registerComments(app, ctx);

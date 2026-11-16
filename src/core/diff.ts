@@ -17,7 +17,7 @@ import { buildIndex, CODE_KEY, elementSummary, getJson, relationshipSummary, typ
 import type { Sidecar } from "./sidecar.js";
 import { canon, flatten, isLayoutUnit, sameUnit, unitLabel, type Unit, type Units } from "./units.js";
 import type { Workspace } from "./workspace.js";
-import type { ChangeSet, CodeChange, FieldChange, Flow, ObjectChange } from "../shared/types.js";
+import type { ChangeSet, CodeChange, Decision, FieldChange, Flow, ObjectChange } from "../shared/types.js";
 
 /** The code each version reads; `planned`: files a draft plans to edit (reported even if no object maps them). */
 export interface CodePair {
@@ -29,6 +29,8 @@ export interface CodePair {
 export interface Snapshot {
   workspace: Workspace;
   sidecar: Sidecar;
+  /** Decision records (none when left out). */
+  decisions?: Decision[];
 }
 
 const ELEMENT_FIELDS: [string, string][] = [
@@ -70,6 +72,26 @@ const RELATIONSHIP_FIELDS: [string, string][] = [
   ["codePaths", "Code"],
 ];
 
+const DECISION_FIELDS: [keyof Decision, string][] = [
+  ["title", "Title"],
+  ["status", "Status"],
+  ["kind", "Kind"],
+  ["date", "Date"],
+  ["deciders", "Decided by"],
+  ["affects", "About"],
+  ["supersedes", "Replaces"],
+  ["tags", "Tags"],
+  ["reviewBy", "Review by"],
+  ["decideBy", "Decide by"],
+  ["expires", "Expires"],
+  ["appliesTo", "Applies to"],
+  ["context", "Context"],
+  ["decision", "Decision"],
+  ["alternatives", "Alternatives"],
+  ["consequences", "Consequences"],
+  ["triggers", "Revisit triggers"],
+];
+
 const FLOW_FIELDS: [string, string][] = [
   ["title", "Name"],
   ["description", "Description"],
@@ -88,8 +110,8 @@ const OTHER: FieldChange = { field: "other", label: "Other data", before: null, 
 
 /** Compare `before` (e.g. a draft's base) with `after` (the draft). */
 export function diffModels(before: Snapshot, after: Snapshot, against: string, code?: CodePair): ChangeSet {
-  const ua = flatten(before.workspace, before.sidecar);
-  const ub = flatten(after.workspace, after.sidecar);
+  const ua = flatten(before.workspace, before.sidecar, before.decisions);
+  const ub = flatten(after.workspace, after.sidecar, after.decisions);
   const ia = buildIndex(before.workspace);
   const ib = buildIndex(after.workspace);
   const drawnA = lazy(() => drawnInMap(ia));
@@ -98,6 +120,7 @@ export function diffModels(before: Snapshot, after: Snapshot, against: string, c
   const elements: ObjectChange[] = [];
   const relationships: ObjectChange[] = [];
   const flows: ObjectChange[] = [];
+  const decisions: ObjectChange[] = [];
   const settings: ObjectChange[] = [];
   let layout = 0;
 
@@ -161,6 +184,15 @@ export function diffModels(before: Snapshot, after: Snapshot, against: string, c
       layout++;
       continue;
     }
+    if (u.t === "dec") {
+      const da = a?.t === "dec" ? a.v : null;
+      const db = b?.t === "dec" ? b.v : null;
+      const d = (db ?? da)!;
+      const fields = da && db ? fieldChanges(da as unknown as Record<string, unknown>, db as unknown as Record<string, unknown>, DECISION_FIELDS) : [];
+      if (da && db && !fields.length) fields.push(OTHER);
+      decisions.push(objChange("decision", d.kind, d.id, `${d.id} ${d.title}`, !da ? "added" : !db ? "removed" : "changed", fields, null));
+      continue;
+    }
     if (u.t === "el" || u.t === "rel" || u.t === "view" || u.t === "vrel") continue;
     settings.push(objChange("setting", settingKind(u), key, unitLabel(u), !a ? "added" : !b ? "removed" : "changed", [], null));
   }
@@ -194,7 +226,7 @@ export function diffModels(before: Snapshot, after: Snapshot, against: string, c
     }
   }
 
-  const all = [...elements, ...relationships, ...flows, ...settings];
+  const all = [...elements, ...relationships, ...flows, ...decisions, ...settings];
   const count = (c: string) => all.filter((x) => x.change === c).length;
   const codeFiles = new Set(codeChanges.flatMap((c) => c.files.map((f) => f.path)));
   return {
@@ -202,6 +234,7 @@ export function diffModels(before: Snapshot, after: Snapshot, against: string, c
     elements,
     relationships,
     flows,
+    decisions,
     settings,
     inner: [...inner].filter((id) => ib.elements.has(id)),
     code: codeChanges,

@@ -186,7 +186,21 @@ export function Modal({ title, onClose, children, wide = false, testId }: { titl
 }
 
 /** Technology as tags: pick from known technologies (type to filter) or add a new one. */
-export function TagInput({ label, value, suggestions, onChange, testId }: { label: string; value: string[]; suggestions: string[]; onChange(v: string[]): void; testId?: string }) {
+export function TagInput({
+  label,
+  value,
+  suggestions,
+  onChange,
+  testId,
+  placeholder = "Add a technology…",
+}: {
+  label: string;
+  value: string[];
+  suggestions: string[];
+  onChange(v: string[]): void;
+  testId?: string;
+  placeholder?: string;
+}) {
   const [text, setText] = useState("");
   const listId = useRef(`tags-${Math.random().toString(36).slice(2)}`).current;
   const add = (t: string) => {
@@ -210,7 +224,7 @@ export function TagInput({ label, value, suggestions, onChange, testId }: { labe
           className="chip-input edit-only"
           list={listId}
           value={text}
-          placeholder={value.length ? "Add…" : "Add a technology…"}
+          placeholder={value.length ? "Add…" : placeholder}
           onChange={(e) => {
             const v = e.target.value;
             setText(v);

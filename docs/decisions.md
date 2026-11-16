@@ -309,3 +309,32 @@ Entry format: **ID — title** · date · status · who decided · what was deci
 - Why: review talk is not part of the model: a viewer must be able to ask a question about a model they cannot change, an engineer must be able to comment on main without starting a draft, and a comment should not be undone with the next Ctrl+Z or lost when a draft is discarded. A separate file keeps `workspace.json` diffs about the architecture only, while still being versioned and shared through git.
 - Amends: the working rule "new per-object data goes in `dp.*` properties" (CLAUDE.md): comments are the exception, for the reasons above.
 - Trade-off: the file is plain data in git, so two people commenting on different branches get a normal merge, and a conflict is possible when both add at the end of the list. Anyone can read all comments; they are not hidden by lenses. Comments are anchored by ID: when an element is deleted its threads stay in the file and show as "not in this version" until someone deletes them. Moving an element keeps its ID, so threads follow it. A comment made while looking at a draft is shared with main, so a thread about a draft-only element is an orphan on main. Not real time: others' comments show on the next change or when the window regains focus. With sign-in off, anyone can delete anyone's comment (everyone acts as an architect), as with every other edit. Not built: mentions, notifications, free-floating pins at a position on the canvas, turning an idea into a draft, and comment counts in `dp check` or `dp diff`.
+
+## DEC-050 — Decision records: one Markdown file per decision, part of the model
+- Date: 2026-11-15 · Status: Proposal · Decided by: Owner [2026-11-15] ("a section to track decisions … we would have gone for Q, W, E if we had X, Y, Z, but we don't, so we went with A, B, C"; one Markdown file each), [Proposal] (format and shape)
+- Decision:
+  - **Files.** Each decision is a file `architecture/decisions/NNNN-slug.md` (`core/decisions.ts`). The four-digit number is its ID; the file keeps its name when the title changes. Other files in the folder (a README) are ignored.
+  - **Front matter.** A small fixed grammar, not YAML: `key: value` or `key: [a, b]`, with values in double quotes where they need them. Block lists are read too. Keys, in written order: `status`, `kind`, `date`, `deciders`, `affects` (element and relationship IDs), `supersedes`, `superseded-by`, `tags`, `review-by`, `decide-by`, `expires`, `applies-to`.
+  - **Body.** `# Title`, then `## Context`, `## Decision`, `## Alternatives` (an `### Option` each, with `- Why not now:` and `- Would choose if:` bullets), `## Consequences`, and `## Revisit triggers` (a `- [ ]` checklist; ` (→ Option)` names the alternative a trigger favours).
+  - **What is kept.** Unknown sections, unknown keys and text after the title are kept. A file that does not follow the format is reported as a model error and never rewritten. A decision is written only when it changes, so hand formatting survives until the decision is edited here.
+  - **Kinds.** Six, each with its own fields and hints: choice; conditional (the owner's example: the alternatives' "would choose if" conditions become revisit triggers); deferred (`decide-by`); time-boxed (`expires`); policy (`applies-to`); reversal (`supersedes`).
+  - **Statuses.** proposed, accepted, rejected, deprecated, superseded. When a decision that replaces others is accepted, the replaced ones become superseded and get `superseded-by` in the same edit.
+  - **Part of the model.** Decisions are model units (`dec:<file>` in `units.ts`). They are read and written by `Project` with the workspace and sidecar, so they go into undo, drafts (copied with `base/`), diffs (a "Decisions" group in the change list and in `dp diff`), the three-way merge and git versions (read with one `ls-tree` and one `cat-file --batch`).
+  - **Renumbering on apply.** When main and a draft both added a decision with the same number, applying the draft gives the draft's one the next free number and updates its links. Without this, two people writing decisions in parallel would always conflict.
+  - **Checks.** Model errors: an unreadable file, two files with one number, a link to a missing decision, a bad date. `dp check` warns about decisions on objects no longer in the model; deleting an element is never blocked.
+  - **Roles.** Writing a decision is the `edit` action, so an engineer writes them in a draft.
+  - **Routes.** `GET /api/decisions[/:id[/markdown]]`, `POST /api/decisions`, `PUT /api/decisions/:id`, `PATCH /api/decisions/:id/status`, `DELETE /api/decisions/:id`. `AppState.decisions` lists summaries.
+  - **UI.** A Decisions page over the diagram: a list with filters, the record, and a form editor with fields for each kind, a "watch the alternatives' conditions" action and a warning on text that looks like a key. Each element and relationship panel has a Decisions section with "Record a decision". The page lives in the URL as `p=decisions[/<id>]` on the diagram hash, so Back closes it and the model version is kept.
+- Why:
+  - Markdown files read well on GitHub and in pull requests, and the record lives next to the model it explains.
+  - Being part of the model means a decision is proposed, reviewed and applied with the change it justifies.
+  - A fixed small grammar avoids a YAML dependency, gives byte-stable output and keeps `git diff` clean.
+  - Revisit triggers turn "we would choose Q if X" into something that can be watched.
+- Trade-off:
+  - Hand-written front matter that uses YAML features beyond the grammar becomes a load error, never silent data loss. YAML comments are dropped when a decision is rewritten.
+  - A `## ` line typed inside a section is turned into `###`, so it is not read back as a new section.
+  - Renumbering on apply changes a draft decision's file name and number; links from outside the model (chat, tickets) to the draft's number go stale.
+  - Unknown sections are written after the known ones once a decision is edited.
+  - Engineers cannot file a proposed decision on main without a draft (owner question).
+  - Each request stats every decision file to notice changes on disk, which is fine for hundreds.
+  - Not built yet (owner-approved plan, later stages): the home page, the multi-project hub, the shared catalog and credentials.

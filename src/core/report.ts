@@ -5,6 +5,7 @@
  */
 
 import { expandPaths } from "./code.js";
+import { decisionWarnings } from "./decisions.js";
 import { Drafts } from "./drafts.js";
 import type { Snapshot } from "./diff.js";
 import { buildIndex, CODE_KEY, getJson, type Index } from "./ops.js";
@@ -16,7 +17,8 @@ export interface CheckResult {
   warnings: string[];
 }
 
-/** Model rule errors in the main model and every draft; warnings for code paths that do not exist. */
+/** Model rule errors in the main model and every draft; warnings for code paths that do not exist and
+ *  for decisions about objects no longer in the model. */
 export function checkProject(main: Project): CheckResult {
   const errors = [...main.loadErrors];
   const warnings: string[] = [];
@@ -45,6 +47,8 @@ export function checkProject(main: Project): CheckResult {
       const name = `${idx.elements.get(r.sourceId)?.name ?? r.sourceId} → ${idx.elements.get(r.destinationId)?.name ?? r.destinationId}`;
       check(`Relationship "${name}"`, getJson<string>(r, CODE_KEY));
     }
+    const i = idx;
+    warnings.push(...decisionWarnings(main.decisions, (id) => i.elements.has(id) || i.relationships.has(id)));
   }
   return { errors, warnings };
 }
@@ -99,6 +103,11 @@ export function diffMarkdown(cs: ChangeSet, before: Snapshot, after: Snapshot, b
   if (cs.flows.length) {
     out.push("### Flows", "", "| Change | Flow | What changed |", "|---|---|---|");
     for (const c of cs.flows) out.push(`| ${SIGN[c.change]} | ${cell(c.name)} | ${cell(fields(c))} |`);
+    out.push("");
+  }
+  if (cs.decisions.length) {
+    out.push("### Decisions", "", "| Change | Decision | What changed |", "|---|---|---|");
+    for (const c of cs.decisions) out.push(`| ${SIGN[c.change]} | ${cell(c.name)} | ${cell(fields(c))} |`);
     out.push("");
   }
   if (cs.settings.length) {

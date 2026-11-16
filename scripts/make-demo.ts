@@ -21,6 +21,8 @@ import { emptySidecar, makeLens, sidecarData, type Sidecar } from "../src/core/s
 import { errors } from "../src/core/validate.js";
 import { ARCH_DIR, DEMO_DIR, WORKSPACE_FILE } from "../src/core/store.js";
 import type { DemoHistory } from "../src/core/demoHistory.js";
+import * as decisions from "../src/core/decisions.js";
+import type { Decision } from "../src/shared/types.js";
 import { dumpWorkspace, emptyWorkspace, parseWorkspace, type Workspace } from "../src/core/workspace.js";
 
 export function build(): [Workspace, Sidecar] {
@@ -501,16 +503,76 @@ export function build(): [Workspace, Sidecar] {
   const enriched = { ...tx, customerName: "Alice Martin", statementCurrency: "EUR", addressRef: "addr-77310" };
   const totals = { account: "0001029", period: "2026-10", openingBalance: 1250.12, transactions: 48, totalDebits: -1104.92, totalCredits: 1059.36, closingBalance: 1204.56 };
   const stmtStages = [
-    { name: "Fetch batch file", elementId: stmtParts.fetch, technologies: ["SFTP"], archType: "document", description: "Fixed-width file from the mainframe batch run.", format: "Fixed-width text, one line per transaction", example: "0001029 20261031 D 000004599 USD COFFEE ROASTERS NYC" },
+    {
+      name: "Fetch batch file",
+      elementId: stmtParts.fetch,
+      technologies: ["SFTP"],
+      archType: "document",
+      description: "Fixed-width file from the mainframe batch run.",
+      format: "Fixed-width text, one line per transaction",
+      example: "0001029 20261031 D 000004599 USD COFFEE ROASTERS NYC",
+    },
     { name: "Parse records", elementId: stmtParts.parse, technologies: ["TypeScript"], archType: "pipeline", format: "Transaction (JSON)", example: j(tx) },
-    { name: "Validate records", elementId: stmtParts.validate, technologies: ["TypeScript"], archType: "pipeline", description: "Unknown accounts, bad amounts and dates outside the period are rejected.", format: "Transaction (JSON)", example: j({ ...tx, valid: true }) },
-    { name: "Enrich with account details", elementId: stmtParts.enrich, technologies: ["TypeScript", "PostgreSQL"], archType: "pipeline", format: "Transaction (JSON)", example: j({ ...enriched, valid: true }) },
-    { name: "Convert currency", elementId: stmtParts.convert, technologies: ["TypeScript"], archType: "pipeline", description: "Rates from the treasury feed for the transaction date.", format: "Transaction (JSON)", example: j({ ...enriched, valid: true, amount: -42.27, fxRate: 0.9191 }) },
+    {
+      name: "Validate records",
+      elementId: stmtParts.validate,
+      technologies: ["TypeScript"],
+      archType: "pipeline",
+      description: "Unknown accounts, bad amounts and dates outside the period are rejected.",
+      format: "Transaction (JSON)",
+      example: j({ ...tx, valid: true }),
+    },
+    {
+      name: "Enrich with account details",
+      elementId: stmtParts.enrich,
+      technologies: ["TypeScript", "PostgreSQL"],
+      archType: "pipeline",
+      format: "Transaction (JSON)",
+      example: j({ ...enriched, valid: true }),
+    },
+    {
+      name: "Convert currency",
+      elementId: stmtParts.convert,
+      technologies: ["TypeScript"],
+      archType: "pipeline",
+      description: "Rates from the treasury feed for the transaction date.",
+      format: "Transaction (JSON)",
+      example: j({ ...enriched, valid: true, amount: -42.27, fxRate: 0.9191 }),
+    },
     { name: "Calculate balances", elementId: stmtParts.balances, technologies: ["TypeScript"], archType: "pipeline", format: "Statement totals (JSON)", example: j(totals) },
-    { name: "Apply fees and interest", elementId: stmtParts.fees, technologies: ["TypeScript"], archType: "pipeline", format: "Statement totals (JSON)", example: j({ ...totals, fees: -2.5, interest: 0.41, closingBalance: 1202.47 }) },
-    { name: "Render PDF statements", elementId: stmtParts.render, technologies: ["TypeScript", "Chromium"], archType: "document", format: "Rendered statement", example: j({ file: "stmt-0001029-2026-10.pdf", account: "0001029", period: "2026-10", pages: 3, closingBalance: 1202.47, printedClosingBalance: "€1,202.47" }) },
-    { name: "Encrypt", elementId: stmtParts.encrypt, technologies: ["AWS KMS"], archType: "pipeline", format: "Encrypted object", example: j({ object: "stmt-0001029-2026-10.pdf.enc", account: "0001029", period: "2026-10", keyId: "kms:statements-2026", bytes: 48211 }) },
-    { name: "Upload to the store", elementId: stmtParts.upload, technologies: ["Amazon S3"], archType: "storage", description: "One object per account per month.", format: "S3 object", example: j({ bucket: "bigbank-statements", key: "0001029/2026-10.pdf.enc", account: "0001029", period: "2026-10", versionId: "3HL4kqtJlcpXroDTDmJ" }) },
+    {
+      name: "Apply fees and interest",
+      elementId: stmtParts.fees,
+      technologies: ["TypeScript"],
+      archType: "pipeline",
+      format: "Statement totals (JSON)",
+      example: j({ ...totals, fees: -2.5, interest: 0.41, closingBalance: 1202.47 }),
+    },
+    {
+      name: "Render PDF statements",
+      elementId: stmtParts.render,
+      technologies: ["TypeScript", "Chromium"],
+      archType: "document",
+      format: "Rendered statement",
+      example: j({ file: "stmt-0001029-2026-10.pdf", account: "0001029", period: "2026-10", pages: 3, closingBalance: 1202.47, printedClosingBalance: "€1,202.47" }),
+    },
+    {
+      name: "Encrypt",
+      elementId: stmtParts.encrypt,
+      technologies: ["AWS KMS"],
+      archType: "pipeline",
+      format: "Encrypted object",
+      example: j({ object: "stmt-0001029-2026-10.pdf.enc", account: "0001029", period: "2026-10", keyId: "kms:statements-2026", bytes: 48211 }),
+    },
+    {
+      name: "Upload to the store",
+      elementId: stmtParts.upload,
+      technologies: ["Amazon S3"],
+      archType: "storage",
+      description: "One object per account per month.",
+      format: "S3 object",
+      example: j({ bucket: "bigbank-statements", key: "0001029/2026-10.pdf.enc", account: "0001029", period: "2026-10", versionId: "3HL4kqtJlcpXroDTDmJ" }),
+    },
   ];
   for (const c of [api, payments, notifications]) R(c, monitoring, "Sends metrics, logs and traces to", "OpenTelemetry");
 
@@ -1011,7 +1073,11 @@ function history(ws: Workspace): DemoHistory {
     if (!text.includes(from)) throw new Error(`history: "${from.slice(0, 40)}" not found`);
     return text.replace(from, to);
   };
-  let convertV1 = must(code("convert_currency.ts"), "  // Round each converted amount to cents so the lines on the statement add up to what is printed.\n  const amount = roundCents((signed / 100) * fxRate);", "  const amount = (signed / 100) * fxRate;");
+  let convertV1 = must(
+    code("convert_currency.ts"),
+    "  // Round each converted amount to cents so the lines on the statement add up to what is printed.\n  const amount = roundCents((signed / 100) * fxRate);",
+    "  const amount = (signed / 100) * fxRate;",
+  );
   convertV1 = must(convertV1, "\nexport function roundCents(x: number): number {\n  return Math.round(x * 100) / 100;\n}\n", "");
   const validateV1 = must(code("validate.ts"), `  if (!tx.date.startsWith(period)) return "dated outside the statement period";\n`, "");
 
@@ -1044,12 +1110,132 @@ function history(ws: Workspace): DemoHistory {
   };
 }
 
+/** Decision records for the demo (DEC-050): one of each kind, written through the same operations the API uses. */
+export function demoDecisions(): Decision[] {
+  const decs: Decision[] = [];
+  const add = (input: Record<string, unknown>) => {
+    const id = decisions.createDecision(decs, input);
+    return id;
+  };
+  const sticky = add({
+    title: "Keep sessions on the web servers (sticky sessions)",
+    kind: "choice",
+    status: "accepted",
+    date: "2025-03-10",
+    deciders: ["Ana Lima"],
+    affects: ["web-application", "api-application"],
+    context: "Signed-in customers need their session on every request. There was one web server per region and no shared cache.",
+    decision: "The load balancer sends each customer to the same server; the session lives in that server's memory.",
+    alternatives: [{ name: "Shared session cache", whyNot: "One more system to run, for two servers." }],
+    consequences: "A server restart signs its customers out.",
+  });
+  add({
+    title: "Publish payment events on Kafka instead of calling services directly",
+    kind: "choice",
+    status: "accepted",
+    date: "2026-02-04",
+    deciders: ["Payments team", "Ana Lima"],
+    affects: ["payment-events", "payments-service", "notification-service"],
+    tags: ["integration"],
+    context: "A payment must reach notifications, fraud checks and analytics. Calling each one directly made a slow consumer hold up the payment.",
+    decision: "The Payments Service publishes one event per payment state change to Payment Events (Kafka). Consumers read at their own pace.",
+    alternatives: [
+      { name: "Direct HTTP calls", whyNot: "A slow or failing consumer holds up or fails the payment." },
+      { name: "RabbitMQ", whyNot: "The analytics platform already runs Kafka (Event Stream); a second broker means a second set of skills on call." },
+    ],
+    consequences: "Consumers must handle repeated events. Event order is kept per payment only.",
+  });
+  add({
+    title: "Build statements in a nightly batch, not a streaming pipeline",
+    kind: "conditional",
+    status: "accepted",
+    date: "2026-06-18",
+    deciders: ["Tom Becker", "Ana Lima"],
+    affects: ["statement-job", "statement-store"],
+    tags: ["data"],
+    reviewBy: "2027-05-01",
+    context: "Customers get a monthly statement and can download the current month's so far. Nobody has asked for statements that update during the day.",
+    decision: "A nightly job (Statement Job) reads the day's transactions, builds the statements and stores them as files (Statement Store).",
+    alternatives: [
+      {
+        name: "Streaming pipeline (Kafka Streams)",
+        whyNot: "We would need people on call for a stateful streaming system, and nobody asks for intraday statements.",
+        wouldChooseIf: ["we had a platform team on call for streaming", "product asked for statements that update during the day", "the batch no longer finished overnight"],
+      },
+    ],
+    consequences: "Statements are up to a day old. A failed night is re-run the next morning.",
+    triggers: [
+      { text: "A platform team is on call for streaming", alternative: "Streaming pipeline (Kafka Streams)" },
+      { text: "Product asks for intraday statements", alternative: "Streaming pipeline (Kafka Streams)" },
+      { text: "The batch runs past 06:00 twice in a month", alternative: "Streaming pipeline (Kafka Streams)" },
+    ],
+  });
+  add({
+    title: "Choose a fraud scoring provider",
+    kind: "deferred",
+    status: "proposed",
+    date: "2026-10-02",
+    deciders: ["Fraud team"],
+    affects: ["fraud-detection-system", "payments-service"],
+    decideBy: "2027-01-31",
+    context: "The Payments Service asks the Fraud Detection System to score each payment. The current provider's contract ends in June 2027.",
+    decision: "Not decided yet. Waiting for both providers' results on last quarter's payments.",
+    alternatives: [
+      { name: "Keep the current provider", whyNot: "Price goes up 40% at renewal." },
+      { name: "Second provider", whyNot: "Not tested on our payments yet." },
+    ],
+  });
+  add({
+    title: "Let the Payments Service use the main database until it has its own",
+    kind: "time-boxed",
+    status: "accepted",
+    date: "2026-04-22",
+    deciders: ["Ana Lima"],
+    affects: ["database", "payments-service", "api-application"],
+    tags: ["data", "debt"],
+    expires: "2027-03-31",
+    context: "The Payments Service was split out of the API Application. Its tables are still in the main Oracle schema, next to the accounts tables it reads.",
+    decision: "The Payments Service reads and writes its own tables in the main schema, and reads the accounts tables. No other service may write its tables.",
+    alternatives: [{ name: "Separate payments database now", whyNot: "Needs a data migration during the busiest quarter." }],
+    consequences: "A schema change to the accounts tables must be checked with the payments team until the split is done.",
+  });
+  add({
+    title: "Mask personal data before it leaves the bank's own systems",
+    kind: "policy",
+    status: "accepted",
+    date: "2026-01-15",
+    deciders: ["Security review"],
+    affects: ["pipeline-worker", "data-warehouse"],
+    tags: ["security"],
+    appliesTo: "Every pipeline, export and event stream that sends data to analytics or to a third party",
+    context: "Analytics and third parties do not need names, account numbers or addresses.",
+    decision: "Personal data is masked or removed in the pipeline before it is loaded or sent. Unmasked data stays in the core banking systems.",
+  });
+  add({
+    title: "Keep sessions in the shared Redis cache",
+    kind: "reversal",
+    status: "accepted",
+    date: "2026-05-12",
+    deciders: ["Ana Lima", "Site reliability"],
+    affects: ["session-cache", "web-application", "api-application"],
+    supersedes: [sticky],
+    context: "There are now six web servers and they restart on every deploy, signing customers out.",
+    decision: "Sessions are kept in the Session Cache (Redis). Any server can serve any customer.",
+    consequences: "The Session Cache is now needed for sign-in; it runs with a replica.",
+  });
+  return decs;
+}
+
 function main(): void {
   const [ws, sc] = build();
   fs.mkdirSync(DEMO_DIR, { recursive: true });
   fs.writeFileSync(path.join(DEMO_DIR, "workspace.json"), dumpWorkspace(ws), "utf-8");
   fs.writeFileSync(path.join(DEMO_DIR, "designperspectives.json"), stableJson(sidecarData(sc)), "utf-8");
   fs.writeFileSync(path.join(DEMO_DIR, "history.json"), JSON.stringify(history(ws), null, 1) + "\n", "utf-8");
+  const decDir = path.join(DEMO_DIR, decisions.DECISIONS_DIR);
+  fs.rmSync(decDir, { recursive: true, force: true });
+  fs.mkdirSync(decDir, { recursive: true });
+  for (const d of demoDecisions()) fs.writeFileSync(path.join(decDir, d.file), decisions.serializeDecision(d), "utf-8");
   console.log(`Wrote ${DEMO_DIR}`);
 }
 

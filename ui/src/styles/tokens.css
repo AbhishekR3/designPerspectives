@@ -52,6 +52,7 @@
   --z-hud: 20;
   --z-loading: 25;
   --z-help: 30;
+  --z-page: 35; /* a page over the diagram (decisions) */
   --z-dock: 20;
   --z-pop-menu: 40;
   --z-modal: 100;

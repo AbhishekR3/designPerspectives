@@ -14,6 +14,7 @@
  *   views:<key>                   other view lists and view configuration, kept whole
  *   sc:<key>                      sidecar fields (characteristics list, cost settings, unknown)
  *   tg:<name> · lens:<id> · style:<target> · lay:<diagram>:<section>:<id> · laymeta:<diagram>
+ *   dec:<file>                    a decision record (decisions.ts), by file name
  *
  * Element lists of diagram and flow views are left out: `syncViews` / `syncFlows` rebuild them
  * from the model. So `unflatten` must be followed by those two (as `Project.edit` does).
@@ -26,6 +27,7 @@ import { isObj, type Obj } from "./json.js";
 import { parseKey, VIEW_LIST_OF_LEVEL } from "./diagrams.js";
 import { sidecarData, toSidecar, type Sidecar } from "./sidecar.js";
 import { toWorkspace, VIEW_LISTS, workspaceData, type Kind, type Workspace } from "./workspace.js";
+import type { Decision } from "../shared/types.js";
 
 export type Unit =
   | { t: "ws"; k: string; v: unknown }
@@ -41,7 +43,8 @@ export type Unit =
   | { t: "lens"; v: Obj }
   | { t: "style"; target: string; v: Obj }
   | { t: "lay"; diagram: string; section: string; id: string; v: unknown }
-  | { t: "laymeta"; diagram: string; v: Obj };
+  | { t: "laymeta"; diagram: string; v: Obj }
+  | { t: "dec"; v: Decision };
 
 export type Units = Map<string, Unit>;
 
@@ -75,7 +78,7 @@ function viewMode(list: string, v: Obj): "diagram" | "flow" | "whole" {
 
 const onlyId = (o: Obj) => Object.keys(o).every((k) => k === "id");
 
-export function flatten(ws: Workspace, sc: Sidecar): Units {
+export function flatten(ws: Workspace, sc: Sidecar, decisions: Decision[] = []): Units {
   const out: Units = new Map();
   const w = workspaceData(ws);
   for (const [k, v] of Object.entries(w)) if (k !== "model" && k !== "views") out.set(`ws:${k}`, { t: "ws", k, v });
@@ -136,6 +139,7 @@ export function flatten(ws: Workspace, sc: Sidecar): Units {
       }
     }
   }
+  for (const d of decisions) out.set(`dec:${d.file}`, { t: "dec", v: d });
   return out;
 }
 
@@ -143,7 +147,7 @@ export class UnitError extends Error {}
 
 /** Rebuild the workspace and sidecar from units (in map order). Run `syncViews` and `syncFlows`
  *  on the result before using it: view element lists are not stored in units. */
-export function unflatten(units: Units): { ws: Workspace; sc: Sidecar } {
+export function unflatten(units: Units): { ws: Workspace; sc: Sidecar; decisions: Decision[] } {
   const top: Obj = {};
   const model: Obj = { people: [], softwareSystems: [] };
   const views: Obj = {};
@@ -156,6 +160,7 @@ export function unflatten(units: Units): { ws: Workspace; sc: Sidecar } {
   const styles: Obj = {};
   const layouts: Record<string, Obj> = {};
   const layout = (d: string) => (layouts[d] ??= { sizes: {}, edges: {}, positions: {} });
+  const decisions: Decision[] = [];
   // Elements and relationships are put in place after all elements exist, so a unit may come
   // before its parent (a merged draft that moved an element to a parent listed later).
   const elUnits: [Extract<Unit, { t: "el" }>, Obj][] = [];
@@ -218,6 +223,9 @@ export function unflatten(units: Units): { ws: Workspace; sc: Sidecar } {
       case "laymeta":
         Object.assign(layout(u.diagram), u.v);
         break;
+      case "dec":
+        decisions.push(structuredClone(u.v));
+        break;
     }
   }
   for (const [u, o] of elUnits) {
@@ -235,7 +243,8 @@ export function unflatten(units: Units): { ws: Workspace; sc: Sidecar } {
   }
   const ws = toWorkspace(structuredClone({ ...top, model, views }));
   const sidecar = toSidecar(structuredClone({ ...sc, tagGroups, lenses, styles, layouts }));
-  return { ws, sc: sidecar };
+  decisions.sort((a, b) => a.file.localeCompare(b.file));
+  return { ws, sc: sidecar, decisions };
 }
 
 /** A short human label for a unit, used in conflict lists. */
@@ -270,5 +279,7 @@ export function unitLabel(u: Unit): string {
       return `Layout of "${u.id}" on ${u.diagram}`;
     case "laymeta":
       return `Layout of ${u.diagram}`;
+    case "dec":
+      return `Decision ${u.v.id} "${u.v.title}"`;
   }
 }

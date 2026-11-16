@@ -3,6 +3,7 @@
  *
  * - `workspace.json`           Structurizr workspace (model, views, positions, flows)
  * - `designperspectives.json`  sidecar (tag groups, lenses, styles, layouts)
+ * - `decisions/NNNN-*.md`      decision records (decisions.ts)
  *
  * Every edit runs on a copy; the copy is synced, validated and written atomically, then becomes
  * current. An edit is refused if it adds a validation error (errors already in a file opened from
@@ -17,6 +18,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { prune, syncViews } from "./diagrams.js";
+import { DECISIONS_DIR, decisionsDir, decisionsStamp, readDecisions, writeDecisions } from "./decisions.js";
 import { syncFlows } from "./flows.js";
 import { atomicWrite } from "./fsutil.js";
 import { stableJson } from "./json.js";
@@ -24,6 +26,7 @@ import { ModelError } from "./ops.js";
 import { emptySidecar, parseSidecar, sidecarData, type Sidecar } from "./sidecar.js";
 import { addedErrors, errors } from "./validate.js";
 import { dumpWorkspace, emptyWorkspace, readWorkspace, type Workspace } from "./workspace.js";
+import type { Decision } from "../shared/types.js";
 
 export const ARCH_DIR = "architecture";
 export const WORKSPACE_FILE = "workspace.json";
@@ -35,7 +38,7 @@ export const PACKAGE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.
 // Kept here as a re-export: drafts.ts and others import it from the store.
 export { atomicWrite };
 
-type Snapshot = [Workspace, Sidecar];
+type Snapshot = [Workspace, Sidecar, Decision[]];
 type Stamp = string;
 
 function stampOf(file: string): string {
@@ -57,34 +60,40 @@ export interface ModelSource {
   /** Changes whenever the model is written or reloaded from disk (the UI's cheap "anything changed?" check). */
   readonly revision: string;
   readonly sidecar: Sidecar;
+  /** Decision records, by file name. */
+  readonly decisions: Decision[];
   readonly loadErrors: string[];
   readonly readOnly: boolean;
   reloadIfChanged(): boolean;
 }
 
-/** A read-only model version read from two files (e.g. a draft's base copy). */
+/** A read-only model version read from a folder's files (e.g. a draft's base copy). */
 export class FileSnapshot implements ModelSource {
   readonly readOnly = true;
   workspace!: Workspace;
   sidecar!: Sidecar;
+  decisions: Decision[] = [];
   loadErrors: string[] = [];
   revision = "";
   private stamp = "";
+  private readonly dir: string;
 
   constructor(
     readonly wsPath: string,
     readonly scPath: string,
   ) {
+    this.dir = path.dirname(wsPath);
     this.reloadIfChanged();
   }
 
   reloadIfChanged(): boolean {
-    const now = `${stampOf(this.wsPath)}|${stampOf(this.scPath)}`;
+    const now = `${stampOf(this.wsPath)}|${stampOf(this.scPath)}|${decisionsStamp(this.dir)}`;
     if (now === this.stamp) return false;
     if (!fs.existsSync(this.wsPath)) throw new NotFound(`No ${this.wsPath}`);
     this.workspace = readWorkspace(this.wsPath);
     this.sidecar = fs.existsSync(this.scPath) ? parseSidecar(fs.readFileSync(this.scPath, "utf-8")) : emptySidecar();
-    this.loadErrors = errors(this.workspace, this.sidecar);
+    this.decisions = readDecisions(this.dir);
+    this.loadErrors = errors(this.workspace, this.sidecar, this.decisions);
     this.stamp = now;
     this.revision = nextRevision();
     return true;
@@ -101,13 +110,14 @@ export class Project implements ModelSource {
   readonly scPath: string;
   workspace!: Workspace;
   sidecar!: Sidecar;
+  decisions: Decision[] = [];
   loadErrors: string[] = [];
   undoStack: Snapshot[] = [];
   redoStack: Snapshot[] = [];
   revision = "";
   private stamp: Stamp = "";
 
-  /** `dir`: the folder holding the two files (default `<root>/architecture`; drafts live elsewhere). */
+  /** `dir`: the folder holding the model files (default `<root>/architecture`; drafts live elsewhere). */
   constructor(root: string, codeRoot?: string | null, dir?: string) {
     this.root = path.resolve(root);
     this.codeRoot = codeRoot ? path.resolve(codeRoot) : this.root;
@@ -118,14 +128,20 @@ export class Project implements ModelSource {
   }
 
   private fileStamp(): Stamp {
-    return `${stampOf(this.wsPath)}|${stampOf(this.scPath)}`;
+    return `${stampOf(this.wsPath)}|${stampOf(this.scPath)}|${decisionsStamp(this.dir)}`;
+  }
+
+  /** The folder of decision records. */
+  get decisionsDir(): string {
+    return decisionsDir(this.dir);
   }
 
   load(): void {
     if (!fs.existsSync(this.wsPath)) throw new NotFound(`No ${path.relative(this.root, this.wsPath) || WORKSPACE_FILE} in ${this.root}`);
     this.workspace = readWorkspace(this.wsPath);
     this.sidecar = fs.existsSync(this.scPath) ? parseSidecar(fs.readFileSync(this.scPath, "utf-8")) : emptySidecar();
-    this.loadErrors = errors(this.workspace, this.sidecar);
+    this.decisions = readDecisions(this.dir);
+    this.loadErrors = errors(this.workspace, this.sidecar, this.decisions);
     this.stamp = this.fileStamp();
     this.revision = nextRevision();
     this.undoStack = [];
@@ -141,30 +157,36 @@ export class Project implements ModelSource {
   }
 
   /** Run `fn` on copies of the model; keep the result only if it adds no validation error. */
-  edit<T>(fn: (ws: Workspace, sc: Sidecar) => T, record = true): T {
+  edit<T>(fn: (ws: Workspace, sc: Sidecar, decisions: Decision[]) => T, record = true): T {
     this.reloadIfChanged();
     const ws = structuredClone(this.workspace);
     const sc = structuredClone(this.sidecar);
-    const result = fn(ws, sc);
+    const decs = structuredClone(this.decisions);
+    const result = fn(ws, sc, decs);
     syncViews(ws);
     syncFlows(ws);
     prune(ws, sc);
-    const added = addedErrors(this.loadErrors, errors(ws, sc));
+    decs.sort((a, b) => a.file.localeCompare(b.file));
+    const added = addedErrors(this.loadErrors, errors(ws, sc, decs));
     if (added.length) throw new ModelError(added.join(" "));
     if (record) {
-      this.undoStack.push([this.workspace, this.sidecar]);
+      this.undoStack.push(this.snapshot());
       this.undoStack.splice(0, Math.max(0, this.undoStack.length - Project.HISTORY));
       this.redoStack = [];
     }
-    this.write(ws, sc);
+    this.write(ws, sc, decs);
     return result;
+  }
+
+  private snapshot(): Snapshot {
+    return [this.workspace, this.sidecar, this.decisions];
   }
 
   undo(): boolean {
     this.reloadIfChanged();
     const snap = this.undoStack.pop();
     if (!snap) return false;
-    this.redoStack.push([this.workspace, this.sidecar]);
+    this.redoStack.push(this.snapshot());
     this.write(...snap);
     return true;
   }
@@ -173,17 +195,20 @@ export class Project implements ModelSource {
     this.reloadIfChanged();
     const snap = this.redoStack.pop();
     if (!snap) return false;
-    this.undoStack.push([this.workspace, this.sidecar]);
+    this.undoStack.push(this.snapshot());
     this.write(...snap);
     return true;
   }
 
-  write(ws: Workspace, sc: Sidecar): void {
+  /** Write the model; decision files are written only where they changed. `decs` defaults to the current ones. */
+  write(ws: Workspace, sc: Sidecar, decs: Decision[] = this.decisions): void {
     atomicWrite(this.wsPath, dumpWorkspace(ws));
     atomicWrite(this.scPath, stableJson(sidecarData(sc)));
+    writeDecisions(this.dir, this.decisions, decs);
     this.workspace = ws;
     this.sidecar = sc;
-    this.loadErrors = errors(ws, sc);
+    this.decisions = decs;
+    this.loadErrors = errors(ws, sc, decs);
     this.stamp = this.fileStamp();
     this.revision = nextRevision();
   }
@@ -214,7 +239,11 @@ export function initProject(root: string, opts: { demo?: boolean; name?: string 
   }
   atomicWrite(wsPath, wsText);
   atomicWrite(path.join(arch, SIDECAR_FILE), scText);
-  if (demo) copySampleCode(root);
+  if (demo) {
+    const decs = path.join(DEMO_DIR, DECISIONS_DIR);
+    if (fs.existsSync(decs)) fs.cpSync(decs, path.join(arch, DECISIONS_DIR), { recursive: true });
+    copySampleCode(root);
+  }
   return arch;
 }
 

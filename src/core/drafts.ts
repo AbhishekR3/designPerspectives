@@ -6,6 +6,7 @@
  *   architecture/drafts/<id>/designperspectives.json
  *   architecture/drafts/<id>/base/workspace.json         the main model when the draft was made
  *   architecture/drafts/<id>/base/designperspectives.json
+ *   architecture/drafts/<id>/decisions/, base/decisions/  decision records (decisions.ts), the same way
  *   architecture/drafts/<id>/code.json, code/<path>     planned code edits (see codefs.ts CodePlan)
  *
  * The base copy makes a three-way merge possible on apply (`merge.ts`): changes made to the main
@@ -21,6 +22,7 @@ import { CodePlan, DiskCode, OverlayCode, safePath, sha1, type PlannedFile } fro
 import { diffModels, type Snapshot } from "./diff.js";
 import { buildPlanItems, codingPlan } from "./plan.js";
 import type { CodeSource } from "./codefs.js";
+import { DECISIONS_DIR, renumberAdded } from "./decisions.js";
 import { syncFlows } from "./flows.js";
 import { isObj, stableJson } from "./json.js";
 import { merge3 } from "./merge.js";
@@ -156,9 +158,11 @@ export class Drafts {
     const f = path.join(this.dir, id);
     const ws = fs.readFileSync(this.main.wsPath, "utf-8");
     const sc = fs.existsSync(this.main.scPath) ? fs.readFileSync(this.main.scPath, "utf-8") : stableJson({ version: 1 });
+    const decs = this.main.decisionsDir;
     for (const dir of [f, path.join(f, BASE_DIR)]) {
       atomicWrite(path.join(dir, WORKSPACE_FILE), ws);
       atomicWrite(path.join(dir, SIDECAR_FILE), sc);
+      if (fs.existsSync(decs)) fs.cpSync(decs, path.join(dir, DECISIONS_DIR), { recursive: true });
     }
     const by = author?.trim() || this.author;
     atomicWrite(path.join(f, DRAFT_FILE), stableJson({ title: t, description: description.trim(), created: new Date().toISOString().slice(0, 10), ...(by ? { author: by } : {}) }));
@@ -241,9 +245,10 @@ export class Drafts {
     const journal = new CodeJournal();
     try {
       if (withCode) this.writeCode(id, journal);
-      this.main.edit((ws, sc) => {
+      this.main.edit((ws, sc, decs) => {
         replaceContents(ws, merged.workspace);
         replaceContents(sc, merged.sidecar);
+        decs.splice(0, decs.length, ...(merged.decisions ?? []));
       });
     } catch (e) {
       journal.rollback();
@@ -291,22 +296,28 @@ export class Drafts {
     const draft = this.get(id);
     draft.reloadIfChanged();
     const base = this.base(id);
-    const { units, conflicts } = merge3(flatten(base.workspace, base.sidecar), flatten(this.main.workspace, this.main.sidecar), flatten(draft.workspace, draft.sidecar));
+    // Decisions the draft added under a number main has used since get new numbers first.
+    const theirDecisions = renumberAdded(base.decisions, this.main.decisions, draft.decisions);
+    const { units, conflicts } = merge3(
+      flatten(base.workspace, base.sidecar, base.decisions),
+      flatten(this.main.workspace, this.main.sidecar, this.main.decisions),
+      flatten(draft.workspace, draft.sidecar, theirDecisions),
+    );
     if (conflicts.length) return { merged: null, conflicts };
     let result: Snapshot;
     try {
-      const { ws, sc } = unflatten(units);
+      const { ws, sc, decisions } = unflatten(units);
       syncViews(ws);
       syncFlows(ws);
       prune(ws, sc);
-      result = { workspace: ws, sidecar: sc };
+      result = { workspace: ws, sidecar: sc, decisions };
     } catch (e) {
       if (e instanceof UnitError || e instanceof ModelError) return { merged: null, conflicts: [{ label: "Model", reason: e.message }] };
       throw e;
     }
     // Model rules (e.g. both sides added a container with the same name) are checked here so the
     // preview can show them; errors already in the main model do not count.
-    const added = addedErrors(this.main.loadErrors, errors(result.workspace, result.sidecar));
+    const added = addedErrors(this.main.loadErrors, errors(result.workspace, result.sidecar, result.decisions));
     if (added.length) return { merged: null, conflicts: added.map((reason) => ({ label: "Model rule", reason })) };
     return { merged: result, conflicts: [] };
   }

@@ -1,5 +1,6 @@
 import { api } from "../api";
 import { Discussion } from "../comments";
+import { DecisionSection } from "./DecisionSection";
 import { CodePaths, OpenCodeDiagram } from "../CodeParts";
 import { Fields, Section, TagInput, TextField } from "../fields";
 import { openWork } from "../overlays";
@@ -142,6 +143,7 @@ export function EdgePanel({ edgeId, ...p }: Common & { edgeId: string }) {
           </select>
         </label>
       </Fields>
+      <DecisionSection id={r.id} name={r.description || "this relationship"} state={state} mutate={p.mutate} onOpenDecision={p.onOpenDecision} />
       <Discussion target={{ type: "relationship", id: r.id }} diagramKey={diagram.key} />
       <button className="primary" onClick={() => p.onOpen(detailKey)} data-testid="open-connector">
         Open connector detail{r.stages.length ? ` (${r.stages.length} stages)` : ""}

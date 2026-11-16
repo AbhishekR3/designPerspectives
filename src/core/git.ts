@@ -10,10 +10,12 @@
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { GitCode, NO_CODE, type CodeSource } from "./codefs.js";
+import { DECISIONS_DIR, parseDecision } from "./decisions.js";
 import { emptySidecar, parseSidecar, type Sidecar } from "./sidecar.js";
 import { NotFound, SIDECAR_FILE, WORKSPACE_FILE, type ModelSource } from "./store.js";
 import { errors } from "./validate.js";
 import { emptyWorkspace, parseWorkspace, type Workspace } from "./workspace.js";
+import type { Decision } from "../shared/types.js";
 
 export class GitError extends Error {}
 
@@ -104,11 +106,52 @@ function readAt(repo: Repo, sha: string, file: string): string | null {
   }
 }
 
+/** The decision records in a commit: one `ls-tree` for the names, one `cat-file --batch` for the texts. */
+function decisionsAt(repo: Repo, sha: string): Decision[] {
+  let names: string[];
+  try {
+    names = git(repo.cwd, ["ls-tree", "-z", "--full-tree", "--name-only", sha, "--", `${repo.prefix}${DECISIONS_DIR}/`])
+      .split("\0")
+      .filter((n) => /\/\d{4}-[^/]*\.md$/.test(n))
+      .sort();
+  } catch {
+    return [];
+  }
+  if (!names.length) return [];
+  let out: Buffer;
+  try {
+    out = execFileSync("git", ["cat-file", "--batch"], {
+      cwd: repo.cwd,
+      input: names.map((n) => `${sha}:${n}\n`).join(""),
+      stdio: ["pipe", "pipe", "pipe"],
+      maxBuffer: 128 * 1024 * 1024,
+      timeout: 20_000,
+    });
+  } catch {
+    return [];
+  }
+  // Each object: "<oid> blob <size>\n<content>\n"; a missing one: "<name> missing\n".
+  const decs: Decision[] = [];
+  let at = 0;
+  for (const name of names) {
+    const nl = out.indexOf(10, at);
+    if (nl < 0) break;
+    const header = out.subarray(at, nl).toString("utf-8").split(" ");
+    at = nl + 1;
+    if (header[1] !== "blob") continue;
+    const size = Number(header[2]);
+    decs.push(parseDecision(path.posix.basename(name), out.subarray(at, at + size).toString("utf-8")));
+    at += size + 1;
+  }
+  return decs;
+}
+
 /** The model in one commit (read-only). A commit without the model shows an empty model. */
 export class GitSnapshot implements ModelSource {
   readonly readOnly = true;
   readonly workspace: Workspace;
   readonly sidecar: Sidecar;
+  readonly decisions: Decision[];
   readonly loadErrors: string[];
   /** False when the commit has no model files (everything then shows as added). */
   readonly present: boolean;
@@ -129,7 +172,8 @@ export class GitSnapshot implements ModelSource {
     } catch (e) {
       throw new GitError(`The model in commit ${sha.slice(0, 7)} cannot be read: ${(e as Error).message}`);
     }
-    this.loadErrors = errors(this.workspace, this.sidecar);
+    this.decisions = this.present ? decisionsAt(repo, sha) : [];
+    this.loadErrors = errors(this.workspace, this.sidecar, this.decisions);
   }
 
   reloadIfChanged(): boolean {

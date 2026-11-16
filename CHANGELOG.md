@@ -3,6 +3,17 @@
 ## Unreleased
 
 ### Added
+- Decision records. **Decisions** in the navigation bar opens a page listing the model's decisions
+  with filters (status, kind, "needs a look", search), each decision's record, and a form to write
+  one. Six kinds: choice, conditional ("we would choose Q if X held; it does not, so A": the
+  alternatives' conditions can be watched as revisit triggers), deferred (decide by a date),
+  time-boxed (expires), policy (applies to) and reversal (accepting it marks the decisions it
+  replaces as superseded). Each decision is a Markdown file `architecture/decisions/NNNN-title.md`
+  and part of the model: undo, drafts, the change list, `dp diff`, git versions and apply include
+  them; a number used on both sides is renumbered on apply. Element and relationship panels list
+  the decisions about them, with **Record a decision**. `dp check` warns about decisions on objects
+  that are gone. The demo has seven decisions, one of each kind. Routes `GET/POST /api/decisions`,
+  `PUT/DELETE /api/decisions/:id`, `PATCH /api/decisions/:id/status` (DEC-050).
 - Comments, ideas and questions on diagrams. Right-click a box, a line or empty space and choose
   **Comment…** (or use the speech-bubble button in the tools bar): write a comment, suggest an idea
   or ask a question about an element, a relationship or a whole diagram, reply in a thread, and mark

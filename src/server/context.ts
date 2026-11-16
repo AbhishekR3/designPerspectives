@@ -8,6 +8,7 @@ import { diffModels } from "../core/diff.js";
 import { Drafts } from "../core/drafts.js";
 import { DiskCode, NO_CODE, type CodeSource } from "../core/codefs.js";
 import { currentBranch, GitCodes, GitModels, gitUserName, listRefs } from "../core/git.js";
+import { decisionSummary } from "../core/decisions.js";
 import * as flows from "../core/flows.js";
 import { isObj, type Obj } from "../core/json.js";
 import * as ops from "../core/ops.js";
@@ -15,7 +16,7 @@ import { buildIndex, elementSummary, relationshipSummary } from "../core/ops.js"
 import { BUILTIN_LENSES, lensData, SECTIONS, styleData, type Sidecar } from "../core/sidecar.js";
 import { Project, type ModelSource } from "../core/store.js";
 import type { Workspace } from "../core/workspace.js";
-import type { AppState, DraftInfo, Lens, Permissions, SessionUser, Style } from "../shared/types.js";
+import type { AppState, Decision, DraftInfo, Lens, Permissions, SessionUser, Style } from "../shared/types.js";
 import { Auth, defaultLensFor, permissions, type AuthOptions, type Who } from "./auth.js";
 import { UiProxies } from "./uiProxy.js";
 import { TraceStore } from "../core/traces.js";
@@ -91,6 +92,7 @@ export function state(project: Project, readOnly = false, sel?: Selection, draft
     lenses: [...BUILTIN_LENSES, ...sc.lenses].map((l) => ({ ...lensData(l), defaultOverlay: l.defaultOverlay ?? null, builtin: l.builtin }) as unknown as Lens),
     defaultLens: access?.defaultLens ?? ([...idx.elements.keys()].some((id) => idx.kindOf(id) === "container") ? "engineer" : "architect"),
     flows: flows.listFlows(ws),
+    decisions: src.decisions.map(decisionSummary),
     loadErrors: src.loadErrors,
     enums: ops.ENUMS,
     technologies: ops.technologyCatalog(idx),
@@ -198,7 +200,7 @@ export interface Ctx {
   sel: () => Selection;
   /** The editable model of the selected version (403 for a read-only version). */
   writable: () => Project;
-  edit: <T>(fn: (ws: Workspace, sc: Sidecar) => T, record?: boolean) => T;
+  edit: <T>(fn: (ws: Workspace, sc: Sidecar, decisions: Decision[]) => T, record?: boolean) => T;
   draftId: (ref: string) => string;
   /** Middleware: reads X-DP-Model / X-DP-Compare and runs the rest of the request with that selection. */
   selectVersion: MiddlewareHandler;
@@ -230,7 +232,7 @@ export function createContext(root: string, opts: AppOptions = {}): Ctx {
     if (!(s instanceof Project)) throw new HttpError(403, "This version of the model is read-only.");
     return s;
   };
-  const edit = <T>(fn: (ws: Workspace, sc: Sidecar) => T, record = true) => writable().edit(fn, record);
+  const edit = <T>(fn: (ws: Workspace, sc: Sidecar, decisions: Decision[]) => T, record = true) => writable().edit(fn, record);
 
   const draftId = (ref: string) => ref.slice("draft:".length);
   /** A version's model, title and code. */
@@ -300,5 +302,24 @@ export function createContext(root: string, opts: AppOptions = {}): Ctx {
 
   const uiProxies = new UiProxies({ allowHosts: opts.uiAllowHosts ?? [] });
   const traces = new TraceStore(opts.tracesDir ? path.resolve(opts.tracesDir) : path.join(project.root, "traces"));
-  return { readOnly, auth, who, access, project, drafts, gitModels, gitCodes, disk, ok, sel, writable, edit, draftId, selectVersion, uiProxies, traces, comments: new CommentStore(commentsPath(project.root), opts.now) };
+  return {
+    readOnly,
+    auth,
+    who,
+    access,
+    project,
+    drafts,
+    gitModels,
+    gitCodes,
+    disk,
+    ok,
+    sel,
+    writable,
+    edit,
+    draftId,
+    selectVersion,
+    uiProxies,
+    traces,
+    comments: new CommentStore(commentsPath(project.root), opts.now),
+  };
 }

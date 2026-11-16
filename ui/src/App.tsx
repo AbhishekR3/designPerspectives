@@ -33,7 +33,8 @@ import { useClipboard } from "./useClipboard";
 import { useFlowAutoplay, useFlowPlayer } from "./useFlowPlayer";
 import { inLens, useLens, useLensState } from "./useLens";
 import { useModel } from "./useModel";
-import { useHashSync, useNavigation, useReveal } from "./useNavigation";
+import { useHashSync, useNavigation, usePage, useReveal } from "./useNavigation";
+import { decisionFlags, DecisionsPage } from "./DecisionsPage";
 import { usePanels } from "./usePanels";
 import { useSelection } from "./useSelection";
 import { useShortcuts } from "./useShortcuts";
@@ -61,6 +62,10 @@ export default function App({ onSignOut }: { onSignOut(): void }) {
   const lensState = useLensState();
   const { overlay, setOverlay, filters, setFilters } = lensState;
   const { key, setKey, keyRef, open, pickChange } = useNavigation(setSelection);
+  // A page over the diagram (decision records), kept in the URL with the diagram under it.
+  const { page, setPage } = usePage(keyRef);
+  const decisionsOpen = page === "decisions" || !!page?.startsWith("decisions/");
+  const decisionId = page?.startsWith("decisions/") ? page.slice("decisions/".length) : null;
   const { state, diagram, version, versionRef, loading, changes, loadError, retryLoad, loadDiagram, refresh, switchVersion, mutate, doHistory } = useModel({
     keyRef,
     setKey,
@@ -106,7 +111,7 @@ export default function App({ onSignOut }: { onSignOut(): void }) {
     storage.set(PALETTE_KEY, next);
     setPalettePref(next);
   };
-  const cw = !wrapSize ? "md" : wrapSize.w < 560 ? "xs" : wrapSize.w < 800 ? "sm" : "md";
+  const cw = !wrapSize ? "md" : wrapSize.w < 560 ? "xs" : wrapSize.w < 800 ? "sm" : wrapSize.w < 1100 ? "md" : "lg";
 
   // A box waiting to be renamed that is not on this diagram must not pop open later on another one.
   useEffect(() => {
@@ -116,6 +121,24 @@ export default function App({ onSignOut }: { onSignOut(): void }) {
   useHashSync({ key, keyRef, setKey, versionRef, loadDiagram, switchVersion, setSelection, setMenu, setFlowStep, setPlaying });
   const flow = useFlowAutoplay(diagram, player);
   const reveal = useReveal(state, diagram, setKey, setSelection);
+  /** Open the decisions page (at one decision); the selection goes, so diagram keys cannot act on it unseen. */
+  const openDecision = (id: string | null) => {
+    setSelection(null);
+    setPage(id ? `decisions/${id}` : "decisions", { replace: decisionsOpen });
+  };
+  /** From the decisions page: show an element or relationship (by its source) on its diagram. */
+  const revealFromPage = (id: string) => {
+    setPage(null, { replace: true });
+    const rel = state?.relationships.find((r) => r.id === id);
+    reveal(rel ? rel.sourceId : id);
+  };
+  // Opening another diagram (sidebar, breadcrumb, search, Back) closes the page.
+  const pageKey = useRef(key);
+  useEffect(() => {
+    if (pageKey.current !== key && page) setPage(null, { replace: true });
+    pageKey.current = key;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only a change of diagram closes the page
+  }, [key]);
   const { lens, chooseLens, chooseLensAfterSave, activeOverlay, decorate } = useLens({ state, refresh, diagram, open, lensState });
   const clip = useClipboard({ keyRef, mutate, setSelection });
   const { pasteFrom } = clip;
@@ -232,7 +255,23 @@ export default function App({ onSignOut }: { onSignOut(): void }) {
   const selectedChange = selection && selection.type !== "nodes" ? changeOf(selection.id) : undefined;
   const showGhost = !!(selectedNode?.ghost || selectedEdge?.ghost || (selection && diagram?.compare?.removed));
   const selectedElement = selection?.type === "node" ? state.elements.find((e) => e.id === selection.id) : undefined;
-  const panelProps = { state, diagram: diagram!, lens, mutate, onSelect: select, onOpen: open, onReveal: reveal, onOpenFile: setOpenFile, onInspectUi: setInspectId, onBacktrack: setBacktrackQ, focusName, onRename: renameElement, onMove: setMoveId };
+  const panelProps = {
+    state,
+    diagram: diagram!,
+    lens,
+    mutate,
+    onSelect: select,
+    onOpen: open,
+    onReveal: reveal,
+    onOpenFile: setOpenFile,
+    onInspectUi: setInspectId,
+    onBacktrack: setBacktrackQ,
+    onOpenDecision: (id: string) => openDecision(id),
+    focusName,
+    onRename: renameElement,
+    onMove: setMoveId,
+  };
+  const decisionsToLook = state.decisions.filter((d) => decisionFlags(d).some((f) => f.tone === "warn")).length;
   const multiIds = selection?.type === "nodes" ? selection.ids : null;
   const movingEl = moveId ? state.elements.find((e) => e.id === moveId) : undefined;
 
@@ -440,6 +479,17 @@ export default function App({ onSignOut }: { onSignOut(): void }) {
                   >
                     <Icon name="panel" size={14} /> <span className="diagrams-label">Diagrams</span>
                   </button>
+                  <button
+                    className={`ghost diagrams-btn decisions-btn${decisionsOpen ? " on" : ""}`}
+                    onClick={() => (decisionsOpen ? setPage(null) : openDecision(null))}
+                    title={`Decision records${decisionsToLook ? ` (${decisionsToLook} need a look)` : ""}`}
+                    aria-label="Decisions"
+                    aria-pressed={decisionsOpen}
+                    data-testid="open-decisions"
+                  >
+                    <Icon name="document" size={14} /> <span className="diagrams-label">Decisions</span>
+                    {decisionsToLook > 0 && <span className="comments-count">{decisionsToLook}</span>}
+                  </button>
                   <span className="divider" />
                 </div>
                 <nav className="breadcrumb" data-testid="breadcrumb" aria-label="Breadcrumb">
@@ -523,6 +573,7 @@ export default function App({ onSignOut }: { onSignOut(): void }) {
             )}
           </div>
 
+          {decisionsOpen && <DecisionsPage state={state} selected={decisionId} onSelect={(id) => openDecision(id)} onClose={() => setPage(null)} onReveal={revealFromPage} mutate={mutate} />}
           {diagram && diagram.nodes.length === 0 && (
             <div className="free-area">
               {diagram.level === "landscape" && !state.readOnly && !diagram.compare?.removed ? (
@@ -571,58 +622,60 @@ export default function App({ onSignOut }: { onSignOut(): void }) {
           </button>
         </div>
         <CommentsContext.Provider value={comments}>
-        <ReadOnlyContext.Provider value={state.readOnly}>
-          {showGhost && <GhostPanel node={selectedNode} edge={selectedEdge} change={selectedChange} against={againstLabel} />}
-          {multiIds && diagram && (
-            <MultiPanel
-              state={state}
-              ids={multiIds}
-              canDelete={canDeleteHere}
-              onDelete={() => nodeActions?.removeMany(multiIds.filter((id) => state.elements.some((x) => x.id === id) && !diagram.nodes.find((n) => n.id === id)?.ghost))}
-            />
-          )}
-          {!showGhost && selectedChange && selectedChange.change !== "added" && <ChangeDetails change={selectedChange} against={againstLabel} />}
-          {!showGhost && selectedElement && diagram && <ObjectPanel key={selectedElement.id} element={selectedElement} {...panelProps} />}
-          {!showGhost && !selectedElement && selectedNode?.kind === "stage" && diagram && <StagePanel key={selectedNode.id} node={selectedNode} {...panelProps} />}
-          {!showGhost && !selectedElement && selectedNode?.kind === "file" && diagram && <FilePanel key={selectedNode.id} node={selectedNode} {...panelProps} />}
-          {!showGhost && selection?.type === "edge" && diagram && <EdgePanel key={selection.id} edgeId={selection.id} {...panelProps} />}
-          {!selection && flow && <FlowPanel flow={flow} state={state} mutate={mutate} onDeleted={() => open("landscape")} flowStep={flowStep} setFlowStep={setFlowStep} onBacktrack={setBacktrackQ} />}
-          {!selection && diagram?.level === "connector" && <ConnectorPanel {...panelProps} />}
-          {!selection && diagram?.level === "code" && <CodeDiagramPanel {...panelProps} />}
-          {!selection && diagram && !flow && diagram.level !== "connector" && diagram.level !== "code" && (
-            <div className="panel-body">
-              <div className="panel-kind">
-                {diagram.c4 && `${diagram.c4} · `}
-                {LEVEL_LABEL[diagram.level]} diagram
-              </div>
-              <h2 className="panel-title">{diagram.title}</h2>
-              <dl className="facts">
-                <dt>Objects</dt>
-                <dd>{overlayable(diagram).length}</dd>
-                <dt>Connections</dt>
-                <dd>{diagram.edges.length}</dd>
-                {diagramCost > 0 && (
+          <ReadOnlyContext.Provider value={state.readOnly}>
+            {showGhost && <GhostPanel node={selectedNode} edge={selectedEdge} change={selectedChange} against={againstLabel} />}
+            {multiIds && diagram && (
+              <MultiPanel
+                state={state}
+                ids={multiIds}
+                canDelete={canDeleteHere}
+                onDelete={() => nodeActions?.removeMany(multiIds.filter((id) => state.elements.some((x) => x.id === id) && !diagram.nodes.find((n) => n.id === id)?.ghost))}
+              />
+            )}
+            {!showGhost && selectedChange && selectedChange.change !== "added" && <ChangeDetails change={selectedChange} against={againstLabel} />}
+            {!showGhost && selectedElement && diagram && <ObjectPanel key={selectedElement.id} element={selectedElement} {...panelProps} />}
+            {!showGhost && !selectedElement && selectedNode?.kind === "stage" && diagram && <StagePanel key={selectedNode.id} node={selectedNode} {...panelProps} />}
+            {!showGhost && !selectedElement && selectedNode?.kind === "file" && diagram && <FilePanel key={selectedNode.id} node={selectedNode} {...panelProps} />}
+            {!showGhost && selection?.type === "edge" && diagram && <EdgePanel key={selection.id} edgeId={selection.id} {...panelProps} />}
+            {!selection && flow && (
+              <FlowPanel flow={flow} state={state} mutate={mutate} onDeleted={() => open("landscape")} flowStep={flowStep} setFlowStep={setFlowStep} onBacktrack={setBacktrackQ} />
+            )}
+            {!selection && diagram?.level === "connector" && <ConnectorPanel {...panelProps} />}
+            {!selection && diagram?.level === "code" && <CodeDiagramPanel {...panelProps} />}
+            {!selection && diagram && !flow && diagram.level !== "connector" && diagram.level !== "code" && (
+              <div className="panel-body">
+                <div className="panel-kind">
+                  {diagram.c4 && `${diagram.c4} · `}
+                  {LEVEL_LABEL[diagram.level]} diagram
+                </div>
+                <h2 className="panel-title">{diagram.title}</h2>
+                <dl className="facts">
+                  <dt>Objects</dt>
+                  <dd>{overlayable(diagram).length}</dd>
+                  <dt>Connections</dt>
+                  <dd>{diagram.edges.length}</dd>
+                  {diagramCost > 0 && (
+                    <>
+                      <dt>Monthly cost</dt>
+                      <dd>{formatMoney(diagramCost, state.costSettings.currency)}</dd>
+                    </>
+                  )}
+                </dl>
+                <p className="muted small">Click an object or connection to see its details here. Press ? or use the help button at the top right.</p>
+                {changes && (
                   <>
-                    <dt>Monthly cost</dt>
-                    <dd>{formatMoney(diagramCost, state.costSettings.currency)}</dd>
+                    <h3 className="panel-subtitle">Changes compared with {againstLabel}</h3>
+                    <ChangeList changes={changes} onPick={(c) => (c.type === "decision" ? openDecision(c.id) : pickChange(c))} />
                   </>
                 )}
-              </dl>
-              <p className="muted small">Click an object or connection to see its details here. Press ? or use the help button at the top right.</p>
-              {changes && (
-                <>
-                  <h3 className="panel-subtitle">Changes compared with {againstLabel}</h3>
-                  <ChangeList changes={changes} onPick={pickChange} />
-                </>
-              )}
-            </div>
-          )}
-          {!selection && diagram && !diagram.compare?.removed && (
-            <div className="panel-body">
-              <DiagramComments state={state} diagram={diagram} onSelect={select} onReveal={reveal} onOpen={open} />
-            </div>
-          )}
-        </ReadOnlyContext.Provider>
+              </div>
+            )}
+            {!selection && diagram && !diagram.compare?.removed && (
+              <div className="panel-body">
+                <DiagramComments state={state} diagram={diagram} onSelect={select} onReveal={reveal} onOpen={open} />
+              </div>
+            )}
+          </ReadOnlyContext.Provider>
         </CommentsContext.Provider>
       </aside>
 

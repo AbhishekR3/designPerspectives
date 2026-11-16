@@ -395,6 +395,126 @@ export interface Permissions {
   comment: boolean;
 }
 
+// ------------------------------------------------------------------ decision records (DEC-050)
+
+export const DECISION_STATUSES = ["proposed", "accepted", "rejected", "deprecated", "superseded"] as const;
+export type DecisionStatus = (typeof DECISION_STATUSES)[number];
+export const DECISION_STATUS_LABEL: Record<DecisionStatus, string> = {
+  proposed: "Proposed",
+  accepted: "Accepted",
+  rejected: "Rejected",
+  deprecated: "Deprecated",
+  superseded: "Superseded",
+};
+
+/**
+ * The shape of a decision. Each kind has a template (`DECISION_KIND_INFO`) and its own optional fields:
+ * - choice: chose one option over others.
+ * - conditional: "we would choose Q if X held; it does not, so A". The conditions become revisit triggers.
+ * - deferred: not decided yet, to be decided by a date (`decideBy`).
+ * - time-boxed: a known compromise accepted until a date (`expires`).
+ * - policy: a rule that applies to many parts (`appliesTo`).
+ * - reversal: replaces an earlier decision (`supersedes`).
+ */
+export const DECISION_KINDS = ["choice", "conditional", "deferred", "time-boxed", "policy", "reversal"] as const;
+export type DecisionKind = (typeof DECISION_KINDS)[number];
+export const DECISION_KIND_INFO: Record<DecisionKind, { label: string; hint: string }> = {
+  choice: { label: "Choice", hint: "We chose one option over the others." },
+  conditional: { label: "Conditional", hint: "We would choose another option if some conditions held. They do not, so we chose this. The conditions are watched." },
+  deferred: { label: "Deferred", hint: "Not decided yet. Say what is missing and when it must be decided." },
+  "time-boxed": { label: "Time-boxed", hint: "A known compromise, accepted until a date." },
+  policy: { label: "Policy", hint: "A rule that applies to many parts of the system." },
+  reversal: { label: "Reversal", hint: "Replaces an earlier decision." },
+};
+
+/** An option that was considered and not chosen. */
+export interface DecisionAlternative {
+  name: string;
+  /** Why it is not chosen now. */
+  whyNot: string;
+  /** Conditions under which it would be chosen ("if we had a platform team"). */
+  wouldChooseIf: string[];
+  /** Any other text written under the option. */
+  notes: string;
+}
+
+/** Something that, when it happens, means the decision should be looked at again. */
+export interface DecisionTrigger {
+  text: string;
+  /** Marked as having happened. */
+  met: boolean;
+  /** The alternative it would favour (its name), or "". */
+  alternative: string;
+}
+
+export interface DecisionSection {
+  heading: string;
+  body: string;
+}
+
+/** A decision record: one Markdown file `architecture/decisions/NNNN-slug.md`. */
+export interface Decision {
+  /** The four-digit number from the file name, e.g. "0007". */
+  id: string;
+  /** File name inside the decisions folder; kept when the title changes. */
+  file: string;
+  title: string;
+  status: DecisionStatus;
+  kind: DecisionKind;
+  /** YYYY-MM-DD */
+  date: string;
+  deciders: string[];
+  /** IDs of elements and relationships the decision is about. */
+  affects: string[];
+  /** IDs of decisions this one replaces / that replaced this one. */
+  supersedes: string[];
+  supersededBy: string[];
+  tags: string[];
+  /** YYYY-MM-DD or "": look at the decision again by then. */
+  reviewBy: string;
+  /** Deferred decisions: decide by then. */
+  decideBy: string;
+  /** Time-boxed decisions: the compromise ends then. */
+  expires: string;
+  /** Policies: what the rule applies to. */
+  appliesTo: string;
+  context: string;
+  decision: string;
+  alternatives: DecisionAlternative[];
+  consequences: string;
+  triggers: DecisionTrigger[];
+  /** Sections with other headings, kept as written. */
+  extra: DecisionSection[];
+  /** Front matter keys this tool does not know, kept as written. */
+  extraMeta: [string, string][];
+  /** Set when the file cannot be read; the file is then never rewritten. */
+  error?: string;
+  /** The file's text, kept only when it cannot be read (so a draft can still carry it). */
+  raw?: string;
+}
+
+/** What lists and the element panel show. */
+export interface DecisionSummary {
+  id: string;
+  file: string;
+  title: string;
+  status: DecisionStatus;
+  kind: DecisionKind;
+  date: string;
+  affects: string[];
+  tags: string[];
+  supersedes: string[];
+  supersededBy: string[];
+  reviewBy: string;
+  decideBy: string;
+  expires: string;
+  triggers: { open: number; met: number };
+  error?: string;
+}
+
+/** Fields a client may send when creating or replacing a decision. */
+export type DecisionInput = Partial<Omit<Decision, "id" | "file" | "error" | "supersededBy">>;
+
 // ------------------------------------------------------------------ comments (DEC-049)
 
 export const COMMENT_KINDS = ["comment", "idea", "question"] as const;
@@ -448,6 +568,8 @@ export interface AppState {
    *  engineer: "engineer", viewer: "overview"). Without: "architect" while the model has no containers, else "engineer". */
   defaultLens: string;
   flows: Flow[];
+  /** Decision records of the shown version, by number. */
+  decisions: DecisionSummary[];
   loadErrors: string[];
   enums: Enums;
   technologies: string[];
@@ -487,7 +609,7 @@ export interface FieldChange {
 
 export interface ObjectChange {
   id: string;
-  type: "element" | "relationship" | "flow" | "setting";
+  type: "element" | "relationship" | "flow" | "decision" | "setting";
   /** Element kind, "relationship", "flow", or the setting's kind (tag group, lens, ...). */
   kind: string;
   name: string;
@@ -523,6 +645,7 @@ export interface ChangeSet {
   elements: ObjectChange[];
   relationships: ObjectChange[];
   flows: ObjectChange[];
+  decisions: ObjectChange[];
   settings: ObjectChange[];
   /** Elements not changed themselves but with a changed element or relationship inside (or changed code). */
   inner: string[];

@@ -94,6 +94,11 @@ export const ROUTE_RULES: Record<string, Action> = {
   "POST /api/flows": "edit",
   "PUT /api/flows/:key": "edit",
   "DELETE /api/flows/:key": "edit",
+  // routes/decisions.ts: decision records are part of the model (DEC-050)
+  "POST /api/decisions": "edit",
+  "PUT /api/decisions/:id": "edit",
+  "PATCH /api/decisions/:id/status": "edit",
+  "DELETE /api/decisions/:id": "edit",
   // routes/history.ts (undo/redo of the selected version)
   "POST /api/undo": "edit",
   "POST /api/redo": "edit",

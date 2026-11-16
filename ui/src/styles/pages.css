@@ -1,0 +1,407 @@
+/* Pages over the diagram (decision records, DEC-050). Imported last: these rules add to the ones above. */
+
+.page {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-page);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--bg);
+}
+.page-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-5);
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  flex-wrap: wrap;
+}
+.page-head h1 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+}
+.page-head h1 .muted {
+  font-weight: 400;
+  margin-left: 4px;
+}
+.grow {
+  flex: 1;
+}
+.row.end {
+  justify-content: flex-end;
+}
+
+/* ---------------------------------------------------------------- decisions */
+
+.dec-layout {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
+}
+.dec-list {
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--panel);
+}
+.dec-filters {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--line);
+}
+.dec-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+.dec-items {
+  list-style: none;
+  margin: 0;
+  padding: var(--space-2);
+  overflow-y: auto;
+  flex: 1;
+}
+.dec-item {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 3px;
+  width: 100%;
+  text-align: left;
+  border: 1px solid transparent;
+  background: transparent;
+  padding: var(--space-3);
+  border-radius: var(--radius);
+}
+.dec-item:hover:not(:disabled) {
+  background: var(--raise);
+  border-color: transparent;
+}
+.dec-item.on,
+.dec-item.on:hover {
+  background: #142a31;
+  border-color: #1e5670;
+}
+.dec-item-top {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.dec-item-title {
+  font-weight: 500;
+  line-height: 1.35;
+}
+.dec-num {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: var(--muted);
+}
+.dec-status {
+  font-size: 11px;
+  border-radius: 999px;
+  padding: 0 7px;
+  line-height: 17px;
+  border: 1px solid var(--line-strong);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.dec-status.s-accepted {
+  color: #86efac;
+  border-color: #23573a;
+  background: #13261b;
+}
+.dec-status.s-proposed {
+  color: var(--accent);
+  border-color: #1e5670;
+  background: #142a31;
+}
+.dec-status.s-rejected {
+  color: var(--danger);
+  border-color: #6b2c2c;
+}
+.dec-status.s-superseded,
+.dec-status.s-deprecated {
+  text-decoration: line-through;
+}
+.dec-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+.dec-flags.big {
+  margin: 0 0 var(--space-4);
+}
+.dec-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--amber);
+  background: var(--warn-bg);
+  border: 1px solid var(--warn-line);
+  border-radius: var(--radius-sm);
+  padding: 0 6px;
+}
+
+.dec-detail {
+  overflow-y: auto;
+  min-height: 0;
+  padding: var(--space-5) clamp(16px, 4vw, 48px) 48px;
+}
+.dec-record,
+.dec-editor,
+.dec-new,
+.dec-intro {
+  max-width: 760px;
+}
+.dec-record-top {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-3);
+}
+.dec-title {
+  font-size: 20px;
+  line-height: 1.3;
+  margin: 0 0 var(--space-4);
+}
+.dec-record h3,
+.dec-intro h3 {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin: var(--space-5) 0 var(--space-2);
+}
+.dec-meta {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px var(--space-4);
+  margin: 0 0 var(--space-4);
+}
+.dec-meta dt {
+  color: var(--muted);
+}
+.dec-meta dd {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+}
+.dec-ref {
+  display: inline;
+}
+.dec-about {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.chip.link-chip {
+  border: none;
+  min-height: 0;
+  padding: 1px 8px;
+  cursor: pointer;
+}
+.chip.link-chip:hover:not(:disabled) {
+  background: #24506a;
+}
+.chip.gone {
+  background: var(--raise);
+  color: var(--muted);
+  text-decoration: line-through;
+}
+.dec-prose {
+  white-space: pre-wrap;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.dec-prose + .dec-prose {
+  margin-top: var(--space-3);
+}
+.dec-alts {
+  display: grid;
+  gap: var(--space-3);
+}
+.dec-alt {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  background: var(--float);
+}
+.dec-alt p {
+  margin: var(--space-2) 0;
+}
+.dec-alt ul {
+  margin: var(--space-1) 0 0;
+  padding-left: 20px;
+}
+.dec-alt-name {
+  font-weight: 600;
+}
+.dec-alts.edit .dec-alt {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.dec-alts.edit .dec-alt .row input {
+  flex: 1;
+  font-weight: 600;
+}
+.dec-triggers {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+.dec-triggers label {
+  display: inline-flex;
+  gap: var(--space-3);
+  align-items: baseline;
+}
+.dec-triggers li.met span {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+.dec-triggers.edit li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(0, 180px) auto;
+  gap: var(--space-2);
+  align-items: center;
+}
+.dec-file {
+  margin-top: var(--space-5);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.dec-editor,
+.dec-new {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.dec-editor textarea,
+.dec-new input {
+  width: 100%;
+}
+.dec-editor .dec-record-top {
+  position: sticky;
+  top: calc(-1 * var(--space-5));
+  background: var(--bg);
+  padding: var(--space-3) 0;
+  z-index: 1;
+  border-bottom: 1px solid var(--line);
+}
+.dec-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--space-3);
+}
+.dec-hint {
+  margin: -4px 0 0;
+}
+.dec-editor .chips select.chip-input {
+  flex: 1;
+  min-width: 160px;
+  border: none;
+  background: transparent;
+}
+.dec-kinds {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--space-2);
+}
+.dec-kind {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px var(--space-2);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3);
+  cursor: pointer;
+}
+.dec-kind input {
+  grid-row: span 2;
+  margin-top: 2px;
+}
+.dec-kind.on {
+  border-color: #1e5670;
+  background: #142a31;
+}
+.dec-intro p {
+  line-height: 1.55;
+}
+.dec-look {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: var(--space-1);
+}
+.dec-kind-list {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+}
+.dec-kind-list dt {
+  font-weight: 600;
+}
+.dec-kind-list dd {
+  margin: 0;
+}
+.dec-mini {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+.dec-mini li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  justify-content: space-between;
+}
+.warn-note {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  color: var(--amber);
+  background: var(--warn-bg);
+  border: 1px solid var(--warn-line);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  margin: 0;
+}
+.error-text {
+  color: var(--danger);
+}
+
+@media (max-width: 900px) {
+  .dec-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 40%) minmax(0, 1fr);
+  }
+  .dec-list {
+    border-right: none;
+    border-bottom: 1px solid var(--line);
+  }
+}
+
+/* The Decisions button in the navigation bar, with the number of decisions that need a look. */
+.decisions-btn {
+  position: relative;
+}
+/* Its label only where the navigation bar has room; elsewhere the icon (and its tooltip). */
+.canvas-wrap:not([data-cw="lg"]) .decisions-btn .diagrams-label {
+  display: none;
+}

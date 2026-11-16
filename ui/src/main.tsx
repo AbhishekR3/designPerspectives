@@ -8,6 +8,7 @@ import "./styles/overlays.css";
 import "./styles/canvas.css";
 import "./styles/panels.css";
 import "./styles/dialogs.css";
+import "./styles/pages.css";
 import { AuthGate } from "./SignIn";
 import { ErrorBoundary } from "./ErrorBoundary";
 

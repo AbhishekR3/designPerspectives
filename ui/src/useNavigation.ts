@@ -2,26 +2,69 @@ import { useCallback, useEffect, useRef, useState, type Dispatch, type RefObject
 import { homeDiagramOf } from "./types";
 import type { AppState, Diagram, Selection } from "./types";
 
-/** The URL hash: `#/d/<diagram>`, plus `?m=<model version>&c=<compared version>` when not the main model. */
+/**
+ * The URL hash: `#/d/<diagram>`, plus `?m=<model version>&c=<compared version>` when not the main model,
+ * and `p=<page>` while a page covers the diagram (`decisions` or `decisions/<id>`). The diagram stays in the
+ * hash under a page, so closing the page (or Back) returns to it, in the same model version.
+ */
 export interface HashState {
   key: string | null;
   model: string;
   compare: string | null;
+  page: string | null;
 }
 export function fromHash(): HashState {
-  const m = /^#\/d\/([^?]+)(?:\?(.*))?$/.exec(window.location.hash);
-  const q = new URLSearchParams(m?.[2] ?? "");
-  return { key: m ? decodeURIComponent(m[1]) : null, model: q.get("m") || "main", compare: q.get("c") || null };
+  const h = window.location.hash;
+  const m = /^#\/d\/([^?]+)(?:\?(.*))?$/.exec(h);
+  // A page with no diagram yet: `#/decisions...` (a link someone typed or shared).
+  const bare = /^#\/(decisions(?:\/[^?]*)?)(?:\?(.*))?$/.exec(h);
+  const q = new URLSearchParams(m?.[2] ?? bare?.[2] ?? "");
+  return { key: m?.[1] ? decodeURIComponent(m[1]) : null, model: q.get("m") || "main", compare: q.get("c") || null, page: q.get("p") || bare?.[1] || null };
 }
 export function keyFromHash(): string | null {
   return fromHash().key;
 }
-export function hashFor(key: string, model: string, compare: string | null): string {
+
+/** The page shown over the diagram, as in the hash; hashes written for the diagram keep it. */
+let currentPage: string | null = fromHash().page;
+
+export function hashFor(key: string, model: string, compare: string | null, page: string | null = currentPage): string {
   const q = new URLSearchParams();
   if (model !== "main") q.set("m", model);
   if (compare) q.set("c", compare);
-  const qs = q.toString();
+  if (page) q.set("p", page);
+  const qs = q.toString().replace(/%2F/g, "/");
   return `#/d/${encodeURIComponent(key)}${qs ? `?${qs}` : ""}`;
+}
+
+/** The page over the diagram (null: the diagram itself). Opening one is a new history entry, so Back closes it. */
+export function usePage(keyRef: RefObject<string | null>) {
+  const [page, setPageState] = useState<string | null>(currentPage);
+  useEffect(() => {
+    const onHash = () => {
+      currentPage = fromHash().page;
+      setPageState(currentPage);
+    };
+    window.addEventListener("hashchange", onHash);
+    window.addEventListener("popstate", onHash);
+    return () => {
+      window.removeEventListener("hashchange", onHash);
+      window.removeEventListener("popstate", onHash);
+    };
+  }, []);
+  const setPage = useCallback(
+    (p: string | null, opts: { replace?: boolean } = {}) => {
+      if (p === currentPage) return;
+      currentPage = p;
+      setPageState(p);
+      const h = fromHash();
+      const next = hashFor(keyRef.current ?? h.key ?? "landscape", h.model, h.compare, p);
+      if (opts.replace) window.history.replaceState(null, "", next);
+      else window.history.pushState(null, "", next);
+    },
+    [keyRef],
+  );
+  return { page, setPage };
 }
 
 /** The diagram on screen (its key, also in a ref for async code) and opening another one. */

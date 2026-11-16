@@ -1,5 +1,27 @@
 import { notify } from "./notify";
-import type { AppState, ApplyPreview, CommentKind, CommentList, CommentTarget, CommentThread, BacktrackResult, ObservedTrace, TraceList, ChangeSet, CodingPlan, Conflict, Diagram, EdgeLayout, InspectResult, MeResponse, ObservedCall, Pt, SessionUser, Style } from "./types";
+import type { Decision, DecisionInput, DecisionStatus } from "./types";
+import type {
+  AppState,
+  ApplyPreview,
+  CommentKind,
+  CommentList,
+  CommentTarget,
+  CommentThread,
+  BacktrackResult,
+  ObservedTrace,
+  TraceList,
+  ChangeSet,
+  CodingPlan,
+  Conflict,
+  Diagram,
+  EdgeLayout,
+  InspectResult,
+  MeResponse,
+  ObservedCall,
+  Pt,
+  SessionUser,
+  Style,
+} from "./types";
 
 export interface CodeFile {
   path: string;
@@ -129,7 +151,10 @@ export const api = {
   traces: (limit = 30) => request<TraceList>("GET", `/traces?limit=${limit}`),
   trace: (id: string, ui: string | null) => request<ObservedTrace>("GET", `/traces/${enc(id)}${ui ? `?ui=${enc(ui)}` : ""}`),
   backtrack: (q: BacktrackQuery, days: number) =>
-    request<BacktrackResult>("GET", `/backtrack?${new URLSearchParams("connector" in q ? { connector: q.connector, stage: String(q.stage), days: String(days) } : { flow: q.flow, step: String(q.step), days: String(days) })}`),
+    request<BacktrackResult>(
+      "GET",
+      `/backtrack?${new URLSearchParams("connector" in q ? { connector: q.connector, stage: String(q.stage), days: String(days) } : { flow: q.flow, step: String(q.step), days: String(days) })}`,
+    ),
   comments: () => request<CommentList>("GET", "/comments"),
   addComment: (body: { kind: CommentKind; target: CommentTarget; diagram: string | null; text: string; author?: string }) => request<CommentThread>("POST", "/comments", body),
   replyToComment: (id: string, text: string, author?: string) => request<CommentThread>("POST", `/comments/${enc(id)}/replies`, { text, ...(author ? { author } : {}) }),
@@ -149,6 +174,11 @@ export const api = {
   updateFlow: (key: string, body: object) => request("PUT", `/flows/${enc(key)}`, body),
   deleteFlow: (key: string) => request("DELETE", `/flows/${enc(key)}`),
   changes: () => request<ChangeSet>("GET", "/changes"),
+  decisions: () => request<Decision[]>("GET", "/decisions"),
+  createDecision: (body: DecisionInput) => request<{ id: string }>("POST", "/decisions", body),
+  updateDecision: (id: string, body: DecisionInput) => request("PUT", `/decisions/${enc(id)}`, body),
+  setDecisionStatus: (id: string, status: DecisionStatus) => request("PATCH", `/decisions/${enc(id)}/status`, { status }),
+  deleteDecision: (id: string) => request("DELETE", `/decisions/${enc(id)}`),
   createDraft: (body: { title: string; description?: string }) => request<{ id: string }>("POST", "/drafts", body),
   updateDraft: (id: string, body: { title?: string; description?: string; branch?: string; link?: string }) => request("PATCH", `/drafts/${enc(id)}`, body),
   deleteDraft: (id: string) => request("DELETE", `/drafts/${enc(id)}`),

@@ -11,8 +11,10 @@ import { Icon } from "./icons";
 import { CHANGE_COLORS, CHANGE_LABEL } from "./overlays";
 import {
   KIND_LABEL,
+  DECISION_KIND_INFO,
   type AppState,
   type ApplyPreview,
+  type DecisionKind,
   type DraftInfo,
   type ChangeSet,
   type CodingPlan,
@@ -426,11 +428,11 @@ export function ApplyDialog({ draftId, title, onClose, onApplied }: { draftId: s
   );
 }
 
-const TYPE_LABEL: Record<string, string> = { elements: "Elements", relationships: "Relationships", flows: "Flows", settings: "Settings" };
+const TYPE_LABEL: Record<string, string> = { elements: "Elements", relationships: "Relationships", flows: "Flows", decisions: "Decisions", settings: "Settings" };
 
-/** Every change, grouped by type. Clicking one opens the diagram that shows it. */
+/** Every change, grouped by type. Clicking one opens the diagram that shows it (a decision: the decision). */
 export function ChangeList({ changes, onPick }: { changes: ChangeSet; onPick?(c: ObjectChange): void }) {
-  const groups = (["elements", "relationships", "flows", "settings"] as const).filter((g) => changes[g].length);
+  const groups = (["elements", "relationships", "flows", "decisions", "settings"] as const).filter((g) => changes[g]?.length);
   if (!groups.length && !changes.code.length) return <p className="empty-note">No changes{changes.summary.layout ? ` (only ${changes.summary.layout} layout changes)` : ""}.</p>;
   return (
     <div className="change-list" data-testid="change-list">
@@ -444,7 +446,7 @@ export function ChangeList({ changes, onPick }: { changes: ChangeSet; onPick?(c:
               <li key={`${c.type}-${c.id}`}>
                 <button
                   className="link change-item"
-                  disabled={!onPick || !c.homeKey}
+                  disabled={!onPick || (!c.homeKey && !(c.type === "decision" && c.change !== "removed"))}
                   onClick={() => onPick?.(c)}
                   title={c.fields.map((f) => f.label).join(", ") || undefined}
                   data-testid={`change-${c.id}`}
@@ -498,6 +500,7 @@ function kindLabel(c: ObjectChange): string {
   if (c.type === "element") return KIND_LABEL[c.kind as keyof typeof KIND_LABEL] ?? c.kind;
   if (c.type === "relationship") return "Relationship";
   if (c.type === "flow") return "Flow";
+  if (c.type === "decision") return `${DECISION_KIND_INFO[c.kind as DecisionKind]?.label ?? c.kind} decision`;
   return "Setting";
 }
 

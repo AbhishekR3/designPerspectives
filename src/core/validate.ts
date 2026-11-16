@@ -6,9 +6,11 @@
  * so a file we write should load in Structurizr. Sidecar rules are ours.
  */
 
+import { decisionErrors } from "./decisions.js";
 import { buildIndex, getProps, ModelError, TAG_PREFIX, type Index } from "./ops.js";
 import { BUILTIN_LENSES, LEVELS, type Sidecar } from "./sidecar.js";
 import { allViews, VIEW_LISTS, type Workspace } from "./workspace.js";
+import type { Decision } from "../shared/types.js";
 
 function counts<T>(items: T[], key: (t: T) => string = String): Map<string, number> {
   const m = new Map<string, number>();
@@ -36,7 +38,12 @@ export function addedErrors(before: string[], after: string[]): string[] {
   });
 }
 
-export function errors(ws: Workspace, sidecar: Sidecar): string[] {
+/** Model rule errors in the workspace, the sidecar and the decision records. */
+export function errors(ws: Workspace, sidecar: Sidecar, decisions: Decision[] = []): string[] {
+  return [...modelErrors(ws, sidecar), ...decisionErrors(decisions)];
+}
+
+function modelErrors(ws: Workspace, sidecar: Sidecar): string[] {
   const out: string[] = [];
   let idx: Index;
   try {

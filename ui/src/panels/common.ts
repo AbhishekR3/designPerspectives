@@ -18,6 +18,8 @@ export interface Common {
   onInspectUi(elementId: string): void;
   /** Backtrack from a connector stage (0 = the data entering it) or a flow step. */
   onBacktrack(q: BacktrackQuery): void;
+  /** Open a decision record on the decisions page. */
+  onOpenDecision(id: string): void;
   focusName: boolean;
 }
 
