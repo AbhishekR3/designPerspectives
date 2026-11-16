@@ -1,7 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { Project } from "../src/core/project.js";
+import { Drafts } from "../src/core/drafts.js";
+import { createFlow, listFlows, updateFlow } from "../src/core/flows.js";
+import { buildIndex, createElement, createRelationship, deleteElement, updateElement } from "../src/core/ops.js";
+import { atomicWrite, Project } from "../src/core/project.js";
+import { errors } from "../src/core/validate.js";
+import { importFilePath, reviewPath } from "../src/import/ledger.js";
 import { checkProject } from "../src/core/report.js";
 import { client, demoDir, ok, tmpDir } from "./helpers.js";
 
@@ -297,5 +302,75 @@ describe("drafts", () => {
     const names = async (cmp: string) => (await ok(c.at(`draft:${id}`, cmp).get("/api/changes"))).elements.map((e: any) => e.id).sort();
     expect(await names("base")).toEqual(["mobile-app"]);
     expect(await names("main")).toEqual(["database", "mobile-app"]);
+  });
+
+  it("apply of a plain draft returns that it was applied whole; import state left under its ID is dropped when it is made", () => {
+    const dir = demoDir();
+    const main = new Project(dir);
+    const drafts = new Drafts(main);
+    // A review file left by a draft folder deleted by hand must not make the next draft with that ID an import.
+    atomicWrite(reviewPath(main.dir, "plain"), "{}");
+    atomicWrite(importFilePath(main.dir, "plain"), "{}");
+    const id = drafts.create("Plain");
+    expect(id).toBe("plain");
+    expect(fs.existsSync(reviewPath(main.dir, id))).toBe(false);
+    expect(fs.existsSync(importFilePath(main.dir, id))).toBe(false);
+    drafts.get(id).edit((ws, sc) => updateElement(ws, sc, "atm", { name: "Cash Machine" }));
+    expect(drafts.preview(id).held).toBeUndefined();
+    expect(drafts.apply(id)).toEqual({ kept: false, held: 0 });
+    expect(buildIndex(main.workspace).el("atm").name).toBe("Cash Machine");
+  });
+
+  it("revertUnits takes a new element out of a draft with its children, relationships, flow steps and decision mentions", () => {
+    const dir = demoDir();
+    const main = new Project(dir);
+    const drafts = new Drafts(main);
+    const id = drafts.create("Cache");
+    const draft = drafts.get(id);
+    let kept = "";
+    draft.edit((ws, _sc, decs) => {
+      createElement(ws, { kind: "container", id: "cache", name: "Cache", parentId: "internet-banking-system" });
+      createElement(ws, { kind: "component", id: "cache-client", name: "Cache Client", parentId: "cache" });
+      createRelationship(ws, { sourceId: "api-application", destinationId: "cache", description: "Reads from" });
+      createRelationship(ws, { sourceId: "cache-client", destinationId: "database", description: "Fills from" });
+      kept = createRelationship(ws, { sourceId: "web-application", destinationId: "api-application", description: "Calls for pages" });
+      const key = createFlow(ws, "Cached read");
+      updateFlow(ws, key, { steps: [{ relationshipId: kept }, { relationshipId: "api-application--cache" }] });
+      decs[0]!.affects = [...decs[0]!.affects, "cache"];
+    });
+    const keys = drafts.revertUnits(id, ["el:cache"]);
+    expect(keys).toEqual(["el:cache", "el:cache-client", "rel:api-application--cache", "rel:cache-client--database", "view:components-cache"]);
+    const idx = buildIndex(draft.workspace);
+    expect(idx.elements.has("cache")).toBe(false);
+    expect(idx.relationships.has(kept)).toBe(true);
+    expect(
+      listFlows(draft.workspace)
+        .find((f) => f.title === "Cached read")!
+        .steps.map((s) => s.relationshipId),
+    ).toEqual([kept]);
+    expect(draft.decisions[0]!.affects).not.toContain("cache");
+    expect(errors(draft.workspace, draft.sidecar, draft.decisions)).toEqual([]);
+    expect(draft.undoStack.length).toBe(2);
+    // Nothing left to revert: no change, no undo step.
+    expect(drafts.revertUnits(id, ["el:cache"])).toEqual([]);
+    expect(draft.undoStack.length).toBe(2);
+  });
+
+  it("revertUnits brings back a removed element with the parent it needs", () => {
+    const dir = demoDir();
+    const main = new Project(dir);
+    const drafts = new Drafts(main);
+    const id = drafts.create("Drop statements");
+    const draft = drafts.get(id);
+    draft.edit((ws) => {
+      deleteElement(ws, "statement-job");
+    });
+    expect(buildIndex(draft.workspace).elements.has("pdf-renderer")).toBe(false);
+    const keys = drafts.revertUnits(id, ["el:pdf-renderer"]);
+    expect(keys).toEqual(["el:pdf-renderer", "el:statement-job"]);
+    const idx = buildIndex(draft.workspace);
+    expect(idx.parentOf("pdf-renderer")).toBe("statement-job");
+    expect(idx.elements.has("batch-fetcher")).toBe(false); // only what was asked for, and what it needs
+    expect(errors(draft.workspace, draft.sidecar, draft.decisions)).toEqual([]);
   });
 });

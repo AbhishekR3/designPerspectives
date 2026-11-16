@@ -10,6 +10,7 @@ import { buildIndex, elementSummary, relationshipSummary, updateElement } from "
 import { Project } from "../src/core/project.js";
 import { ImportRejected, importToDraft } from "../src/import/importer.js";
 import { foldApplied, ledgerPath, pendingPath, readLedger, settleLedger } from "../src/import/ledger.js";
+import { readReview, setDecision } from "../src/import/review.js";
 import type { ImportFile } from "../src/shared/types.js";
 import { demoDir } from "./helpers.js";
 import { sampleImport } from "./import-fixture.js";
@@ -24,6 +25,12 @@ function setup() {
 }
 
 const run = (s: ReturnType<typeof setup>, file: ImportFile, title = "Import C2") => importToDraft(s.drafts, file, { title, author: "Importer", date: DATE });
+
+/** Accept every review item (one by one, as an explicit accept), then apply: an import draft applies only accepted items. */
+function applyAccepted(s: ReturnType<typeof setup>, draftId: string) {
+  for (const key of Object.keys(readReview(s.main.dir, draftId)!.items)) setDecision(s.drafts, draftId, key, "accepted", "Tester");
+  expect(s.drafts.apply(draftId)).toEqual({ kept: false, held: 0 });
+}
 
 /** Every file under a folder, relative path → bytes. */
 function filesOf(dir: string, prefix = ""): Record<string, string> {
@@ -122,7 +129,7 @@ describe("importToDraft", () => {
   it("round trip: applied, the same file again gives a draft with no changes", () => {
     const s = setup();
     const first = run(s, sampleImport());
-    s.drafts.apply(first.draftId);
+    applyAccepted(s, first.draftId);
     const applied = fs.readFileSync(s.main.wsPath, "utf-8");
     const again = run(s, sampleImport(), "Import C2 again");
     const draft = s.drafts.get(again.draftId);
@@ -139,7 +146,7 @@ describe("importToDraft", () => {
 
   it("re-import keeps a person's edit, updates what nobody changed, fills an empty field and keeps a filled one", () => {
     const s = setup();
-    s.drafts.apply(run(s, sampleImport()).draftId);
+    applyAccepted(s, run(s, sampleImport()).draftId);
     s.main.edit((ws, sc) => updateElement(ws, sc, "ledger-service", { description: "Edited by a person." }));
     const f = sampleImport();
     f.objects[0]!.description = "Keeps the ledger, second version.";
@@ -163,7 +170,7 @@ describe("importToDraft", () => {
 
   it("lists objects an earlier import wrote that a new file at the same level leaves out, and deletes nothing", () => {
     const s = setup();
-    s.drafts.apply(run(s, sampleImport()).draftId);
+    applyAccepted(s, run(s, sampleImport()).draftId);
     const f = sampleImport();
     f.objects = f.objects.filter((o) => o.id !== "ledger-events");
     f.relationships = [f.relationships[0]!];
@@ -195,7 +202,7 @@ describe("importToDraft", () => {
     const s = setup();
     const { draftId } = run(s, sampleImport());
     s.drafts.get(draftId).edit((ws, sc) => updateElement(ws, sc, "ledger-service", { owner: "Ledger team" }));
-    s.drafts.apply(draftId);
+    applyAccepted(s, draftId);
     const f = sampleImport();
     f.objects[0]!.owner = "Platform team";
     const { report } = run(s, f, "Again");

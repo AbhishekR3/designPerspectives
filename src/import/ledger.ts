@@ -5,6 +5,8 @@
  *   architecture/import/ledger.json              per element / relationship ID and field, the canonical
  *                                                value the importer wrote and main now holds
  *   architecture/import/pending/<draftId>.json   the same, for one import draft not yet (fully) applied
+ *   architecture/import/reviews/<draftId>.json   the review state of an import draft (review.ts)
+ *   architecture/import/files/<draftId>.json     the import file the draft was made from
  *
  * On re-import, each field is a three-way: base = ledger, ours = the model, theirs = the new file (see
  * importer.ts). The folder sits next to `drafts/`, outside every model copy: a draft copies only the model
@@ -52,6 +54,19 @@ export const emptyLedger = (): Ledger => ({ version: 1, elements: Object.create(
 export const importDir = (modelDir: string): string => path.join(modelDir, IMPORT_DIR);
 export const ledgerPath = (modelDir: string): string => path.join(importDir(modelDir), LEDGER_FILE);
 export const pendingPath = (modelDir: string, draftId: string): string => path.join(importDir(modelDir), PENDING_DIR, `${draftId}.json`);
+
+/** The review state of an import draft (import/review.ts) and the import file it was made from. */
+export const REVIEWS_DIR = "reviews";
+export const FILES_DIR = "files";
+export const reviewPath = (modelDir: string, draftId: string): string => path.join(importDir(modelDir), REVIEWS_DIR, `${draftId}.json`);
+export const importFilePath = (modelDir: string, draftId: string): string => path.join(importDir(modelDir), FILES_DIR, `${draftId}.json`);
+
+/** Forget an import draft's review state and, unless `keepFile` (a fully applied draft: the file is the
+ *  record of what was proposed), its import file. */
+export function dropReview(modelDir: string, draftId: string, opts: { keepFile?: boolean } = {}): void {
+  fs.rmSync(reviewPath(modelDir, draftId), { force: true });
+  if (!opts.keepFile) fs.rmSync(importFilePath(modelDir, draftId), { force: true });
+}
 
 /** Values compare by their JSON text. */
 export const sameValue = (a: LedgerValue | undefined, b: LedgerValue | undefined): boolean => JSON.stringify(a) === JSON.stringify(b);

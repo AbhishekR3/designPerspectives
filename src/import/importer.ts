@@ -18,6 +18,9 @@
  *
  * Deterministic: the same file and the same model give the same draft, byte for byte (`date` fixes the
  * draft's and the decisions' date; nothing else depends on time or chance).
+ *
+ * The draft gets a review (review.ts): the import file is kept as `import/files/<draftId>.json` and each object,
+ * relationship, flow and decision the import created or changed becomes a pending review item with a computed level.
  */
 
 import fs from "node:fs";
@@ -34,6 +37,8 @@ import type { Decision, FieldError, ImportFile, ImportKept, ImportKeptReason, Im
 import { checkImport, KIND_OF, planRelationships, relIdentity, resolveRelRef, techNormaliser, type PlannedRel } from "./checks.js";
 import { elementFields, emptyLedger, fieldOf, isEmptyValue, relationshipFields, sameValue, settleLedger, writePending, type Ledger, type LedgerEntry, type LedgerValue } from "./ledger.js";
 import { pointer } from "./schema.js";
+import { createReview, decisionSlug, itemKey, type ImportOrigin } from "./review.js";
+import type { Evidence } from "./scan.js";
 
 /** The file was refused: every error (with its JSON pointer), plus the warnings found on the way. */
 export class ImportRejected extends ModelError {
@@ -57,6 +62,8 @@ export interface ImportOptions {
   date?: string;
   /** Where code paths are checked (default: the main project's code folder). */
   code?: CodeSource;
+  /** The scan results the review levels are checked against (default: `architecture/import/evidence.json`, if any). */
+  evidence?: Evidence | null;
 }
 
 export interface ImportResult {
@@ -134,10 +141,19 @@ function op<T>(at: string, fn: () => T): T {
  * Apply a checked import file to a model (the draft's copy, inside `Project.edit`). Returns the report and
  * the ledger of what the file now has in the model (for `writePending`). `ledger`: the settled ledger (base).
  */
-export function applyImport(ws: Workspace, sc: Sidecar, decs: Decision[], file: ImportFile, ledger: Ledger, opts: { date?: string } = {}): { report: ImportReport; written: Ledger } {
+export function applyImport(
+  ws: Workspace,
+  sc: Sidecar,
+  decs: Decision[],
+  file: ImportFile,
+  ledger: Ledger,
+  opts: { date?: string } = {},
+): { report: ImportReport; written: Ledger; origins: ImportOrigin[] } {
   const norm = techNormaliser(ws);
   const report: ImportReport = { created: [], updated: [], kept: [], notInImport: [], unchanged: 0 };
   const written = emptyLedger();
+  // What the review lists (review.ts): every object, relationship, flow and decision the import created or changed.
+  const origins: ImportOrigin[] = [];
 
   /** Three-way per field; returns the fields to write. */
   const merge = (what: "element" | "relationship", id: string, name: string, ours: LedgerEntry, theirs: LedgerEntry, base: LedgerEntry | undefined, linked: boolean, out: LedgerEntry): LedgerEntry => {
@@ -190,12 +206,14 @@ export function applyImport(ws: Workspace, sc: Sidecar, decs: Decision[], file: 
       });
       Object.assign(out, theirs);
       report.created.push({ id: o.id, what: "element", name: theirs.name as string, fields: Object.keys(theirs) });
+      origins.push({ key: itemKey("object", o.id), kind: "object", pointer: at });
     } else {
       const linked = !!getProps(el)[CATALOG_KEY];
       const write = merge("element", o.id, el.name, elementFields(el, kind), theirs, ledger.elements[o.id], linked, out);
       if (Object.keys(write).length) {
         op(at, () => updateElement(ws, sc, o.id, elementPatch(write)));
         report.updated.push({ id: o.id, what: "element", name: el.name, fields: Object.keys(write) });
+        origins.push({ key: itemKey("object", o.id), kind: "object", pointer: at });
       } else report.unchanged++;
     }
     if (Object.keys(out).length) written.elements[o.id] = out;
@@ -218,6 +236,7 @@ export function applyImport(ws: Workspace, sc: Sidecar, decs: Decision[], file: 
       Object.assign(out, theirs);
       actual.set(relIdentity(p), id);
       report.created.push({ id, what: "relationship", name: `${label}: ${p.description}`, fields: Object.keys(theirs) });
+      origins.push({ key: itemKey("relationship", id), kind: "relationship", pointer: p.pointer });
       written.relationships[id] = out;
       continue;
     }
@@ -229,6 +248,7 @@ export function applyImport(ws: Workspace, sc: Sidecar, decs: Decision[], file: 
     if (Object.keys(write).length) {
       op(p.pointer, () => updateRelationship(ws, id, relPatch(write)));
       report.updated.push({ id, what: "relationship", name: `${label}: ${r.description || ""}`, fields: Object.keys(write) });
+      origins.push({ key: itemKey("relationship", id), kind: "relationship", pointer: p.pointer });
     } else report.unchanged++;
     if (Object.keys(out).length) written.relationships[id] = { ...(written.relationships[id] ?? {}), ...out };
   }
@@ -253,6 +273,7 @@ export function applyImport(ws: Workspace, sc: Sidecar, decs: Decision[], file: 
       return k;
     });
     report.created.push({ id: key, what: "flow", name: title, fields: ["steps"] });
+    origins.push({ key: itemKey("flow", key), kind: "flow", pointer: at });
   });
 
   // ---- decisions: proposed, new titles only
@@ -277,11 +298,12 @@ export function applyImport(ws: Workspace, sc: Sidecar, decs: Decision[], file: 
       }),
     );
     report.created.push({ id, what: "decision", name: title, fields: ["context", "decision"] });
+    origins.push({ key: itemKey("decision", decisionSlug(decs.find((x) => x.id === id)!.file)), kind: "decision", pointer: at });
   });
 
   // ---- what an earlier import wrote at this level and this file leaves out (never deleted)
   report.notInImport = notInImport(buildIndex(ws), file, ledger, written);
-  return { report, written };
+  return { report, written, origins };
 }
 
 function notInImport(idx: Index, file: ImportFile, ledger: Ledger, written: Ledger): ImportReportItem[] {
@@ -317,8 +339,9 @@ export function importToDraft(drafts: Drafts, file: ImportFile, opts: ImportOpti
   const date = opts.date ?? today();
   const id = drafts.create(opts.title, opts.description ?? "", opts.author, date);
   try {
-    const { report, written } = drafts.get(id).edit((ws, sc, decs) => applyImport(ws, sc, decs, file, ledger, { date }));
+    const { report, written, origins } = drafts.get(id).edit((ws, sc, decs) => applyImport(ws, sc, decs, file, ledger, { date }));
     writePending(main.dir, id, written);
+    createReview(drafts, id, file, origins, { code: opts.code, evidence: opts.evidence });
     return { draftId: id, report, warnings: check.warnings };
   } catch (e) {
     drafts.remove(id);

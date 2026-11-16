@@ -716,6 +716,27 @@ export interface ApplyPreview {
   conflicts: Conflict[];
   /** Planned code edits that Apply writes to the code folder (when asked to). */
   code: { path: string; change: "added" | "changed" | "deleted" }[];
+  /** An import draft with review items that are not accepted: they stay in the draft (`changes` leaves them out). */
+  held?: ApplyHeld;
+}
+
+/** What a partial apply of an import draft keeps in the draft. */
+export interface ApplyHeld {
+  /** Review items that are not accepted and change something in the draft. */
+  items: number;
+  /** Changes held back only because they depend on a held item (an accepted component inside a held
+   *  container, a flow over a held relationship, ...): what, and why. */
+  dependent: Conflict[];
+  /** Nothing would reach the main model: Apply is refused until an item is accepted. */
+  nothingAccepted: boolean;
+}
+
+/** What `Drafts.apply` did. */
+export interface ApplyOutcome {
+  /** True when the draft stays (a partial apply of an import draft); false when it was applied whole and removed. */
+  kept: boolean;
+  /** Review items left in the draft. */
+  held: number;
 }
 
 /** One step of a draft's coding plan. */
@@ -1228,4 +1249,61 @@ export interface ImportReport {
 export interface ImportCheck {
   errors: FieldError[];
   warnings: FieldError[];
+}
+
+// ------------------------------------------------------------------ import review (DEC-051, Stage B)
+
+/** Computed by the tool from evidence it can check (src/import/review.ts), never taken from the file's `confidence`. */
+export const REVIEW_LEVELS = ["verified", "partly", "unverified"] as const;
+export type ReviewLevel = (typeof REVIEW_LEVELS)[number];
+export const REVIEW_DECISIONS = ["pending", "accepted", "rejected"] as const;
+export type ReviewDecision = (typeof REVIEW_DECISIONS)[number];
+export type ReviewItemKind = "object" | "relationship" | "flow" | "decision";
+
+/**
+ * One check behind a review level:
+ * - `scan-fact`: a cited scan fact is in evidence.json (and its file is still there);
+ * - `user-note`: stated by the user;
+ * - `manifest-path`: a manifest (package.json, Dockerfile, compose, ...) found by the scan sits at a mapped code path;
+ * - `manifest-service`: the scan found a dependency, image or host of a known service with the item's name;
+ * - `file-exists`, `lines-exist`, `text-found`: a cited file, its lines, and the item's name or the quoted text in them;
+ * - `import-edge`: for a relationship between two components with mapped code, an import from one's code to the other's;
+ * - `flow-step`: the level of each step of a flow;
+ * - `no-evidence`: nothing was cited.
+ */
+export type ReviewRule = "scan-fact" | "user-note" | "manifest-path" | "manifest-service" | "file-exists" | "lines-exist" | "text-found" | "import-edge" | "flow-step" | "no-evidence";
+
+export interface ReviewCheck {
+  rule: ReviewRule;
+  ok: boolean;
+  path?: string;
+  line?: number;
+  note?: string;
+}
+
+/** The review of one item of an import draft. Key: `object:<id>`, `relationship:<id>`, `flow:<flow key>`, `decision:<slug>`. */
+export interface ReviewItem {
+  kind: ReviewItemKind;
+  /** The name shown (object name, relationship label, flow or decision title) when last checked. */
+  name: string;
+  /** Where the item is in the import file (JSON pointer). */
+  pointer: string;
+  level: ReviewLevel;
+  checks: ReviewCheck[];
+  decision: ReviewDecision;
+  /** Who accepted or rejected it. */
+  by?: string;
+  /** Typed guidance for the next BMO turn, stored as written. */
+  feedback?: string;
+}
+
+/** `architecture/import/reviews/<draftId>.json`. */
+export interface ReviewState {
+  schemaVersion: 1;
+  /** sha1 of `architecture/import/files/<draftId>.json`, the import file the draft was made from. */
+  importFileSha1: string;
+  /** The import file's revision (1 for the first; a revised file from BMO counts up). */
+  revision: number;
+  items: Record<string, ReviewItem>;
+  draftFeedback?: string;
 }
