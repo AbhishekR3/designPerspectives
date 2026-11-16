@@ -1,4 +1,4 @@
-/** The frame of the hub-level pages: a left rail (pages, projects, the user) and the page (DEC-052). */
+/** The frame of the hub-level pages: a left rail (pages, projects, the user) and the page (DEC-053). */
 
 import { DialogHost } from "../dialogs";
 import { Icon } from "../icons";

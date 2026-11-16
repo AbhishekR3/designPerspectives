@@ -1,9 +1,9 @@
 /**
- * The demo hub (`demo/hub/`, DEC-053, DEC-054): a shared catalog and two projects that use the same
+ * The demo hub (`demo/hub/`, DEC-054, DEC-055): a shared catalog and two projects that use the same
  * customer database. Each project reads or writes shared tables and has a private table of its own;
  * both projects write the audit log (flagged on the home page), and one project's copy of the identity
  * provider has drifted from the catalog (the hub brings it up to date when it first serves the demo, and
- * the home page lists that under "Catalog changes copied", DEC-056). Written by `npm run make-demo`;
+ * the home page lists that under "Catalog changes copied", DEC-057). Written by `npm run make-demo`;
  * `dp init --hub --demo` copies it.
  */
 

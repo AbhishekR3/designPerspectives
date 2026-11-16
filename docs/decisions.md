@@ -339,12 +339,13 @@ Entry format: **ID — title** · date · status · who decided · what was deci
   - Each request stats every decision file to notice changes on disk, which is fine for hundreds.
   - Not built yet (owner-approved plan, later stages): the home page, the multi-project hub, the shared catalog and credentials.
 
-## DEC-052 — A home page above the diagrams
+## DEC-053 — A home page above the diagrams
+- Numbering note: DEC-053 to DEC-060 were numbered DEC-052 to DEC-059 in commits 47042c2, 9cea2f8 and 7ed976a (their messages and earlier reviews say so); they were moved up by one because DEC-052 is the line routing decision (branch `feat/orthogonal-routing`).
 - Date: 2026-11-15 · Status: Proposal · Decided by: Owner [2026-11-15] ("a home page / dashboard to track the project, relevant models … decisions"), [Proposal] (shape)
 - Decision:
   - **What it shows.** A home page at `#/home`, outside the diagram workspace:
     - a card per project, with a small picture of its landscape drawn from stored positions (a grid where there are none), counts, drafts, model problems and its last commit
-    - "Needs a look": model errors, `dp check` warnings, drafts behind main, decisions that are proposed, past review or decide-by, expired, or have a trigger met, and, in a hub, the catalog findings of DEC-054
+    - "Needs a look": model errors, `dp check` warnings, drafts behind main, decisions that are proposed, past review or decide-by, expired, or have a trigger met, and, in a hub, the catalog findings of DEC-055
     - "Watching": open revisit triggers, and review, decide-by and expiry dates within 120 days
     - the latest decisions of every project
     - in a hub, the shared catalog in numbers
@@ -360,10 +361,10 @@ Entry format: **ID — title** · date · status · who decided · what was deci
   - The page is read-only apart from "New project".
   - `dp check` runs per project on the first load after a change, which is slow for large hubs.
 
-## DEC-053 — A hub serves several projects: `dp serve --hub DIR`
+## DEC-054 — A hub serves several projects: `dp serve --hub DIR`
 - Date: 2026-11-15 · Status: Proposal (amends DEC-007: one workspace per folder still holds, several folders per server) · Decided by: Owner [2026-11-15] (a hub folder, committable to git), [Proposal] (shape)
 - Decision:
-  - **`hub.json`.** It lists projects (`{id, path, name?}`) and a catalog folder (`catalog`, DEC-054). Each project is an ordinary project folder with its own `architecture/`, code, drafts, comments and git history.
+  - **`hub.json`.** It lists projects (`{id, path, name?}`) and a catalog folder (`catalog`, DEC-055). Each project is an ordinary project folder with its own `architecture/`, code, drafts, comments and git history.
   - **Server.** The server builds one app per project on first use (`buildApp`, the route modules unchanged). The hub's own app answers sign-in, `/api/hub`, `/api/home`, `/api/catalog*`, `/api/credentials*`, `POST /api/hub/projects` and the UI. It passes every other `/api/*` request to the project named by the `X-DP-Project` header: 422 without it, 404 for an unknown project.
   - **UI.** The browser keeps the project in the URL (`pr=`) and sends the header from `api.ts`.
   - **Sign-in.** One sign-in for every project, from `<hub>/.dp/users.json`. Roles are global; a project's own users file is not used in a hub.
@@ -381,7 +382,7 @@ Entry format: **ID — title** · date · status · who decided · what was deci
   - **Logs.** The project is not in the path, so server logs do not show it.
   - **Paths outside the hub.** A project path outside the hub folder (`../x`) is allowed, as long as it does not hold the hub.
 
-## DEC-054 — Shared elements live once in a catalog; projects keep linked copies; data is listed with who reads and writes it
+## DEC-055 — Shared elements live once in a catalog; projects keep linked copies; data is listed with who reads and writes it
 - Date: 2026-11-15 · Status: Proposal (refines DEC-023: still no element with several parents) · Decided by: Owner [2026-11-15] (catalog + linked copies; "different projects sharing the same database but different tables or sometimes shared tables"), [Proposal] (shape)
 - Decision:
   - **The catalog.** A hub's catalog is a normal project folder (`<hub>/catalog/`). Its elements are the shared definitions: people, systems, databases, brokers. It is edited, drafted and undone like any project.
@@ -410,7 +411,7 @@ Entry format: **ID — title** · date · status · who decided · what was deci
   - **Single project.** Without a hub there is no catalog; the Data page shows one project's data.
   - **No visible marker on the canvas** for a linked copy yet.
 
-## DEC-055 — Integration credentials: kept by the server, outside git, write-only, optionally encrypted
+## DEC-056 — Integration credentials: kept by the server, outside git, write-only, optionally encrypted
 - Date: 2026-11-15 · Status: Proposal (updates the backlog rule "integrations that need tokens wait": the store exists; nothing uses it yet) · Decided by: Owner [2026-11-15] ("add API keys storing": integration credentials for dp itself), [Proposal] (shape)
 - Decision:
   - **Where.** Credentials (name, provider, scopes, a note, dates, the value) are kept in `<hub or project>/.dp/credentials.json`.
@@ -435,8 +436,8 @@ Entry format: **ID — title** · date · status · who decided · what was deci
   - There is no "test connection" (it would need network calls, and nothing uses the credentials yet).
   - No per-project credentials inside a hub.
 
-## DEC-056 — In a hub, roles are per project, and catalog copies follow the catalog automatically
-- Date: 2026-11-15 · Status: Proposal (amends DEC-053 and DEC-054) · Decided by: Owner [2026-11-15] ("project roles should be in a hub"; "every copy should update automatically once a user commits the changes", meaning once saved to the catalog), [Proposal] (shape)
+## DEC-057 — In a hub, roles are per project, and catalog copies follow the catalog automatically
+- Date: 2026-11-15 · Status: Proposal (amends DEC-054 and DEC-055) · Decided by: Owner [2026-11-15] ("project roles should be in a hub"; "every copy should update automatically once a user commits the changes", meaning once saved to the catalog), [Proposal] (shape)
 - Decision:
   - **Roles per project.**
     - Each user keeps a role everywhere and may have another role in some projects: `projects: {"<id>": "<role>"}` in `<hub>/.dp/users.json`.
@@ -459,12 +460,12 @@ Entry format: **ID — title** · date · status · who decided · what was deci
 - Trade-off:
   - **Writes on a read.** A project's files can change on a request that only reads (its first request after a catalog change); the change shows as uncommitted in git, and in History.
   - **Memory.** The list of copies made is kept in memory and lost on restart; git history keeps the changes themselves.
-  - **No role can hide a project:** there is no "no access" role. Amended by DEC-059, which adds one.
+  - **No role can hide a project:** there is no "no access" role. Amended by DEC-060, which adds one.
 - Owner answer [2026-11-15, delegated: "do what you think is best"]: dp does **not** commit the copies it makes.
   - They show as "not committed yet" on the History page and in git, and are committed with the rest of the work, with the team's own tools and messages.
   - Why: a tool that commits on its own surprises people, can land on whatever branch is checked out, and would turn DEC-018's read-only git into read-write for one case.
 
-## DEC-057 — History: what each commit changed in the models (git read-only)
+## DEC-058 — History: what each commit changed in the models (git read-only)
 - Date: 2026-11-15 · Status: Proposal (keeps DEC-018: git is only read) · Decided by: Owner [2026-11-15] ("have a Git for this project to understand changes"; a read-only history view), [Proposal] (shape)
 - Decision:
   - **The page.** A History page (`#/history`, in the home page's rail) lists the commits that touched the model folders, newest first, for one project or across a hub.
@@ -480,8 +481,8 @@ Entry format: **ID — title** · date · status · who decided · what was deci
   - Commits that only change drafts or layout show as such.
   - Commits made outside the model folders are not listed.
 
-## DEC-058 — First use of the credentials: linked work status from GitHub
-- Date: 2026-11-15 · Status: Proposal (first use of DEC-055) · Decided by: Owner delegated [2026-11-15] ("keep it simple, go with whatever you think"), [Proposal]
+## DEC-059 — First use of the credentials: linked work status from GitHub
+- Date: 2026-11-15 · Status: Proposal (first use of DEC-056) · Decided by: Owner delegated [2026-11-15] ("keep it simple, go with whatever you think"), [Proposal]
 - Decision:
   - **What it does.** "Refresh status from GitHub" under Linked work (`POST /api/work/refresh`, action `edit`) reads every work item of the shown version whose link is a GitHub issue or pull request, and asks api.github.com for its state.
     - A closed issue or a closed or merged pull request becomes "done".
@@ -497,8 +498,8 @@ Entry format: **ID — title** · date · status · who decided · what was deci
   - Statuses are a snapshot, not live.
   - GitHub Enterprise hosts and other trackers are not covered yet.
 
-## DEC-059 — "No access" to a hub project
-- Date: 2026-11-15 · Status: Proposal (amends DEC-056) · Decided by: Owner [2026-11-15] ("a role should have no access to an entire project too"), [Proposal] (shape)
+## DEC-060 — "No access" to a hub project
+- Date: 2026-11-15 · Status: Proposal (amends DEC-057) · Decided by: Owner [2026-11-15] ("a role should have no access to an entire project too"), [Proposal] (shape)
 - Decision:
   - **The role.** A user's role in one hub project can be `none`: `"projects": {"payments": "none"}` in `<hub>/.dp/users.json`, set with `dp users role NAME none HUB --project payments`.
   - **Refused.** Every request to that project is refused with 403, reading included and on a read-only server too: model, diagrams, drafts, comments, code, history.

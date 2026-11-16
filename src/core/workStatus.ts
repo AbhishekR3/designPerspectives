@@ -1,5 +1,5 @@
 /**
- * Linked work status from GitHub (DEC-058), the first use of the stored credentials (DEC-055). Work
+ * Linked work status from GitHub (DEC-059), the first use of the stored credentials (DEC-056). Work
  * items (`dp.work`) whose link is a GitHub issue or pull request get their status from GitHub: an open
  * one keeps "in-progress" or "blocked" and is otherwise "open"; a closed or merged one is "done".
  * Only on request (a button), only to api.github.com, with the first stored credential whose provider is

@@ -1,4 +1,4 @@
-/** Hub-level routes (DEC-052, DEC-053): what the server serves and the home page summary. The same
+/** Hub-level routes (DEC-053, DEC-054): what the server serves and the home page summary. The same
  *  routes answer for a single project (`dp serve PATH`) and for a hub (`dp serve --hub DIR`). */
 
 import type { Context, Hono } from "hono";
@@ -31,13 +31,13 @@ export interface HubCtx {
   readOnly: boolean;
   entries(): HubEntry[];
   catalogId: string | null;
-  /** Hub: copy catalog changes into every project first (DEC-056). */
+  /** Hub: copy catalog changes into every project first (DEC-057). */
   sync?(): void;
   /** Hub: catalog changes copied into projects, newest first. */
   updates?(): CatalogUpdate[];
 }
 
-/** The projects the request's user may see (DEC-059): all of them, except where their role is "none". */
+/** The projects the request's user may see (DEC-060): all of them, except where their role is "none". */
 export function visibleEntries(hub: HubCtx, c: Context): HubEntry[] {
   if (hub.mode !== "hub") return hub.entries();
   const name = whoOf(hub, c).user?.name;
@@ -171,7 +171,7 @@ export function registerHub(app: Hono, hub: HubCtx): void {
     return c.json(cat ? catalogEntries(cat.ctx().project.workspace) : []);
   });
 
-  /** Git history of the projects' models (DEC-057): `?project=<id>` for one, `?limit=` (default 20, at most 100). */
+  /** Git history of the projects' models (DEC-058): `?project=<id>` for one, `?limit=` (default 20, at most 100). */
   app.get("/api/history", (c) => {
     const want = c.req.query("project") || null;
     const limit = Math.max(1, Math.min(100, Number(c.req.query("limit")) || 20));

@@ -1,5 +1,5 @@
 /**
- * A hub of projects (DEC-053): `dp serve --hub DIR` serves several project folders from one server.
+ * A hub of projects (DEC-054): `dp serve --hub DIR` serves several project folders from one server.
  *
  *   DIR/hub.json            {"version": 1, "name": "...", "catalog": "catalog", "projects": [{"id", "path", "name"?}]}
  *   DIR/catalog/            the shared catalog: a normal project folder (H4)
@@ -116,12 +116,12 @@ export class Hub {
   private file!: HubFile;
   private stamp = "";
   private apps = new Map<string, { root: string; app: Hono; ctx: Ctx }>();
-  /** Per project: the catalog and project revisions last brought in step (DEC-056). */
+  /** Per project: the catalog and project revisions last brought in step (DEC-057). */
   private syncKeys = new Map<string, string>();
   /** Catalog changes copied into projects, newest first. */
   readonly updates: CatalogUpdate[] = [];
 
-  /** The hub's credentials (DEC-055), used by every project's integrations. */
+  /** The hub's credentials (DEC-056), used by every project's integrations. */
   readonly credentials: CredentialStore;
 
   constructor(
@@ -200,7 +200,7 @@ export class Hub {
   }
 
   /**
-   * Copy catalog changes into the projects' main models (DEC-056): every linked copy takes its catalog
+   * Copy catalog changes into the projects' main models (DEC-057): every linked copy takes its catalog
    * element's name, description and technology as soon as the catalog's main model has them. Checked
    * before each project request and after each catalog request, cheaply (by revisions). Not on a
    * read-only server. Drafts get the change when they are applied, like any change made on main.

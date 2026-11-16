@@ -1,5 +1,5 @@
 /**
- * The shared catalog and data sections of the panels (DEC-054):
+ * The shared catalog and data sections of the panels (DEC-055):
  * - CatalogSection: an element's link to a shared catalog element (link, update from the catalog, unlink);
  * - DataSection: the data an element holds (its own, plus the catalog's for a linked copy);
  * - DataAccessSection: which of that data a relationship reads or writes.

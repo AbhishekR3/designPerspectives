@@ -1,5 +1,5 @@
 /**
- * Integration credentials (DEC-055): tokens dp itself will use to reach other services (a git host,
+ * Integration credentials (DEC-056): tokens dp itself will use to reach other services (a git host,
  * an issue tracker, an observability backend, an LLM). Never part of the model and never in git:
  *
  *   <hub or project>/.dp/credentials.json    mode 0600, in a hidden folder the code routes never open

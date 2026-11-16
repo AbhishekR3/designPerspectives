@@ -184,11 +184,11 @@ export interface AppOptions {
   tracesDir?: string | null;
   /** Sign-in shared with other projects (a hub); default: this project's own. */
   auth?: Auth;
-  /** This project's ID in a hub: requests act with the user's role in it (DEC-056). */
+  /** This project's ID in a hub: requests act with the user's role in it (DEC-057). */
   projectId?: string | null;
-  /** The hub's shared catalog model (DEC-054); absent or null: no catalog. */
+  /** The hub's shared catalog model (DEC-055); absent or null: no catalog. */
   catalog?: () => Workspace | null;
-  /** Key for credentials at rest (DEC-055); default: the DP_SECRET_KEY environment variable (tests set it). */
+  /** Key for credentials at rest (DEC-056); default: the DP_SECRET_KEY environment variable (tests set it). */
   secretKey?: string | null;
   /** Where credentials are kept (a hub's store); default: this project's `.dp/credentials.json`. */
   credentials?: CredentialStore;
@@ -226,7 +226,7 @@ export interface Ctx {
   comments: CommentStore;
   /** The hub's shared catalog model, or null (no hub, no catalog, or this is the catalog). */
   catalog: () => Workspace | null;
-  /** Integration credentials (DEC-055): the hub's, or the project's own. */
+  /** Integration credentials (DEC-056): the hub's, or the project's own. */
   credentials: CredentialStore;
   fetch: Fetch;
 }

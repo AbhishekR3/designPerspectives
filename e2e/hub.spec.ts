@@ -1,4 +1,4 @@
-/** A hub of projects in the browser (DEC-052 to DEC-055): home page, project, shared catalog, credentials. */
+/** A hub of projects in the browser (DEC-053 to DEC-056): home page, project, shared catalog, credentials. */
 
 import fs from "node:fs";
 import os from "node:os";

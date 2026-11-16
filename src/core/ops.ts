@@ -36,7 +36,7 @@
  *   dp.endpoints     JSON [{"method","path"}]                  relationships; HTTP calls it carries (live UI inspector)
  *   dp.ui.url        where the UI runs (http/https)               elements; opened by the live UI inspector
  *   dp.otel.service  service.name in trace files                  elements; when it differs from the ID and name
- *   dp.catalog       ID of the shared catalog element this copies   elements (hub, DEC-054); its name, description
+ *   dp.catalog       ID of the shared catalog element this copies   elements (hub, DEC-055); its name, description
  *                    and technology come from the catalog and are refused here
  *   dp.data          JSON [{"name","kind","description","owner","sensitive"}]  elements; tables, topics, buckets
  *   dp.data.access   JSON [{"asset","mode"}]                       relationships; data of the element at either
@@ -856,7 +856,7 @@ export function updateElement(ws: Workspace, sidecar: Sidecar, elementId: string
   const oldName = el.name;
   const linked = getProps(el)[CATALOG_KEY];
   if (linked) {
-    // A linked copy's name, description and technology come from the shared catalog (DEC-054).
+    // A linked copy's name, description and technology come from the shared catalog (DEC-055).
     const same = (k: string, now: string) => !(k in patch) || str(patch[k]).trim() === now;
     if (!same("name", el.name) || !same("description", el.description || "") || ("technology" in patch && joinTech(patch.technology) !== (el.technology ?? null))) {
       throw new ModelError(`"${el.name}" is a copy of the shared catalog element "${linked}": change its name, description and technology in the catalog, then update this copy from the catalog.`);
@@ -1195,7 +1195,7 @@ export function updateRelationship(ws: Workspace, relId: string, patch: Obj): vo
   if ("dataAccess" in patch) setJson(r, ACCESS_KEY, cleanAccess(patch.dataAccess));
 }
 
-// --------------------------------------------------------------------------- data assets and the shared catalog (DEC-054)
+// --------------------------------------------------------------------------- data assets and the shared catalog (DEC-055)
 
 /** Data an element holds: names unique and non-empty; kind from DATA_KINDS (default "table"). */
 export function cleanData(items: unknown): DataAsset[] {

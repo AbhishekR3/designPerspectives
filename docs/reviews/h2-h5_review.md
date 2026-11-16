@@ -1,6 +1,6 @@
 # Review: Stages H2–H5 — home page, hub, shared catalog and data, credentials
 
-Date: 2026-11-15. Branch: `feat/home-hub` (on `feat/decision-records`, H1). Decisions: DEC-052, DEC-053, DEC-054, DEC-055.
+Date: 2026-11-15. Branch: `feat/home-hub` (on `feat/decision-records`, H1). Decisions: DEC-053, DEC-054, DEC-055, DEC-056.
 
 These stages finish the owner-approved plan "home page, multiple projects, shared catalog, decision records, credentials". The owner said "draw.io" where the plan had "flow.io". Its start screen (create from a blank diagram or a template, open a recent one) shaped "New project" with a choice of start.
 

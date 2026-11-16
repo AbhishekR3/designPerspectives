@@ -34,7 +34,7 @@ export interface UserEntry {
   role: Role;
   /** The scrypt hash string (see the file header). */
   password: string;
-  /** In a hub: a different role in some projects, by project ID (DEC-056); "none": no access at all (DEC-059). */
+  /** In a hub: a different role in some projects, by project ID (DEC-057); "none": no access at all (DEC-060). */
   projects?: Record<string, ProjectRole>;
 }
 

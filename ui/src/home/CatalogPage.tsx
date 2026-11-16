@@ -1,5 +1,5 @@
 /**
- * Shared catalog and data (DEC-054): which projects use each shared element, which copies drifted
+ * Shared catalog and data (DEC-055): which projects use each shared element, which copies drifted
  * from the catalog, and who reads and writes each table, topic or bucket, across projects. In a
  * single project: its own data and who reads and writes it.
  */

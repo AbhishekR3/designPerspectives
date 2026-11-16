@@ -1,5 +1,5 @@
 /**
- * History (DEC-057): the git commits that changed a project's model, each with what changed, and what
+ * History (DEC-058): the git commits that changed a project's model, each with what changed, and what
  * is not committed yet. Read-only: git is only read (DEC-018). A commit's model is compared with its
  * parent's; results are cached by commit, which never changes.
  */

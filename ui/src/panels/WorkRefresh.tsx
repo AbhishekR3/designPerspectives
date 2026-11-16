@@ -6,7 +6,7 @@ import type { Common } from "./common";
 
 const GH = /^https:\/\/github\.com\/[^/]+\/[^/]+\/(issues|pull)\/\d+/;
 
-/** "Refresh from GitHub" under Linked work (DEC-058): every GitHub issue and pull request link of the shown version. */
+/** "Refresh from GitHub" under Linked work (DEC-059): every GitHub issue and pull request link of the shown version. */
 export function WorkRefreshButton({ rows, mutate, readOnly }: { rows: WorkItem[]; mutate: Common["mutate"]; readOnly: boolean }) {
   const [busy, setBusy] = useState(false);
   if (readOnly || !rows.some((w) => w.url && GH.test(w.url))) return null;

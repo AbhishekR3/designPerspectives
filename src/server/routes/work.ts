@@ -1,4 +1,4 @@
-/** Linked work status from GitHub (DEC-058): one button refreshes every GitHub issue and pull request link of the shown version. */
+/** Linked work status from GitHub (DEC-059): one button refreshes every GitHub issue and pull request link of the shown version. */
 
 import type { Hono } from "hono";
 import { applyStates, fetchStates, gitHubLinks } from "../../core/workStatus.js";

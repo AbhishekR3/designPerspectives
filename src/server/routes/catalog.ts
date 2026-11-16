@@ -1,4 +1,4 @@
-/** Linked copies of shared catalog elements in a project (DEC-054): add, link, update from the catalog, unlink. */
+/** Linked copies of shared catalog elements in a project (DEC-055): add, link, update from the catalog, unlink. */
 
 import type { Hono } from "hono";
 import * as ops from "../../core/ops.js";

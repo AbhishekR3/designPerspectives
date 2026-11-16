@@ -114,7 +114,7 @@ export interface EdgeLayout {
   routing?: "straight" | "curved" | "smooth" | "orthogonal" | "rounded";
 }
 
-/** Kinds of data held by an element (a database's tables, a broker's topics, ...); DEC-054. */
+/** Kinds of data held by an element (a database's tables, a broker's topics, ...); DEC-055. */
 export const DATA_KINDS = ["table", "view", "topic", "queue", "bucket", "collection", "file", "index", "other"] as const;
 export type DataKind = (typeof DATA_KINDS)[number];
 
@@ -866,7 +866,7 @@ export interface TraceList {
   traces: TraceSummary[];
 }
 
-// ------------------------------------------------------------------ home page and hub (DEC-052, DEC-053)
+// ------------------------------------------------------------------ home page and hub (DEC-053, DEC-054)
 
 /** What the server serves: one project (`dp serve PATH`) or a hub of projects (`dp serve --hub DIR`). */
 export interface HubInfo {
@@ -949,7 +949,7 @@ export interface HomeSummary {
   decisions: (DecisionSummary & { project: string })[];
   /** Shared elements and data assets (hub with a catalog); null otherwise. */
   shared: { elements: number; linkedCopies: number; assets: number; sharedAssets: number; multiWriter: number } | null;
-  /** Catalog changes copied into the projects since the server started, newest first (DEC-056). */
+  /** Catalog changes copied into the projects since the server started, newest first (DEC-057). */
   catalogUpdates: CatalogUpdate[];
 }
 
@@ -964,7 +964,7 @@ export interface CatalogUpdate {
   projects: { project: string; elementId: string }[];
 }
 
-// ------------------------------------------------------------------ shared catalog and data (DEC-054)
+// ------------------------------------------------------------------ shared catalog and data (DEC-055)
 
 /** A catalog element and the projects that have a linked copy of it. */
 export interface SharedElementUse {
@@ -1019,7 +1019,7 @@ export interface CatalogEntry {
   data: DataAsset[];
 }
 
-// ------------------------------------------------------------------ integration credentials (DEC-055)
+// ------------------------------------------------------------------ integration credentials (DEC-056)
 
 export const CREDENTIAL_PROVIDERS = ["github", "gitlab", "jira", "issue-tracker", "observability", "llm", "ci", "other"] as const;
 export type CredentialProvider = (typeof CREDENTIAL_PROVIDERS)[number];
@@ -1049,7 +1049,7 @@ export interface CredentialList {
   file: string;
 }
 
-// ------------------------------------------------------------------ history (DEC-057)
+// ------------------------------------------------------------------ history (DEC-058)
 
 /** One changed object in a commit, as the history lists it. */
 export interface HistoryItem {
@@ -1084,7 +1084,7 @@ export interface HistoryList {
   commits: HistoryEntry[];
 }
 
-// ------------------------------------------------------------------ linked work status from GitHub (DEC-058)
+// ------------------------------------------------------------------ linked work status from GitHub (DEC-059)
 
 export interface WorkRefresh {
   /** GitHub issue and pull request links looked up. */

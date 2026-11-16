@@ -1,5 +1,5 @@
 /**
- * The shared catalog and data use across projects (DEC-054). A hub's catalog is a normal project
+ * The shared catalog and data use across projects (DEC-055). A hub's catalog is a normal project
  * whose elements are shared definitions (a customer database, an identity service). A project keeps
  * a linked copy (`dp.catalog`) of each one it uses, so its own workspace stays a complete Structurizr
  * file. Data assets (`dp.data`) on a catalog element are shared; a project's copy can add its own.
@@ -154,7 +154,7 @@ export interface CopyUpdate {
 }
 
 /**
- * Bring every linked copy in `ws` that differs from its catalog element up to date (DEC-056), in place.
+ * Bring every linked copy in `ws` that differs from its catalog element up to date (DEC-057), in place.
  * A copy that cannot take the catalog's name (another element here has it) is left as it is, and
  * stays listed as drift. Returns what changed.
  */

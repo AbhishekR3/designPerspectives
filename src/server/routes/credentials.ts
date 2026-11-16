@@ -1,4 +1,4 @@
-/** Integration credentials (DEC-055): architects list, add, rotate, edit and remove them. Values are write-only. */
+/** Integration credentials (DEC-056): architects list, add, rotate, edit and remove them. Values are write-only. */
 
 import type { Hono } from "hono";
 import { CredentialStore } from "../../core/credentials.js";

@@ -95,17 +95,17 @@ export const ROUTE_RULES: Record<string, Action> = {
   "POST /api/flows": "edit",
   "PUT /api/flows/:key": "edit",
   "DELETE /api/flows/:key": "edit",
-  // routes/catalog.ts: linked copies of shared catalog elements (DEC-054)
+  // routes/catalog.ts: linked copies of shared catalog elements (DEC-055)
   "POST /api/elements/from-catalog": "edit",
   "POST /api/elements/:id/catalog": "edit",
   "POST /api/elements/:id/catalog/sync": "edit",
   "DELETE /api/elements/:id/catalog": "edit",
-  // routes/credentials.ts: integration credentials, architects only (DEC-055)
+  // routes/credentials.ts: integration credentials, architects only (DEC-056)
   "POST /api/credentials": "admin",
   "PUT /api/credentials/:name": "admin",
   "PATCH /api/credentials/:name": "admin",
   "DELETE /api/credentials/:name": "admin",
-  // routes/work.ts: linked work status from GitHub, written to the model (DEC-058)
+  // routes/work.ts: linked work status from GitHub, written to the model (DEC-059)
   "POST /api/work/refresh": "edit",
   // routes/decisions.ts: decision records are part of the model (DEC-050)
   "POST /api/decisions": "edit",
@@ -312,7 +312,7 @@ export class Auth {
     if (this.on) dummyHash(); // made now, so the first sign-in with an unknown name is not slower than the rest
   }
 
-  /** A signed-in user's role in a hub project (DEC-056): read live, so a change applies on the next request. */
+  /** A signed-in user's role in a hub project (DEC-057): read live, so a change applies on the next request. */
   roleIn(name: string, project: string): ProjectRole | null {
     this.refresh();
     const u = this.users.get(name.toLowerCase());
@@ -320,7 +320,7 @@ export class Auth {
   }
 
   /** Middleware for a hub project's app (after `authenticate`): the request acts with the user's role in that
-   *  project; a user with no access to it (DEC-059) is refused everything there, reading included. */
+   *  project; a user with no access to it (DEC-060) is refused everything there, reading included. */
   projectRole(project: string): MiddlewareHandler {
     return async (c, next) => {
       const w = c.get("dpWho");

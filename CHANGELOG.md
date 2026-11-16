@@ -4,26 +4,26 @@
 
 ### Added
 - "No access" to a hub project: role `none` per project hides the project from that user (projects,
-  home page, catalog usage, history) and refuses every request to it (DEC-059).
+  home page, catalog usage, history) and refuses every request to it (DEC-060).
 - Hub roles per project: a user's role can differ per project (`projects` in the users file,
-  `dp users role NAME ROLE --project ID`); shown on the home page (DEC-056).
+  `dp users role NAME ROLE --project ID`); shown on the home page (DEC-057).
 - Catalog copies follow the catalog: a change saved to the catalog reaches every project's linked
-  copies at once; the home page lists what was copied where (DEC-056).
+  copies at once; the home page lists what was copied where (DEC-057).
 - History page (`#/history`): commits that changed the models, with what each changed per project,
   links to each version compared with its parent, and what is not committed yet. `GET /api/history`.
-  Git stays read-only (DEC-057).
+  Git stays read-only (DEC-058).
 - Linked work status from GitHub: **Refresh status from GitHub** under Linked work, using a stored
-  `github` credential. `POST /api/work/refresh` (DEC-058).
+  `github` credential. `POST /api/work/refresh` (DEC-059).
 - Home page (`#/home`, linked from the top of the sidebar): a card per project with a picture of its
   landscape, counts, drafts, problems and last commit (cards or a list); "Needs a look" (model
   problems, drafts behind main, decisions proposed, due, expired or with a trigger met, and the
   shared catalog's findings); "Watching" (open revisit triggers and dates within 120 days); the latest
   decisions. Every item links to its diagram, decision, draft or element. `GET /api/home`, `GET /api/hub`
-  (DEC-052).
+  (DEC-053).
 - Hubs: `dp serve DIR --hub` serves several project folders listed in `DIR/hub.json`, with one
   sign-in for all. Requests name the project with the `X-DP-Project` header; the URL keeps it as
   `pr=`. Architects add a project from the home page (blank or the demo). `dp init --hub [--demo]`,
-  `dp check --hub`. The demo hub (`demo/hub/`) has two projects sharing a customer database (DEC-053).
+  `dp check --hub`. The demo hub (`demo/hub/`) has two projects sharing a customer database (DEC-054).
 - Shared catalog: shared people, systems and databases live once in the hub's catalog; projects keep
   linked copies (`dp.catalog`) whose name, description and technology come from the catalog (Update
   from catalog, Add from catalog, Link, Unlink). Data: `dp.data` lists an element's tables, topics or
@@ -31,11 +31,11 @@
   relationship reads or writes. The Shared catalog page (Data in a single project) shows who uses each
   shared element, copies that drifted, and readers and writers of each table, flagging tables used or
   written by several projects. `GET /api/catalog`, `GET /api/catalog/usage`, `POST /api/elements/from-catalog`,
-  `POST/DELETE /api/elements/:id/catalog`, `POST /api/elements/:id/catalog/sync` (DEC-054).
+  `POST/DELETE /api/elements/:id/catalog`, `POST /api/elements/:id/catalog/sync` (DEC-055).
 - Integration credentials (architects): kept in `.dp/credentials.json` (mode 0600, ignored by git),
   encrypted with AES-256-GCM when `DP_SECRET_KEY` is set; values are write-only (a masked hint is
   shown). Credentials page under the home page; `dp credentials list|add|rotate|remove` with values
-  from standard input; `/api/credentials` routes (DEC-055).
+  from standard input; `/api/credentials` routes (DEC-056).
 - Decision records. **Decisions** in the navigation bar opens a page listing the model's decisions
   with filters (status, kind, "needs a look", search), each decision's record, and a form to write
   one. Six kinds: choice, conditional ("we would choose Q if X held; it does not, so A": the

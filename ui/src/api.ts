@@ -184,7 +184,7 @@ export const api = {
   deleteFlow: (key: string) => request("DELETE", `/flows/${enc(key)}`),
   changes: () => request<ChangeSet>("GET", "/changes"),
   decisions: () => request<Decision[]>("GET", "/decisions"),
-  // Hub-level: the same in a hub and for one project (DEC-052 to DEC-055).
+  // Hub-level: the same in a hub and for one project (DEC-053 to DEC-056).
   hub: () => request<HubInfo>("GET", "/hub"),
   home: () => request<HomeSummary>("GET", "/home"),
   catalog: () => request<CatalogEntry[]>("GET", "/catalog"),

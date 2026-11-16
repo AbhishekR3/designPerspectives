@@ -128,7 +128,7 @@ describe("hub", () => {
     expect((await ok(pay.get("/api/state"))).elements.find((e: any) => e.id === id).name).toBe("E-mail Service");
     expect((await pay.post(`/api/elements/${id}/catalog`, { catalogId: "customer-db" })).status).toBe(422); // a container, not a system
 
-    // A catalog change reaches every copy as soon as it is saved (DEC-056), and the home page lists it.
+    // A catalog change reaches every copy as soon as it is saved (DEC-057), and the home page lists it.
     await ok(pay.patch("/api/elements/customer-db", { owner: "Data team" }));
     await ok(on(c, "catalog").patch("/api/elements/customer-db", { description: "Customers, accounts and the audit log." }));
     for (const p of ["onboarding", "payments"]) {
