@@ -128,7 +128,12 @@ export function EdgePanel({ edgeId, ...p }: Common & { edgeId: string }) {
   const detailKey = edge.detailKey ?? `connector-${r.id}`;
   return (
     <div className="panel-body" data-testid="edge-panel">
-      <div className="panel-kind">Relationship</div>
+      <div className="panel-kind panel-kind-row">
+        <span>Relationship</span>
+        <button className="ghost tiny" onClick={() => p.onExplain({ relationship: r.id }, r.description || "Relationship")} title="Ask BMO to explain this" data-testid="explain-relationship">
+          Explain
+        </button>
+      </div>
       <p>
         <button className="link" onClick={() => p.onReveal(r.sourceId)}>
           {name(r.sourceId)}

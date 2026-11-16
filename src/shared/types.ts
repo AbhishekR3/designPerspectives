@@ -1540,6 +1540,12 @@ export interface ImportOverview {
   importDrafts: ImportDraftSummary[];
 }
 
+/** `GET /api/import/example`: the demo's ready-to-paste import file; `available` only when it passes the check against this project. */
+export interface ImportExample {
+  available: boolean;
+  text: string;
+}
+
 /** `POST /api/import/file` and a handoff result that was accepted: the new draft. */
 export interface ImportDraftResult {
   draftId: string;

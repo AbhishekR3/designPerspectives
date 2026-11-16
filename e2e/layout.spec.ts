@@ -494,3 +494,93 @@ test.describe("collapsed palette", () => {
     expect(b!.height).toBeLessThan(50);
   });
 });
+
+// Import code and BMO (DEC-051): nothing spills or is cut off at the usual window sizes.
+const IMPORT_FILE = {
+  schemaVersion: 1,
+  level: "c2",
+  objects: [
+    { id: "ledger-service", type: "container", name: `Ledger Service ${LONG}`, parent: "internet-banking-system", description: LONG, evidence: [{ kind: "user", note: "The team said so." }] },
+    { id: "ledger-events", type: "container", name: "Ledger Events", parent: "internet-banking-system", archType: "queue" },
+  ],
+  relationships: [{ source: "ledger-service", target: "ledger-events", description: "Publishes ledger events to" }],
+};
+
+for (const size of SIZES) {
+  test.describe(`import and BMO at ${size.width}x${size.height}`, () => {
+    test.use({ viewport: size, bmoFake: { answers: { explain: `A long answer. ${TOKEN} `.repeat(200) } } });
+    const view = { x: 0, y: 0, width: size.width, height: size.height };
+
+    test("the import page: sections, tables and the paste box fit", async ({ page }) => {
+      await page.getByTestId("breadcrumb").waitFor();
+      await byId(page, "open-import").click();
+      await byId(page, "import-scan").click();
+      await expect(byId(page, "readiness-table")).toBeVisible();
+      await byId(page, "tab-paste").click();
+      await byId(page, "paste-text").fill(JSON.stringify(IMPORT_FILE, null, 2));
+      await byId(page, "paste-check").click();
+      await expect(byId(page, "paste-check-result")).toBeVisible();
+      const body = page.locator(".import-body");
+      expect(await noPageScroll(page)).toBe(true);
+      expect(inside(await box(byId(page, "import-page")), view, 0.5)).toBe(true);
+      const b = await box(body);
+      for (const sec of await page.locator(".import-sec").all()) {
+        const s = await box(sec);
+        expect(s.x + s.width <= b.x + b.width + 1, "a section stays inside the page").toBe(true);
+      }
+      await byId(page, "ignore-list").locator("summary").click();
+      await byId(page, "ignore-input").scrollIntoViewIfNeeded();
+      expect(inside(await box(byId(page, "ignore-add")), view, 0.5)).toBe(true);
+      expect(await noScrollX(body)).toBe(true);
+    });
+
+    test("the review in the changes panel and the BMO menu of a draft", async ({ page, server }) => {
+      const made = await (await send(server, "POST", "/import/file", { text: JSON.stringify(IMPORT_FILE) })).json();
+      await page.goto(`${server.url}#/d/landscape?m=draft:${made.draftId}&c=base`);
+      await byId(page, "draft-banner").waitFor();
+      await openRightPanel(page);
+      await expect(byId(page, "import-review")).toBeVisible();
+      const panel = await box(byId(page, "panel"));
+      const review = await box(byId(page, "import-review"));
+      expect(review.x + review.width <= panel.x + panel.width + 1).toBe(true);
+      expect(await noScrollX(byId(page, "panel"))).toBe(true);
+      const strip = await box(byId(page, "draft-banner"));
+      expect(strip.height).toBeLessThanOrEqual(120);
+      for (const t of ["draft-apply", "draft-exit"]) expect(inside(await box(byId(page, t)), view, 0.5), t).toBe(true);
+      await byId(page, "bmo-menu").click();
+      expect(inside(await box(byId(page, "draft-propose-decision")), view, 0.5), "Propose decision in the BMO menu").toBe(true);
+      expect(await noPageScroll(page)).toBe(true);
+    });
+
+    test("the BMO sheet: preview and a long result stay inside the window with their buttons", async ({ page }) => {
+      await openDiagram(page, KEY);
+      await byId(page, "bmo-menu").click();
+      await byId(page, "bmo-explain").click();
+      const dialog = byId(page, "bmo-sheet");
+      await expect(byId(page, "bmo-send")).toBeVisible();
+      expect(inside(await box(dialog), view, 0.5)).toBe(true);
+      expect(inside(await box(byId(page, "bmo-send")), view, 0.5)).toBe(true);
+      await byId(page, "bmo-prompt").locator("summary").click();
+      expect(inside(await box(dialog), view, 0.5)).toBe(true);
+      expect(inside(await box(byId(page, "bmo-send")), view, 0.5)).toBe(true);
+      await byId(page, "bmo-send").click();
+      await expect(byId(page, "bmo-text")).toBeVisible();
+      expect(inside(await box(dialog), view, 0.5)).toBe(true);
+      expect(inside(await box(byId(page, "bmo-close")), view, 0.5)).toBe(true);
+      expect(await noScrollX(dialog)).toBe(true);
+    });
+
+    test("the BMO settings fit", async ({ page }) => {
+      await page.getByTestId("breadcrumb").waitFor();
+      await page.evaluate(() => (window.location.hash = "#/settings/credentials"));
+      await byId(page, "bmo-backend-direct").check();
+      await byId(page, "bmo-provider").selectOption("openai");
+      const form = byId(page, "bmo-settings");
+      await expect(form).toBeVisible();
+      expect(await noPageScroll(page)).toBe(true);
+      const f = await box(form);
+      expect(f.x >= 0 && f.x + f.width <= size.width).toBe(true);
+      expect(await noScrollX(form)).toBe(true);
+    });
+  });
+}

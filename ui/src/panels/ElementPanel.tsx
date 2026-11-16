@@ -38,9 +38,14 @@ export function ObjectPanel({ element, ...p }: Common & { element: ElementSummar
 
   return (
     <div className="panel-body" data-testid="object-panel">
-      <div className="panel-kind">
-        {KIND_LABEL[element.kind]}
-        {parent && <span className="muted"> in {parent.name}</span>}
+      <div className="panel-kind panel-kind-row">
+        <span>
+          {KIND_LABEL[element.kind]}
+          {parent && <span className="muted"> in {parent.name}</span>}
+        </span>
+        <button className="ghost tiny" onClick={() => p.onExplain({ element: element.id }, element.name)} title="Ask BMO to explain this" data-testid="explain-element">
+          Explain
+        </button>
       </div>
       <Fields loose>
         <TextField label="Name" value={element.name} onCommit={(v) => p.onRename(element.id, v)} testId="field-name" autoFocus={p.focusName && !state.readOnly} />

@@ -1,0 +1,13 @@
+{
+  "name": "payments-service",
+  "version": "1.0.0",
+  "private": true,
+  "main": "controller.ts",
+  "scripts": {
+    "start": "node controller.js"
+  },
+  "dependencies": {
+    "stripe": "^15.0.0",
+    "twilio": "^5.0.0"
+  }
+}

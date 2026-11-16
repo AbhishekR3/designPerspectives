@@ -3,13 +3,29 @@ import { useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../api";
 import { errorMessage } from "../common/notify";
 import { Modal } from "../panels/fields";
-import type { AppState, ApplyPreview, CodingPlan, Conflict } from "../types";
+import { BmoSheet } from "../common/BmoSheet";
+import type { AppState, ApplyPreview, ApplyResponse, CodingPlan, Conflict, ReviewState } from "../types";
 import { ChangeList } from "./ChangeList";
 import { SummaryChips } from "./DraftList";
 
 /** Confirm applying a draft: what main will get, and conflicts that stop it. */
-export function ApplyDialog({ draftId, title, branch, onClose, onApplied }: { draftId: string; title: string; branch?: string; onClose(): void; onApplied(): void }) {
+export function ApplyDialog({
+  draftId,
+  title,
+  branch,
+  onClose,
+  onApplied,
+}: {
+  draftId: string;
+  title: string;
+  branch?: string;
+  onClose(): void;
+  onApplied(r: ApplyResponse, acceptedItems: number | null): void;
+}) {
   const [preview, setPreview] = useState<ApplyPreview | null>(null);
+  // An import draft with items that are not accepted: how many are accepted (read from its review).
+  const [review, setReview] = useState<ReviewState | null>(null);
+  const [summaryOpen, setSummaryOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [conflicts, setConflicts] = useState<Conflict[]>([]);
   const [busy, setBusy] = useState(false);
@@ -33,11 +49,26 @@ export function ApplyDialog({ draftId, title, branch, onClose, onApplied }: { dr
       current = false;
     };
   }, [draftId, withCode]);
+  const held = preview?.held;
+  useEffect(() => {
+    if (!held) return setReview(null);
+    let current = true;
+    api
+      .importReview()
+      .then((r) => current && setReview(r.review))
+      .catch(() => current && setReview(null));
+    return () => {
+      current = false;
+    };
+  }, [held, draftId]);
+  const accepted = review ? Object.values(review.items).filter((i) => i.decision === "accepted").length : null;
+  // The server counts position changes as accepted work; a person means items, so no accepted item is nothing to apply.
+  const nothing = !!held && (held.nothingAccepted || accepted === 0);
   const apply = async () => {
     setBusy(true);
     try {
-      await api.applyDraft(draftId, withCode);
-      onApplied();
+      const r = await api.applyDraft(draftId, withCode);
+      onApplied(r, accepted);
     } catch (e) {
       if (e instanceof ApiError && e.conflicts.length) setConflicts(e.conflicts);
       else setError(errorMessage(e));
@@ -49,60 +80,105 @@ export function ApplyDialog({ draftId, title, branch, onClose, onApplied }: { dr
   const empty = cs && cs.summary.added + cs.summary.changed + cs.summary.removed + cs.summary.layout + cs.summary.code === 0;
   const writesCode = withCode && !!preview && preview.code.length > 0;
   return (
-    <Modal title={`Apply "${title}" to the main model`} onClose={onClose} wide>
-      {!preview && !error && <p className="muted">Checking…</p>}
-      {preview && preview.code.length > 0 && (
-        <label className="check" title="Without this, only the model changes are applied; write the code yourself (see the coding plan)">
-          <input type="checkbox" checked={withCode} onChange={(e) => setWithCode(e.target.checked)} data-testid="apply-with-code" />
-          Also write the {preview.code.length} planned code edit{preview.code.length === 1 ? "" : "s"} to the code folder
-        </label>
-      )}
-      {!withCode && preview && preview.code.length > 0 && (
-        <p className="muted small" data-testid="apply-code-dropped">
-          The {preview.code.length} planned code edit{preview.code.length === 1 ? "" : "s"} will not be written. They are removed with the draft when it is applied.
-        </p>
-      )}
-      {branch && preview && preview.code.length > 0 && (
-        <p className="muted small" data-testid="apply-branch-hint">
-          This draft has a branch ({branch}), so the code is expected to come from there.
-        </p>
-      )}
-      {error && <p className="danger-text">{error}</p>}
-      {conflicts.length > 0 && (
-        <div data-testid="apply-conflicts">
-          <h4 className="danger-text">Conflicts: the draft cannot be applied</h4>
-          <p className="muted small">
-            These objects or files were changed both on the main side (since the draft was made) and in the draft. Change one side so they agree, then apply again
-            {preview?.code.length ? ", or apply the model only" : ""}.
+    <>
+      <Modal title={`Apply "${title}" to the main model`} onClose={onClose} wide>
+        {!preview && !error && <p className="muted">Checking…</p>}
+        {preview && preview.code.length > 0 && (
+          <label className="check" title="Without this, only the model changes are applied; write the code yourself (see the coding plan)">
+            <input type="checkbox" checked={withCode} onChange={(e) => setWithCode(e.target.checked)} data-testid="apply-with-code" />
+            Also write the {preview.code.length} planned code edit{preview.code.length === 1 ? "" : "s"} to the code folder
+          </label>
+        )}
+        {!withCode && preview && preview.code.length > 0 && (
+          <p className="muted small" data-testid="apply-code-dropped">
+            The {preview.code.length} planned code edit{preview.code.length === 1 ? "" : "s"} will not be written. They are removed with the draft when it is applied.
           </p>
-          <ul className="conflict-list">
-            {conflicts.map((c, i) => (
-              <li key={i}>
-                <strong>{c.label}</strong>: {c.reason}
-              </li>
-            ))}
-          </ul>
+        )}
+        {branch && preview && preview.code.length > 0 && (
+          <p className="muted small" data-testid="apply-branch-hint">
+            This draft has a branch ({branch}), so the code is expected to come from there.
+          </p>
+        )}
+        {error && <p className="danger-text">{error}</p>}
+        {conflicts.length > 0 && (
+          <div data-testid="apply-conflicts">
+            <h4 className="danger-text">Conflicts: the draft cannot be applied</h4>
+            <p className="muted small">
+              These objects or files were changed both on the main side (since the draft was made) and in the draft. Change one side so they agree, then apply again
+              {preview?.code.length ? ", or apply the model only" : ""}.
+            </p>
+            <ul className="conflict-list">
+              {conflicts.map((c, i) => (
+                <li key={i}>
+                  <strong>{c.label}</strong>: {c.reason}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {cs && conflicts.length === 0 && held && (
+          <div className="apply-held" data-testid="apply-held">
+            <p data-testid="apply-held-summary">
+              <strong>
+                {nothing
+                  ? `${held.items} item${held.items === 1 ? "" : "s"} stay${held.items === 1 ? "s" : ""} in the draft.`
+                  : `${accepted === null ? "The accepted items" : `${accepted} accepted item${accepted === 1 ? "" : "s"}`} will be applied. ${held.items} stay${held.items === 1 ? "s" : ""} in the draft.`}
+              </strong>{" "}
+              The draft stays open so you can decide on the rest.
+            </p>
+            {nothing && (
+              <p className="warn-note" data-testid="apply-nothing-accepted">
+                Nothing is accepted yet, so there is nothing to apply. Accept at least one item in Review import.
+              </p>
+            )}
+            {held.dependent.length > 0 && (
+              <div data-testid="apply-held-dependent">
+                <p className="muted small">These accepted changes stay in the draft too, because they depend on an item that is not accepted:</p>
+                <ul className="conflict-list">
+                  {held.dependent.map((c, i) => (
+                    <li key={i}>
+                      <strong>{c.label}</strong>: {c.reason}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+        {cs && conflicts.length === 0 && (
+          <>
+            <p>
+              The main model will get these changes; changes made to it since the draft was made are kept.{" "}
+              {held
+                ? "The draft is not deleted."
+                : writesCode
+                  ? "The code edits are written to the code folder and the draft is deleted. Undo restores the model only, not those files or the draft."
+                  : "The draft is then deleted. Undo restores the model, not the draft."}
+            </p>
+            <SummaryChips s={cs.summary} />
+            {empty ? <p className="muted">The draft changes nothing.</p> : <ChangeList changes={cs} />}
+          </>
+        )}
+        <div className="modal-actions">
+          <button onClick={() => setSummaryOpen(true)} disabled={!preview} title="BMO writes a short summary of this draft for a pull request" data-testid="apply-summary">
+            Summary for a pull request
+          </button>
+          <span className="spacer" />
+          <button onClick={onClose}>Cancel</button>
+          <button
+            className="primary"
+            onClick={apply}
+            disabled={!preview || conflicts.length > 0 || busy || nothing}
+            title={nothing ? "Nothing is accepted yet" : undefined}
+            aria-busy={busy}
+            data-testid="apply-confirm"
+          >
+            Apply
+          </button>
         </div>
-      )}
-      {cs && conflicts.length === 0 && (
-        <>
-          <p>
-            The main model will get these changes; changes made to it since the draft was made are kept.{" "}
-            {writesCode
-              ? "The code edits are written to the code folder and the draft is deleted. Undo restores the model only, not those files or the draft."
-              : "The draft is then deleted. Undo restores the model, not the draft."}
-          </p>
-          <SummaryChips s={cs.summary} />
-          {empty ? <p className="muted">The draft changes nothing.</p> : <ChangeList changes={cs} />}
-        </>
-      )}
-      <div className="modal-actions">
-        <button onClick={onClose}>Cancel</button>
-        <button className="primary" onClick={apply} disabled={!preview || conflicts.length > 0 || busy} aria-busy={busy} data-testid="apply-confirm">
-          Apply
-        </button>
-      </div>
-    </Modal>
+      </Modal>
+      {summaryOpen && <BmoSheet title="Summary for a pull request" request={{ task: "draft-summary" }} onClose={() => setSummaryOpen(false)} />}
+    </>
   );
 }
 

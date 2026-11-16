@@ -9,6 +9,8 @@
  * the rest of the path as the key.
  */
 
+import fs from "node:fs";
+import path from "node:path";
 import type { Context, Hono } from "hono";
 import { gitUserName } from "../../core/git.js";
 import { parseHandoffRequest, writeImportHandoff, checkHandoffResult } from "../../bmo/importTasks.js";
@@ -22,7 +24,8 @@ import { parseImportFile } from "../../import/schema.js";
 import { acceptAll, lowConfidence, readReview, setDecision, setFeedback, verifyAgain } from "../../import/review.js";
 import { snapshotModel } from "../../import/analysis.js";
 import { ModelError } from "../../core/ops.js";
-import type { AcceptAllResult, FieldError, ImportDraftResult, ImportFile, ImportReviewResponse, ReviewActionResult, ReviewDecision } from "../../shared/types.js";
+import { DEMO_DIR } from "../../core/project.js";
+import type { AcceptAllResult, FieldError, ImportDraftResult, ImportExample, ImportFile, ImportReviewResponse, ReviewActionResult, ReviewDecision } from "../../shared/types.js";
 import { body, HttpError, needStr, objBody, optStr, type Ctx } from "../context.js";
 
 const ITEM_ACTIONS = ["verify", "accept", "reject", "pending", "feedback"] as const;
@@ -76,6 +79,18 @@ export function registerImport(app: Hono, ctx: Ctx): void {
   // ---------------------------------------------------------------- the page
 
   app.get("/api/import", (c) => c.json(buildOverview(project, drafts)));
+
+  /** The demo's ready-to-paste import file, offered only when it passes the check against this project's model (so: a project made from the demo). */
+  app.get("/api/import/example", (c) => {
+    const file = path.join(DEMO_DIR, "import-example.json");
+    if (!fs.existsSync(file)) return c.json({ available: false, text: "" } satisfies ImportExample);
+    const text = fs.readFileSync(file, "utf-8");
+    const { file: parsed } = parseImportFile(text);
+    if (!parsed) return c.json({ available: false, text: "" } satisfies ImportExample);
+    project.reloadIfChanged();
+    const available = checkImport(parsed, project, disk).errors.length === 0;
+    return c.json({ available, text: available ? text : "" } satisfies ImportExample);
+  });
 
   app.post("/api/import/scan", (c) => {
     scanProject(project, drafts, disk);

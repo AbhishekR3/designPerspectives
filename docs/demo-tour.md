@@ -169,6 +169,29 @@ dp serve
 
 Sign in as **engineer**: you can read everything and make drafts, but you cannot change the main model or apply a draft. An engineer changes and discards only the drafts they started. The sample draft belongs to "Demo", so for an engineer it is read-only; start a draft of your own to change one. An **architect** changes any draft. Sign in as **viewer**: you can read everything and change nothing.
 
+## 14. Import code
+
+The demo's example code has a Compose file, a Dockerfile, two manifests and a sample configuration, so a scan has something to find. Press **Import code** next to **Decisions**.
+
+1. **Run scan.** It reads only files, never BMO. You see how many facts it found at each level (C1 context, C2 containers, C3 components, C4 code), the limits it hit, the files it could not parse, and what it cannot see. The table below shows what is decided and what is left, with the rules behind the advice to go one level at a time.
+2. **About this system.** Fill in a name and a purpose; a mistake is shown at its field.
+3. **Bring in a level.** Under **Paste an import file**, press **Try the example**, then **Check**, then **Create draft**. The draft report says what was created, updated, kept as you had it, or not in the import. **Open the draft**.
+4. **Review import** (in the changes panel). Items are *verified*, *partly verified* or *unverified*, worked out from the files, never from what BMO says about itself. **Accept all verified** takes the first two groups; the *Low confidence* items need one decision each. Reject one, accept another, and note something for BMO.
+5. **Apply.** The accepted items go into the main model and the rest stay in the draft. Accept them later and apply again.
+
+The tab **Use your own coding agent** writes a prompt and files to `architecture/import/handoff/` for any coding agent; paste its `result.json` back, or press **Read result.json**. Everything an import makes is a draft first.
+
+## 15. BMO
+
+BMO is the assistant. It is off until an architect turns it on under **Credentials, BMO**: either *handoff* (BMO writes the prompt; you run it yourself) or *direct* (dp sends the prompt and the listed file excerpts to the provider you choose, with a key stored on that page). Before anything is sent, a sheet shows where it goes, which files and how many bytes, how many values were hidden, an estimate of size and cost, and the full prompt. You press **Send to BMO**, or cancel.
+
+* **BMO** menu on the diagram: **Explain this diagram**, **Challenge this diagram** (the questions can be added as a question in the comments) and, inside a draft, **Propose decision**, which writes a proposed decision into the draft.
+* **Explain** in an object's or connection's panel; **Use as description** copies the text into the description field.
+* **Summary for a pull request** in the apply dialog.
+* **From a description** on the Import page makes a draft from a few paragraphs; **Suggest labels** proposes better labels for connections that only say "Uses".
+
+When BMO is off, or your role is not allowed to run it, these buttons still open a short note that says why.
+
 ## Start your own
 
 When you are done, run `dp serve` in your own project folder. It starts from an empty model with a three-step "Start your architecture" card. Copying the demo's patterns is a good start: an owner and a runbook link on every container, a Tier tag, SLOs in a details table, and one flow for each of your most important user journeys.

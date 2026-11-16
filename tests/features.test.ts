@@ -216,7 +216,7 @@ describe("features", () => {
     // a stale mtime is refused
     expect((await c.put("/api/code/file", { path: "sample_code/api/store.py", content: "", mtime: f.mtime })).status).toBe(422);
     const tree = await ok(c.get("/api/code/tree", { path: "sample_code" }));
-    expect(tree.entries.map((e: any) => e.name)).toEqual(["api", "notifications", "payments", "pipeline", "statements"]);
+    expect(tree.entries.map((e: any) => e.name)).toEqual(["api", "notifications", "payments", "pipeline", "statements", "config.example.env", "docker-compose.yml"]);
   });
 
   test.each(["../secret.txt", "/etc/passwd", "sample_code/../../x"])("code paths cannot escape root: %s", async (bad) => {

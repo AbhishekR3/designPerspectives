@@ -9,11 +9,14 @@ import { test as base, expect, type Page } from "@playwright/test";
 import { hashPassword, usersPath, writeUsers } from "../src/core/users.js";
 import { initProject, staticDir } from "../src/core/project.js";
 import type { Role } from "../src/shared/types.js";
+import { fakeBackend, type FakeAnswer, type FakeBackend } from "../src/bmo/fake.js";
 import { createApp } from "../src/server/app.js";
 
 export interface Server {
   url: string;
   root: string;
+  /** The fake BMO backend plugged into this server (see the `bmoFake` option), with the requests it received; absent without one. */
+  bmo?: FakeBackend;
 }
 
 /** Which project a test starts on: the demo (default) or an empty model. Opt in with `test.use({ project: "empty" })`. */
@@ -45,7 +48,12 @@ export interface UsersOption {
   list: TestUser[];
 }
 
-export const test = base.extend<{ server: Server; project: ProjectKind; readOnly: boolean; users: UsersOption | null; sampleDraft: boolean }>({
+/** Canned BMO answers by task id (wrapped like `users`, because Playwright reads an array as a fixture/options pair). */
+export interface BmoFakeOption {
+  answers: Record<string, FakeAnswer>;
+}
+
+export const test = base.extend<{ server: Server; project: ProjectKind; readOnly: boolean; users: UsersOption | null; sampleDraft: boolean; bmoFake: BmoFakeOption | null }>({
   project: ["demo", { option: true }],
   /** Keep the demo's shipped sample draft (default: left out, so tests start with no drafts). */
   sampleDraft: [false, { option: true }],
@@ -53,18 +61,21 @@ export const test = base.extend<{ server: Server; project: ProjectKind; readOnly
   /** Turn sign-in on with these users (null: off). Opt in with `test.use({ users: { list: ROLE_USERS } })`
    *  (wrapped, because Playwright reads an array given to `use` as a fixture/options pair). */
   users: [null, { option: true }],
-  server: async ({ project, readOnly, users, sampleDraft }, use, testInfo) => {
+  /** Plug a fake BMO backend into the server (code, not a request or a setting): `test.use({ bmoFake: { answers: { explain: "text" } } })`. Null: BMO is as the settings say (off). */
+  bmoFake: [null, { option: true }],
+  server: async ({ project, readOnly, users, sampleDraft, bmoFake }, use, testInfo) => {
     testInfo.skip(staticDir() === null, "UI not built (run `npm ci && npm run build` in ui/)");
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "dp-e2e-"));
     initProject(root, { demo: project === "demo" });
     if (!sampleDraft) fs.rmSync(path.join(root, "architecture", "drafts"), { recursive: true, force: true });
     if (users) writeTestUsers(root, users.list);
-    const app = createApp(root, { readOnly });
+    const bmo = bmoFake ? fakeBackend(bmoFake.answers) : undefined;
+    const app = createApp(root, { readOnly, ...(bmo ? { bmoBackend: bmo } : {}) });
     const srv = await new Promise<ReturnType<typeof serve>>((resolve) => {
       const s = serve({ fetch: app.fetch, port: 0, hostname: "127.0.0.1" }, () => resolve(s));
     });
     const { port } = srv.address() as AddressInfo;
-    await use({ url: `http://127.0.0.1:${port}/`, root });
+    await use({ url: `http://127.0.0.1:${port}/`, root, ...(bmo ? { bmo } : {}) });
     // Browsers keep connections open; without this, close() can wait on them until the test times out.
     (srv as { closeAllConnections?: () => void }).closeAllConnections?.();
     await new Promise((r) => srv.close(r));

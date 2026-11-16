@@ -1,8 +1,23 @@
 import { notify } from "./common/notify";
 import type { CatalogEntry, CredentialList, Decision, DecisionInput, DecisionStatus, HistoryList, HomeSummary, HubInfo, SharedUsage, WorkRefresh } from "./types";
 import type {
+  AcceptAllResult,
   AppState,
   ApplyPreview,
+  ApplyResponse,
+  BmoPreview,
+  BmoRunResult,
+  BmoSettingsData,
+  BmoStatus,
+  BmoTaskId,
+  HandoffOffer,
+  ImportCheck,
+  ImportDraftResult,
+  ImportExample,
+  ImportOverview,
+  ImportReviewResponse,
+  ReviewActionResult,
+  ScanLevel,
   CommentKind,
   CommentList,
   CommentTarget,
@@ -50,12 +65,13 @@ export function setProject(id: string | null): void {
   project = id;
 }
 
-/** An error from the server; `conflicts` is set when applying a draft was refused. */
+/** An error from the server; `conflicts` is set when applying a draft was refused; `data` is the whole JSON answer (import and BMO refusals carry `errors`, `pasteBack`, `unmet`). */
 export class ApiError extends Error {
   constructor(
     message: string,
     readonly status: number,
     readonly conflicts: Conflict[] = [],
+    readonly data: Record<string, unknown> | null = null,
   ) {
     super(message);
   }
@@ -79,7 +95,7 @@ export function onForbidden(fn: (() => void) | null): void {
   handlers.forbidden = fn;
 }
 
-async function request<T>(method: string, path: string, body?: unknown, opts: { auth?: boolean; project?: string | null; main?: boolean } = {}): Promise<T> {
+async function request<T>(method: string, path: string, body?: unknown, opts: { auth?: boolean; project?: string | null; main?: boolean; signal?: AbortSignal } = {}): Promise<T> {
   // `main`: a call about another project's main model (the catalog page), whatever version is shown.
   const headers: Record<string, string> = { "X-DP-Model": opts.main ? "main" : context.model };
   if (context.compare && !opts.main) headers["X-DP-Compare"] = context.compare;
@@ -90,15 +106,18 @@ async function request<T>(method: string, path: string, body?: unknown, opts: { 
     method,
     headers,
     body: body === undefined ? undefined : JSON.stringify(body),
+    signal: opts.signal,
   });
   if (!res.ok) {
     let detail = `${res.status} ${res.statusText}`;
     let conflicts: Conflict[] = [];
+    let extra: Record<string, unknown> | null = null;
     try {
       const data = await res.json();
       if (typeof data.detail === "string") detail = data.detail;
       else if (data.detail) detail = JSON.stringify(data.detail);
       if (Array.isArray(data.conflicts)) conflicts = data.conflicts;
+      if (data && typeof data === "object") extra = data;
     } catch {
       /* keep status text */
     }
@@ -107,7 +126,7 @@ async function request<T>(method: string, path: string, body?: unknown, opts: { 
       notify.suspend(true);
       handlers.sessionEnded?.();
     } else if (res.status === 403 && method !== "GET") handlers.forbidden?.();
-    throw new ApiError(detail, res.status, conflicts);
+    throw new ApiError(detail, res.status, conflicts, extra);
   }
   return res.json() as Promise<T>;
 }
@@ -213,6 +232,30 @@ export const api = {
   updateDraft: (id: string, body: { title?: string; description?: string; branch?: string; link?: string }) => request("PATCH", `/drafts/${enc(id)}`, body),
   deleteDraft: (id: string) => request("DELETE", `/drafts/${enc(id)}`),
   applyPreview: (id: string, code = true) => request<ApplyPreview>("GET", `/drafts/${enc(id)}/apply-preview${code ? "" : "?code=0"}`),
-  applyDraft: (id: string, code = true) => request("POST", `/drafts/${enc(id)}/apply`, { code }),
+  applyDraft: (id: string, code = true) => request<ApplyResponse>("POST", `/drafts/${enc(id)}/apply`, { code }),
   plan: (id: string, against: string | null) => request<CodingPlan>("GET", `/drafts/${enc(id)}/plan${against ? `?against=${enc(against)}` : ""}`),
+  // Import (DEC-051): the page, an import file, the handoff, the review of an import draft (the draft the context selects).
+  importOverview: () => request<ImportOverview>("GET", "/import"),
+  importExample: () => request<ImportExample>("GET", "/import/example"),
+  importScan: () => request<ImportOverview>("POST", "/import/scan"),
+  importIntake: (intake: unknown) => request<ImportOverview>("PUT", "/import/intake", intake),
+  importCheck: (text: string) => request<ImportCheck>("POST", "/import/check", { text }),
+  importFile: (text: string, title?: string) => request<ImportDraftResult>("POST", "/import/file", { text, ...(title ? { title } : {}) }),
+  importHandoff: (body: { task: "import-level" | "describe-to-model" | "suggest-labels"; level?: "c1" | "c2" | "c3"; container?: string; text?: string }) =>
+    request<HandoffOffer>("POST", "/import/handoff", body),
+  importHandoffResult: (text?: string) => request<ImportDraftResult>("POST", "/import/handoff/result", text === undefined ? {} : { text }),
+  importIgnore: (path: string, remove = false) => request<ImportOverview>("POST", "/import/ignore", { path, ...(remove ? { remove: true } : {}) }),
+  importLevel: (level: ScanLevel, final: boolean) => request<ImportOverview>("POST", `/import/levels/${level}`, { final }),
+  importReview: () => request<ImportReviewResponse>("GET", "/import/review"),
+  /** One review item: `key` is `object:<id>`, `relationship:<id>`, ... (the ":" stays as it is in the path). */
+  reviewItem: (key: string, body: { action: "verify" | "accept" | "reject" | "pending" | "feedback"; text?: string }) =>
+    request<ReviewActionResult>("POST", `/import/review/items/${enc(key).replace(/%3A/gi, ":")}`, body),
+  reviewAcceptAll: () => request<AcceptAllResult>("POST", "/import/review/accept-all", {}),
+  reviewDraftFeedback: (text: string) => request<{ review: ImportReviewResponse["review"] }>("POST", "/import/review/feedback", { text }),
+  // BMO (DEC-051): the status, the settings, a preview of what would be sent, a run.
+  /** `project`: in a hub, the project whose app answers (the settings are shared by the whole hub). */
+  bmo: (project?: string | null) => request<BmoStatus>("GET", "/bmo", undefined, project ? { project } : {}),
+  bmoSettings: (settings: BmoSettingsData, project?: string | null) => request<BmoStatus>("PUT", "/bmo/settings", settings, project ? { project } : {}),
+  bmoPreview: (body: { task: BmoTaskId } & Record<string, unknown>, signal?: AbortSignal) => request<BmoPreview>("POST", "/bmo/preview", body, { signal }),
+  bmoRun: (body: { task: BmoTaskId; hash: string } & Record<string, unknown>, signal?: AbortSignal) => request<BmoRunResult>("POST", "/bmo/run", body, { signal }),
 };

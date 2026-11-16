@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { checkProject } from "../src/core/report.js";
-import { Project } from "../src/core/project.js";
+import { initProject, Project } from "../src/core/project.js";
 import { buildIndex } from "../src/core/ops.js";
 import { createApp } from "../src/server/app.js";
 import type { ImportFile } from "../src/shared/types.js";
@@ -155,6 +155,23 @@ describe("check and file", () => {
     expect(junk.json().errors.length).toBeGreaterThan(0);
     expect((await ok(c.get("/api/state"))).drafts).toEqual([]);
     expect((await c.post("/api/import/file", {})).status).toBe(422);
+  });
+});
+
+describe("the demo example", () => {
+  it("is offered for the demo, makes a draft, and is not offered where its objects do not fit", async () => {
+    const c = client(demoDir());
+    const ex = await ok(c.get("/api/import/example"));
+    expect(ex.available).toBe(true);
+    expect(JSON.parse(ex.text)).toMatchObject({ schemaVersion: 1, level: "all" });
+    expect((await ok(c.post("/api/import/check", { text: ex.text }))).errors).toEqual([]);
+    const made = await ok(c.post("/api/import/file", { text: ex.text }));
+    const review = await ok(c.at(`draft:${made.draftId}`).get("/api/import/review"));
+    expect(Object.values(review.review.items).map((i: any) => i.level)).toEqual(expect.arrayContaining(["verified", "unverified"]));
+    // An empty project does not have the example's parents.
+    const empty = tmpDir();
+    initProject(empty);
+    expect(await ok(client(empty).get("/api/import/example"))).toEqual({ available: false, text: "" });
   });
 });
 

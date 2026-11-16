@@ -1,0 +1,23 @@
+services:
+  api:
+    build: ./api
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL
+      - SESSION_SECRET
+    depends_on:
+      - db
+      - cache
+  payments-service:
+    build: ./payments
+    ports:
+      - "8100:8100"
+    depends_on:
+      - broker
+  db:
+    image: postgres:16
+  cache:
+    image: redis:7
+  broker:
+    image: bitnami/kafka:3.7

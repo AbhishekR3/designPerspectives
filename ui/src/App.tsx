@@ -7,6 +7,10 @@ import { api } from "./api";
 import { ApplyDialog, PlanDialog } from "./drafts/ApplyDialog";
 import { ChangeDetails, ChangeList, GhostPanel } from "./drafts/ChangeList";
 import { DraftDialog, DraftList, VersionStrip } from "./drafts/DraftList";
+import { ImportReview } from "./drafts/ImportReview";
+import { BmoSheet } from "./common/BmoSheet";
+import type { BmoRequest } from "./hooks/useBmo";
+import { ImportPage } from "./pages/ImportPage";
 import { Canvas, type CanvasHandle } from "./canvas/Canvas";
 import { CommentsContext, DiagramComments, useComments } from "./common/comments";
 import { ContextMenu, type MenuItem } from "./canvas/ContextMenu";
@@ -57,6 +61,18 @@ type ModalState =
   | { type: "draft"; mode: "rename" | "description"; draftId: string }
   | null;
 
+/** A BMO run being shown (the sheet): what it is for, what it is asked, and what the result can do. */
+interface BmoOpen {
+  title: string;
+  request: BmoRequest;
+  /** An explanation of one element: "Use as description" fills its description field. */
+  describes?: { id: string };
+  /** A challenge of a diagram: "Add as a question" puts it in the comments of that diagram. */
+  challenges?: { diagram: string };
+  /** Reload the model after the run (a proposed decision was written into the draft). */
+  reloads?: boolean;
+}
+
 /** The Add palette starts collapsed on a canvas narrower than this (until the person opens it). */
 const PALETTE_OPEN_FROM = 720;
 
@@ -71,6 +87,7 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
   const { page, setPage } = usePage(keyRef);
   const decisionsOpen = page === "decisions" || !!page?.startsWith("decisions/");
   const decisionId = page?.startsWith("decisions/") ? page.slice("decisions/".length) : null;
+  const importOpen = page === "import";
   const { state, diagram, version, versionRef, loading, changes, loadError, retryLoad, loadDiagram, refresh, switchVersion, mutate, doHistory } = useModel({
     keyRef,
     setKey,
@@ -85,6 +102,8 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
   const [searchOpen, setSearchOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [bmoMenuOpen, setBmoMenuOpen] = useState(false);
+  const [bmoSheet, setBmoSheet] = useState<BmoOpen | null>(null);
   const [modal, setModal] = useState<ModalState>(null);
   const [openFile, setOpenFile] = useState<string | null>(null);
   const [inspectId, setInspectId] = useState<string | null>(null);
@@ -140,6 +159,16 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
   const openDecision = (id: string | null) => {
     setSelection(null);
     setPage(id ? `decisions/${id}` : "decisions", { replace: decisionsOpen });
+  };
+  /** Open the import page (closes the decisions page; the selection goes). */
+  const openImport = () => {
+    setSelection(null);
+    setPage("import", { replace: decisionsOpen });
+  };
+  /** From the import page or a BMO result: open an import draft with its changes shown. */
+  const openImportDraft = async (id: string) => {
+    setPage(null, { replace: true });
+    await switchVersion(`draft:${id}`, "base");
   };
   /** From the decisions page: show an element or relationship (by its source) on its diagram. */
   const revealFromPage = (id: string) => {
@@ -282,10 +311,25 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
     onInspectUi: setInspectId,
     onBacktrack: setBacktrackQ,
     onOpenDecision: (id: string) => openDecision(id),
+    onExplain: (t: { element?: string; relationship?: string }, name: string) =>
+      setBmoSheet({ title: `Explain: ${name}`, request: { task: "explain", ...t, lens: lens.id }, ...(t.element ? { describes: { id: t.element } } : {}) }),
     catalog,
     focusName,
     onRename: renameElement,
     onMove: setMoveId,
+  };
+  /** A review item picked: show its object, or the diagram a connection is on. */
+  const pickReviewItem = (itemKey: string, item: { kind: string }) => {
+    const id = itemKey.slice(itemKey.indexOf(":") + 1);
+    if (item.kind === "object") reveal(id);
+    else if (item.kind === "relationship") {
+      const c = changes?.relationships.find((x) => x.id === id);
+      if (c?.homeKey) pickChange(c);
+      else {
+        const r = state.relationships.find((x) => x.id === id);
+        if (r) reveal(r.sourceId);
+      }
+    } else if (item.kind === "decision") openDecision(null);
   };
   const decisionsToLook = state.decisions.filter((d) => decisionFlags(d).some((f) => f.tone === "warn")).length;
   const multiIds = selection?.type === "nodes" ? selection.ids : null;
@@ -350,6 +394,56 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
           {comments.openTotal > 0 && <span className="comments-count">{comments.openTotal > 99 ? "99+" : comments.openTotal}</span>}
         </button>
       )}
+      <span className="export-wrap" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setBmoMenuOpen(false)}>
+        <button
+          className={`ghost bmo-btn${bmoMenuOpen ? " on" : ""}`}
+          onClick={() => setBmoMenuOpen(!bmoMenuOpen)}
+          aria-haspopup="menu"
+          aria-expanded={bmoMenuOpen}
+          title="Ask BMO to explain or challenge this diagram"
+          data-testid="bmo-menu"
+          disabled={!diagram}
+        >
+          BMO
+        </button>
+        {bmoMenuOpen && diagram && (
+          <div className="pop-menu right" role="menu">
+            <button
+              role="menuitem"
+              data-testid="bmo-explain"
+              onClick={() => {
+                setBmoMenuOpen(false);
+                setBmoSheet({ title: `Explain: ${diagram.title}`, request: { task: "explain", diagram: diagram.key, lens: lens.id } });
+              }}
+            >
+              Explain this diagram
+            </button>
+            <button
+              role="menuitem"
+              data-testid="bmo-challenge"
+              onClick={() => {
+                setBmoMenuOpen(false);
+                setBmoSheet({ title: `Challenge: ${diagram.title}`, request: { task: "challenge", diagram: diagram.key }, challenges: { diagram: diagram.key } });
+              }}
+            >
+              Challenge this diagram
+            </button>
+            {draftId && state.can.editThis && (
+              <button
+                role="menuitem"
+                data-testid="draft-propose-decision"
+                title="BMO proposes a decision record from this draft's changes; it is written into the draft as proposed"
+                onClick={() => {
+                  setBmoMenuOpen(false);
+                  setBmoSheet({ title: "Propose a decision", request: { task: "decision-from-draft" }, reloads: true });
+                }}
+              >
+                Propose decision
+              </button>
+            )}
+          </div>
+        )}
+      </span>
       <span className="export-wrap" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setExportOpen(false)}>
         <button
           className="ghost icon"
@@ -530,6 +624,18 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
                     <Icon name="document" size={14} /> <span className="diagrams-label">Decisions</span>
                     {decisionsToLook > 0 && <span className="comments-count">{decisionsToLook}</span>}
                   </button>
+                  {state.can.import && (
+                    <button
+                      className={`ghost diagrams-btn decisions-btn${importOpen ? " on" : ""}`}
+                      onClick={() => (importOpen ? setPage(null) : openImport())}
+                      title="Import code: scan a codebase and bring it into the model as a draft"
+                      aria-label="Import code"
+                      aria-pressed={importOpen}
+                      data-testid="open-import"
+                    >
+                      <Icon name="code" size={14} /> <span className="diagrams-label">Import code</span>
+                    </button>
+                  )}
                   <span className="divider" />
                 </div>
                 <nav className="breadcrumb" data-testid="breadcrumb" aria-label="Breadcrumb">
@@ -613,6 +719,7 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
             )}
           </div>
 
+          {importOpen && <ImportPage state={state} refresh={refresh} onClose={() => setPage(null)} onOpenDraft={(id) => void openImportDraft(id)} />}
           {decisionsOpen && <DecisionsPage state={state} selected={decisionId} onSelect={(id) => openDecision(id)} onClose={() => setPage(null)} onReveal={revealFromPage} mutate={mutate} />}
           {diagram && diagram.nodes.length === 0 && (
             <div className="free-area">
@@ -719,6 +826,20 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
                   </label>
                 )}
                 <p className="muted small">Click an object or connection to see its details here. Press ? or use the help button at the top right.</p>
+                {draftId && (
+                  <ImportReview
+                    draftId={draftId}
+                    canEdit={state.can.editThis}
+                    version={state.version}
+                    onPick={pickReviewItem}
+                    onChanged={() =>
+                      refresh().then(
+                        () => undefined,
+                        () => undefined,
+                      )
+                    }
+                  />
+                )}
                 {changes && (
                   <>
                     <h3 className="panel-subtitle">Changes compared with {againstLabel}</h3>
@@ -774,8 +895,16 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
           title={modal.title}
           branch={state.drafts.find((d) => d.id === modal.draftId)?.branch || undefined}
           onClose={() => setModal(null)}
-          onApplied={() => {
+          onApplied={(r, accepted) => {
             setModal(null);
+            if (r.kept) {
+              // An import draft with items that are not accepted stays open, with only those items left in it.
+              notify.success(
+                `Applied ${accepted === null ? "the accepted items" : `${accepted} accepted item${accepted === 1 ? "" : "s"}`} of "${modal.title}" to the main model. ${r.held} item${r.held === 1 ? " stays" : "s stay"} in the draft.`,
+              );
+              void refresh().catch(() => undefined);
+              return;
+            }
             notify.success(`Applied "${modal.title}" to the main model.`);
             void switchVersion("main", null);
           }}
@@ -799,6 +928,45 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
         <LensEditor lens={modal.lens} tagGroups={state.tagGroups} characteristics={state.characteristics} onClose={() => setModal(null)} mutate={mutate} onSaved={(id) => chooseLensAfterSave(id)} />
       )}
       {inspectId && <LiveUiInspector state={state} elementId={inspectId} mutate={mutate} onClose={() => setInspectId(null)} onReveal={reveal} onOpen={open} />}
+      {bmoSheet && (
+        <BmoSheet
+          title={bmoSheet.title}
+          request={bmoSheet.request}
+          onClose={() => setBmoSheet(null)}
+          onOpenDecisions={() => openDecision(null)}
+          onDone={() => bmoSheet.reloads && void refresh().catch(() => undefined)}
+          textActions={(text, close) => (
+            <>
+              {bmoSheet.challenges && comments.can && (
+                <button
+                  onClick={async () => {
+                    const at = bmoSheet.challenges!.diagram;
+                    const ok = await comments.add("question", { type: "diagram", id: at }, at, `BMO's challenge:\n${text}`.slice(0, 3900), comments.me ?? "");
+                    if (ok) {
+                      notify.success("Added as a question on this diagram.");
+                      close();
+                    }
+                  }}
+                  data-testid="bmo-add-question"
+                >
+                  Add as a question
+                </button>
+              )}
+              {bmoSheet.describes && state.can.editThis && (
+                <button
+                  onClick={async () => {
+                    const id = bmoSheet.describes!.id;
+                    if (await mutate(() => api.updateElement(id, { description: text.slice(0, 2000) }))) close();
+                  }}
+                  data-testid="bmo-use-description"
+                >
+                  Use as description
+                </button>
+              )}
+            </>
+          )}
+        />
+      )}
       <DialogHost />
     </div>
   );

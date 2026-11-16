@@ -340,7 +340,7 @@ describe("the digest", () => {
   it("stays within the budget and lists the files that did not fit", () => {
     const { dir, code } = setup();
     const intake = defaultIntake();
-    const ev = scanRepo(code, intake);
+    const ev = scanRepo(code, intake, { containerRoots: ["sample_code"] }); // one container over the whole example code, so every folder is a component
     const small = buildDigest(ev, code, intake, { level: "c3", budgetTokens: 1500, container: { id: "x", name: "X", codePaths: ["sample_code"] } });
     expect(small.estTokens).toBeLessThanOrEqual(1500);
     expect(small.leftOut.some((l) => /did not fit/.test(l.reason))).toBe(true);

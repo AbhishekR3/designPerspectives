@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "level": "all",
+  "source": { "kind": "hand" },
+  "objects": [
+    {
+      "id": "stripe",
+      "type": "system",
+      "name": "Stripe",
+      "external": true,
+      "description": "Takes card payments for the bank's merchant customers.",
+      "evidence": [
+        { "kind": "file", "path": "sample_code/payments/package.json", "lines": [10, 10], "text": "stripe" },
+        { "kind": "user", "note": "The payments team confirmed card payments go through Stripe." }
+      ],
+      "confidence": "high"
+    },
+    {
+      "id": "twilio",
+      "type": "system",
+      "name": "Twilio",
+      "external": true,
+      "description": "Sends text messages for payment alerts.",
+      "evidence": [{ "kind": "file", "path": "sample_code/payments/package.json", "lines": [11, 11], "text": "twilio" }],
+      "confidence": "medium"
+    },
+    {
+      "id": "sentry",
+      "type": "system",
+      "name": "Sentry",
+      "external": true,
+      "description": "Collects error reports from the API Application.",
+      "evidence": [{ "kind": "file", "path": "sample_code/api/requirements.txt", "lines": [2, 2], "text": "sentry-sdk" }],
+      "confidence": "high"
+    },
+    {
+      "id": "card-vault",
+      "type": "system",
+      "name": "Card Vault",
+      "external": true,
+      "description": "Stores card numbers for repeat payments.",
+      "confidence": "low"
+    }
+  ],
+  "relationships": [
+    {
+      "source": "payments-service",
+      "target": "stripe",
+      "description": "Sends card charges to",
+      "technologies": ["HTTPS"],
+      "evidence": [
+        { "kind": "file", "path": "sample_code/payments/package.json", "lines": [10, 10], "text": "stripe" },
+        { "kind": "user", "note": "The payments team confirmed card payments go through Stripe." }
+      ],
+      "confidence": "high"
+    },
+    {
+      "source": "payments-service",
+      "target": "twilio",
+      "description": "Sends payment alerts through",
+      "technologies": ["HTTPS"],
+      "evidence": [{ "kind": "file", "path": "sample_code/payments/package.json", "lines": [11, 11], "text": "twilio" }],
+      "confidence": "medium"
+    },
+    {
+      "source": "api-application",
+      "target": "sentry",
+      "description": "Reports errors to",
+      "technologies": ["HTTPS"],
+      "evidence": [{ "kind": "file", "path": "sample_code/api/requirements.txt", "lines": [2, 2], "text": "sentry-sdk" }],
+      "confidence": "high"
+    },
+    {
+      "source": "payments-service",
+      "target": "card-vault",
+      "description": "Stores card numbers in",
+      "technologies": ["HTTPS"],
+      "confidence": "low"
+    }
+  ],
+  "questions": ["Is the Card Vault run by the bank or by a vendor?"]
+}

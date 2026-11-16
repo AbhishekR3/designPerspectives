@@ -346,7 +346,7 @@ describe("every task, preview then run", () => {
     await ok(c.post("/api/import/scan"));
     const lvl = await previewRun(c, BODY["import-level"]!);
     expect(lvl.pv.status, lvl.pv.text).toBe(200);
-    expect(lvl.pv.json().files).toEqual([]); // the demo has no manifests or Dockerfiles at C2
+    expect(lvl.pv.json().files.map((f: any) => f.path)).toEqual(["sample_code/api/Dockerfile", "sample_code/docker-compose.yml", "sample_code/payments/package.json"]); // the demo's C2 manifests
     expect(lvl.run.status, lvl.run.text).toBe(200);
     const made = lvl.run.json();
     expect(made.draftId).toBeTruthy();

@@ -1,0 +1,2 @@
+sendgrid==6.11.0
+sentry-sdk==2.8.0

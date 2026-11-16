@@ -20,6 +20,8 @@ export interface Common {
   onBacktrack(q: BacktrackQuery): void;
   /** Open a decision record on the decisions page. */
   onOpenDecision(id: string): void;
+  /** Ask BMO to explain an element or a relationship (opens the BMO sheet). */
+  onExplain(target: { element?: string; relationship?: string }, name: string): void;
   /** The hub's shared catalog elements; null when this project is not in a hub with a catalog (or is the catalog). */
   catalog: CatalogEntry[] | null;
   focusName: boolean;

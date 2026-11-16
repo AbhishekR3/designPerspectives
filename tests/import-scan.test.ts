@@ -328,16 +328,20 @@ describe("scan: determinism", () => {
   });
   it("scans demo/sample_code to a stable result", () => {
     const ev = scanRepo(new DiskCode(path.resolve("demo/sample_code")), defaultIntake());
-    expect(ids(ev, "c3")).toEqual([
-      "component-dir:api:api",
-      "component-dir:notifications:notifications",
-      "component-dir:payments:payments",
-      "component-dir:pipeline:pipeline",
-      "component-dir:statements:statements",
+    // The demo has a compose file, a Dockerfile and a package.json, so api/ and payments/ are container roots (a root itself is not a component) and the flat folders hold no components.
+    expect(ids(ev, "c3")).toEqual([]);
+    expect(ids(ev, "c2")).toEqual([
+      "compose-service:docker-compose.yml:api",
+      "compose-service:docker-compose.yml:payments-service",
+      "datastore:docker-compose.yml:db",
+      "datastore:docker-compose.yml:cache",
+      "dockerfile:api/Dockerfile:api",
+      "package-entry:payments/package.json:payments-service",
+      "queue:docker-compose.yml:broker",
     ]);
     expect(ev.facts.filter((f) => f.level === "c4").length).toBe(36);
-    expect(ev.files).toMatchObject({ total: 36, byLanguage: { python: 13, typescript: 23 }, notAnalysable: {}, binary: 0 });
-    expect(ev.facts.find((f) => f.id === "component-dir:api:api")?.detail).toBe("8 source files; no container found, code root used");
+    expect(ev.files.total).toBe(41);
+    expect(ev.files).toMatchObject({ byLanguage: { python: 13, typescript: 23 }, notAnalysable: {}, binary: 0 });
     expect(ev.limits).toEqual([]);
     expect(ids(ev, "c4")).toMatchInlineSnapshot(`
       [
@@ -577,8 +581,8 @@ describe("analysis", () => {
     // the code root of a project is the project folder, so the demo's code paths start with sample_code/
     const dir = demoDir();
     const a = analyse(scanRepo(new DiskCode(dir), defaultIntake()), snap, defaultIntake(), state());
-    expect(a.levels[2]!.items.map((c) => c.id)).toEqual(["c3:sample_code/api", "c3:sample_code/notifications", "c3:sample_code/payments", "c3:sample_code/pipeline", "c3:sample_code/statements"]);
-    expect(a.levels[2]!.accepted).toBeGreaterThan(0);
+    expect(a.levels[2]!.items.map((c) => c.id)).toEqual([]); // api/ and payments/ are container roots: the flat demo folders hold no components
+    expect(a.levels[1]!.accepted).toBeGreaterThan(0); // payments-service
     expect(a.levels[3]).toMatchObject({ candidates: 36 });
     expect(a.levels[3]!.accepted).toBeGreaterThan(0);
     expect(a.levels[3]!.accepted + a.levels[3]!.undecided).toBe(36);
