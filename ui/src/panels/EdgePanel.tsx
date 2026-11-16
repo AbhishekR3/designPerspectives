@@ -1,20 +1,18 @@
 import { api } from "../api";
-import { Discussion } from "../comments";
+import { Discussion } from "../common/comments";
 import { DecisionSection } from "./DecisionSection";
 import { DataAccessSection } from "./DataSections";
-import { WorkRefreshButton } from "./WorkRefresh";
-import { CodePaths, OpenCodeDiagram } from "../CodeParts";
-import { Fields, Section, TagInput, TextField } from "../fields";
+import { CodePaths, OpenCodeDiagram } from "./CodeParts";
+import { Fields, Section, TagInput, TextField } from "./fields";
 import { openWork } from "../overlays";
-import { StylePanel } from "../StylePanel";
-import { automaticLabel } from "../lineShapes";
+import { StylePanel } from "./StylePanel";
+import { automaticLabel } from "../canvas/lineShapes";
 import { type EdgeLayout, type Relationship } from "../types";
 import type { Common } from "./common";
 import { NotesEditor, SensitiveEditor } from "./sectionEditors";
-import { WorkEditor } from "./valueEditors";
-import { confirmDeleteRelationship } from "../dialogs";
-import { PipelineData } from "../SamplePayload";
-import { ExampleFields } from "./ExampleFields";
+import { ExampleFields, WorkEditor, WorkRefreshButton } from "./valueEditors";
+import { confirmDeleteRelationship } from "../common/dialogs";
+import { PipelineData } from "../inspect/SamplePayload";
 
 export function EdgePanel({ edgeId, ...p }: Common & { edgeId: string }) {
   const { state, diagram, mutate, lens } = p;

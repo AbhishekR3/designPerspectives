@@ -1,17 +1,18 @@
-/** Hub-level routes (DEC-053, DEC-054): what the server serves and the home page summary. The same
- *  routes answer for a single project (`dp serve PATH`) and for a hub (`dp serve --hub DIR`). */
+/** Hub-level routes (DEC-053, DEC-054): what the server serves and the home page summary, plus the integration
+ *  credentials (DEC-056). The same routes answer for a single project (`dp serve PATH`) and for a hub (`dp serve --hub DIR`). */
 
 import type { Context, Hono } from "hono";
+import { CredentialStore } from "../../core/credentials.js";
 import { catalogEntries, sharedUsage } from "../../core/catalog.js";
 import { homeSummary, type HomeProject } from "../../core/home.js";
 import { history, uncommitted } from "../../core/history.js";
 import type { GitModels } from "../../core/git.js";
-import type { Project } from "../../core/store.js";
+import type { Project } from "../../core/project.js";
 import type { CatalogUpdate, HistoryList, HomeSummary, HubInfo, AttentionItem, SharedUsage } from "../../shared/types.js";
 import { decide, type Who } from "../auth.js";
 import type { Auth } from "../auth.js";
 import type { Ctx } from "../context.js";
-import { HttpError } from "../context.js";
+import { HttpError, objBody } from "../context.js";
 
 /** One project of the hub; `ctx()` builds it on first use and throws when its model cannot be loaded. */
 export interface HubEntry {
@@ -196,5 +197,36 @@ export function registerHub(app: Hono, hub: HubCtx): void {
   app.get("/api/catalog/usage", (c) => {
     hub.sync?.();
     return c.json(usageOf(hub, c));
+  });
+}
+
+/** Integration credentials (DEC-056): architects list, add, rotate, edit and remove them. Values are write-only. */
+export function registerCredentials(app: Hono, hub: HubCtx, secret?: string | null): void {
+  const store = new CredentialStore(hub.dir, secret === undefined ? (process.env.DP_SECRET_KEY ?? null) : secret);
+  const name = (n: string) => decodeURIComponent(n);
+
+  app.get("/api/credentials", (c) => {
+    needAdmin(hub, c);
+    return c.json(store.list());
+  });
+  app.post("/api/credentials", async (c) => {
+    needAdmin(hub, c);
+    store.add(await objBody(c));
+    return c.json({ ok: true });
+  });
+  app.put("/api/credentials/:name", async (c) => {
+    needAdmin(hub, c);
+    store.rotate(name(c.req.param("name")), (await objBody(c)).value);
+    return c.json({ ok: true });
+  });
+  app.patch("/api/credentials/:name", async (c) => {
+    needAdmin(hub, c);
+    store.update(name(c.req.param("name")), await objBody(c));
+    return c.json({ ok: true });
+  });
+  app.delete("/api/credentials/:name", (c) => {
+    needAdmin(hub, c);
+    store.remove(name(c.req.param("name")));
+    return c.json({ ok: true });
   });
 }

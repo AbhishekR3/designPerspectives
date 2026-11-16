@@ -9,10 +9,10 @@
 
 import { execFileSync } from "node:child_process";
 import path from "node:path";
-import { GitCode, NO_CODE, type CodeSource } from "./codefs.js";
+import { GitCode, NO_CODE, type CodeSource } from "./codeFiles.js";
 import { DECISIONS_DIR, parseDecision } from "./decisions.js";
 import { emptySidecar, parseSidecar, type Sidecar } from "./sidecar.js";
-import { NotFound, SIDECAR_FILE, WORKSPACE_FILE, type ModelSource } from "./store.js";
+import { NotFound, SIDECAR_FILE, WORKSPACE_FILE, type ModelSource } from "./project.js";
 import { errors } from "./validate.js";
 import { emptyWorkspace, parseWorkspace, type Workspace } from "./workspace.js";
 import type { Decision } from "../shared/types.js";

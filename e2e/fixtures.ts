@@ -7,7 +7,7 @@ import path from "node:path";
 import { serve } from "@hono/node-server";
 import { test as base, expect, type Page } from "@playwright/test";
 import { hashPassword, usersPath, writeUsers } from "../src/core/users.js";
-import { initProject, staticDir } from "../src/core/store.js";
+import { initProject, staticDir } from "../src/core/project.js";
 import type { Role } from "../src/shared/types.js";
 import { createApp } from "../src/server/app.js";
 

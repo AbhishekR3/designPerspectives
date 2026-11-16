@@ -1,9 +1,9 @@
 /** Live UI inspector routes: open an element's live UI through the local proxy, and say what calls seen there mean in the model. */
 
 import type { Hono } from "hono";
-import { inspectCalls } from "../../core/inspect.js";
+import { inspectCalls } from "../../core/uiInspector.js";
 import { observe } from "../../core/traces.js";
-import { isObj } from "../../core/json.js";
+import { isObj } from "../../core/util.js";
 import { buildIndex, UI_URL_KEY } from "../../core/ops.js";
 import type { ObservedCall } from "../../shared/types.js";
 import { HttpError, needStr, objBody, type Ctx } from "../context.js";

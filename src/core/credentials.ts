@@ -16,8 +16,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { atomicWrite } from "./fsutil.js";
-import { isObj } from "./json.js";
+import { atomicWrite, isObj } from "./util.js";
 import { ModelError } from "./ops.js";
 import { ensureGitignored } from "./users.js";
 import { CREDENTIAL_PROVIDERS, type CredentialInfo, type CredentialList, type CredentialProvider } from "../shared/types.js";

@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { checkRef } from "../src/core/git.js";
-import { initProject } from "../src/core/store.js";
+import { initProject } from "../src/core/project.js";
 import { client, demoDir, ok, tmpDir } from "./helpers.js";
 
 const hasGit = (() => {

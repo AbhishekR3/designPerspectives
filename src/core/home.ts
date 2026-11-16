@@ -6,13 +6,13 @@
 
 import { decisionSummary } from "./decisions.js";
 import { diagram as staticDiagram } from "./diagrams.js";
-import { NO_CODE } from "./codefs.js";
+import { NO_CODE } from "./codeFiles.js";
 import type { Drafts } from "./drafts.js";
 import { logFor } from "./git.js";
 import { listFlows } from "./flows.js";
 import { buildIndex, CATALOG_KEY, getProps } from "./ops.js";
 import { checkProject } from "./report.js";
-import type { Project } from "./store.js";
+import type { Project } from "./project.js";
 import { decisionFlags, isoDay } from "../shared/decisionFlags.js";
 import type { AttentionItem, DecisionSummary, HomeSummary, ProjectCard, Thumb, WatchItem } from "../shared/types.js";
 

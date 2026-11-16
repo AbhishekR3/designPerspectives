@@ -10,8 +10,8 @@ import "./styles/panels.css";
 import "./styles/dialogs.css";
 import "./styles/pages.css";
 import "./styles/home.css";
-import { AuthGate } from "./SignIn";
-import { ErrorBoundary } from "./ErrorBoundary";
+import { AuthGate } from "./pages/SignIn";
+import { ErrorBoundary } from "./common/ErrorBoundary";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

@@ -4,12 +4,12 @@
  * request comment, or JSON).
  */
 
-import { expandPaths } from "./code.js";
+import { expandPaths } from "./codeMap.js";
 import { decisionWarnings } from "./decisions.js";
 import { Drafts } from "./drafts.js";
 import type { Snapshot } from "./diff.js";
 import { buildIndex, CODE_KEY, getJson, type Index } from "./ops.js";
-import type { Project } from "./store.js";
+import type { Project } from "./project.js";
 import type { ChangeSet, ObjectChange } from "../shared/types.js";
 
 export interface CheckResult {

@@ -4,8 +4,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { MAX_BYTES } from "../src/core/codefs.js";
-import { Project, staticDir } from "../src/core/store.js";
+import { MAX_BYTES } from "../src/core/codeFiles.js";
+import { Project, staticDir } from "../src/core/project.js";
 import { client, demoDir, ok, type Client } from "./helpers.js";
 
 const HIDDEN = "Hidden files and folders (names starting with a dot) cannot be opened here.";

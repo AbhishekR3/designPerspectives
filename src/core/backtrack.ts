@@ -15,9 +15,8 @@
 
 import { CODE_KEY, elementSummary, getJson, relationshipSummary, STAGES_KEY, ModelError, buildIndex, type Index } from "./ops.js";
 import { listFlows } from "./flows.js";
-import { expandPaths } from "./code.js";
-import type { CodeSource } from "./codefs.js";
-import { findFunctions } from "./functions.js";
+import { expandPaths, findFunctions } from "./codeMap.js";
+import type { CodeSource } from "./codeFiles.js";
 import { changedLinesSince, logFor, parentOf, uncommitted, type LogEntry } from "./git.js";
 import type { Workspace } from "./workspace.js";
 import type { BacktrackFile, BacktrackResult, BacktrackStep, ModelChange, Stage } from "../shared/types.js";

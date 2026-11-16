@@ -2,17 +2,17 @@
 // gathered where the user clicked.
 import { useCallback, useRef, useState, type Dispatch, type RefObject, type SetStateAction } from "react";
 import { api } from "./api";
-import type { CanvasHandle, ContextTarget } from "./Canvas";
-import type { NodeActions } from "./canvasParts";
-import { keys, tidy, type MenuItem } from "./ContextMenu";
-import { iconFor } from "./icons";
-import { defaultSize } from "./layout";
-import { addBlockedReason } from "./connectRequired";
-import { automaticLabel } from "./lineShapes";
-import { paletteItems, type PaletteItem } from "./Palette";
-import { edgeCommentTarget } from "./comments";
+import type { CanvasHandle, ContextTarget } from "./canvas/Canvas";
+import type { NodeActions } from "./canvas/canvasParts";
+import { keys, tidy, type MenuItem } from "./canvas/ContextMenu";
+import { iconFor } from "./common/icons";
+import { defaultSize } from "./canvas/layout";
+import { addBlockedReason } from "./canvas/connectRequired";
+import { automaticLabel } from "./canvas/lineShapes";
+import { paletteItems, type PaletteItem } from "./canvas/Palette";
+import { edgeCommentTarget } from "./common/comments";
 import { selectedNodeIds, type AppState, type CommentTarget, type Diagram, type DiagramEdge, type DiagramNode, type EdgeLayout, type Pt, type Selection, type Style } from "./types";
-import type { Clipboard } from "./useClipboard";
+import type { Clipboard } from "./hooks/useClipboard";
 
 /** Choices in the line menus; labels match the panel. */
 const LINE_SHAPES: ["auto" | NonNullable<EdgeLayout["routing"]>, string][] = [

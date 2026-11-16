@@ -1,7 +1,7 @@
-/** Orthogonal edge routing: port planning, routes and default label places (ui/src/routing.ts). */
+/** Orthogonal edge routing: port planning, routes and default label places (ui/src/canvas/routing.ts). */
 
 import { describe, expect, test } from "vitest";
-import { defaultLabelT, orthoRoute, placeLabels, planPorts, separateRoutes, type Box, type Port, type Pt, type RouteEdge } from "../ui/src/routing.js";
+import { defaultLabelT, orthoRoute, placeLabels, planPorts, separateRoutes, type Box, type Port, type Pt, type RouteEdge } from "../ui/src/canvas/routing.js";
 
 const OUT: Record<Port["side"], Pt> = { right: { x: 1, y: 0 }, bottom: { x: 0, y: 1 }, left: { x: -1, y: 0 }, top: { x: 0, y: -1 } };
 

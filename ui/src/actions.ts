@@ -1,15 +1,15 @@
 import { useCallback, useMemo, type Dispatch, type RefObject, type SetStateAction } from "react";
 import { api } from "./api";
-import type { CanvasHandle } from "./Canvas";
-import type { NodeActions } from "./canvasParts";
-import { connectPlan } from "./connectRequired";
-import type { MenuItem } from "./ContextMenu";
-import { iconFor } from "./icons";
-import { defaultSize } from "./layout";
-import type { PaletteItem } from "./Palette";
+import type { CanvasHandle } from "./canvas/Canvas";
+import type { NodeActions } from "./canvas/canvasParts";
+import { connectPlan } from "./canvas/connectRequired";
+import type { MenuItem } from "./canvas/ContextMenu";
+import { iconFor } from "./common/icons";
+import { defaultSize } from "./canvas/layout";
+import type { PaletteItem } from "./canvas/Palette";
 import type { AppState, Diagram, Pt, Selection } from "./types";
-import { confirmDeleteElement, confirmDeleteRelationship, confirmDialog, promptDialog } from "./dialogs";
-import { notify, run } from "./notify";
+import { confirmDeleteElement, confirmDeleteRelationship, confirmDialog, promptDialog } from "./common/dialogs";
+import { notify, run } from "./common/notify";
 
 type Mutate = (fn: () => Promise<unknown>) => Promise<boolean>;
 

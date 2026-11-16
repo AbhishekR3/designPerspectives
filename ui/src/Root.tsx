@@ -9,10 +9,10 @@
 import { useCallback, useEffect, useState } from "react";
 import App from "./App";
 import { api, setProject } from "./api";
-import { HubShell, type HubPage } from "./home/Shell";
-import { errorMessage } from "./notify";
+import { HubShell, type HubPage } from "./pages/Shell";
+import { errorMessage } from "./common/notify";
 import type { HubInfo } from "./types";
-import { fromHash, setHashProject } from "./useNavigation";
+import { fromHash, setHashProject } from "./hooks/useNavigation";
 
 function pageOf(hash: string): HubPage | null {
   if (/^#\/home\/?$/.test(hash)) return "home";

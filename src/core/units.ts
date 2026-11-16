@@ -23,7 +23,7 @@
  * and values compare the way the files do.
  */
 
-import { isObj, type Obj } from "./json.js";
+import { isObj, type Obj } from "./util.js";
 import { parseKey, VIEW_LIST_OF_LEVEL } from "./diagrams.js";
 import { sidecarData, toSidecar, type Sidecar } from "./sidecar.js";
 import { toWorkspace, VIEW_LISTS, workspaceData, type Kind, type Workspace } from "./workspace.js";

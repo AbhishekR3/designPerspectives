@@ -1,9 +1,9 @@
-/** Read routes: health, state, diagrams and changes. */
+/** Read routes: health, state, diagrams and changes, plus undo / redo and backtracking. */
 
 import type { Hono } from "hono";
-import { compareDiagram, diagramOf } from "../../core/compare.js";
-import { diffModels } from "../../core/diff.js";
-import { version } from "../../core/store.js";
+import { backtrack } from "../../core/backtrack.js";
+import { compareDiagram, diagramOf, diffModels } from "../../core/diff.js";
+import { version } from "../../core/project.js";
 import type { ChangeSet } from "../../shared/types.js";
 import { codePair, HttpError, state, type Ctx } from "../context.js";
 
@@ -31,4 +31,36 @@ export function registerRead(app: Hono, ctx: Ctx): void {
   });
 
   app.get("/api/changes", (c) => c.json(changes()));
+}
+
+/** Undo and redo of the selected (editable) model. */
+export function registerHistory(app: Hono, ctx: Ctx): void {
+  const { writable } = ctx;
+
+  app.post("/api/undo", (c) => c.json({ ok: writable().undo() }));
+  app.post("/api/redo", (c) => c.json({ ok: writable().redo() }));
+}
+
+/** Backtracking route: from a pipeline stage or flow step back to where its data came from, with code and history. */
+export function registerBacktrack(app: Hono, ctx: Ctx): void {
+  const { sel, project, gitModels } = ctx;
+
+  app.get("/api/backtrack", (c) => {
+    const q = c.req.query();
+    const num = (k: string): number | undefined => {
+      if (q[k] === undefined || q[k] === "") return undefined;
+      const n = Number(q[k]);
+      if (!Number.isInteger(n)) throw new HttpError(422, `"${k}" must be a whole number.`);
+      return n;
+    };
+    const s = sel();
+    return c.json(
+      backtrack(
+        s.src.workspace,
+        s.code,
+        { codeDir: project.codeRoot, modelDir: project.dir, modelAt: gitModels.get() ? (sha) => gitModels.at(sha).workspace : null },
+        { connector: q.connector || undefined, stage: num("stage"), flow: q.flow || undefined, step: num("step"), days: num("days") },
+      ),
+    );
+  });
 }

@@ -6,7 +6,7 @@ import path from "node:path";
 import type { AddressInfo } from "node:net";
 import { serve } from "@hono/node-server";
 import { test as base, expect } from "@playwright/test";
-import { staticDir } from "../src/core/store.js";
+import { staticDir } from "../src/core/project.js";
 import { copyDemoHub, createHubApp } from "../src/server/hub.js";
 
 const test = base.extend<{ hub: { url: string; root: string } }>({

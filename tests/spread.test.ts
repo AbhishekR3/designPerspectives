@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { crowdedPairs, selectionInput, spreadLayout, spreadSelected, type Box, type Pt, type Rect, type SpreadInput } from "../ui/src/spread.js";
+import { crowdedPairs, selectionInput, spreadLayout, spreadSelected, type Box, type Pt, type Rect, type SpreadInput } from "../ui/src/canvas/spread.js";
 
 /** Small seeded generator so the random cases are the same on every run. */
 function rng(seed: number): () => number {

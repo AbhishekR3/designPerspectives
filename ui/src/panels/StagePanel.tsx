@@ -1,10 +1,10 @@
 import { api } from "../api";
-import { Fields, Section, TagInput, TextField } from "../fields";
-import { StylePanel } from "../StylePanel";
+import { Fields, Section, TagInput, TextField } from "./fields";
+import { StylePanel } from "./StylePanel";
 import { KIND_LABEL, type DiagramNode, type Stage } from "../types";
 import type { Common } from "./common";
-import { SamplePayload } from "../SamplePayload";
-import { ExampleFields } from "./ExampleFields";
+import { ExampleFields } from "./valueEditors";
+import { SamplePayload } from "../inspect/SamplePayload";
 
 export function StagePanel({ node, ...p }: Common & { node: DiagramNode }) {
   const { state, mutate, diagram } = p;

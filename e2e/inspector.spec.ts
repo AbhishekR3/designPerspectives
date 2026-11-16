@@ -3,8 +3,8 @@
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 import path from "node:path";
-import { DEMO_DIR } from "../src/core/store.js";
-import { startDemoApp } from "../src/server/demoApp.js";
+import { DEMO_DIR } from "../src/core/project.js";
+import { startDemoApp } from "../src/demo/demoApp.js";
 import { callAs, expect, node, openDiagram, test } from "./fixtures.js";
 
 const APP_PAGE = `<!doctype html><html><head><title>Bank web app</title></head><body>

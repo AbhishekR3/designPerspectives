@@ -7,8 +7,8 @@
 
 import { useState } from "react";
 import { api } from "../api";
-import { Section } from "../fields";
-import { Icon } from "../icons";
+import { Section } from "./fields";
+import { Icon } from "../common/icons";
 import { DATA_KINDS, type AppState, type CatalogEntry, type DataAccess, type DataAsset, type DataKind, type ElementSummary, type Relationship } from "../types";
 import type { Common } from "./common";
 

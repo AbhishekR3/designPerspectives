@@ -6,7 +6,7 @@ import { spawnSync } from "node:child_process";
 import { describe, expect, test } from "vitest";
 import { BUILTIN_LENSES, emptySidecar, makeLens, sidecarData } from "../src/core/sidecar.js";
 import { errors } from "../src/core/validate.js";
-import { initProject } from "../src/core/store.js";
+import { initProject } from "../src/core/project.js";
 import { emptyWorkspace } from "../src/core/workspace.js";
 import { Client, demoDir, ok, tmpDir } from "./helpers.js";
 

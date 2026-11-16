@@ -10,7 +10,7 @@
  */
 
 import { readFileSync } from "node:fs";
-import { isObj, ordered, stableJson, type Obj } from "./json.js";
+import { isObj, ordered, stableJson, type Obj } from "./util.js";
 
 export type Kind = "person" | "softwareSystem" | "container" | "component";
 

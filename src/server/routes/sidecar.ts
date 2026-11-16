@@ -2,7 +2,7 @@
 
 import type { Hono } from "hono";
 import * as diagrams from "../../core/diagrams.js";
-import { isObj, type Obj } from "../../core/json.js";
+import { isObj, type Obj } from "../../core/util.js";
 import * as ops from "../../core/ops.js";
 import { buildIndex, ModelError, slugify, unique } from "../../core/ops.js";
 import { BUILTIN_LENSES, edgeLayoutData, emptyLayout, isLineShape, LINE_SHAPES, makeLens, SECTIONS } from "../../core/sidecar.js";

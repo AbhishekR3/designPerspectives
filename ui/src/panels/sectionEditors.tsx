@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { TextField } from "../fields";
+import { TextField } from "./fields";
 import { type AppState, type DetailTable, type Relationship, type SensitiveItem, type Tradeoff, type Usage } from "../types";
 import { sameKeys } from "./common";
 

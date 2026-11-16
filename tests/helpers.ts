@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, expect } from "vitest";
 import { readWorkspace, type Workspace } from "../src/core/workspace.js";
-import { initProject } from "../src/core/store.js";
+import { initProject } from "../src/core/project.js";
 import { hashPassword, usersPath, writeUsers, type UserEntry } from "../src/core/users.js";
 import type { Role } from "../src/shared/types.js";
 import { createApp, type AppOptions } from "../src/server/app.js";

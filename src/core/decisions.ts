@@ -37,8 +37,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { atomicWrite } from "./fsutil.js";
-import { isObj, type Obj } from "./json.js";
+import { atomicWrite, isObj, type Obj } from "./util.js";
 import { ModelError, slugify } from "./ops.js";
 import {
   DECISION_KINDS,

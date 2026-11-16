@@ -1,19 +1,18 @@
 import { useState } from "react";
 import { api } from "../api";
-import { Discussion } from "../comments";
+import { Discussion } from "../common/comments";
 import { DecisionSection } from "./DecisionSection";
 import { CatalogSection, DataSection } from "./DataSections";
-import { WorkRefreshButton } from "./WorkRefresh";
-import { CodePaths, NewPlannedFile, OpenCodeDiagram } from "../CodeParts";
-import { Fields, Section, TagInput, TextField } from "../fields";
+import { CodePaths, NewPlannedFile, OpenCodeDiagram } from "./CodeParts";
+import { Fields, Section, TagInput, TextField } from "./fields";
 import { formatMoney, openWork } from "../overlays";
-import { ShapeIcon } from "../shapes";
-import { StylePanel } from "../StylePanel";
+import { ShapeIcon } from "../canvas/shapes";
+import { StylePanel } from "./StylePanel";
 import { KIND_LABEL, type ElementSummary } from "../types";
 import type { Common } from "./common";
 import { NotesEditor, DetailsEditor, TradeoffsEditor, UsageEditor, SensitiveEditor, ConnectionList } from "./sectionEditors";
-import { CharacteristicsEditor, CostEditor, WorkEditor } from "./valueEditors";
-import { confirmDeleteElement } from "../dialogs";
+import { CharacteristicsEditor, CostEditor, WorkEditor, WorkRefreshButton } from "./valueEditors";
+import { confirmDeleteElement } from "../common/dialogs";
 
 export function ObjectPanel({ element, ...p }: Common & { element: ElementSummary }) {
   const { state, lens, mutate, diagram } = p;

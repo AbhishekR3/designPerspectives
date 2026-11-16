@@ -11,7 +11,7 @@
  * properties named `dp.*` (see ops.ts).
  */
 
-import { deepEqual, isObj, ordered, type Obj } from "./json.js";
+import { deepEqual, isObj, ordered, type Obj } from "./util.js";
 import { LEVELS, SECTIONS, type CharacteristicDef, type CostSettings, type EdgeLayout, type Lens, type Level, type Pt, type Section, type Style, type TagGroup } from "../shared/types.js";
 
 export { LEVELS, SECTIONS };

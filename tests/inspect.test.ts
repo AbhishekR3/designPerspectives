@@ -3,7 +3,7 @@
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 import { afterEach, describe, expect, test } from "vitest";
-import { endpointMatches, inspectCalls, suggestEndpoint } from "../src/core/inspect.js";
+import { endpointMatches, inspectCalls, suggestEndpoint } from "../src/core/uiInspector.js";
 import * as ops from "../src/core/ops.js";
 import { INSPECT_SCRIPT_PATH } from "../src/server/inspectScript.js";
 import { checkUiTarget, UiProxies } from "../src/server/uiProxy.js";

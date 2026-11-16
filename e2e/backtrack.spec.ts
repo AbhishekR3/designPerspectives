@@ -1,7 +1,7 @@
 /** Browser tests of backtracking: from stage 8 of the demo's statement job back to the recent change that caused it. */
 
-import { readDemoHistory, writeDemoHistory } from "../src/core/demoHistory.js";
-import { DEMO_DIR } from "../src/core/store.js";
+import { readDemoHistory, writeDemoHistory } from "../src/demo/demoHistory.js";
+import { DEMO_DIR } from "../src/core/project.js";
 import { expect, openDiagram, test } from "./fixtures.js";
 
 test("backtrack from a pipeline stage: the steps, a field's values, recent code and model changes", async ({ page, server }) => {

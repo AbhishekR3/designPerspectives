@@ -3,9 +3,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, test } from "vitest";
-import { stableJson } from "../src/core/json.js";
+import { stableJson } from "../src/core/util.js";
 import { emptySidecar, parseSidecar, sidecarData } from "../src/core/sidecar.js";
-import { AlreadyExists, initProject } from "../src/core/store.js";
+import { AlreadyExists, initProject } from "../src/core/project.js";
 import { errors } from "../src/core/validate.js";
 import { dumpWorkspace, parseWorkspace, readWorkspace, toWorkspace } from "../src/core/workspace.js";
 import { demoDir, demoWs, tmpDir } from "./helpers.js";

@@ -7,7 +7,7 @@
  *   architecture/drafts/<id>/base/workspace.json         the main model when the draft was made
  *   architecture/drafts/<id>/base/designperspectives.json
  *   architecture/drafts/<id>/decisions/, base/decisions/  decision records (decisions.ts), the same way
- *   architecture/drafts/<id>/code.json, code/<path>     planned code edits (see codefs.ts CodePlan)
+ *   architecture/drafts/<id>/code.json, code/<path>     planned code edits (see codeFiles.ts CodePlan)
  *
  * The base copy makes a three-way merge possible on apply (`merge.ts`): changes made to the main
  * model since the draft was made are kept, and an object changed on both sides is a conflict.
@@ -17,17 +17,17 @@
 import fs from "node:fs";
 import path from "node:path";
 import { prune, syncViews } from "./diagrams.js";
-import { writeCodeFile } from "./code.js";
-import { CodePlan, DiskCode, OverlayCode, safePath, sha1, type PlannedFile } from "./codefs.js";
+import { writeCodeFile } from "./codeMap.js";
+import { CodePlan, DiskCode, OverlayCode, safePath, sha1, type PlannedFile } from "./codeFiles.js";
 import { diffModels, type Snapshot } from "./diff.js";
 import { buildPlanItems, codingPlan } from "./plan.js";
-import type { CodeSource } from "./codefs.js";
+import type { CodeSource } from "./codeFiles.js";
 import { DECISIONS_DIR, renumberAdded } from "./decisions.js";
 import { syncFlows } from "./flows.js";
-import { isObj, stableJson } from "./json.js";
+import { isObj, stableJson } from "./util.js";
 import { merge3 } from "./merge.js";
 import { ModelError, slugify, unique } from "./ops.js";
-import { FileSnapshot, NotFound, Project, SIDECAR_FILE, WORKSPACE_FILE, atomicWrite } from "./store.js";
+import { FileSnapshot, NotFound, Project, SIDECAR_FILE, WORKSPACE_FILE, atomicWrite } from "./project.js";
 import { flatten, unflatten, UnitError } from "./units.js";
 import { addedErrors, errors } from "./validate.js";
 import type { ApplyPreview, CodingPlan, Conflict, DraftInfo } from "../shared/types.js";

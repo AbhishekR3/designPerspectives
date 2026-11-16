@@ -1,4 +1,4 @@
-import { notify } from "./notify";
+import { notify } from "./common/notify";
 import type { CatalogEntry, CredentialList, Decision, DecisionInput, DecisionStatus, HistoryList, HomeSummary, HubInfo, SharedUsage, WorkRefresh } from "./types";
 import type {
   AppState,

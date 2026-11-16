@@ -1,8 +1,8 @@
 /** Draft routes: create, edit, discard, the coding plan, and apply. */
 
 import type { Hono } from "hono";
-import { isObj } from "../../core/json.js";
-import type { CodeSource } from "../../core/codefs.js";
+import { isObj } from "../../core/util.js";
+import type { CodeSource } from "../../core/codeFiles.js";
 import { body, HttpError, needStr, objBody, optStr, type Ctx } from "../context.js";
 
 export function registerDrafts(app: Hono, ctx: Ctx): void {

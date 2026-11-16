@@ -3,7 +3,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { syncViews } from "../src/core/diagrams.js";
 import { syncFlows } from "../src/core/flows.js";
-import { stableJson } from "../src/core/json.js";
+import { stableJson } from "../src/core/util.js";
 import { parseSidecar, sidecarData } from "../src/core/sidecar.js";
 import { flatten, unflatten } from "../src/core/units.js";
 import { dumpWorkspace, parseWorkspace } from "../src/core/workspace.js";

@@ -28,8 +28,8 @@ import path from "node:path";
 import type { Context, Hono, MiddlewareHandler } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { matchedRoutes } from "hono/route";
-import { isHidden } from "../core/codefs.js";
-import { isObj } from "../core/json.js";
+import { isHidden } from "../core/codeFiles.js";
+import { isObj } from "../core/util.js";
 import { dummyHash, MAX_PASSWORD, NO_ACCESS, readUsers, roleIn, usersPath, UsersError, verifyPassword, type ProjectRole, type UserEntry } from "../core/users.js";
 import type { MeResponse, Permissions, Role, SessionUser } from "../shared/types.js";
 import type { Ctx } from "./context.js";
@@ -91,28 +91,28 @@ export const ROUTE_RULES: Record<string, Action> = {
   "DELETE /api/lenses/:id": "edit",
   "PUT /api/diagrams/:key/layout": "edit",
   "PUT /api/styles/:target{.+}": "edit",
-  // routes/flows.ts
+  // routes/model.ts (flows)
   "POST /api/flows": "edit",
   "PUT /api/flows/:key": "edit",
   "DELETE /api/flows/:key": "edit",
-  // routes/catalog.ts: linked copies of shared catalog elements (DEC-055)
+  // routes/model.ts (catalog): linked copies of shared catalog elements (DEC-055)
   "POST /api/elements/from-catalog": "edit",
   "POST /api/elements/:id/catalog": "edit",
   "POST /api/elements/:id/catalog/sync": "edit",
   "DELETE /api/elements/:id/catalog": "edit",
-  // routes/credentials.ts: integration credentials, architects only (DEC-056)
+  // routes/hub.ts (credentials): integration credentials, architects only (DEC-056)
   "POST /api/credentials": "admin",
   "PUT /api/credentials/:name": "admin",
   "PATCH /api/credentials/:name": "admin",
   "DELETE /api/credentials/:name": "admin",
-  // routes/work.ts: linked work status from GitHub, written to the model (DEC-059)
+  // routes/model.ts (work): linked work status from GitHub, written to the model (DEC-059)
   "POST /api/work/refresh": "edit",
   // routes/decisions.ts: decision records are part of the model (DEC-050)
   "POST /api/decisions": "edit",
   "PUT /api/decisions/:id": "edit",
   "PATCH /api/decisions/:id/status": "edit",
   "DELETE /api/decisions/:id": "edit",
-  // routes/history.ts (undo/redo of the selected version)
+  // routes/read.ts (undo/redo of the selected version)
   "POST /api/undo": "edit",
   "POST /api/redo": "edit",
   // routes/code.ts (main: the code folder itself; a draft: its planned edits)

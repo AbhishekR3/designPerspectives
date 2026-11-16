@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
+import { api } from "../api";
+import { TextField } from "./fields";
+import { errorMessage, notify } from "../common/notify";
 import { RATING_COLORS, formatMoney } from "../overlays";
 import { type AppState, type CharacteristicDef, type CostItem, type Rating, type WorkItem, type ElementSummary } from "../types";
-import { sameKeys } from "./common";
+import { sameKeys, type Common } from "./common";
 import { Rows } from "./sectionEditors";
 
 export function CharacteristicsEditor({ rows, defs, onSave }: { rows: Rating[]; defs: CharacteristicDef[]; onSave(r: Rating[]): void }) {
@@ -176,5 +179,44 @@ export function WorkEditor({ rows, enums, onSave }: { rows: WorkItem[]; enums: A
         </div>
       )}
     />
+  );
+}
+
+/** Editors for a sample payload and its format (relationship or stage). */
+export function ExampleFields({ example, format, onSave, testId, label = "Example data" }: { example: string; format: string; onSave(patch: { example?: string; format?: string }): void; testId?: string; label?: string }) {
+  return (
+    <>
+      <TextField label="Data format" value={format} placeholder="e.g. JSON event, CSV row, SQL" onCommit={(v) => onSave({ format: v })} testId={testId && `${testId}-format`} />
+      <TextField label={label} value={example} multiline rows={6} placeholder='e.g. {"user_id": 42, "event": "login"}' onCommit={(v) => onSave({ example: v })} testId={testId} />
+    </>
+  );
+}
+
+const GH = /^https:\/\/github\.com\/[^/]+\/[^/]+\/(issues|pull)\/\d+/;
+
+/** "Refresh from GitHub" under Linked work (DEC-059): every GitHub issue and pull request link of the shown version. */
+export function WorkRefreshButton({ rows, mutate, readOnly }: { rows: WorkItem[]; mutate: Common["mutate"]; readOnly: boolean }) {
+  const [busy, setBusy] = useState(false);
+  if (readOnly || !rows.some((w) => w.url && GH.test(w.url))) return null;
+  const run = async () => {
+    setBusy(true);
+    try {
+      let msg = "";
+      await mutate(async () => {
+        const r = await api.refreshWork();
+        msg = `Checked ${r.checked} GitHub link${r.checked === 1 ? "" : "s"}${r.usedCredential ? ` with ${r.usedCredential}` : " (no GitHub credential: public repositories only)"}: ${r.updated.length} status${r.updated.length === 1 ? "" : "es"} changed.`;
+        if (r.failed.length) notify.error(`${r.failed.length} could not be read: ${r.failed.map((f) => `${f.url.replace("https://github.com/", "")} (${f.reason})`).join("; ")}`);
+      });
+      if (msg) notify.success(msg);
+    } catch (e) {
+      notify.error(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <button className="add" onClick={() => void run()} disabled={busy} title="Read the status of every GitHub issue and pull request linked in this model" data-testid="work-refresh">
+      {busy ? "Asking GitHub…" : "↻ Refresh status from GitHub"}
+    </button>
   );
 }

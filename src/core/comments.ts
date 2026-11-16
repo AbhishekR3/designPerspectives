@@ -13,10 +13,9 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { COMMENT_KINDS, type CommentKind, type CommentReply, type CommentTarget, type CommentThread } from "../shared/types.js";
-import { atomicWrite } from "./fsutil.js";
-import { isObj, stableJson, type Obj } from "./json.js";
+import { atomicWrite, isObj, stableJson, type Obj } from "./util.js";
 import { ModelError } from "./ops.js";
-import { NotFound } from "./store.js";
+import { NotFound } from "./project.js";
 
 export const COMMENTS_FILE = "comments.json";
 /** Longest text of a comment or reply, and the caps that keep the file small. */

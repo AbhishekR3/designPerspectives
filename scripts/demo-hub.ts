@@ -12,7 +12,7 @@ import path from "node:path";
 import * as decisions from "../src/core/decisions.js";
 import { prune, syncViews } from "../src/core/diagrams.js";
 import { syncFlows } from "../src/core/flows.js";
-import { stableJson } from "../src/core/json.js";
+import { stableJson } from "../src/core/util.js";
 import * as ops from "../src/core/ops.js";
 import { emptySidecar, sidecarData, type Sidecar } from "../src/core/sidecar.js";
 import { errors } from "../src/core/validate.js";

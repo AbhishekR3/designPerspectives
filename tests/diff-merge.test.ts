@@ -6,7 +6,7 @@ import { diffModels, type Snapshot } from "../src/core/diff.js";
 import { syncFlows } from "../src/core/flows.js";
 import { merge3 } from "../src/core/merge.js";
 import * as ops from "../src/core/ops.js";
-import { stableJson } from "../src/core/json.js";
+import { stableJson } from "../src/core/util.js";
 import { parseSidecar, sidecarData, type Sidecar } from "../src/core/sidecar.js";
 import { flatten, unflatten } from "../src/core/units.js";
 import { dumpWorkspace, type Workspace } from "../src/core/workspace.js";

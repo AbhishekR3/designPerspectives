@@ -44,7 +44,7 @@
  */
 
 import path from "node:path";
-import { inlineJson, isObj, round2, str, type Obj } from "./json.js";
+import { inlineJson, isObj, round2, str, type Obj } from "./util.js";
 import { STYLE_KEYS, type Sidecar } from "./sidecar.js";
 import { tagsFor, VIEW_LISTS, type Element, type Kind, type Relationship, type Workspace } from "./workspace.js";
 import { DATA_KINDS, type DataAccess, type DataAsset, type DataKind } from "../shared/types.js";

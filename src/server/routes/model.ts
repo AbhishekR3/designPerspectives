@@ -1,10 +1,13 @@
-/** Model routes: diagram positions, workspace, elements and relationships. */
+/** Model routes: diagram positions, workspace, elements and relationships, plus flows, linked catalog copies and linked work status. */
 
 import type { Hono } from "hono";
 import * as diagrams from "../../core/diagrams.js";
-import { isObj, str, type Obj } from "../../core/json.js";
+import * as flows from "../../core/flows.js";
+import { isObj, str, type Obj } from "../../core/util.js";
+import { applyStates, fetchStates, gitHubLinks } from "../../core/workStatus.js";
 import * as ops from "../../core/ops.js";
 import { ModelError } from "../../core/ops.js";
+import type { WorkRefresh } from "../../shared/types.js";
 import { body, HttpError, needStr, objBody, optStr, point, type Ctx } from "../context.js";
 
 export function registerModel(app: Hono, ctx: Ctx): void {
@@ -154,5 +157,82 @@ export function registerModel(app: Hono, ctx: Ctx): void {
   app.delete("/api/relationships/:id", (c) => {
     edit((ws) => ops.deleteRelationship(ws, c.req.param("id")));
     return ok(c);
+  });
+}
+
+/** Linked copies of shared catalog elements in a project (DEC-055): add, link, update from the catalog, unlink. */
+export function registerCatalog(app: Hono, ctx: Ctx): void {
+  const { edit, ok } = ctx;
+  const catalog = () => {
+    const ws = ctx.catalog();
+    if (!ws) throw new HttpError(422, "This project has no shared catalog: serve it in a hub with a catalog (dp serve --hub).");
+    return ws;
+  };
+
+  app.post("/api/elements/from-catalog", async (c) => {
+    const b = await objBody(c);
+    const cat = catalog();
+    return c.json({ id: edit((ws) => ops.addFromCatalog(ws, cat, needStr(b, "catalogId"), optStr(b, "parentId"))) });
+  });
+
+  app.post("/api/elements/:id/catalog", async (c) => {
+    const b = await objBody(c);
+    const src = ops.catalogSource(catalog(), needStr(b, "catalogId"));
+    edit((ws) => ops.linkCatalog(ws, c.req.param("id"), src));
+    return ok(c);
+  });
+
+  app.post("/api/elements/:id/catalog/sync", (c) => {
+    const cat = catalog();
+    edit((ws) => {
+      const id = c.req.param("id");
+      const linked = ops.getProps(ops.buildIndex(ws).el(id))[ops.CATALOG_KEY];
+      if (!linked) throw new ops.ModelError("This element is not a copy of a catalog element.");
+      ops.syncFromCatalog(ws, id, ops.catalogSource(cat, linked));
+    });
+    return ok(c);
+  });
+
+  app.delete("/api/elements/:id/catalog", (c) => {
+    edit((ws) => ops.unlinkCatalog(ws, c.req.param("id")));
+    return ok(c);
+  });
+}
+
+/** Flow routes: create, update and delete flows. */
+export function registerFlows(app: Hono, ctx: Ctx): void {
+  const { edit, ok } = ctx;
+
+  app.post("/api/flows", async (c) => {
+    const b = await objBody(c);
+    const title = needStr(b, "title");
+    return c.json({ key: edit((ws) => flows.createFlow(ws, title, optStr(b, "description") ?? "")) });
+  });
+
+  app.put("/api/flows/:key", async (c) => {
+    const patch = await objBody(c);
+    edit((ws) => flows.updateFlow(ws, c.req.param("key"), patch));
+    return ok(c);
+  });
+
+  app.delete("/api/flows/:key", (c) => {
+    edit((ws) => flows.deleteFlow(ws, c.req.param("key")));
+    return ok(c);
+  });
+}
+
+/** Linked work status from GitHub (DEC-059): one button refreshes every GitHub issue and pull request link of the shown version. */
+export function registerWork(app: Hono, ctx: Ctx): void {
+  app.post("/api/work/refresh", async (c) => {
+    const project = ctx.writable();
+    project.reloadIfChanged();
+    const urls = gitHubLinks(project.workspace);
+    const cred = urls.length ? ctx.credentials.byProvider("github") : null;
+    const states = urls.length ? await fetchStates(urls, cred?.value ?? null, ctx.fetch) : new Map();
+    // Look on a copy first: nothing to change, nothing written (and no undo step).
+    const would = applyStates(structuredClone(project.workspace), structuredClone(project.sidecar), states);
+    const updated = would.length ? ctx.edit((ws, sc) => applyStates(ws, sc, states)) : [];
+    const failed = [...states].filter(([, s]) => "error" in s).map(([url, s]) => ({ url, reason: (s as { error: string }).error }));
+    return c.json({ checked: urls.length, updated, failed, usedCredential: cred?.name ?? null } satisfies WorkRefresh);
   });
 }

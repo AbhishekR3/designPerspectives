@@ -4,9 +4,9 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, test } from "vitest";
-import { insideRepo, readDemoHistory, writeDemoHistory } from "../src/core/demoHistory.js";
-import { findFunctions } from "../src/core/functions.js";
-import { DEMO_DIR } from "../src/core/store.js";
+import { insideRepo, readDemoHistory, writeDemoHistory } from "../src/demo/demoHistory.js";
+import { findFunctions } from "../src/core/codeMap.js";
+import { DEMO_DIR } from "../src/core/project.js";
 import { client, demoDir, ok, tmpDir } from "./helpers.js";
 
 const JOB = "mainframe-banking-system--statement-store";

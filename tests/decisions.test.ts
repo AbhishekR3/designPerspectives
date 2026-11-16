@@ -4,7 +4,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { parseDecision, renumberAdded, serializeDecision } from "../src/core/decisions.js";
 import { checkProject } from "../src/core/report.js";
-import { Project } from "../src/core/store.js";
+import { Project } from "../src/core/project.js";
 import { flatten, unflatten } from "../src/core/units.js";
 import { client, demoDir, ok } from "./helpers.js";
 

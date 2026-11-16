@@ -12,8 +12,8 @@
  * Everything else (technology changes, flows, unmapped elements) is listed to check by hand.
  */
 
-import { expandPaths, scanImports } from "./code.js";
-import { sha1, type CodePlan, type CodeSource } from "./codefs.js";
+import { expandPaths, scanImports } from "./codeMap.js";
+import { sha1, type CodePlan, type CodeSource } from "./codeFiles.js";
 import type { Snapshot } from "./diff.js";
 import { buildIndex, CODE_KEY, getJson, splitTech, type Index } from "./ops.js";
 import type { ChangeSet, CodingPlan, DraftInfo, PlanItem } from "../shared/types.js";

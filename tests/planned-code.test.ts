@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ModelError } from "../src/core/ops.js";
-import { Project } from "../src/core/store.js";
+import { Project } from "../src/core/project.js";
 import { client, demoDir, ok, type Client } from "./helpers.js";
 
 const tsx = path.resolve("node_modules", ".bin", "tsx");

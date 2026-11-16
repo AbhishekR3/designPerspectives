@@ -4,8 +4,8 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, test } from "vitest";
-import { writeCodeFile } from "../src/core/code.js";
-import { staticDir, version } from "../src/core/store.js";
+import { writeCodeFile } from "../src/core/codeMap.js";
+import { staticDir, version } from "../src/core/project.js";
 import { client, Client, demoDir, ok, tmpDir } from "./helpers.js";
 
 describe("API", () => {

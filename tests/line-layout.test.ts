@@ -1,8 +1,8 @@
-/** Planning the right-angle lines of a diagram, in full and while boxes are dragged (ui/src/lineLayout.ts). */
+/** Planning the right-angle lines of a diagram, in full and while boxes are dragged (ui/src/canvas/lineLayout.ts). */
 
 import { describe, expect, test } from "vitest";
-import { layoutLines, type LineInput } from "../ui/src/lineLayout.js";
-import type { Box } from "../ui/src/routing.js";
+import { layoutLines, type LineInput } from "../ui/src/canvas/lineLayout.js";
+import type { Box } from "../ui/src/canvas/routing.js";
 
 /** A 5 x 4 grid of boxes with lines between neighbours and a few longer ones. */
 function grid() {

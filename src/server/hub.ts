@@ -16,20 +16,19 @@
 import fs from "node:fs";
 import path from "node:path";
 import { Hono } from "hono";
-import { isObj, stableJson } from "../core/json.js";
+import { isObj, stableJson } from "../core/util.js";
 import { ModelError } from "../core/ops.js";
 import { syncCopies } from "../core/catalog.js";
 import { CredentialStore } from "../core/credentials.js";
 import { checkProject, type CheckResult } from "../core/report.js";
 import type { CatalogUpdate } from "../shared/types.js";
-import { atomicWrite, DEMO_DIR, initProject, NotFound, Project } from "../core/store.js";
+import { atomicWrite, DEMO_DIR, initProject, NotFound, Project } from "../core/project.js";
 import { Auth } from "./auth.js";
 import { buildApp, onError } from "./app.js";
 import type { AppOptions, Ctx } from "./context.js";
 import { installProtection } from "./protect.js";
-import { registerHub, needAdmin, type HubCtx, type HubEntry } from "./routes/hub.js";
+import { needAdmin, registerCredentials, registerHub, type HubCtx, type HubEntry } from "./routes/hub.js";
 import { registerUi } from "./routes/ui.js";
-import { registerCredentials } from "./routes/credentials.js";
 import { HttpError, objBody } from "./context.js";
 
 export const HUB_FILE = "hub.json";

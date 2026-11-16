@@ -1,10 +1,10 @@
 import { api } from "../api";
-import { CodePaths } from "../CodeParts";
-import { Fields, Section, TagInput } from "../fields";
+import { CodePaths } from "./CodeParts";
+import { Fields, Section, TagInput } from "./fields";
 import type { Common } from "./common";
-import { promptDialog } from "../dialogs";
-import { PipelineData } from "../SamplePayload";
-import { ExampleFields } from "./ExampleFields";
+import { ExampleFields } from "./valueEditors";
+import { promptDialog } from "../common/dialogs";
+import { PipelineData } from "../inspect/SamplePayload";
 
 export function ConnectorPanel(p: Common) {
   const { state, diagram, mutate } = p;

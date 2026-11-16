@@ -3,11 +3,11 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, test } from "vitest";
-import * as code from "../src/core/code.js";
+import * as code from "../src/core/codeMap.js";
 import * as diagrams from "../src/core/diagrams.js";
 import { buildIndex } from "../src/core/ops.js";
 import { emptySidecar, sidecarData } from "../src/core/sidecar.js";
-import { Project } from "../src/core/store.js";
+import { Project } from "../src/core/project.js";
 import { client, Client, demoDir, demoWs, element, ok, tmpDir } from "./helpers.js";
 
 describe("features", () => {

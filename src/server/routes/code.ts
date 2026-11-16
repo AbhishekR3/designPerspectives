@@ -1,9 +1,9 @@
 /** Code routes: the code tree and files, and planned code edits in drafts. */
 
 import type { Hono } from "hono";
-import * as codemod from "../../core/code.js";
-import { checkSize, codeRel } from "../../core/codefs.js";
-import { str } from "../../core/json.js";
+import * as codemod from "../../core/codeMap.js";
+import { checkSize, codeRel } from "../../core/codeFiles.js";
+import { str } from "../../core/util.js";
 import { addCodePath, codePathCovered, ModelError } from "../../core/ops.js";
 import { HttpError, num, objBody, type Ctx } from "../context.js";
 

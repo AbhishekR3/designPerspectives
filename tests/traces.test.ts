@@ -4,8 +4,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { afterEach, describe, expect, test } from "vitest";
 import { observe, parseTraceFile, TraceStore } from "../src/core/traces.js";
-import { startDemoApp, type DemoApp } from "../src/server/demoApp.js";
-import { DEMO_DIR } from "../src/core/store.js";
+import { startDemoApp, type DemoApp } from "../src/demo/demoApp.js";
+import { DEMO_DIR } from "../src/core/project.js";
 import { client, demoDir, demoWs, ok, tmpDir } from "./helpers.js";
 
 const T = "4bf92f3577b34da6a3ce929d0e0e4736";

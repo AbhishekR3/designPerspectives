@@ -1,7 +1,7 @@
 import { api } from "../api";
-import { promptDialog } from "../dialogs";
-import { Section } from "../fields";
-import { StatusBadge } from "../DecisionsPage";
+import { promptDialog } from "../common/dialogs";
+import { Section } from "./fields";
+import { StatusBadge } from "../pages/DecisionsPage";
 import { DECISION_KIND_INFO } from "../types";
 import type { Common } from "./common";
 

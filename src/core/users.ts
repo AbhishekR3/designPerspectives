@@ -16,7 +16,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
 import type { Role } from "../shared/types.js";
-import { atomicWrite } from "./fsutil.js";
+import { atomicWrite } from "./util.js";
 
 export const USERS_DIR = ".dp";
 export const USERS_FILE = "users.json";

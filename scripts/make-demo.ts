@@ -15,12 +15,12 @@ import fs from "node:fs";
 import path from "node:path";
 import { syncViews } from "../src/core/diagrams.js";
 import * as flows from "../src/core/flows.js";
-import { stableJson } from "../src/core/json.js";
+import { stableJson } from "../src/core/util.js";
 import * as ops from "../src/core/ops.js";
 import { emptySidecar, makeLens, sidecarData, type Sidecar } from "../src/core/sidecar.js";
 import { errors } from "../src/core/validate.js";
-import { ARCH_DIR, DEMO_DIR, WORKSPACE_FILE } from "../src/core/store.js";
-import type { DemoHistory } from "../src/core/demoHistory.js";
+import { ARCH_DIR, DEMO_DIR, WORKSPACE_FILE } from "../src/core/project.js";
+import type { DemoHistory } from "../src/demo/demoHistory.js";
 import * as decisions from "../src/core/decisions.js";
 import { writeDemoHub } from "./demo-hub.js";
 import type { Decision } from "../src/shared/types.js";
@@ -1060,7 +1060,7 @@ export function build(): [Workspace, Sidecar] {
 }
 
 /**
- * The git history `dp serve --demo` writes into a new demo folder (src/core/demoHistory.ts), so
+ * The git history `dp serve --demo` writes into a new demo folder (src/demo/demoHistory.ts), so
  * backtracking has recent changes to show. Older versions are derived from the shipped files:
  * - 40 days ago: the statement job without the fees stage, currency conversion without rounding,
  *   validation without the period check;

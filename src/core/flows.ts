@@ -16,7 +16,7 @@
  */
 
 import { decorate, positionsOf, type RawEdge, type RawNode } from "./diagrams.js";
-import { inlineJson, isObj, str, type Obj } from "./json.js";
+import { inlineJson, isObj, str, type Obj } from "./util.js";
 import { buildIndex, elementSummary, ModelError, relationshipSummary, slugify, unique, type Index } from "./ops.js";
 import type { Sidecar } from "./sidecar.js";
 import { allViews, type RelationshipView, type View, type Workspace } from "./workspace.js";

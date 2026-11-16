@@ -9,15 +9,15 @@
  * shapes and styles are counted as layout changes only.
  */
 
-import { expandPaths, scanImports } from "./code.js";
-import { sha1, type CodeSource } from "./codefs.js";
-import { drawnInMap, homeKey, keyFor } from "./diagrams.js";
-import { listFlows } from "./flows.js";
+import { expandPaths, scanImports, type CodeInput } from "./codeMap.js";
+import { sha1, type CodeSource } from "./codeFiles.js";
+import { diagram as staticDiagram, drawnInMap, homeKey, keyFor } from "./diagrams.js";
+import { flowDiagram, listFlows } from "./flows.js";
 import { buildIndex, CODE_KEY, elementSummary, getJson, relationshipSummary, type Index } from "./ops.js";
 import type { Sidecar } from "./sidecar.js";
 import { canon, flatten, isLayoutUnit, sameUnit, unitLabel, type Unit, type Units } from "./units.js";
 import type { Workspace } from "./workspace.js";
-import type { ChangeSet, CodeChange, Decision, FieldChange, Flow, ObjectChange } from "../shared/types.js";
+import type { ChangeSet, CodeChange, Decision, Diagram, DiagramEdge, FieldChange, Flow, ObjectChange } from "../shared/types.js";
 
 /** The code each version reads; `planned`: files a draft plans to edit (reported even if no object maps them). */
 export interface CodePair {
@@ -358,3 +358,84 @@ export function changeMap(cs: ChangeSet): Map<string, ObjectChange["change"] | "
 }
 
 export type { Units };
+
+// ---- Compare view: a diagram marked up against another version ----
+//
+// A diagram of one model version, marked up against another version: nodes and lines get a
+// `change` (added / changed / removed / changed inside), and objects that only the other version
+// has are added back as read-only **ghosts** at their old positions. If the diagram itself only
+// exists in the other version (its system or container was removed), that version's diagram is
+// returned with everything marked removed.
+
+export function diagramOf(s: Snapshot, key: string, code: CodeInput): Diagram | null {
+  return staticDiagram(s.workspace, key, s.sidecar, code) ?? flowDiagram(s.workspace, key, s.sidecar);
+}
+
+/** `code` / `otherCode`: where each version reads its source files (for code diagrams). */
+export function compareDiagram(shown: Snapshot, other: Snapshot, key: string, cs: ChangeSet, code: CodeInput, otherCode: CodeInput = code): Diagram | null {
+  const d = diagramOf(shown, key, code);
+  const o = diagramOf(other, key, otherCode);
+  if (!d && !o) return null;
+  const changes = changeMap(cs);
+  // On a code diagram, files and imports are compared directly (by path and content).
+  if (d?.level === "code" || o?.level === "code") {
+    if (d && o) {
+      const before = new Map(o.nodes.map((n) => [n.id, n.contentHash]));
+      for (const n of d.nodes) {
+        if (!before.has(n.id)) n.change = "added";
+        else if (before.get(n.id) !== n.contentHash) n.change = "changed";
+      }
+      const oldEdges = new Set(o.edges.map((e) => e.id));
+      for (const e of d.edges) if (!oldEdges.has(e.id)) e.change = "added";
+    } else if (d) {
+      for (const n of d.nodes) n.change = "added";
+      for (const e of d.edges) e.change = "added";
+    }
+    for (const id of [...changes.keys()]) changes.delete(id);
+  }
+
+  if (!d) {
+    const gone = o!;
+    for (const n of gone.nodes) Object.assign(n, { ghost: true, change: "removed" });
+    for (const e of gone.edges) Object.assign(e, { ghost: true, change: "removed" });
+    gone.compare = { against: cs.against, removed: true };
+    gone.addable = [];
+    return gone;
+  }
+
+  for (const n of d.nodes) {
+    const c = changes.get(n.id);
+    if (c && !n.change) n.change = c;
+  }
+  const otherEdges = new Map((o?.edges ?? []).map((e) => [e.id, e]));
+  for (const e of d.edges) {
+    if (e.change) continue;
+    const c = edgeChange(e, otherEdges.get(e.id), changes, o !== null);
+    if (c) e.change = c;
+  }
+
+  if (o) {
+    const shownNodes = new Set(d.nodes.map((n) => n.id));
+    for (const n of o.nodes) {
+      if (shownNodes.has(n.id)) continue;
+      d.nodes.push({ ...n, ghost: true, change: "removed", drillKey: null });
+    }
+    const shownEdges = new Set(d.edges.map((e) => e.id));
+    for (const e of o.edges) {
+      if (shownEdges.has(e.id)) continue;
+      d.edges.push({ ...e, ghost: true, change: "removed", detailKey: null, drillTargets: [] });
+    }
+  }
+  d.compare = { against: cs.against, removed: false };
+  return d;
+}
+
+function edgeChange(e: DiagramEdge, before: DiagramEdge | undefined, changes: Map<string, string>, diagramExisted: boolean): DiagramEdge["change"] {
+  if (!e.derived) return changes.get(e.id) as DiagramEdge["change"];
+  // A derived line stands for several relationships.
+  if (diagramExisted && !before) return "added";
+  const under = e.relationshipIds.map((id) => changes.get(id)).filter(Boolean);
+  if (before && before.relationshipIds.join("\n") !== e.relationshipIds.join("\n")) return "changed";
+  if (under.length) return under.every((c) => c === "added") && !before ? "added" : "changed";
+  return undefined;
+}
