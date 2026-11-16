@@ -68,7 +68,8 @@ describe.skipIf(!hasGit)("git compare", () => {
     const cmp = c.at("main", "ref:main");
     const st = await ok(cmp.get("/api/state"));
     expect(st.compare.title).toMatch(/^Git: main/);
-    expect(st.compare.summary).toMatchObject({ added: 1, changed: 0 });
+    // changed: the "Payment confirmation" flow, which loses its step into the mobile app.
+    expect(st.compare.summary).toMatchObject({ added: 1, changed: 1 });
     const d = await ok(cmp.get("/api/diagrams/containers-internet-banking-system"));
     expect(d.nodes.find((n: any) => n.id === id).change).toBe("added");
     expect(d.nodes.find((n: any) => n.id === "mobile-app")).toMatchObject({ change: "removed", ghost: true });

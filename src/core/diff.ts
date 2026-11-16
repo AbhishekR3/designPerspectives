@@ -37,6 +37,8 @@ const ELEMENT_FIELDS: [string, string][] = [
   ["technologies", "Technology"],
   ["external", "External"],
   ["url", "URL"],
+  ["uiUrl", "Live UI address"],
+  ["otelService", "Service name in traces"],
   ["owner", "Owner"],
   ["archType", "Symbol"],
   ["tags", "Tags"],
@@ -61,6 +63,9 @@ const RELATIONSHIP_FIELDS: [string, string][] = [
   ["notes", "Notes"],
   ["sensitive", "Sensitive information"],
   ["stages", "Stages"],
+  ["example", "Example data"],
+  ["format", "Data format"],
+  ["endpoints", "Endpoints"],
   ["work", "Linked work"],
   ["codePaths", "Code"],
 ];

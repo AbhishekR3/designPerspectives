@@ -101,6 +101,9 @@ export const ROUTE_RULES: Record<string, Action> = {
   "POST /api/code/file": "code",
   "DELETE /api/code/file": "code",
   "POST /api/code/revert": "code",
+  // routes/inspect.ts: the live UI inspector reads the model and opens a local proxy; it changes nothing
+  "POST /api/ui-proxy": "open",
+  "POST /api/inspect": "open",
   // routes/drafts.ts (by draft id in the path, whatever version is selected)
   "POST /api/drafts": "draft.create",
   "PATCH /api/drafts/:id": "draft.edit",

@@ -22,6 +22,8 @@ const CSP = {
   fontSrc: ["'self'", "data:"],
   connectSrc: ["'self'"],
   workerSrc: ["'self'", "blob:"],
+  // The live UI inspector frames the inspected app through its proxy on a local port (uiProxy.ts).
+  frameSrc: ["http://127.0.0.1:*"],
   frameAncestors: ["'none'"],
   baseUri: ["'self'"],
   formAction: ["'self'"],

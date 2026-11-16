@@ -111,6 +111,26 @@ test("technology tags, notes, sensitive and symbol", async ({ page, server }) =>
   expect(e.notes.endsWith("Extra note")).toBe(true);
 });
 
+test("clicking a pipeline shows its sample data, stage by stage", async ({ page }) => {
+  await openDiagram(page, "containers-analytics-platform");
+  // One click on the edge: the relationship panel shows the data moving through the pipeline.
+  await page.getByTestId("edge-event-stream--data-warehouse").click();
+  const data = page.getByTestId("pipeline-data");
+  await expect(data).toBeVisible();
+  await expect(page.getByTestId("pd-in")).toContainText("alice@example.com");
+  // Mask PII is compared with what it received: it drops the e-mail and adds a user reference.
+  const mask = page.getByTestId("pd-stage-1");
+  await expect(mask).toContainText("Mask PII");
+  await expect(mask.locator(".sample-chip.removed")).toContainText("email");
+  await expect(mask.locator(".sample-chip.added")).toContainText("user_ref");
+  await expect(mask.locator(".sample-line.changed")).toContainText("account");
+  // The connector detail shows the same, and a stage opens with its own sample.
+  await page.getByTestId("open-connector").click();
+  await expect(page.getByTestId("connector-panel").getByTestId("pipeline-data")).toBeVisible();
+  await page.getByTestId("connector-panel").getByRole("button", { name: "Mask PII" }).click();
+  await expect(page.getByTestId("stage-sample")).toContainText("user_ref");
+});
+
 test("connector detail, code and file edit", async ({ page, server }) => {
   await openDiagram(page, "containers-analytics-platform");
   await page.getByTestId("edge-event-stream--data-warehouse").dblclick();

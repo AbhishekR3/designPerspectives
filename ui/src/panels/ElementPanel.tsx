@@ -86,6 +86,18 @@ export function ObjectPanel({ element, ...p }: Common & { element: ElementSummar
           </div>
         )}
       </Fields>
+      {element.uiUrl && (
+        <button className="primary" onClick={() => p.onInspectUi(element.id)} data-testid="inspect-ui" title={element.uiUrl}>
+          Inspect live UI
+        </button>
+      )}
+      {element.kind !== "person" && !state.readOnly && (
+        <Section title="Live UI and traces" count={(element.uiUrl ? 1 : 0) + (element.otelService ? 1 : 0)} testId="sec-live-ui">
+          <TextField label="Address the UI runs at" value={element.uiUrl} placeholder="http://localhost:3000/" onCommit={(v) => save({ uiUrl: v })} testId="field-ui-url" />
+          <TextField label="Service name in trace files" value={element.otelService} placeholder={element.id} onCommit={(v) => save({ otelService: v })} testId="field-otel-service" />
+          <p className="muted small">Open the running app inside dp, click in it, and see which relationships each click uses. Map calls with endpoints on this element&apos;s relationships. In trace files, spans match this element by the file they ran in (its code paths) or by this service name (default: its ID or name).</p>
+        </Section>
+      )}
 
       {has("characteristics") && element.kind !== "person" && (
         <Section title="Characteristics" count={element.characteristics.length} testId="sec-characteristics">

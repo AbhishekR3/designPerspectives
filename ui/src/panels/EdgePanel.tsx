@@ -8,6 +8,8 @@ import type { Common } from "./common";
 import { NotesEditor, SensitiveEditor } from "./sectionEditors";
 import { WorkEditor } from "./valueEditors";
 import { confirmDeleteRelationship } from "../dialogs";
+import { PipelineData } from "../SamplePayload";
+import { ExampleFields } from "./ExampleFields";
 
 export function EdgePanel({ edgeId, ...p }: Common & { edgeId: string }) {
   const { state, diagram, mutate, lens } = p;
@@ -142,6 +144,32 @@ export function EdgePanel({ edgeId, ...p }: Common & { edgeId: string }) {
       <button className="primary" onClick={() => p.onOpen(detailKey)} data-testid="open-connector">
         Open connector detail{r.stages.length ? ` (${r.stages.length} stages)` : ""}
       </button>
+      <h4>{r.stages.length ? "Data through this connector" : "Example data"}</h4>
+      <PipelineData rel={r} state={state} onBacktrack={r.stages.length ? (stage) => p.onBacktrack({ connector: r.id, stage }) : undefined} />
+      {!state.readOnly && (
+        <Section title={r.stages.length ? "Sample entering the connector" : "Edit example data"} count={r.example ? 1 : 0} testId="sec-rel-example">
+          <ExampleFields example={r.example} format={r.format} onSave={save} testId="rel-example" />
+        </Section>
+      )}
+      {!state.readOnly && (
+        <Section title="API endpoints" count={r.endpoints.length} testId="sec-rel-endpoints">
+          <TextField
+            label="HTTP calls this carries, one per line"
+            value={r.endpoints.map((e) => (e.method === "*" ? e.path : `${e.method} ${e.path}`)).join("\n")}
+            multiline
+            rows={3}
+            placeholder={"GET /api/accounts/:id\nPOST /api/payments"}
+            onCommit={(v) => save({ endpoints: v })}
+            testId="field-rel-endpoints"
+          />
+          <p className="muted small">Used by the live UI inspector to match calls. ":name" matches one path segment, a final "*" the rest.</p>
+        </Section>
+      )}
+      {state.readOnly && r.endpoints.length > 0 && (
+        <p className="small">
+          Endpoints: <code>{r.endpoints.map((e) => `${e.method === "*" ? "" : e.method + " "}${e.path}`).join(", ")}</code>
+        </p>
+      )}
       {has("work") && (
         <Section title={`Linked work${openWork(r).length ? ` · ${openWork(r).length} open` : ""}`} count={r.work.length} testId="sec-rel-work">
           <WorkEditor rows={r.work} enums={p.state.enums} onSave={(rows) => save({ work: rows })} />

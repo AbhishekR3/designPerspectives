@@ -12,9 +12,24 @@ import { DiskCode, NO_CODE, type CodeSource } from "./core/codefs.js";
 import { Drafts } from "./core/drafts.js";
 import { GitCodes, GitError, GitModels } from "./core/git.js";
 import { checkProject, diffMarkdown } from "./core/report.js";
-import { AlreadyExists, ARCH_DIR, initProject, NotFound, Project, version, WORKSPACE_FILE } from "./core/store.js";
+import { AlreadyExists, ARCH_DIR, DEMO_DIR, initProject, NotFound, Project, version, WORKSPACE_FILE } from "./core/store.js";
+import { readDemoHistory, writeDemoHistory } from "./core/demoHistory.js";
+import { DEMO_APP_PORT, startDemoApp } from "./server/demoApp.js";
 import { addUser, ensureGitignored, initUsers, needUsers, readUsers, removeUser, setPassword, usersPath, UsersError, type NewPassword } from "./core/users.js";
 import { createApp, LOOPBACK_HOSTS } from "./server/app.js";
+
+/** Give a new demo folder its made-up git history (skipped inside an existing repository, or without git). */
+function demoHistory(dir: string): void {
+  const history = readDemoHistory(DEMO_DIR);
+  if (!history) return;
+  try {
+    const n = writeDemoHistory(dir, history);
+    if (n) console.log(`Wrote a made-up git history for the demo (${n} commits), so backtracking has recent changes to show.`);
+    else console.log("The demo folder is inside a git repository (or git is missing): no demo history was written.");
+  } catch (e) {
+    console.error(`Could not write the demo history: ${(e as Error).message}`);
+  }
+}
 
 function openBrowser(url: string): void {
   const cmd = process.platform === "darwin" ? "open" : process.platform === "win32" ? "cmd" : "xdg-open";
@@ -52,12 +67,14 @@ export function program(): Command {
   p.command("init")
     .description("Create architecture/workspace.json (an empty model by default).")
     .argument("[path]", "Project folder; the model goes in <path>/architecture/.", ".")
-    .option("--demo", "Start with the sample model (and its sample code) instead of an empty one.")
+    .option("--demo", "Start with the sample model (with its sample code and a made-up git history) instead of an empty one.")
     .option("--empty", "Start with an empty model (the default; accepted for compatibility).")
     .option("--name <name>", "Workspace name (empty model only).")
     .action((dir: string, o: { demo?: boolean; empty?: boolean; name?: string }) => {
       try {
-        console.log(`Created ${initProject(dir, { demo: Boolean(o.demo) && !o.empty, name: o.name })}`);
+        const demo = Boolean(o.demo) && !o.empty;
+        console.log(`Created ${initProject(dir, { demo, name: o.name })}`);
+        if (demo) demoHistory(dir);
       } catch (e) {
         if (e instanceof AlreadyExists) {
           console.error(`Not overwriting: ${e.message}`);
@@ -78,12 +95,19 @@ export function program(): Command {
       (v: string, all: string[]) => [...all, v],
       [] as string[],
     )
+    .option(
+      "--allow-ui-host <name>",
+      "Let the live UI inspector open apps on this host (default: this machine only). Repeat for more.",
+      (v: string, all: string[]) => [...all, v],
+      [] as string[],
+    )
+    .option("--traces <folder>", "Folder of OpenTelemetry trace files (OTLP JSON) for the live UI inspector (default: <path>/traces).")
     .option("--no-open", "Do not open the browser.")
-    .option("--demo", "If the folder has no model, create the sample model (with its sample code) instead of an empty one.")
+    .option("--demo", "If the folder has no model, create the sample model (with its sample code and a made-up git history); also run the demo bank web app on 127.0.0.1:4200.")
     .option("--read-only", "Viewer role: browse only; every change is refused.")
     .option("--code-root <folder>", "Folder holding the source code that components point to (default: the project folder).")
     .option("--users <file>", "Users file for sign-in (default: <path>/.dp/users.json; sign-in is off without it).")
-    .action((dir: string, o: { port: number; host: string; allowHost: string[]; open: boolean; demo?: boolean; readOnly?: boolean; codeRoot?: string; users?: string }) => {
+    .action((dir: string, o: { port: number; host: string; allowHost: string[]; allowUiHost: string[]; traces?: string; open: boolean; demo?: boolean; readOnly?: boolean; codeRoot?: string; users?: string }) => {
       const usersFile = path.resolve(o.users ?? usersPath(dir));
       let users: ReturnType<typeof readUsers>;
       try {
@@ -99,12 +123,13 @@ export function program(): Command {
         const demo = Boolean(o.demo);
         const made = initProject(dir, { demo });
         console.log(demo ? `No model found; created the sample model in ${made}` : `No model found; created an empty model in ${made} (use --demo for the sample model)`);
+        if (demo) demoHistory(dir);
       }
       const loopback = allowedHostsFor(o.host);
       const allowedHosts = loopback && [...loopback, ...o.allowHost.map((h) => h.trim().toLowerCase())];
       let app: ReturnType<typeof createApp>;
       try {
-        app = createApp(dir, { codeRoot: o.codeRoot ?? null, readOnly: Boolean(o.readOnly), allowedHosts, usersFile: o.users ?? null });
+        app = createApp(dir, { codeRoot: o.codeRoot ?? null, readOnly: Boolean(o.readOnly), allowedHosts, usersFile: o.users ?? null, uiAllowHosts: o.allowUiHost.map((h) => h.trim().toLowerCase()), tracesDir: o.traces ?? null });
       } catch (e) {
         if (e instanceof UsersError) {
           console.error(`Cannot start: ${e.message}`);
@@ -126,6 +151,14 @@ export function program(): Command {
         console.log(`designPerspectives: ${url}  (Ctrl+C to stop)`);
         if (o.open) setTimeout(() => openBrowser(url), 500);
       });
+      if (o.demo) {
+        // The demo bank web app, for the live UI inspector (the demo model points at this address).
+        startDemoApp({ root: dir, webDir: path.join(DEMO_DIR, "web-app"), tracesDir: o.traces })
+          .then((d) => console.log(`Demo web app: ${d.url}  (open it from the Single-Page Application: Inspect live UI; traces go to ${d.tracesFile})`))
+          .catch((e: NodeJS.ErrnoException) =>
+            console.error(e.code === "EADDRINUSE" ? `The demo web app could not start: port ${DEMO_APP_PORT} is in use. The rest of dp works; the live UI inspector needs the app.` : `The demo web app could not start: ${e.message}`),
+          );
+      }
       server.on("error", (e: NodeJS.ErrnoException) => {
         console.error(e.code === "EADDRINUSE" ? `Port ${o.port} is already in use. Try --port <another>.` : e.message);
         process.exit(1);

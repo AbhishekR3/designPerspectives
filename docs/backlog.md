@@ -116,6 +116,17 @@ Open questions for the owner [Proposal]:
 - Apply and enforce Prettier. It is configured but not applied to the code [Review, prod-p6].
 - Run the sample CI jobs in a real repository. The jobs in `docs/examples/ci/` have not been run [Review, prod-p6].
 
+### Sample data and the live UI inspector (after DEC-043, DEC-044) [Review, live-data]
+- Import a sample from a file in the code folder (a JSON fixture, a CSV row, a recorded message) instead of pasting it; show its schema (field names and types) when the sample is JSON.
+- Compare nested JSON fields, not only top-level ones, when marking what a stage changed.
+- Capture more than fetch and XMLHttpRequest in the inspector: WebSocket messages, server-sent events, `sendBeacon`.
+- Traces from a collector over the network (OTLP over HTTP) instead of files, and traces in the backtrack view (what a real run of a step did).
+- Field lineage across renamed fields (`amountMinor` → `amount`): today only same-named fields are followed, with a list of related names.
+- Read trace files written by other exporters (Jaeger, Zipkin JSON).
+- Suggest endpoints from the code (route definitions in the API's mapped files) so the model lists them before anyone clicks.
+- A secret-name list the project can edit, and masking by the model's sensitive items, in addition to the built-in field names.
+- Highlight the touched elements on the diagram while the inspector is open, instead of a chip list.
+
 ### Permissions and scale
 - Permissions beyond lenses: decision-rights matrix per role, signed approvals, encrypted files; approval rules (cost threshold, cross-team, security) [Notes].
 - More scan languages (TypeScript/JavaScript beyond imports, Java, Go, C#); more precise analysis.

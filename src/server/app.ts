@@ -14,6 +14,8 @@ import { registerCode } from "./routes/code.js";
 import { registerDrafts } from "./routes/drafts.js";
 import { registerFlows } from "./routes/flows.js";
 import { registerHistory } from "./routes/history.js";
+import { registerBacktrack } from "./routes/backtrack.js";
+import { registerInspect } from "./routes/inspect.js";
 import { registerModel } from "./routes/model.js";
 import { registerRead } from "./routes/read.js";
 import { registerSidecar } from "./routes/sidecar.js";
@@ -57,6 +59,8 @@ export function createApp(root: string, opts: AppOptions = {}): Hono {
   registerHistory(app, ctx);
   registerCode(app, ctx);
   registerFlows(app, ctx);
+  registerInspect(app, ctx);
+  registerBacktrack(app, ctx);
 
   app.all("/api/*", (c) => c.json({ detail: "Not Found" }, 404));
 

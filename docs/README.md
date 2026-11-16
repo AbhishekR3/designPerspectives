@@ -2,6 +2,7 @@
 
 | File | What it is |
 |---|---|
+| [demo-tour.md](demo-tour.md) | A guided tour of the demo model for new users: navigation, panels, flows, overlays, lenses, connectors, drafts, git compare and roles. |
 | [decisions.md](decisions.md) | Running list of project decisions with the reasoning and trade-offs. Add new entries at the bottom. |
 | [backlog.md](backlog.md) | Future plans: unbuilt stages, proposed additions, backlog items, known limits. |
 | [planned-change.md](planned-change.md) | How to plan an architecture change with drafts, agree it, build it and check the code against the plan. |
@@ -17,5 +18,6 @@
 | [reviews/prod-p4_review.md](reviews/prod-p4_review.md) | Stage P4: optional sign-in with three roles. |
 | [reviews/prod-p5_review.md](reviews/prod-p5_review.md) | Stage P5: layout that does not overlap or spill, and polish. |
 | [reviews/prod-p6_review.md](reviews/prod-p6_review.md) | Stage P6: open-source readiness and release 1.0.0. |
+| [reviews/live-data_review.md](reviews/live-data_review.md) | Sample data on pipelines, the live UI inspector, trace files and backtracking. |
 
 The notes are paraphrased and keep the books' page numbers. Lines starting with `→ designPerspectives` are interpretation, not the authors' text.

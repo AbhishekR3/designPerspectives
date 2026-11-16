@@ -1,5 +1,5 @@
 import { notify } from "./notify";
-import type { AppState, ApplyPreview, ChangeSet, CodingPlan, Conflict, Diagram, EdgeLayout, MeResponse, Pt, SessionUser, Style } from "./types";
+import type { AppState, ApplyPreview, BacktrackResult, ObservedTrace, TraceList, ChangeSet, CodingPlan, Conflict, Diagram, EdgeLayout, InspectResult, MeResponse, ObservedCall, Pt, SessionUser, Style } from "./types";
 
 export interface CodeFile {
   path: string;
@@ -10,6 +10,9 @@ export interface CodeFile {
   /** A git version: the file cannot be saved. */
   readOnly: boolean;
 }
+
+/** Where backtracking starts: a connector stage (0 = the data entering it) or a flow step (from 1). */
+export type BacktrackQuery = { connector: string; stage: number } | { flow: string; step: number };
 
 /** The model version every request works on ("main" or "draft:<id>") and the one it is
  *  compared with ("base", "main", or null), sent as headers. */
@@ -121,6 +124,12 @@ export const api = {
   moveElement: (id: string, parentId: string) => request<{ ok: boolean; id: string; parentId: string }>("POST", `/elements/${enc(id)}/move`, { parentId }),
   createRelationship: (body: object) => request<{ id: string }>("POST", "/relationships", body),
   updateRelationship: (id: string, patch: object) => request("PATCH", `/relationships/${enc(id)}`, patch),
+  uiProxy: (elementId: string) => request<{ url: string; origin: string }>("POST", "/ui-proxy", { elementId }),
+  inspect: (elementId: string, calls: ObservedCall[]) => request<InspectResult>("POST", "/inspect", { elementId, calls }),
+  traces: (limit = 30) => request<TraceList>("GET", `/traces?limit=${limit}`),
+  trace: (id: string, ui: string | null) => request<ObservedTrace>("GET", `/traces/${enc(id)}${ui ? `?ui=${enc(ui)}` : ""}`),
+  backtrack: (q: BacktrackQuery, days: number) =>
+    request<BacktrackResult>("GET", `/backtrack?${new URLSearchParams("connector" in q ? { connector: q.connector, stage: String(q.stage), days: String(days) } : { flow: q.flow, step: String(q.step), days: String(days) })}`),
   deleteRelationship: (id: string) => request("DELETE", `/relationships/${enc(id)}`),
   createTagGroup: (body: object) => request("POST", "/tag-groups", body),
   updateTagGroup: (name: string, body: object) => request("PUT", `/tag-groups/${enc(name)}`, body),

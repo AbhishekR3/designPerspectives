@@ -6,6 +6,8 @@ Demo model (demo/)
   Element names, descriptions and relationships follow the example workspace in
   https://github.com/structurizr/structurizr (structurizr-export/src/test/resources/big-bank-plc.json),
   licensed under the Apache License 2.0.
+  The demo extends that example with further systems, containers, components and data of our own
+  (payments, fraud checks, notifications, monitoring); those additions are made-up examples.
 
 File format
   architecture/workspace.json follows the Structurizr JSON schema

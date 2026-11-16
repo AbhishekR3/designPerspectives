@@ -73,6 +73,45 @@ describe("features", () => {
     expect(stages.every((s: any) => s.elementId !== "pii-masker")).toBe(true);
   });
 
+  test("example data on a connector and its stages", async () => {
+    const c = client();
+    const rid = "event-stream--data-warehouse";
+    const relOf = async (cl: Client = c) => (await ok(cl.get("/api/state"))).relationships.find((r: any) => r.id === rid);
+    let rel = await relOf();
+    // The demo pipeline ships with samples: what enters, then what leaves each stage.
+    expect(rel.format).toBe("Kafka message, JSON");
+    expect(JSON.parse(rel.example).email).toBe("alice@example.com");
+    expect(rel.stages.map((s: any) => Boolean(s.example))).toEqual([true, true, true]);
+    expect(JSON.parse(rel.stages[1].example)).not.toHaveProperty("email");
+
+    // Blank lines at the ends are dropped; an empty example removes the property.
+    await ok(c.patch(`/api/relationships/${rid}`, { example: "\n\nid,name\n1,alice\n\n", format: "  CSV row " }));
+    rel = await relOf();
+    expect(rel.example).toBe("id,name\n1,alice");
+    expect(rel.format).toBe("CSV row");
+    await ok(c.patch(`/api/relationships/${rid}`, { example: "", format: "" }));
+    rel = await relOf();
+    expect([rel.example, rel.format]).toEqual(["", ""]);
+
+    // Stage samples survive a stage edit that passes the stages back, and are capped in size.
+    await ok(c.patch(`/api/relationships/${rid}`, { stages: rel.stages.map((s: any, i: number) => (i === 0 ? { ...s, name: "Read events" } : s)) }));
+    rel = await relOf();
+    expect(rel.stages[0].name).toBe("Read events");
+    expect(rel.stages.every((s: any) => s.example)).toBe(true);
+    const big = "x".repeat(8001);
+    expect((await c.patch(`/api/relationships/${rid}`, { example: big })).status).toBe(422);
+    expect((await c.patch(`/api/relationships/${rid}`, { stages: [{ name: "A", example: big }] })).status).toBe(422);
+  });
+
+  test("a changed example shows in a draft's change list", async () => {
+    const c = client(demoDir());
+    const { id } = await ok(c.post("/api/drafts", { title: "Samples" }));
+    await ok(c.at(`draft:${id}`).patch("/api/relationships/api-application--event-stream", { example: "SELECT 1", format: "SQL" }));
+    const changes = await ok(c.at(`draft:${id}`, "base").get("/api/changes"));
+    const rel = changes.relationships.find((r: any) => r.id === "api-application--event-stream");
+    expect(rel.fields.map((f: any) => f.field)).toEqual(["example", "format"]);
+  });
+
   test("derived edge points to where it is drawn", async () => {
     const d = await ok(client().get("/api/diagrams/landscape"));
     const derived = d.edges.filter((e: any) => e.derived);
@@ -177,7 +216,7 @@ describe("features", () => {
     // a stale mtime is refused
     expect((await c.put("/api/code/file", { path: "sample_code/api/store.py", content: "", mtime: f.mtime })).status).toBe(422);
     const tree = await ok(c.get("/api/code/tree", { path: "sample_code" }));
-    expect(tree.entries.map((e: any) => e.name)).toEqual(["api", "pipeline"]);
+    expect(tree.entries.map((e: any) => e.name)).toEqual(["api", "notifications", "payments", "pipeline", "statements"]);
   });
 
   test.each(["../secret.txt", "/etc/passwd", "sample_code/../../x"])("code paths cannot escape root: %s", async (bad) => {

@@ -145,6 +145,7 @@ test.describe("long names", () => {
     expect(await noScrollX(byId(page, "panel"))).toBe(true);
     const panel = await box(byId(page, "panel"));
     for (const sel of [".panel-kind", "[data-testid=field-name]", "[data-testid=field-description]"]) expect(inside(await box(page.locator(`.panel ${sel}`).first()), panel, 1)).toBe(true);
+    await clickEmptyCanvas(page); // the selected box's quick bar can cover the next box
     await node(page, "web-application").click();
     expect(await noScrollX(byId(page, "panel"))).toBe(true);
     await clickEmptyCanvas(page);
@@ -230,12 +231,23 @@ test.describe("the quick bar", () => {
     await node(page, "personal-banking-customer").click();
     await check("top box");
     // Slide the view (drag empty canvas) so the box is at the right edge, then at the left edge.
-    for (const [startX, dx, edge] of [
+    for (const [x0, dx, edge] of [
       [wrap.x + 245, wrap.width * 0.5, "right"],
       [wrap.x + wrap.width * 0.92, -wrap.width * 0.95, "left"],
     ] as const) {
       const before = await box(node(page, "personal-banking-customer"));
       const y = wrap.y + wrap.height * 0.55;
+      // Start the drag on empty canvas (not on a box, a line or a bar), searching from x0 away from the edge.
+      const startX = await page.evaluate(
+        ([x0, y, step]) => {
+          for (let x = x0; x > 0 && x < innerWidth; x += step) {
+            const el = document.elementFromPoint(x, y);
+            if (el?.closest(".react-flow__pane") && !el.closest(".react-flow__node, .react-flow__edge, .react-flow__edgelabel-renderer")) return x;
+          }
+          return x0;
+        },
+        [x0, y, dx > 0 ? 10 : -10] as const,
+      );
       await page.mouse.move(startX, y);
       await page.mouse.down();
       await page.mouse.move(startX + dx, y, { steps: 8 });

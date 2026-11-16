@@ -89,7 +89,7 @@ test("plan a change in a draft, apply it, undo it, discard another", async ({ pa
     return e.some((x) => x.name.startsWith("Queue")) ? e : null;
   });
   expect(els.find((x) => x.id === "atm").description).toBe("Changed in main"); // main's own change is kept
-  await expect(page.locator('[data-testid^="node-"]', { hasText: "Queue" })).toHaveCount(1);
+  await expect(page.locator('[data-testid^="node-"] .c4-name', { hasText: /^Queue/ })).toHaveCount(1);
 
   // Undo on main takes the planned change out again (the draft stays deleted).
   await page.getByTestId("undo").click();

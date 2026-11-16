@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Big Bank · Internet banking (demo)</title>
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<header>
+  <strong>Big Bank</strong> <span>Internet banking</span>
+  <span class="demo">Demo app for designPerspectives: made-up data</span>
+</header>
+<main>
+  <section id="signin">
+    <h2>Sign in</h2>
+    <form id="signin-form">
+      <label>Customer ID <input name="username" value="alice" autocomplete="username"></label>
+      <label>Password <input name="password" type="password" value="correct horse" autocomplete="current-password"></label>
+      <button type="submit" id="signin-button">Sign in</button>
+      <button type="button" id="forgot">Forgot password</button>
+    </form>
+  </section>
+  <section>
+    <h2>Accounts</h2>
+    <button id="accounts">Show my accounts</button>
+    <ul id="account-list"></ul>
+    <div id="account"></div>
+  </section>
+  <section>
+    <h2>Statements</h2>
+    <button id="statements">Show statements for 0001029</button>
+    <ul id="statement-list"></ul>
+  </section>
+  <section>
+    <h2>Pay a saved payee</h2>
+    <form id="pay-form">
+      <label>To (IBAN) <input name="toIban" value="DE89370400440532013000"></label>
+      <label>Amount (EUR) <input name="amount" value="125.00"></label>
+      <label>Reference <input name="reference" value="Invoice 2026-118"></label>
+      <button type="submit" id="pay">Pay now</button>
+    </form>
+    <p class="hint">Amounts over 5,000 are held for a fraud review.</p>
+  </section>
+  <section>
+    <h2>Exchange rates</h2>
+    <button id="rates">Today's rates</button>
+  </section>
+  <pre id="out" aria-live="polite"></pre>
+</main>
+<script src="/app.js"></script>
+</body>
+</html>

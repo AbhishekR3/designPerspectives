@@ -41,7 +41,8 @@ describe("drafts", () => {
     const st = await ok(dc.get("/api/state"));
     expect(st.model.title).toBe("Draft: Plan");
     expect(st.compare.against).toBe("base");
-    expect(st.compare.summary).toMatchObject({ added: 1, changed: 1 });
+    // changed: the database, and the "Payment confirmation" flow, which loses its step into the mobile app.
+    expect(st.compare.summary).toMatchObject({ added: 1, changed: 2 });
 
     const changes = await ok(dc.get("/api/changes"));
     expect(changes.elements.map((e: any) => [e.id, e.change])).toEqual(

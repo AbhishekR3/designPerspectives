@@ -29,8 +29,12 @@ npm install -g github:AbhishekR3/designPerspectives
 
 mkdir my-architecture && cd my-architecture
 dp serve            # creates architecture/ with an empty model if none exists, opens the browser
-dp serve --demo     # same, but a new folder gets the sample model and its sample code
+dp serve --demo     # same, but a new folder gets the sample model, its sample code and a made-up git history;
+                    # also runs the demo bank web app on 127.0.0.1:4200
 ```
+
+New here? [docs/demo-tour.md](docs/demo-tour.md) walks through the demo, a made-up bank modelled as it
+runs in production (payments, fraud checks, notifications, monitoring), in about 30 minutes.
 
 Other commands:
 
@@ -41,6 +45,8 @@ dp serve --code-root SRC   # folder holding the source code components point to 
 dp serve --read-only       # viewer role: nothing can be changed
 dp serve --port 9000 --no-open
 dp serve --allow-host NAME   # also answer to this host name (tunnel or proxy in front)
+dp serve --allow-ui-host NAME   # let the live UI inspector open an app on this host
+dp serve --traces FOLDER     # OpenTelemetry trace files (OTLP JSON) to read (default: PATH/traces)
 dp check            # check the model, its drafts and its code mapping; exit code 1 on problems
 dp check --strict   # also fail on warnings (mapped code paths that do not exist); `dp validate` = `dp check`
 dp diff --base main          # what changed in the model since a git branch/tag/commit, as Markdown
@@ -98,7 +104,10 @@ The users file holds password hashes and must not be committed. `.dp/` is added 
 designPerspectives data stored inside the workspace as Structurizr element properties:
 `dp.owner`, `dp.links`, `dp.tag.<Group>` (e.g. `dp.tag.Risk = High`), `dp.archType` (symbol),
 `dp.notes`, `dp.tradeoffs`, `dp.usage`, `dp.sensitive`, `dp.code.paths`, `dp.characteristics`, `dp.cost`,
-`dp.work`, and on relationships `dp.kind`, `dp.stages` (the steps inside a pipeline or protocol) and `dp.work`.
+`dp.work`, and on relationships `dp.kind`, `dp.stages` (the steps inside a pipeline or protocol, each with
+optional sample data), `dp.example` and `dp.format` (a sample of the data the relationship carries),
+`dp.endpoints` (HTTP calls it carries, for the live UI inspector) and `dp.work`; elements can have `dp.ui.url`
+(where their UI runs).
 
 The sidecar also holds per-object `styles` (colours, line style, text size) and per-diagram
 `layouts` (box sizes, line anchors/bends/label positions; box positions for connector and code
@@ -128,6 +137,24 @@ Stage A2 additions:
 - **Connectors have an inside**: double-click a line to open its connector detail: the stages of a
   pipeline or protocol (e.g. consume, mask, load), each optionally linked to the component that
   implements it. A line drawn between higher-level boxes opens where its relationship is drawn.
+- **Sample data on pipelines**: click a line to see a sample of what it carries; for a pipeline, the
+  sample entering it and the sample leaving each stage, with the fields each stage adds, removes or
+  changes marked, so a reader sees what the pipeline does to the data.
+- **Live UI inspector**: give a UI element the address it runs at and click **Inspect live UI**. The
+  app opens inside dp; click in it and the side panel lists the HTTP calls each click made, the
+  relationships they match (endpoints such as `POST /api/payments` on relationships), the data sent
+  and returned next to the documented example, what those calls lead to in the model, and the flows
+  involved. A call the model does not know can be added as an endpoint in one click. Works in a
+  browser on the machine running `dp serve`; apps on other hosts need `--allow-ui-host <name>`.
+- **Traces**: dp reads OpenTelemetry trace files (OTLP JSON, as the Collector's file exporter writes
+  them). The inspector tags each call with a trace ID, finds its trace, and shows the path the request
+  really took through the model, element by element, marking steps and services the model does not
+  have. Spans are matched to elements by the file they ran in (code mapping) or by service name.
+- **Backtrack**: from any pipeline stage or flow step, go back through the earlier steps: each
+  step's sample data, one field's value through every step (where it appeared and changed), the
+  code behind each step with its functions, and the git commits that changed that code or that part
+  of the model. Steps changed in the last 14 days (or not yet committed) are marked, and the
+  functions a recent change touched are highlighted.
 - **Code level**: map a component or connector to files or folders; the C4 code diagram shows the
   files as boxes and the imports between them (Python and JS/TS scanned). Double-click a file to
   edit it in the browser; it saves to the file on disk (only inside the code folder).

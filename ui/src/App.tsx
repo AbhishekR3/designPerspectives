@@ -16,6 +16,9 @@ import { Icon } from "./icons";
 import { UserChip } from "./UserChip";
 import { diagramEditable, menuItems, useContextMenu } from "./menus";
 import { canMove, MoveDialog } from "./MoveDialog";
+import { LiveUiInspector } from "./LiveUiInspector";
+import { Backtrack } from "./Backtrack";
+import type { BacktrackQuery } from "./api";
 import { EmptyStart, emptyHint } from "./EmptyState";
 import { Palette, paletteItems } from "./Palette";
 import { formatMoney, overlayable } from "./overlays";
@@ -73,6 +76,8 @@ export default function App({ onSignOut }: { onSignOut(): void }) {
   const [exportOpen, setExportOpen] = useState(false);
   const [modal, setModal] = useState<ModalState>(null);
   const [openFile, setOpenFile] = useState<string | null>(null);
+  const [inspectId, setInspectId] = useState<string | null>(null);
+  const [backtrackQ, setBacktrackQ] = useState<BacktrackQuery | null>(null);
   // The "Move to…" dialog (the element being moved), and the move just done, waiting for the model to reload so the element can be shown.
   const [moveId, setMoveId] = useState<string | null>(null);
   const [movedTo, setMovedTo] = useState<{ id: string; parentId: string } | null>(null);
@@ -216,7 +221,7 @@ export default function App({ onSignOut }: { onSignOut(): void }) {
   const selectedChange = selection && selection.type !== "nodes" ? changeOf(selection.id) : undefined;
   const showGhost = !!(selectedNode?.ghost || selectedEdge?.ghost || (selection && diagram?.compare?.removed));
   const selectedElement = selection?.type === "node" ? state.elements.find((e) => e.id === selection.id) : undefined;
-  const panelProps = { state, diagram: diagram!, lens, mutate, onSelect: select, onOpen: open, onReveal: reveal, onOpenFile: setOpenFile, focusName, onRename: renameElement, onMove: setMoveId };
+  const panelProps = { state, diagram: diagram!, lens, mutate, onSelect: select, onOpen: open, onReveal: reveal, onOpenFile: setOpenFile, onInspectUi: setInspectId, onBacktrack: setBacktrackQ, focusName, onRename: renameElement, onMove: setMoveId };
   const multiIds = selection?.type === "nodes" ? selection.ids : null;
   const movingEl = moveId ? state.elements.find((e) => e.id === moveId) : undefined;
 
@@ -552,7 +557,7 @@ export default function App({ onSignOut }: { onSignOut(): void }) {
           {!showGhost && !selectedElement && selectedNode?.kind === "stage" && diagram && <StagePanel key={selectedNode.id} node={selectedNode} {...panelProps} />}
           {!showGhost && !selectedElement && selectedNode?.kind === "file" && diagram && <FilePanel key={selectedNode.id} node={selectedNode} {...panelProps} />}
           {!showGhost && selection?.type === "edge" && diagram && <EdgePanel key={selection.id} edgeId={selection.id} {...panelProps} />}
-          {!selection && flow && <FlowPanel flow={flow} state={state} mutate={mutate} onDeleted={() => open("landscape")} flowStep={flowStep} setFlowStep={setFlowStep} />}
+          {!selection && flow && <FlowPanel flow={flow} state={state} mutate={mutate} onDeleted={() => open("landscape")} flowStep={flowStep} setFlowStep={setFlowStep} onBacktrack={setBacktrackQ} />}
           {!selection && diagram?.level === "connector" && <ConnectorPanel {...panelProps} />}
           {!selection && diagram?.level === "code" && <CodeDiagramPanel {...panelProps} />}
           {!selection && diagram && !flow && diagram.level !== "connector" && diagram.level !== "code" && (
@@ -601,6 +606,7 @@ export default function App({ onSignOut }: { onSignOut(): void }) {
           }}
         />
       )}
+      {backtrackQ && <Backtrack state={state} query={backtrackQ} onClose={() => setBacktrackQ(null)} onOpenFile={setOpenFile} onReveal={reveal} />}
       {openFile && <FileEditor path={openFile} onClose={() => setOpenFile(null)} inDraft={!!draftId} onChanged={() => void refresh().catch(() => undefined)} readOnlyNote={codeNote} />}
       {modal?.type === "plan" && <PlanDialog state={state} draftId={modal.draftId} onClose={() => setModal(null)} onSaved={() => void refresh().catch(() => undefined)} />}
       {searchOpen && (
@@ -646,6 +652,7 @@ export default function App({ onSignOut }: { onSignOut(): void }) {
       {modal?.type === "lens" && (
         <LensEditor lens={modal.lens} tagGroups={state.tagGroups} characteristics={state.characteristics} onClose={() => setModal(null)} mutate={mutate} onSaved={(id) => chooseLensAfterSave(id)} />
       )}
+      {inspectId && <LiveUiInspector state={state} elementId={inspectId} mutate={mutate} onClose={() => setInspectId(null)} onReveal={reveal} onOpen={open} />}
       <DialogHost />
     </div>
   );

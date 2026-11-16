@@ -13,7 +13,7 @@ const dia = (ws: ReturnType<typeof demoWs>, key: string) => diagrams.diagram(ws,
 describe("diagrams", () => {
   test("landscape shows people and systems", () => {
     const d = dia(demoWs(), "landscape");
-    expect(d.nodes).toHaveLength(8);
+    expect(d.nodes).toHaveLength(15);
     expect(d.nodes.every((n) => n.kind === "person" || n.kind === "softwareSystem")).toBe(true);
   });
 
@@ -21,9 +21,13 @@ describe("diagrams", () => {
     expect(names(dia(demoWs(), "context-internet-banking-system"))).toEqual([
       "Analytics Platform",
       "E-mail System",
+      "Fraud Detection System",
       "Internet Banking System",
       "Mainframe Banking System",
+      "Monitoring Platform",
       "Personal Banking Customer",
+      "Push Notification Service",
+      "SMS Gateway",
     ]);
   });
 
@@ -35,7 +39,19 @@ describe("diagrams", () => {
         .filter((n) => n.inScope)
         .map((n) => n.name)
         .sort(),
-    ).toEqual(["API Application", "Database", "Mobile App", "Single-Page Application", "Web Application"]);
+    ).toEqual([
+      "API Application",
+      "Database",
+      "Mobile App",
+      "Notification Service",
+      "Payment Events",
+      "Payments Service",
+      "Session Cache",
+      "Single-Page Application",
+      "Statement Job",
+      "Statement Store",
+      "Web Application",
+    ]);
     const edges = new Map(d.edges.map((e) => [`${e.source}|${e.target}`, e]));
     // API Application -> Database exists only via Security Component -> Database.
     const e = edges.get("api-application|database")!;
@@ -55,7 +71,7 @@ describe("diagrams", () => {
         .filter((n) => !n.inScope)
         .map((n) => n.name)
         .sort(),
-    ).toEqual(["Database", "E-mail System", "Mainframe Banking System", "Mobile App", "Single-Page Application"]);
+    ).toEqual(["Database", "E-mail System", "Mainframe Banking System", "Mobile App", "Session Cache", "Single-Page Application", "Statement Store"]);
   });
 
   test("explicit relationship suppresses derived", () => {

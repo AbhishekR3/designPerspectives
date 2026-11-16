@@ -3,6 +3,8 @@ import { Fields, Section, TagInput, TextField } from "../fields";
 import { StylePanel } from "../StylePanel";
 import { KIND_LABEL, type DiagramNode, type Stage } from "../types";
 import type { Common } from "./common";
+import { SamplePayload } from "../SamplePayload";
+import { ExampleFields } from "./ExampleFields";
 
 export function StagePanel({ node, ...p }: Common & { node: DiagramNode }) {
   const { state, mutate, diagram } = p;
@@ -20,6 +22,8 @@ export function StagePanel({ node, ...p }: Common & { node: DiagramNode }) {
     [next[idx], next[idx + d]] = [next[idx + d], next[idx]];
     saveStages(next);
   };
+  // The sample this stage receives: the last earlier stage with one, else what enters the connector.
+  const previousSample = [...stages.slice(0, idx)].reverse().find((s) => s.example)?.example ?? (rel.example || undefined);
   const components = state.elements.filter((e) => e.kind === "component" || e.kind === "container");
   return (
     <div className="panel-body" data-testid="stage-panel">
@@ -53,6 +57,20 @@ export function StagePanel({ node, ...p }: Common & { node: DiagramNode }) {
         </label>
       </Fields>
       {node.drillKey && <button onClick={() => p.onOpen(node.drillKey!)}>Open what implements this stage</button>}
+      <button onClick={() => p.onBacktrack({ connector: relId, stage: idx + 1 })} data-testid="stage-backtrack" title="Where this stage's data came from, the code behind each step, and what changed recently">
+        Backtrack from this stage
+      </button>
+      <h4>Data leaving this stage</h4>
+      {st.example ? (
+        <SamplePayload text={st.example} previous={previousSample} testId="stage-sample" />
+      ) : (
+        <div className="empty-note">No sample yet.{!state.readOnly && " Add what this stage produces below."}</div>
+      )}
+      {!state.readOnly && (
+        <Section title="Edit example data" count={st.example ? 1 : 0} testId="sec-stage-example">
+          <ExampleFields example={st.example ?? ""} format={st.format ?? ""} onSave={(v) => patch(v)} testId="stage-example" label="Example data leaving this stage" />
+        </Section>
+      )}
       {!state.readOnly && (
         <>
           <Section title="Appearance" testId="sec-style">

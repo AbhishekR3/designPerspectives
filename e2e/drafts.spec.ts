@@ -26,8 +26,8 @@ test("a draft shows added and removed objects, and applying it changes the main 
   await expect(node(page, "mobile-app")).toHaveAttribute("data-change", "removed");
   await expect(node(page, "mobile-app")).toHaveClass(/ghost/);
   await expect(page.getByTestId("change-summary").locator('[data-count="added"]')).toHaveAttribute("title", "1 added");
-  // The container and its 4 relationships.
-  await expect(page.getByTestId("change-summary").locator('[data-count="removed"]')).toHaveAttribute("title", "5 removed");
+  // The container and its 6 relationships.
+  await expect(page.getByTestId("change-summary").locator('[data-count="removed"]')).toHaveAttribute("title", "7 removed");
 
   // The ghost opens read-only; the change list lists both.
   await node(page, "mobile-app").click();

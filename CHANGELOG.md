@@ -1,5 +1,46 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- Sample data on relationships and connector stages (`dp.example`, `dp.format`, and `example`/`format`
+  on each stage in `dp.stages`). Clicking a line shows what it carries; a pipeline shows the sample
+  entering it and leaving each stage, with added, removed and changed fields marked. Up to 8,000
+  characters per sample. The demo's usage-event pipeline has samples. Flow step examples are
+  pretty-printed when they are JSON, and stand in for a relationship that has no sample of its own.
+- Live UI inspector. Give an element the address its UI runs at (`dp.ui.url`), click **Inspect live
+  UI**, and click in the running app: each click lists the HTTP calls it made, the relationships they
+  match (`dp.endpoints` on relationships, e.g. `GET /api/accounts/:id`), what was sent and returned
+  (secret-looking fields masked), the documented example, what follows in the model, and the flows
+  involved. Unmatched calls can be added as endpoints in one click; observed data can be saved as
+  the example. The app is shown through a proxy on a local port; apps on other hosts need
+  `dp serve --allow-ui-host <name>`. The demo's web-app relationships list their endpoints.
+- OpenTelemetry trace files (OTLP JSON lines or files, `dp serve --traces <folder>`, default
+  `traces/`). The inspector adds a `traceparent` header to the app's own calls, finds each call's
+  trace and shows the path it took through the model, marking steps with no relationship and
+  services no element matches. Spans match elements by `code.filepath` (code mapping), by
+  `dp.element`, or by `service.name` (an element's ID, name or its new "service name in trace files",
+  `dp.otel.service`); `peer.service` names what a client span calls. Recent traces are listed too.
+- Backtrack (`GET /api/backtrack`): from a pipeline stage or flow step back to the first step, with
+  each step's data, one field followed through every step, the code behind each step and its
+  functions, and the git commits that changed that code or that step in the model. Steps changed in
+  the last 7/14/30/90 days or not committed are marked; functions touched by a recent change are
+  highlighted.
+- Demo: a ten-stage month-end statement pipeline (a Statement Job container with one component and
+  one TypeScript file per stage, samples at every stage, and a known issue to backtrack). A new demo
+  folder becomes a git repository with four made-up commits (`demo/history.json`; skipped inside an
+  existing repository). `dp serve --demo` runs a demo bank web app on 127.0.0.1:4200 that writes
+  traces, and the demo model points the Single-Page Application at it.
+
+### Changed
+- The demo model now looks like a bank in production: a Payments Service with fraud checks, a
+  Notification Service, a Payment Events topic, a Session Cache, a Statement Store, external payment,
+  SMS, push and monitoring services, and Fraud Analyst and Site Reliability Engineer people. It has
+  owners and runbook links, details tables (SLOs, endpoints, topic and cache settings, alert rules),
+  Tier and Hosting tag groups, Operations and Finance lenses, three more flows with example data, a
+  second pipeline connector, and TypeScript sample code behind the new components.
+- `docs/demo-tour.md`: a guided tour of the demo for new users.
+
 ## 1.0.0 — 2026-11-15
 
 ### Added

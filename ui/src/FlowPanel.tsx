@@ -3,6 +3,7 @@ import { api } from "./api";
 import { Fields, TextField } from "./fields";
 import type { AppState, Flow, FlowStep } from "./types";
 import { confirmDialog } from "./dialogs";
+import { SamplePayload } from "./SamplePayload";
 
 export function FlowPanel({
   flow,
@@ -11,6 +12,7 @@ export function FlowPanel({
   onDeleted,
   flowStep,
   setFlowStep,
+  onBacktrack,
 }: {
   flow: Flow;
   state: AppState;
@@ -18,6 +20,7 @@ export function FlowPanel({
   onDeleted(): void;
   flowStep: number | null;
   setFlowStep(n: number | null): void;
+  onBacktrack(q: { flow: string; step: number }): void;
 }) {
   const [filter, setFilter] = useState("");
   const [pick, setPick] = useState("");
@@ -66,14 +69,15 @@ export function FlowPanel({
             </div>
           )}
           {cur.example ? (
-            <pre className="example" data-testid="step-example">
-              {cur.example}
-            </pre>
+            <SamplePayload text={cur.example} testId="step-example" />
           ) : (
             <div className="empty-note">No example data for this step.{!state.readOnly && " Add one under the step below."}</div>
           )}
           {curRel.sensitive.length > 0 && <div className="small">Sensitive: {curRel.sensitive.map((x) => `${x.item} (${x.level})`).join("; ")}</div>}
           {curRel.notes && <div className="muted small">{curRel.notes}</div>}
+          <button onClick={() => onBacktrack({ flow: flow.key, step: flowStep! + 1 })} data-testid="flow-backtrack">
+            Backtrack from this step
+          </button>
         </div>
       )}
       <div className="panel-kind">Flow</div>

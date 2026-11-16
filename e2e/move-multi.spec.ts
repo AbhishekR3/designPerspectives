@@ -55,9 +55,9 @@ test("a container moves to a software system (and landscape boxes offer no Move)
   await openDiagram(page, "containers-internet-banking-system");
   await node(page, "mobile-app").click({ button: "right" });
   await page.getByTestId("ctx-move").click();
-  // Software systems only, no filter box for a handful of targets; the current system is left out.
+  // Software systems only (enough of them in the demo for a filter box); the current system is left out.
   await expect(page.getByTestId("move-target-internet-banking-system")).toHaveCount(0);
-  await expect(page.getByTestId("move-filter")).toHaveCount(0);
+  await expect(page.getByTestId("move-filter")).toBeVisible();
   await page.getByTestId("move-target-atm").click();
   await page.getByTestId("move-confirm").click();
   await expect(page.getByTestId("move-dialog")).toHaveCount(0);
@@ -78,7 +78,7 @@ test("a move in a draft is listed with its parent before and after", async ({ pa
   await expect(page.getByTestId("draft-banner")).toContainText("Draft: Reorganise");
   await node(page, "e-mail-component").click({ button: "right" });
   await page.getByTestId("ctx-move").click();
-  await expect(page.getByTestId("move-filter")).toHaveCount(0); // seven targets: no filter
+  await expect(page.getByTestId("move-filter")).toBeVisible(); // every other container in the demo: a filter box
   await page.getByTestId("move-target-web-application").click();
   await page.getByTestId("move-confirm").click();
   await expect(page.getByTestId("move-dialog")).toHaveCount(0);

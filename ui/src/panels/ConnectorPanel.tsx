@@ -3,6 +3,8 @@ import { CodePaths } from "../CodeParts";
 import { Fields, Section, TagInput } from "../fields";
 import type { Common } from "./common";
 import { promptDialog } from "../dialogs";
+import { PipelineData } from "../SamplePayload";
+import { ExampleFields } from "./ExampleFields";
 
 export function ConnectorPanel(p: Common) {
   const { state, diagram, mutate } = p;
@@ -29,18 +31,13 @@ export function ConnectorPanel(p: Common) {
         </label>
         <TagInput label="Technology / protocol" value={rel.technologies} suggestions={state.technologies} onChange={(v) => save({ technology: v })} />
       </Fields>
-      <h4>
-        Stages <span className="count">{rel.stages.length}</span>
-      </h4>
-      <ol className="stage-list">
-        {rel.stages.map((s) => (
-          <li key={s.id}>
-            <button className="link" onClick={() => p.onSelect({ type: "node", id: `stage:${rel.id}:${s.id}` })}>
-              {s.name}
-            </button>
-          </li>
-        ))}
-      </ol>
+      <h4>Data through this connector</h4>
+      <PipelineData rel={rel} state={state} onSelectStage={(sid) => p.onSelect({ type: "node", id: `stage:${rel.id}:${sid}` })} onBacktrack={(stage) => p.onBacktrack({ connector: rel.id, stage })} />
+      {!state.readOnly && (
+        <Section title="Sample entering the connector" count={rel.example ? 1 : 0} testId="sec-rel-example">
+          <ExampleFields example={rel.example} format={rel.format} onSave={save} testId="rel-example" />
+        </Section>
+      )}
       {!state.readOnly && (
         <button
           className="primary"

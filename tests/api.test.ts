@@ -12,7 +12,7 @@ describe("API", () => {
   test("state", async () => {
     const s = await ok(client().get("/api/state"));
     expect(s.workspace.name).toBe("Big Bank plc");
-    expect(s.lenses.map((l: any) => l.id)).toEqual(["engineer", "architect", "overview", "security-review", "product-owner"]);
+    expect(s.lenses.map((l: any) => l.id)).toEqual(["engineer", "architect", "overview", "security-review", "product-owner", "operations", "finance"]);
     expect(s.defaultLens).toBe("engineer");
     expect(s.loadErrors).toEqual([]);
   });
@@ -54,7 +54,7 @@ describe("API", () => {
   test("step 5: connections in state", async () => {
     const s = await ok(client().get("/api/state"));
     expect(s.relationships.filter((r: any) => r.destinationId === "security-component")).toHaveLength(2);
-    expect(s.relationships.filter((r: any) => r.sourceId === "security-component")).toHaveLength(1);
+    expect(s.relationships.filter((r: any) => r.sourceId === "security-component")).toHaveLength(2);
   });
 
   test("step 6: tag group and overlay data", async () => {

@@ -84,6 +84,10 @@ export interface Stage {
   description?: string;
   elementId?: string;
   archType?: string;
+  /** Sample of the data that leaves this stage. */
+  example?: string;
+  /** What that data is, e.g. "JSON", "Parquet row", "SQL". */
+  format?: string;
 }
 
 export interface Style {
@@ -138,6 +142,10 @@ export interface ElementSummary {
   external: boolean;
   location?: string | null;
   childCount: number;
+  /** Where this UI runs (http/https), for the live UI inspector; "" when not set. */
+  uiUrl: string;
+  /** The service.name this element has in trace files, when it differs from its ID and name; "" when not set. */
+  otelService: string;
 }
 
 export interface DiagramNode extends ElementSummary {
@@ -259,6 +267,58 @@ export interface Relationship {
   stages: Stage[];
   codePaths: string[];
   work: WorkItem[];
+  /** Sample of the data that travels along this relationship (for a connector with stages: the data entering the first stage). */
+  example: string;
+  format: string;
+  /** HTTP calls that travel along this relationship, so the live UI inspector can match them. */
+  endpoints: Endpoint[];
+}
+
+/** An HTTP call pattern: method ("*" for any) and a path ("/api/accounts/:id", "*" matches the rest) or a full URL. */
+export interface Endpoint {
+  method: string;
+  path: string;
+}
+
+/** One HTTP call seen in a live UI (POST /api/inspect). */
+export interface ObservedCall {
+  method: string;
+  url: string;
+}
+
+/** What one observed call means in the model. */
+export interface InspectedCall {
+  method: string;
+  url: string;
+  /** The URL's path (no query), as matched. */
+  path: string;
+  /** Relationships from the UI element (or its children) with an endpoint that matches. */
+  matches: string[];
+  /** A pattern for this call, to add as an endpoint when it matches nothing. */
+  suggested: Endpoint;
+}
+
+/** A relationship reached from a matched call, following the model's outgoing relationships. */
+export interface InspectHop {
+  relationshipId: string;
+  /** 0 for a relationship the call matched, 1 for the next one, and so on. */
+  depth: number;
+  /** The relationship this one continues (null at depth 0). */
+  via: string | null;
+}
+
+export interface InspectResult {
+  calls: InspectedCall[];
+  /** Every relationship reached, in walk order (breadth first, each once). */
+  hops: InspectHop[];
+  /** Elements the calls reach, in walk order (not the UI element itself). */
+  elements: string[];
+  /** Flows that contain a matched relationship. */
+  flows: { key: string; title: string }[];
+  /** Relationships from the UI element or its children: where an unmatched call's endpoint can be added. */
+  candidates: string[];
+  /** True when the walk stopped at the depth limit with relationships left. */
+  truncated: boolean;
 }
 
 export interface DiagramInfo {
@@ -490,4 +550,129 @@ export interface CodingPlan {
   items: PlanItem[];
   summary: { done: number; open: number; manual: number; unchecked: number };
   markdown: string;
+}
+
+// ------------------------------------------------------------------ backtracking (GET /api/backtrack)
+
+export interface CommitInfo {
+  sha: string;
+  /** ISO 8601 author date. */
+  date: string;
+  author: string;
+  subject: string;
+}
+
+export interface FunctionInfo {
+  name: string;
+  kind: "function" | "method" | "class";
+  line: number;
+  /** Lines in its range changed within the recent window (or are not committed yet). */
+  changed: boolean;
+}
+
+export interface BacktrackFile {
+  path: string;
+  exists: boolean;
+  functions: FunctionInfo[];
+  /** Newest first. */
+  commits: CommitInfo[];
+  /** The file differs from its last commit. */
+  uncommitted: boolean;
+}
+
+export interface ModelChange extends CommitInfo {
+  change: "added" | "changed" | "removed";
+  /** What changed, e.g. 'Stage "Convert currency": example, description' or 'Component "Fee Calculator" added'. */
+  what: string;
+}
+
+export interface BacktrackStep {
+  /** 0 is the data entering a connector; stages and flow steps count from 1. */
+  index: number;
+  name: string;
+  description: string;
+  /** The element that does this step (a stage's implementing element, a flow step's receiver). */
+  elementId: string | null;
+  relationshipId: string;
+  stageId: string | null;
+  example: string;
+  format: string;
+  files: BacktrackFile[];
+  /** Commits that changed this step's part of the model, newest first. */
+  modelChanges: ModelChange[];
+  /** Something about this step changed within the recent window, or is not committed. */
+  recent: boolean;
+}
+
+export interface BacktrackResult {
+  title: string;
+  /** Index of the step backtracking starts from (the last in `steps`). */
+  target: number;
+  /** In process order, from the first step to the target. */
+  steps: BacktrackStep[];
+  recentDays: number;
+  /** ISO date: changes on or after it count as recent. */
+  since: string;
+  /** False when the code folder or the model is not in a git repository. */
+  codeHistory: boolean;
+  modelHistory: boolean;
+}
+
+// ------------------------------------------------------------------ traces (GET /api/traces)
+
+export interface TraceSummary {
+  traceId: string;
+  /** The root span's name, e.g. "POST /api/payments". */
+  name: string;
+  service: string;
+  /** Start, milliseconds since the epoch. */
+  start: number;
+  durationMs: number;
+  spanCount: number;
+  error: boolean;
+}
+
+export interface ObservedSpan {
+  spanId: string;
+  parentId: string | null;
+  name: string;
+  service: string;
+  /** "server", "client", "producer", "consumer" or "internal". */
+  kind: string;
+  /** The model element that ran this span, or null when none matches. */
+  elementId: string | null;
+  /** For a client or producer span: the element it called (from peer.service), or null. */
+  peerElementId: string | null;
+  /** Start, milliseconds after the trace's start. */
+  startMs: number;
+  durationMs: number;
+  /** The status message (or "error") when the span failed. */
+  error: string | null;
+  /** A few attributes, secret-looking ones masked. */
+  attributes: Record<string, string>;
+}
+
+/** One step the request took from an element to another, as seen in the trace. */
+export interface ObservedHop {
+  from: string;
+  to: string;
+  spanId: string;
+  /** The relationship in the model that this step uses, or null: the model does not have it. */
+  relationshipId: string | null;
+}
+
+export interface ObservedTrace extends TraceSummary {
+  spans: ObservedSpan[];
+  hops: ObservedHop[];
+  /** Elements the trace reached, in order. */
+  elements: string[];
+  /** Services or files in the trace that no element matches. */
+  unmapped: string[];
+}
+
+export interface TraceList {
+  /** The folder dp reads trace files from. */
+  dir: string;
+  exists: boolean;
+  traces: TraceSummary[];
 }

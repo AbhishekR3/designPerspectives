@@ -17,6 +17,9 @@ import { Project, type ModelSource } from "../core/store.js";
 import type { Workspace } from "../core/workspace.js";
 import type { AppState, DraftInfo, Lens, Permissions, SessionUser, Style } from "../shared/types.js";
 import { Auth, defaultLensFor, permissions, type AuthOptions, type Who } from "./auth.js";
+import { UiProxies } from "./uiProxy.js";
+import { TraceStore } from "../core/traces.js";
+import path from "node:path";
 
 /** An HTTP error with a status code; the body is {"detail": message}. */
 export class HttpError extends Error {
@@ -169,6 +172,10 @@ export interface AppOptions {
   /** Host names (as in the Host header, without the port; IPv6 in brackets) the server answers to.
    *  Default: the loopback names. null turns the check off (a server bound to another interface). */
   allowedHosts?: string[] | null;
+  /** Hosts besides this machine whose live UIs may be opened through the UI proxy (--allow-ui-host). */
+  uiAllowHosts?: string[];
+  /** Folder of OpenTelemetry trace files (default `<project>/traces`). */
+  tracesDir?: string | null;
 }
 
 /** Everything the route modules work with, built once per app by `createContext`. */
@@ -193,6 +200,10 @@ export interface Ctx {
   draftId: (ref: string) => string;
   /** Middleware: reads X-DP-Model / X-DP-Compare and runs the rest of the request with that selection. */
   selectVersion: MiddlewareHandler;
+  /** Live UI proxies, one local listener per app origin (uiProxy.ts). */
+  uiProxies: UiProxies;
+  /** Trace files (traces.ts). */
+  traces: TraceStore;
 }
 
 export function createContext(root: string, opts: AppOptions = {}): Ctx {
@@ -283,5 +294,7 @@ export function createContext(root: string, opts: AppOptions = {}): Ctx {
     };
   };
 
-  return { readOnly, auth, who, access, project, drafts, gitModels, gitCodes, disk, ok, sel, writable, edit, draftId, selectVersion };
+  const uiProxies = new UiProxies({ allowHosts: opts.uiAllowHosts ?? [] });
+  const traces = new TraceStore(opts.tracesDir ? path.resolve(opts.tracesDir) : path.join(project.root, "traces"));
+  return { readOnly, auth, who, access, project, drafts, gitModels, gitCodes, disk, ok, sel, writable, edit, draftId, selectVersion, uiProxies, traces };
 }

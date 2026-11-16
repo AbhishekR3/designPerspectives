@@ -29,14 +29,20 @@
  *                    linked work: security issues, pull requests, issues, backlog items, required updates
  *   dp.code.paths    JSON ["path/relative/to/code/root", ...]    elements, relationships
  *   dp.kind          connector kind (data-pipeline, ...)         relationships
- *   dp.stages        JSON [{"id","name","technologies",...}]     relationships
+ *   dp.stages        JSON [{"id","name","technologies",...,"example","format"}]  relationships;
+ *                    a stage's example is the data leaving that stage
+ *   dp.example       sample of the data on the relationship      relationships (text, max EXAMPLE_MAX chars)
+ *   dp.format        what that data is (JSON, CSV row, ...)       relationships
+ *   dp.endpoints     JSON [{"method","path"}]                  relationships; HTTP calls it carries (live UI inspector)
+ *   dp.ui.url        where the UI runs (http/https)               elements; opened by the live UI inspector
+ *   dp.otel.service  service.name in trace files                  elements; when it differs from the ID and name
  */
 
 import path from "node:path";
 import { inlineJson, isObj, round2, str, type Obj } from "./json.js";
 import { STYLE_KEYS, type Sidecar } from "./sidecar.js";
 import { tagsFor, VIEW_LISTS, type Element, type Kind, type Relationship, type Workspace } from "./workspace.js";
-import type { CostItem, DetailTable, ElementSummary, Enums, Rating, Relationship as RelationshipSummary, SensitiveItem, Stage, Style, Tradeoff, Usage, WorkItem } from "../shared/types.js";
+import type { CostItem, DetailTable, ElementSummary, Endpoint, Enums, Rating, Relationship as RelationshipSummary, SensitiveItem, Stage, Style, Tradeoff, Usage, WorkItem } from "../shared/types.js";
 
 export const OWNER_KEY = "dp.owner";
 export const LINKS_KEY = "dp.links";
@@ -49,6 +55,65 @@ export const SENSITIVE_KEY = "dp.sensitive";
 export const CODE_KEY = "dp.code.paths";
 export const KIND_KEY = "dp.kind";
 export const STAGES_KEY = "dp.stages";
+export const EXAMPLE_KEY = "dp.example";
+export const FORMAT_KEY = "dp.format";
+/** Longest sample payload kept on a relationship or stage. Samples explain the data, they are not fixtures. */
+export const EXAMPLE_MAX = 8000;
+
+export const ENDPOINTS_KEY = "dp.endpoints";
+export const UI_URL_KEY = "dp.ui.url";
+export const OTEL_SERVICE_KEY = "dp.otel.service";
+const HTTP_METHODS = new Set(["*", "GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]);
+
+/** Endpoints from objects ({method, path}) or lines ("GET /api/accounts/:id", "/health" = any method). */
+export function cleanEndpoints(items: unknown): Endpoint[] {
+  const rows = Array.isArray(items) ? items : typeof items === "string" ? items.split("\n") : [];
+  const out: Endpoint[] = [];
+  const seen = new Set<string>();
+  for (const x of rows) {
+    let method: string;
+    let p: string;
+    if (typeof x === "string") {
+      const parts = x.trim().split(/\s+/);
+      if (!parts[0]) continue;
+      [method, p] = parts.length > 1 ? [parts[0], parts.slice(1).join("")] : ["*", parts[0]];
+    } else if (isObj(x)) {
+      method = str(x.method).trim() || "*";
+      p = str(x.path).trim();
+    } else continue;
+    method = method.toUpperCase();
+    if (!HTTP_METHODS.has(method)) throw new ModelError(`"${method}" is not an HTTP method. Use GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS or *.`);
+    if (!/^(\/|https?:\/\/)/.test(p)) throw new ModelError(`Endpoint "${p}" must start with "/" (a path) or "http://" / "https://" (a full URL).`);
+    if (p.length > 500) throw new ModelError("An endpoint is at most 500 characters.");
+    const key = `${method} ${p}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ method, path: p });
+  }
+  return out;
+}
+
+/** The URL a live UI runs at: http or https only. */
+export function cleanUiUrl(value: unknown): string {
+  const text = str(value).trim();
+  if (!text) return "";
+  let u: URL;
+  try {
+    u = new URL(text);
+  } catch {
+    throw new ModelError(`"${text}" is not a URL. Use the address the UI runs at, e.g. http://localhost:3000/.`);
+  }
+  if (u.protocol !== "http:" && u.protocol !== "https:") throw new ModelError("The live UI address must start with http:// or https://.");
+  if (u.username || u.password) throw new ModelError("The live UI address must not contain a user name or password.");
+  return u.href;
+}
+
+/** A sample payload: blank lines at the ends dropped, refused when longer than EXAMPLE_MAX. */
+export function cleanExample(value: unknown, what: string): string {
+  const text = str(value).replace(/^\s*\n|\n\s*$/g, "").replace(/\s+$/, "");
+  if (text.length > EXAMPLE_MAX) throw new ModelError(`The example data for ${what} is ${text.length} characters; the limit is ${EXAMPLE_MAX}. Keep one short, representative sample.`);
+  return text;
+}
 export const DETAILS_KEY = "dp.details";
 export const CHARS_KEY = "dp.characteristics";
 export const WORK_KEY = "dp.work";
@@ -562,6 +627,10 @@ export function cleanStages(items: unknown, idx: Index): Stage[] {
       if (!archIds.has(arch)) throw new ModelError(`Unknown type "${arch}".`);
       stage.archType = arch;
     }
+    const example = cleanExample(x.example, `stage "${name}"`);
+    if (example) stage.example = example;
+    const format = s(x.format);
+    if (format) stage.format = format;
     out.push(stage);
   }
   return out;
@@ -603,6 +672,8 @@ export function elementSummary(idx: Index, elementId: string): ElementSummary {
     external: idx.isExternal(el.id),
     location: el.location ?? null,
     childCount: idx.childrenOf(el.id).length,
+    uiUrl: props[UI_URL_KEY] ?? "",
+    otelService: props[OTEL_SERVICE_KEY] ?? "",
   };
 }
 
@@ -624,6 +695,9 @@ export function relationshipSummary(r: Relationship): RelationshipSummary {
     stages: getJson<Stage>(r, STAGES_KEY),
     work: getJson<WorkItem>(r, WORK_KEY),
     codePaths: getJson<string>(r, CODE_KEY),
+    example: props[EXAMPLE_KEY] ?? "",
+    format: props[FORMAT_KEY] ?? "",
+    endpoints: getJson<Endpoint>(r, ENDPOINTS_KEY),
   };
 }
 
@@ -781,6 +855,8 @@ export function updateElement(ws: Workspace, sidecar: Sidecar, elementId: string
     el.technology = joinTech(patch.technology);
   }
   if ("url" in patch) el.url = str(patch.url) || null;
+  if ("uiUrl" in patch) setProp(el, UI_URL_KEY, cleanUiUrl(patch.uiUrl) || null);
+  if ("otelService" in patch) setProp(el, OTEL_SERVICE_KEY, str(patch.otelService).trim().slice(0, 200) || null);
   if ("owner" in patch) setProp(el, OWNER_KEY, str(patch.owner).trim() || null);
   if ("links" in patch) {
     const links = asRows(patch.links)
@@ -1089,6 +1165,9 @@ export function updateRelationship(ws: Workspace, relId: string, patch: Obj): vo
   if ("codePaths" in patch) setJson(r, CODE_KEY, cleanPaths(patch.codePaths));
   if ("stages" in patch) setJson(r, STAGES_KEY, cleanStages(patch.stages, idx));
   if ("work" in patch) setJson(r, WORK_KEY, cleanWork(patch.work));
+  if ("example" in patch) setProp(r, EXAMPLE_KEY, cleanExample(patch.example, "this relationship") || null);
+  if ("format" in patch) setProp(r, FORMAT_KEY, str(patch.format).trim() || null);
+  if ("endpoints" in patch) setJson(r, ENDPOINTS_KEY, cleanEndpoints(patch.endpoints));
 }
 
 export function deleteRelationship(ws: Workspace, relId: string): void {

@@ -34,6 +34,40 @@
           "color": "#7f7f7f"
         }
       ]
+    },
+    {
+      "name": "Tier",
+      "values": [
+        {
+          "name": "Tier 1",
+          "color": "#d62728"
+        },
+        {
+          "name": "Tier 2",
+          "color": "#ff7f0e"
+        },
+        {
+          "name": "Tier 3",
+          "color": "#2ca02c"
+        }
+      ]
+    },
+    {
+      "name": "Hosting",
+      "values": [
+        {
+          "name": "Cloud",
+          "color": "#1f77b4"
+        },
+        {
+          "name": "On-premises",
+          "color": "#8c564b"
+        },
+        {
+          "name": "Third party",
+          "color": "#e377c2"
+        }
+      ]
     }
   ],
   "lenses": [
@@ -76,6 +110,49 @@
         "work",
         "notes",
         "usage"
+      ],
+      "showTechnology": false,
+      "showDescriptions": true
+    },
+    {
+      "id": "operations",
+      "name": "Operations",
+      "visibleLevels": [
+        "landscape",
+        "context",
+        "container",
+        "component"
+      ],
+      "defaultOverlay": "Tier",
+      "hiddenTagGroups": [],
+      "visibleSections": [
+        "technology",
+        "characteristics",
+        "work",
+        "details",
+        "notes",
+        "usage"
+      ],
+      "showTechnology": true,
+      "showDescriptions": true
+    },
+    {
+      "id": "finance",
+      "name": "Finance",
+      "visibleLevels": [
+        "landscape",
+        "context",
+        "container"
+      ],
+      "defaultOverlay": "@cost",
+      "hiddenTagGroups": [
+        "Risk",
+        "Tier"
+      ],
+      "visibleSections": [
+        "cost",
+        "usage",
+        "notes"
       ],
       "showTechnology": false,
       "showDescriptions": true

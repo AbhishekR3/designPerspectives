@@ -191,3 +191,75 @@ export class GitCodes {
     return c;
   }
 }
+
+// --------------------------------------------------------------------------- history (backtracking)
+
+/** One commit, as backtracking shows it. */
+export interface LogEntry {
+  sha: string;
+  /** Author date, ISO 8601. */
+  date: string;
+  author: string;
+  subject: string;
+}
+
+/**
+ * The newest commits (at most `limit`) that touch any of `paths` (relative to `cwd`), newest first.
+ * Empty when `cwd` is not in a repository or the paths have no history.
+ */
+export function logFor(cwd: string, paths: string[], limit = 20): LogEntry[] {
+  if (!paths.length) return [];
+  let out: string;
+  try {
+    out = git(cwd, ["log", `-n${limit}`, "--format=%H%x1f%aI%x1f%an%x1f%s", "--", ...paths]);
+  } catch {
+    return [];
+  }
+  return out
+    .split("\n")
+    .filter(Boolean)
+    .map((l) => {
+      const [sha, date, author, subject] = l.split("\x1f");
+      return { sha: sha!, date: date!, author: author ?? "", subject: subject ?? "" };
+    });
+}
+
+/** True when the file differs from the last commit (changed, added or not yet committed). */
+export function uncommitted(cwd: string, file: string): boolean {
+  try {
+    return git(cwd, ["status", "--porcelain", "--", file]).trim() !== "";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Lines of the file as it is now (1-based) that differ from the file at `base`; "all" when `base`
+ * is null (the file is new since then). Deleted lines mark the line where they were.
+ */
+export function changedLinesSince(cwd: string, base: string | null, file: string): number[] | "all" {
+  if (base === null) return "all";
+  let out: string;
+  try {
+    out = git(cwd, ["diff", "-U0", "--no-color", base, "--", file]);
+  } catch {
+    return [];
+  }
+  const lines: number[] = [];
+  for (const m of out.matchAll(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/gm)) {
+    const start = Number(m[1]);
+    const count = m[2] === undefined ? 1 : Number(m[2]);
+    if (count === 0) lines.push(Math.max(1, start));
+    for (let i = 0; i < count; i++) lines.push(start + i);
+  }
+  return lines;
+}
+
+/** The parent of a commit, or null for a root commit. */
+export function parentOf(cwd: string, sha: string): string | null {
+  try {
+    return git(cwd, ["rev-parse", "--verify", "-q", `${checkRef(sha)}^`]).trim() || null;
+  } catch {
+    return null;
+  }
+}
