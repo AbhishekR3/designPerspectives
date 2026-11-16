@@ -20,7 +20,12 @@ import { createApp, LOOPBACK_HOSTS } from "./server/app.js";
 import { CredentialStore } from "./core/credentials.js";
 import { ModelError } from "./core/ops.js";
 import { CREDENTIAL_PROVIDERS } from "./shared/types.js";
+import { directBackend } from "./bmo/direct.js";
 import { writeImportHandoff } from "./bmo/importTasks.js";
+import { BmoInvalid, destinationOf, parseSelectors, planTask, previewOf, runBmo, type BmoEnv } from "./bmo/service.js";
+import { BACKENDS, canRun, PROVIDERS, publicStatus, readSettings, ROLES, writeSettings, type BmoSettings } from "./bmo/settings.js";
+import { BmoError } from "./bmo/backend.js";
+import { TASK_IDS } from "./bmo/tasks.js";
 import { readState, snapshotModel } from "./import/analysis.js";
 import { checkImport, missingContainers } from "./import/checks.js";
 import { ImportRejected, importToDraft } from "./import/importer.js";
@@ -559,9 +564,234 @@ export function program(): Command {
       }
     });
 
+  bmoCommands(p);
   usersCommands(p);
 
   return p;
+}
+
+/** `dp bmo ...`: BMO's settings (`<path>/.dp/bmo.json`) and one-off runs. Off by default; nothing is sent without `--yes-send`. */
+function bmoCommands(p: Command): void {
+  const bmo = p
+    .command("bmo")
+    .description("BMO, the assistant that proposes model changes and explains the model. Off by default: dp calls no model unless the settings turn it on. Exit code: 0 OK, 1 problem, 2 no model.");
+  const credentialsOf = (root: string) => new CredentialStore(root, process.env.DP_SECRET_KEY || null);
+  const settingsOf = (root: string): BmoSettings => {
+    try {
+      return readSettings(root);
+    } catch (e) {
+      if (e instanceof ModelError) {
+        console.error(e.message);
+        process.exit(1);
+      }
+      throw e;
+    }
+  };
+
+  bmo
+    .command("status")
+    .description("Show the BMO settings and whether a run is possible. Never prints a key.")
+    .argument("[path]", "Project (or hub) folder holding .dp/bmo.json.", ".")
+    .option("--json", "Print the status as JSON.")
+    .action((dir: string, o: { json?: boolean }) => {
+      const root = path.resolve(dir);
+      const s = settingsOf(root);
+      const creds = credentialsOf(root);
+      const st = publicStatus(s, creds);
+      const can = canRun(s, creds, "architect");
+      if (o.json) {
+        console.log(JSON.stringify({ ...st, canRun: can }, null, 2));
+        return;
+      }
+      console.log(`BMO is ${st.enabled ? "on" : "off"}.`);
+      console.log(`  backend:     ${st.backend}${st.backend === "handoff" ? " (dp calls no model: your own coding agent runs the prompt)" : ""}`);
+      console.log(`  provider:    ${st.provider ?? "(none)"}`);
+      console.log(`  model:       ${st.model ?? "(none)"}`);
+      console.log(`  sends to:    ${st.host ?? "(nowhere)"}`);
+      console.log(`  credential:  ${st.provider === "ollama" ? "(none needed)" : st.credential ? `${st.credential}${st.hasCredential ? "" : " (cannot be used)"}` : "(none found)"}`);
+      console.log(`  roles:       ${st.allowedRoles.join(", ") || "(none)"}`);
+      console.log(`  budget:      ${st.passBudgetTokens} tokens per run`);
+      console.log(can.ok ? "A run is possible." : `A run is not possible: ${can.reason}`);
+    });
+
+  bmo
+    .command("set")
+    .description("Change the BMO settings (written to <path>/.dp/bmo.json, mode 0600, outside git). Only the options given change.")
+    .argument("[path]", "Project (or hub) folder holding .dp/bmo.json.", ".")
+    .option("--enabled", "Turn BMO on.")
+    .option("--disabled", "Turn BMO off.")
+    .addOption(new Option("--backend <backend>", "handoff: dp calls no model. direct: dp sends the prompt to the provider below.").choices([...BACKENDS]))
+    .addOption(new Option("--provider <provider>", "Which service a direct run goes to.").choices([...PROVIDERS]))
+    .option("--model <name>", "The model to ask (Ollama needs one; the cloud providers have a default).")
+    .option("--endpoint <url>", "Another address for the provider (Ollama: any; the cloud providers also need --allow-custom-endpoint). Not http unless this computer.")
+    .option("--clear-endpoint", "Go back to the provider's own address.")
+    .option("--allow-custom-endpoint", "Let the Claude API or the OpenAI API be reached at --endpoint (a gateway of your own).")
+    .option("--credential <name>", "The stored credential to use (dp users / the credentials page add them).")
+    .option("--roles <list>", `Roles that may run BMO, comma separated (${ROLES.join(", ")}).`)
+    .option("--budget <tokens>", "Most tokens of repository text one run reads.")
+    .action(
+      (
+        dir: string,
+        o: {
+          enabled?: boolean;
+          disabled?: boolean;
+          backend?: string;
+          provider?: string;
+          model?: string;
+          endpoint?: string;
+          clearEndpoint?: boolean;
+          allowCustomEndpoint?: boolean;
+          credential?: string;
+          roles?: string;
+          budget?: string;
+        },
+      ) => {
+        if (o.enabled && o.disabled) {
+          console.error("Give --enabled or --disabled, not both.");
+          process.exit(1);
+        }
+        if (o.endpoint && o.clearEndpoint) {
+          console.error("Give --endpoint or --clear-endpoint, not both.");
+          process.exit(1);
+        }
+        const root = path.resolve(dir);
+        const next: Record<string, unknown> = { ...settingsOf(root) };
+        if (o.enabled) next.enabled = true;
+        if (o.disabled) next.enabled = false;
+        if (o.backend) next.backend = o.backend;
+        if (o.provider) next.provider = o.provider;
+        if (o.model) next.model = o.model;
+        if (o.endpoint) next.endpoint = o.endpoint;
+        if (o.clearEndpoint) delete next.endpoint;
+        if (o.allowCustomEndpoint) next.allowCustomEndpoint = true;
+        if (o.credential) next.credential = o.credential;
+        if (o.roles !== undefined)
+          next.allowedRoles = o.roles
+            .split(",")
+            .map((r) => r.trim())
+            .filter(Boolean);
+        if (o.budget !== undefined) next.passBudgetTokens = /^\d+$/.test(o.budget) ? Number(o.budget) : o.budget;
+        try {
+          writeSettings(root, next);
+        } catch (e) {
+          if (e instanceof ModelError) {
+            console.error(e.message);
+            process.exit(1);
+          }
+          throw e;
+        }
+        console.log(`Wrote ${path.join(root, ".dp", "bmo.json")}.`);
+      },
+    );
+
+  bmo
+    .command("run")
+    .description(
+      `Run one BMO task: ${TASK_IDS.join(", ")}. Prints what would be sent (where, which files, how large) and sends nothing without --yes-send. A text answer goes to standard output and is not stored; an import file or a decision goes into a draft. Everything else is printed to standard error.`,
+    )
+    .argument("<task>", "The task.")
+    .argument("[path]", "Project folder containing architecture/.", ".")
+    .addOption(new Option("--level <level>", "import-level: the level.").choices(["c1", "c2", "c3"]))
+    .option("--container <id>", "import-level at c3: the container's ID.")
+    .option("--diagram <key>", "explain, challenge: the diagram key (for example context-internet-banking-system).")
+    .option("--element <id>", "explain: an element ID.")
+    .option("--relationship <id>", "explain: a relationship ID.")
+    .option("--lens <name>", "explain: the lens whose sections are sent (default architect).")
+    .option("--draft <id>", "decision-from-draft and draft-summary: the draft (and the version diagrams are read from).")
+    .option("--text-file <file>", "describe-to-model: a file with the description (at most 60 KB).")
+    .option("--code-root <folder>", "Folder holding the source code (default: the project folder).")
+    .option("--show-prompt", "Also print the whole prompt (system and user text).")
+    .option("--yes-send", "Send the prompt shown. Without it nothing is sent and the exit code is 1.")
+    .action(
+      async (
+        task: string,
+        dir: string,
+        o: {
+          level?: string;
+          container?: string;
+          diagram?: string;
+          element?: string;
+          relationship?: string;
+          lens?: string;
+          draft?: string;
+          textFile?: string;
+          codeRoot?: string;
+          showPrompt?: boolean;
+          yesSend?: boolean;
+        },
+      ) => {
+        const err = (m: string) => console.error(m);
+        const die = (m: string): never => {
+          err(m);
+          process.exit(1);
+        };
+        const project = openProject(dir, o.codeRoot);
+        const settings = settingsOf(project.root);
+        const creds = credentialsOf(project.root);
+        // The person at the command line is the local owner: an architect, as with sign-in off.
+        const can = canRun(settings, creds, "architect");
+        if (!can.ok) die(`BMO cannot run: ${can.reason} (dp bmo status shows the settings; dp bmo set changes them).`);
+        const drafts = new Drafts(project, gitUserName(project.dir));
+        const disk = new DiskCode(project.codeRoot);
+        try {
+          let text: string | undefined;
+          if (o.textFile) {
+            if (fs.statSync(o.textFile).size > 1024 * 1024) die(`${o.textFile} is over 1 MB; at most 60 KB are sent.`);
+            text = fs.readFileSync(o.textFile, "utf-8");
+          }
+          if (o.draft) drafts.info(o.draft); // NotFound for an unknown draft
+          const env: BmoEnv = o.draft
+            ? { project, drafts, disk, view: { src: drafts.get(o.draft), ref: `draft:${o.draft}`, code: drafts.code(o.draft) } }
+            : { project, drafts, disk, view: { src: project, ref: "main", code: disk } };
+          const selectors = parseSelectors({
+            task,
+            ...(o.level ? { level: o.level } : {}),
+            ...(o.container ? { container: o.container } : {}),
+            ...(text !== undefined ? { text } : {}),
+            ...(o.diagram ? { diagram: o.diagram } : {}),
+            ...(o.element ? { element: o.element } : {}),
+            ...(o.relationship ? { relationship: o.relationship } : {}),
+            ...(task === "explain" ? { lens: o.lens ?? "architect" } : o.lens ? { lens: o.lens } : {}),
+          });
+          const plan = planTask(env, selectors, Math.ceil(settings.passBudgetTokens * 1.5));
+          const dest = destinationOf(settings, null);
+          const pv = previewOf(plan, settings, dest);
+          err(`BMO task ${pv.task} (prompt ${pv.promptVersion}) would be sent to ${dest.provider} ${dest.model ?? ""} at ${dest.host}.`);
+          const bytes = pv.files.reduce((n, f) => n + f.bytes, 0);
+          err(`Files in the prompt: ${pv.files.length}${pv.files.length ? ` (${bytes} bytes)` : ""}.`);
+          for (const f of pv.files) err(`  ${f.path}  ${f.bytes} bytes, ${f.lines} lines${f.redactions ? `, ${f.redactions} value${f.redactions === 1 ? "" : "s"} hidden` : ""}`);
+          err(
+            `Estimated input: about ${pv.estTokens} tokens${pv.maxInputTokens ? ` (a run takes at most ${pv.maxInputTokens})` : ""}${pv.estCost ? `, about ${pv.estCost.input.toFixed(4)} in the price's currency (input only)` : ""}.`,
+          );
+          if (pv.redactions) err(`${pv.redactions} value${pv.redactions === 1 ? "" : "s"} in the text blocks were hidden before sending.`);
+          if (o.showPrompt) err(`\n--- system ---\n${pv.system}\n--- user ---\n${pv.user}\n--- end ---`);
+          if (!o.yesSend) die("Nothing was sent. Run the same command with --yes-send to send exactly this.");
+          const result = await runBmo({ env, settings, backend: directBackend(settings, creds), dest, dpDir: path.join(project.root, ".dp"), who: gitUserName(project.dir) ?? null }, plan, pv.hash);
+          if (result.usage)
+            err(
+              `Used ${result.usage.inputTokens ?? "?"} input and ${result.usage.outputTokens ?? "?"} output tokens${result.estCost ? `, about ${result.estCost.total.toFixed(4)} in the price's currency` : ""}.`,
+            );
+          if (result.output === "text") process.stdout.write(result.text.endsWith("\n") ? result.text : `${result.text}\n`);
+          else if (result.output === "import-file") {
+            err(`Created a draft from BMO's answer. Review and accept its items in dp serve, then apply it.`);
+            for (const w of result.warnings) err(`! ${w.pointer ? `${w.pointer}: ` : ""}${w.message}`);
+            console.log(result.draftId);
+          } else {
+            err(`Wrote the proposed decision ${result.decision.id} (${result.decision.file}) into draft ${o.draft}.`);
+            console.log(result.decision.id);
+          }
+        } catch (e) {
+          if (e instanceof BmoInvalid) {
+            err(e.message);
+            for (const x of e.errors) err(`- ${x.pointer ? `${x.pointer}: ` : ""}${x.message}`);
+            err(`\nTo ask again, give BMO this:\n${e.pasteBack}`);
+            process.exit(1);
+          }
+          if (e instanceof BmoError || e instanceof ModelError || e instanceof NotFound) die(e.message);
+          throw e;
+        }
+      },
+    );
 }
 
 /** `dp users ...`: the users file for sign-in. */
@@ -743,5 +973,5 @@ const invokedDirectly = process.argv[1] && fs.realpathSync(process.argv[1]) === 
 if (invokedDirectly) {
   const p = program();
   if (process.argv.length <= 2) p.help();
-  p.parse();
+  void p.parseAsync();
 }

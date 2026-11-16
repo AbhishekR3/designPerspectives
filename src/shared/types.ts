@@ -1572,3 +1572,114 @@ export interface AcceptAllResult {
 export interface ApplyResponse extends ApplyOutcome {
   ok: true;
 }
+
+// ------------------------------------------------------------------ BMO routes (DEC-051, owner answers 3 and 4)
+
+export type BmoProvider = "anthropic" | "openai" | "ollama";
+
+/** `.dp/bmo.json` as the settings route reads and writes it (never holds a key: `credential` is a name). */
+export interface BmoSettingsData {
+  enabled: boolean;
+  backend: "handoff" | "direct";
+  provider?: BmoProvider;
+  model?: string;
+  endpoint?: string;
+  allowCustomEndpoint?: boolean;
+  credential?: string;
+  allowedRoles: Role[];
+  projects?: Record<string, { allowedRoles: Role[] }>;
+  passBudgetTokens: number;
+  maxOutputTokens?: number;
+  timeoutSeconds: number;
+  pricePerMTok?: { input: number; output: number };
+  keepPrompts: boolean;
+  anthropicFallback: boolean;
+}
+
+export interface BmoTaskInfo {
+  id: BmoTaskId;
+  title: string;
+  output: BmoTaskOutput;
+}
+
+/** `GET /api/bmo` and `PUT /api/bmo/settings`: the settings without anything secret, and what the caller may do. */
+export interface BmoStatus {
+  enabled: boolean;
+  backend: "handoff" | "direct";
+  provider: BmoProvider | null;
+  model: string | null;
+  /** Host (and port) the prompt would go to, or null. */
+  host: string | null;
+  /** The stored credential's name, never its value or hint. */
+  credential: string | null;
+  hasCredential: boolean;
+  allowedRoles: Role[];
+  passBudgetTokens: number;
+  maxOutputTokens: number | null;
+  timeoutSeconds: number;
+  pricePerMTok: { input: number; output: number } | null;
+  /** May the caller run BMO now (settings and role), and if not, why. */
+  canRun: { ok: boolean; reason?: string };
+  /** May the caller change the settings (architects, not on a read-only server). */
+  canAdmin: boolean;
+  tasks: BmoTaskInfo[];
+  /** A test backend is plugged in by the server's code (no model, no network); the settings are not consulted except for roles. */
+  fake: boolean;
+  /** The settings file is not valid (the defaults are shown); null when it is fine. */
+  problem: string | null;
+  /** The whole settings object, for architects who edit it (PUT replaces it as a whole); null for everyone else. */
+  settings: BmoSettingsData | null;
+}
+
+/** One file excerpt in a prompt. */
+export interface BmoSentFile {
+  path: string;
+  bytes: number;
+  lines: number;
+  redactions: number;
+}
+
+export interface BmoCost {
+  input: number;
+  output: number;
+  total: number;
+}
+
+/** `POST /api/bmo/preview`: exactly what a run would send, and where. `hash` must be sent back with the run. */
+export interface BmoPreview {
+  task: BmoTaskId;
+  output: BmoTaskOutput;
+  promptVersion: string;
+  hash: string;
+  estTokens: number;
+  /** The most input tokens a run takes (a prompt over it is refused as too large), or null. */
+  maxInputTokens: number | null;
+  destination: { provider: string | null; model: string | null; host: string | null };
+  files: BmoSentFile[];
+  /** Values hidden in the prompt's data blocks. */
+  redactions: number;
+  system: string;
+  user: string;
+  /** From the prices the person entered, for the input tokens only; null without prices. */
+  estCost: BmoCost | null;
+}
+
+/** What every run result reports besides its output. */
+export interface BmoRunInfo {
+  usage: { inputTokens?: number; outputTokens?: number } | null;
+  model: string | null;
+  /** From the prices the person entered and the usage the provider reported; null without either. */
+  estCost: BmoCost | null;
+}
+
+/** `POST /api/bmo/run`: text goes to the caller only (not stored); an import file becomes a draft; a decision is written into the selected draft as proposed. */
+export type BmoRunResult = BmoRunInfo &
+  ({ output: "text"; text: string } | ({ output: "import-file" } & ImportDraftResult) | { output: "decision"; decision: { id: string; file: string; title: string } });
+
+/** The 422 answer when the answer cannot be used: nothing was repaired; `pasteBack` is the text to send back to BMO. */
+export interface BmoRunFailure {
+  detail: string;
+  errors: FieldError[];
+  pasteBack: string;
+  warnings?: FieldError[];
+}

@@ -18,6 +18,10 @@
  *   comment         yes         yes                    yes     comments, ideas, questions, replies, resolving (own text only to change or delete; an architect any)
  *   import          yes         yes                    no      scan the code, intake, check an import file, make an import draft (DEC-051)
  *   import.final    yes         no                     no      finalize or reopen an import level, the import ignore list
+ *   bmo.run         yes         yes                    yes     preview and run a BMO task (DEC-051); also on a read-only server. Whether the role
+ *                                                              may run BMO at all is the settings' `allowedRoles` (bmo/settings.ts `canRun`), and a task
+ *                                                              that makes a draft or changes one needs that draft right as well: the route asks `decide()`
+ *                                                              again with "draft.create" or "edit" (routes/bmo.ts)
  *   (unlisted)      yes         no                     no      deny by default
  *
  * An engineer's own drafts are those whose author is their user name (set by the server at creation);
@@ -59,7 +63,7 @@ const OPEN_PATHS = new Set(["/api/login", "/api/logout", "/api/me", "/api/health
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
 /** "admin": hub and server settings (adding a project, credentials); architects only. */
-export type Action = "open" | "comment" | "edit" | "code" | "draft.create" | "draft.edit" | "draft.discard" | "draft.apply" | "import" | "import.final" | "admin";
+export type Action = "open" | "comment" | "edit" | "code" | "draft.create" | "draft.edit" | "draft.discard" | "draft.apply" | "import" | "import.final" | "bmo.run" | "admin";
 
 /**
  * What every non-GET API route does, by "METHOD path" as registered ("ALL" for app.all). A route
@@ -145,6 +149,10 @@ export const ROUTE_RULES: Record<string, Action> = {
   "POST /api/import/review/feedback": "edit",
   "POST /api/import/ignore": "import.final",
   "POST /api/import/levels/:level": "import.final",
+  // routes/bmo.ts: the settings are the architects' (like credentials); a run is open to every role here, see "bmo.run" in decide()
+  "PUT /api/bmo/settings": "admin",
+  "POST /api/bmo/preview": "bmo.run",
+  "POST /api/bmo/run": "bmo.run",
   // routes/drafts.ts (by draft id in the path, whatever version is selected)
   "POST /api/drafts": "draft.create",
   "PATCH /api/drafts/:id": "draft.edit",
@@ -190,6 +198,8 @@ function notOwn(who: Who, author: string | null | undefined): string | null {
  */
 export function decide(action: Action | undefined, who: Who, ref: string, author?: string | null): string | null {
   if (action === "open") return null;
+  // Every role and every server may ask BMO (a text answer changes nothing); the route adds the draft rights a task needs.
+  if (action === "bmo.run") return null;
   if (who.readOnlyServer) return READ_ONLY_SERVER;
   if (action === "comment") return null; // every role, on every version
   const versioned = action === "edit" || action === "code";
@@ -327,6 +337,12 @@ export class Auth {
     this.on = users !== null;
     if (users) this.setUsers(users);
     if (this.on) dummyHash(); // made now, so the first sign-in with an unknown name is not slower than the rest
+  }
+
+  /** A signed-in user's own role (before any per-project role), or null when sign-in is off or there is no such user. */
+  baseRole(name: string): Role | null {
+    this.refresh();
+    return this.users.get(name.toLowerCase())?.role ?? null;
   }
 
   /** A signed-in user's role in a hub project (DEC-057): read live, so a change applies on the next request. */

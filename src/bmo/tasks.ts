@@ -537,6 +537,8 @@ export function preview<I>(task: Task<I>, inputs: I, ctx: TaskContext): Preview 
 export interface RunOutcome {
   result: TaskResult;
   usage?: { inputTokens?: number; outputTokens?: number };
+  /** The model that answered, when the backend says so. */
+  model?: string;
   backend: string;
   hash: string;
 }
@@ -570,5 +572,6 @@ export async function runTask<I>(task: Task<I>, inputs: I, ctx: TaskContext, bac
   }
   const out: RunOutcome = { result, backend: backend.id, hash: p.hash };
   if (res.usage) out.usage = res.usage;
+  if (res.model) out.model = res.model;
   return out;
 }

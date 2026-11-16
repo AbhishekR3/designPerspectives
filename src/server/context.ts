@@ -11,6 +11,7 @@ import { currentBranch, GitCodes, GitModels, gitUserName, listRefs } from "../co
 import { decisionSummary } from "../core/decisions.js";
 import { CredentialStore } from "../core/credentials.js";
 import type { Fetch } from "../core/workStatus.js";
+import type { Backend } from "../bmo/backend.js";
 import * as flows from "../core/flows.js";
 import { isObj, type Obj } from "../core/util.js";
 import * as ops from "../core/ops.js";
@@ -197,6 +198,8 @@ export interface AppOptions {
   credentials?: CredentialStore;
   /** How the server calls other services (tests replace it); default: the global fetch. */
   fetch?: Fetch;
+  /** A backend for BMO runs, plugged in by code (tests and e2e: a fake). Never chosen by a request or the settings; without it BMO uses the direct backend the settings name. */
+  bmoBackend?: Backend;
 }
 
 /** Everything the route modules work with, built once per app by `createContext`. */
@@ -232,6 +235,10 @@ export interface Ctx {
   /** Integration credentials (DEC-056): the hub's, or the project's own. */
   credentials: CredentialStore;
   fetch: Fetch;
+  /** This project's ID in a hub, or null. */
+  projectId: string | null;
+  /** The BMO backend plugged in by code (a fake in tests), or null. */
+  bmoBackend: Backend | null;
 }
 
 export function createContext(root: string, opts: AppOptions = {}): Ctx {
@@ -349,5 +356,7 @@ export function createContext(root: string, opts: AppOptions = {}): Ctx {
     catalog: opts.catalog ?? (() => null),
     credentials: opts.credentials ?? new CredentialStore(project.root, opts.secretKey === undefined ? (process.env.DP_SECRET_KEY ?? null) : opts.secretKey),
     fetch: opts.fetch ?? ((url, init) => fetch(url, init)),
+    projectId: opts.projectId ?? null,
+    bmoBackend: opts.bmoBackend ?? null,
   };
 }

@@ -15,6 +15,7 @@ import { registerComments } from "./routes/comments.js";
 import { registerDecisions } from "./routes/decisions.js";
 import { registerDrafts } from "./routes/drafts.js";
 import { registerCredentials, registerHub, type HubCtx } from "./routes/hub.js";
+import { registerBmo } from "./routes/bmo.js";
 import { registerImport } from "./routes/import.js";
 import { registerInspect } from "./routes/inspect.js";
 import { registerCatalog, registerFlows, registerModel, registerWork } from "./routes/model.js";
@@ -75,6 +76,7 @@ export function buildApp(root: string, opts: AppOptions & { hub?: boolean } = {}
   registerRead(app, ctx);
   registerDrafts(app, ctx);
   registerImport(app, ctx); // before the model routes: its paths are under /api/import
+  registerBmo(app, ctx); // before the model routes: its paths are under /api/bmo
   registerCatalog(app, ctx); // before the model routes: "/api/elements/from-catalog" is not an element ID
   registerModel(app, ctx);
   registerSidecar(app, ctx);
