@@ -99,7 +99,7 @@ describe("sign-in", () => {
     expect((await c.post("/api/login", { name: "a", password: "b" })).status).toBe(400);
     const { id } = await ok(c.post("/api/drafts", { title: "D", author: "Someone" }));
     const ds = await ok(c.at(`draft:${id}`).get("/api/state"));
-    expect(ds.can).toEqual({ editThis: true, createDraft: true, applyDraft: true, discardDraft: true, writeCode: false, comment: true });
+    expect(ds.can).toEqual({ editThis: true, createDraft: true, applyDraft: true, discardDraft: true, writeCode: false, comment: true, import: true });
     expect(ds.drafts).toMatchObject([{ id, author: "Someone", canDiscard: true }]);
   });
 
@@ -632,9 +632,9 @@ describe("roles", () => {
     const engDraft = await s.draft("engineer");
     const lens = { architect: "architect", engineer: "engineer", viewer: "overview" };
     const main = {
-      architect: { editThis: true, createDraft: true, applyDraft: true, discardDraft: false, writeCode: true, comment: true },
-      engineer: { editThis: false, createDraft: true, applyDraft: false, discardDraft: false, writeCode: false, comment: true },
-      viewer: { editThis: false, createDraft: false, applyDraft: false, discardDraft: false, writeCode: false, comment: true },
+      architect: { editThis: true, createDraft: true, applyDraft: true, discardDraft: false, writeCode: true, comment: true, import: true },
+      engineer: { editThis: false, createDraft: true, applyDraft: false, discardDraft: false, writeCode: false, comment: true, import: true },
+      viewer: { editThis: false, createDraft: false, applyDraft: false, discardDraft: false, writeCode: false, comment: true, import: false },
     };
     for (const r of ROLES) {
       const st = await ok(s.as[r].get("/api/state"));
@@ -654,7 +654,15 @@ describe("roles", () => {
       ] as const) {
         const ds = await ok(s.as[r].at(`draft:${id}`).get("/api/state"));
         // An engineer changes (and discards) only drafts they started.
-        expect(ds.can, `${r} in ${id}`).toEqual({ editThis: discard, createDraft: r !== "viewer", applyDraft: r === "architect", discardDraft: discard, writeCode: false, comment: true });
+        expect(ds.can, `${r} in ${id}`).toEqual({
+          editThis: discard,
+          createDraft: r !== "viewer",
+          applyDraft: r === "architect",
+          discardDraft: discard,
+          writeCode: false,
+          comment: true,
+          import: r !== "viewer",
+        });
         expect(ds.readOnly).toBe(!discard);
       }
     }
@@ -666,7 +674,7 @@ describe("roles", () => {
       const st = await ok(s.as[r].get("/api/state"));
       expect(st.me).toEqual({ name: r, role: r });
       expect(st.readOnly).toBe(true);
-      expect(st.can).toEqual({ editThis: false, createDraft: false, applyDraft: false, discardDraft: false, writeCode: false, comment: false });
+      expect(st.can).toEqual({ editThis: false, createDraft: false, applyDraft: false, discardDraft: false, writeCode: false, comment: false, import: false });
       const res = await s.as[r].patch("/api/elements/atm", { name: "X" });
       expect(res.status).toBe(403);
       expect(res.json().detail).toBe(READ_ONLY_SERVER);
@@ -679,7 +687,7 @@ describe("roles", () => {
     const c = client(demoDir(), { readOnly: true });
     const st = await ok(c.get("/api/state"));
     expect(st).toMatchObject({ me: null, loginRequired: false, readOnly: true });
-    expect(st.can).toEqual({ editThis: false, createDraft: false, applyDraft: false, discardDraft: false, writeCode: false, comment: false });
+    expect(st.can).toEqual({ editThis: false, createDraft: false, applyDraft: false, discardDraft: false, writeCode: false, comment: false, import: false });
     expect((await c.post("/api/drafts", { title: "No" })).json().detail).toBe(READ_ONLY_SERVER);
   });
 
@@ -693,6 +701,24 @@ describe("roles", () => {
     expect(decide(undefined, who("architect"), "main")).toBeNull();
     expect(decide(undefined, who("engineer"), "draft:x")).toBe("Only an architect can do this.");
     expect(decide(undefined, who("viewer"), "draft:x")).toMatch(/viewer/);
+  });
+
+  it("decide(): import for architects and engineers on any version, import.final for architects; neither on a read-only server", () => {
+    const who = (role: Who["role"], readOnlyServer = false): Who => ({ user: { name: role, role }, role, loginRequired: true, readOnlyServer });
+    const expected: Record<string, Record<Who["role"], boolean>> = {
+      import: { architect: true, engineer: true, viewer: false },
+      "import.final": { architect: true, engineer: false, viewer: false },
+    };
+    for (const [action, byRole] of Object.entries(expected)) {
+      for (const r of ROLES) {
+        for (const ref of ["main", "draft:x", "ref:HEAD"]) {
+          expect(decide(action as "import", who(r), ref) === null, `${action} ${r} ${ref}`).toBe(byRole[r]);
+          expect(decide(action as "import", who(r, true), ref), `${action} ${r} ${ref} read-only`).toBe(READ_ONLY_SERVER);
+        }
+      }
+    }
+    expect(decide("import.final", who("engineer"), "main")).toMatch(/Only an architect can finalize/);
+    expect(decide("import", who("viewer"), "main")).toMatch(/viewer/);
   });
 
   it("every non-GET API route is classified (deny by default), and no rule is stale", () => {

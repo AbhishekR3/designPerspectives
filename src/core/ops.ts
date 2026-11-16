@@ -4,6 +4,10 @@
  * All edits made through the UI go through these functions, so the rules live in one place:
  * - IDs are readable slugs (e.g. "api-application"). Structurizr only requires IDs to be unique
  *   (structurizr-core SequentialIntegerIdGeneratorStrategy: "any non-numeric IDs are ignored").
+ *   New elements get the slug of their name, new relationships `<source>--<destination>` (numbered
+ *   when taken). `createElement` and `createRelationship` also take an explicit `id` (the importer,
+ *   DEC-051): it must match EXPLICIT_ID, be its own slug (a relationship's: slugs joined by "--") and
+ *   be free among elements and relationships (`isCleanId`).
  * - Names must be unique among people + software systems, among containers of one system, and
  *   among components of one container (structurizr-core Model.hydrate).
  * - Relationship descriptions must be unique per source/destination pair.
@@ -347,6 +351,26 @@ export function slugify(text: string): string {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
   return slug || "element";
+}
+
+/** An explicit ID given to `createElement` / `createRelationship` (the same shape as a draft ID). */
+export const EXPLICIT_ID = /^[a-z0-9][a-z0-9-]{0,80}$/;
+
+/** Whether `id` is a clean explicit ID: its own slug, or for a relationship (`pair`) slugs joined by
+ *  "--", the form `createRelationship` makes (`api--database`). */
+export function isCleanId(id: string, pair = false): boolean {
+  if (!EXPLICIT_ID.test(id)) return false;
+  return (pair ? id.split("--") : [id]).every((part) => slugify(part) === part);
+}
+
+/** Refuse an explicit ID that is not clean or is already used by an element or relationship. */
+function checkExplicitId(idx: Index, id: string, pair = false): string {
+  if (!isCleanId(id, pair)) {
+    const how = pair ? 'slugs joined by "--", e.g. "web-app--api"' : 'e.g. "payment-service"';
+    throw new ModelError(`"${id}" is not a usable ID: use lower-case letters, digits and single dashes (at most 81 characters), ${how}.`);
+  }
+  if (idx.elements.has(id) || idx.relationships.has(id)) throw new ModelError(`The ID "${id}" is already used by another element or relationship.`);
+  return id;
 }
 
 export function unique(base: string, taken: Set<string> | Map<string, unknown>, sep = "-"): string {
@@ -736,7 +760,8 @@ export function technologyCatalog(idx: Index): string[] {
 
 // --------------------------------------------------------------------------- elements
 
-const CHILD_KIND: Partial<Record<Kind, Kind>> = { softwareSystem: "container", container: "component" };
+/** The kind of element that sits directly inside each kind (the level rules). */
+export const CHILD_KIND: Partial<Record<Kind, Kind>> = { softwareSystem: "container", container: "component" };
 const DEFAULT_NAMES: Record<Kind, string> = {
   person: "New person",
   softwareSystem: "New system",
@@ -755,6 +780,8 @@ export interface NewElement {
   archType?: string | null;
   /** A taken name gets a number ("Database 2") instead of an error. */
   uniqueName?: boolean;
+  /** Use this ID instead of the name's slug (see `isCleanId`); refused when taken. */
+  id?: string | null;
 }
 
 export function createElement(ws: Workspace, spec: NewElement): string {
@@ -778,7 +805,7 @@ export function createElement(ws: Workspace, spec: NewElement): string {
     name = unique(name, takenNames, " ");
   }
   const taken = new Set([...idx.elements.keys(), ...idx.relationships.keys()]);
-  const newId = unique(slugify(name), taken);
+  const newId = spec.id ? checkExplicitId(idx, spec.id) : unique(slugify(name), taken);
   const el: Element = {
     id: newId,
     name,
@@ -1146,6 +1173,8 @@ export interface NewRelationship {
   description?: string | null;
   technology?: unknown;
   kind?: string | null;
+  /** Use this ID instead of `<source>--<destination>` (see `isCleanId`, pair form); refused when taken. */
+  id?: string | null;
 }
 
 export function createRelationship(ws: Workspace, spec: NewRelationship): string {
@@ -1162,7 +1191,7 @@ export function createRelationship(ws: Workspace, spec: NewRelationship): string
   else if (existing.has(description)) throw new ModelError(`A relationship "${description}" already exists between these two elements.`);
 
   const taken = new Set([...idx.relationships.keys(), ...idx.elements.keys()]);
-  const relId = unique(`${sourceId}--${destinationId}`, taken);
+  const relId = spec.id ? checkExplicitId(idx, spec.id, true) : unique(`${sourceId}--${destinationId}`, taken);
   const rel: Relationship = {
     id: relId,
     sourceId,

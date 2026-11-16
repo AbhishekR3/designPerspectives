@@ -421,6 +421,8 @@ export interface Permissions {
   writeCode: boolean;
   /** Add comments, ideas and questions, reply, and resolve them (every role; not on a --read-only server). */
   comment: boolean;
+  /** Scan the code and bring an import file in as a new draft (architects and engineers; DEC-051). */
+  import: boolean;
 }
 
 // ------------------------------------------------------------------ decision records (DEC-050)
@@ -1026,7 +1028,8 @@ export interface CatalogEntry {
 
 // ------------------------------------------------------------------ integration credentials (DEC-056)
 
-export const CREDENTIAL_PROVIDERS = ["github", "gitlab", "jira", "issue-tracker", "observability", "llm", "ci", "other"] as const;
+/** "anthropic", "openai" and "ollama": the LLM backends BMO calls directly (DEC-051); "llm" is any other. */
+export const CREDENTIAL_PROVIDERS = ["github", "gitlab", "jira", "issue-tracker", "observability", "llm", "anthropic", "openai", "ollama", "ci", "other"] as const;
 export type CredentialProvider = (typeof CREDENTIAL_PROVIDERS)[number];
 
 /** A stored credential as the API shows it: never its value. */
@@ -1098,4 +1101,131 @@ export interface WorkRefresh {
   failed: { url: string; reason: string }[];
   /** A stored GitHub credential was used (otherwise public repositories only, at GitHub's lower rate). */
   usedCredential: string | null;
+}
+
+// ------------------------------------------------------------------ import file (DEC-051, Stage B)
+
+/** One problem found in an import file: where it is (a JSON pointer, RFC 6901, "" = the whole file) and what is wrong. */
+export interface FieldError {
+  pointer: string;
+  message: string;
+}
+
+export const IMPORT_LEVELS = ["c1", "c2", "c3", "all"] as const;
+export type ImportLevel = (typeof IMPORT_LEVELS)[number];
+export const IMPORT_OBJECT_TYPES = ["person", "system", "container", "component"] as const;
+export type ImportObjectType = (typeof IMPORT_OBJECT_TYPES)[number];
+export const IMPORT_CONFIDENCE = ["high", "medium", "low"] as const;
+export type ImportConfidence = (typeof IMPORT_CONFIDENCE)[number];
+export const IMPORT_SOURCES = ["bmo", "script", "hand"] as const;
+export type ImportSourceKind = (typeof IMPORT_SOURCES)[number];
+
+/** Why the file says something. Review only: never written to the model. */
+export type ImportEvidence = { kind: "file"; path: string; lines?: [number, number]; text?: string } | { kind: "user"; note: string } | { kind: "scan"; fact: string };
+
+export interface ImportObject {
+  /** The model ID (a slug: `isCleanId`). An ID already in the model means that object. */
+  id: string;
+  type: ImportObjectType;
+  name: string;
+  external?: boolean;
+  /** Containers: a system's ID; components: a container's ID (in the file or the model). */
+  parent?: string;
+  description?: string;
+  technologies?: string[];
+  archType?: string;
+  owner?: string;
+  /** Tag group name to value; both must exist in the project's tag groups. */
+  tags?: Record<string, string>;
+  codePaths?: string[];
+  evidence?: ImportEvidence[];
+  confidence?: ImportConfidence;
+}
+
+export interface ImportRelationship {
+  /** Explicit model ID; leave out for `<source>--<target>`. Not allowed with `via`. */
+  id?: string;
+  source: string;
+  target: string;
+  /** What flows, e.g. "Sends payment requests"; never "uses". */
+  description: string;
+  technologies?: string[];
+  kind?: string;
+  /** The broker (queue, topic) that carries it: two relationships, source→via and via→target. */
+  via?: string;
+  /** The label of via→target (required with `via`). */
+  viaDescription?: string;
+  codePaths?: string[];
+  evidence?: ImportEvidence[];
+  confidence?: ImportConfidence;
+}
+
+export interface ImportFlow {
+  title: string;
+  description?: string;
+  /** `relationship`: a relationship's ID in the file or the model, or `<source>--<target>` of a file relationship (a `via` leg too). */
+  steps: { relationship: string; note?: string }[];
+}
+
+export interface ImportDecision {
+  title: string;
+  status: "proposed";
+  context: string;
+  decision: string;
+  alternatives?: { name: string; whyNot?: string }[];
+  /** Element and relationship IDs (as for flow steps). */
+  affects?: string[];
+  evidence?: ImportEvidence[];
+}
+
+/** An import file, schema version 1 (src/import/schema.ts holds the JSON Schema). */
+export interface ImportFile {
+  schemaVersion: 1;
+  promptVersion?: string;
+  level: ImportLevel;
+  source?: { kind: ImportSourceKind; backend?: string; model?: string };
+  objects: ImportObject[];
+  relationships: ImportRelationship[];
+  flows?: ImportFlow[];
+  decisions?: ImportDecision[];
+  ignore?: string[];
+  questions?: string[];
+  assumptions?: string[];
+}
+
+/** What a field of an existing object did on import. */
+export type ImportKeptReason = "your-edit" | "not-empty" | "catalog" | "exists";
+
+export interface ImportReportItem {
+  id: string;
+  what: "element" | "relationship" | "flow" | "decision";
+  name: string;
+  /** Fields written (created, updated) or concerned. */
+  fields: string[];
+}
+
+export interface ImportKept {
+  id: string;
+  what: ImportReportItem["what"];
+  name: string;
+  field: string;
+  reason: ImportKeptReason;
+  message: string;
+}
+
+/** What an import did to the draft, per object. */
+export interface ImportReport {
+  created: ImportReportItem[];
+  updated: ImportReportItem[];
+  /** Fields (or whole flows and decisions) left as the model has them. */
+  kept: ImportKept[];
+  /** Objects an earlier import wrote, at this file's level, that this file does not mention. Never deleted. */
+  notInImport: ImportReportItem[];
+  /** Objects the file names whose values the model already has. */
+  unchanged: number;
+}
+
+export interface ImportCheck {
+  errors: FieldError[];
+  warnings: FieldError[];
 }

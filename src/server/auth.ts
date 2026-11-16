@@ -16,6 +16,8 @@
  *   draft.discard   yes         own drafts only        no
  *   draft.apply     yes         no                     no
  *   comment         yes         yes                    yes     comments, ideas, questions, replies, resolving (own text only to change or delete; an architect any)
+ *   import          yes         yes                    no      scan the code, intake, check an import file, make an import draft (DEC-051)
+ *   import.final    yes         no                     no      finalize or reopen an import level, the import ignore list
  *   (unlisted)      yes         no                     no      deny by default
  *
  * An engineer's own drafts are those whose author is their user name (set by the server at creation);
@@ -57,7 +59,7 @@ const OPEN_PATHS = new Set(["/api/login", "/api/logout", "/api/me", "/api/health
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
 /** "admin": hub and server settings (adding a project, credentials); architects only. */
-export type Action = "open" | "comment" | "edit" | "code" | "draft.create" | "draft.edit" | "draft.discard" | "draft.apply" | "admin";
+export type Action = "open" | "comment" | "edit" | "code" | "draft.create" | "draft.edit" | "draft.discard" | "draft.apply" | "import" | "import.final" | "admin";
 
 /**
  * What every non-GET API route does, by "METHOD path" as registered ("ALL" for app.all). A route
@@ -200,6 +202,10 @@ export function decide(action: Action | undefined, who: Who, ref: string, author
       return `Engineers can discard only drafts they started. ${author ? `This draft was started by ${author}.` : "This draft has no author."} Ask an architect to discard it.`;
     case "draft.apply":
       return "Only an architect can apply a draft. You can keep working on it; ask an architect to apply it.";
+    case "import":
+      return null; // an import makes a new draft of the engineer's own; nothing reaches main unreviewed
+    case "import.final":
+      return "Only an architect can finalize an import level or change what the import ignores. You can import and review drafts; ask an architect to finalize.";
     default:
       return "Only an architect can do this.";
   }
@@ -215,6 +221,7 @@ export function permissions(who: Who, ref: string, openDraftAuthor: string | nul
     discardDraft: ref.startsWith("draft:") && yes("draft.discard", ref, openDraftAuthor),
     writeCode: ref === "main" && yes("code"),
     comment: yes("comment"),
+    import: yes("import"),
   };
 }
 

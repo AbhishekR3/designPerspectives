@@ -289,3 +289,35 @@ describe("re-slugging a new element on its first rename", () => {
     expect(ops.updateElement(w, sc, s, { name: "Shop" }, { reslug: true })).toBe("shop");
   });
 });
+
+describe("explicit IDs (the importer, DEC-051)", () => {
+  test("createElement and createRelationship use a given ID", () => {
+    const w = ws();
+    const s = ops.createElement(w, { kind: "softwareSystem", name: "Shop", id: "web-shop" });
+    const c = ops.createElement(w, { kind: "container", name: "API", parentId: s, id: "shop-api" });
+    const d = ops.createElement(w, { kind: "container", name: "DB", parentId: s });
+    expect([s, c, d]).toEqual(["web-shop", "shop-api", "db"]);
+    expect(ops.createRelationship(w, { sourceId: c, destinationId: d, description: "Reads", id: "api-reads" })).toBe("api-reads");
+    expect(ops.createRelationship(w, { sourceId: c, destinationId: d, description: "Writes", id: "shop-api--db" })).toBe("shop-api--db");
+    // Without an ID: unchanged behaviour (numbered when the default is taken).
+    expect(ops.createRelationship(w, { sourceId: c, destinationId: d, description: "Locks" })).toBe("shop-api--db-2");
+  });
+
+  test("an ID that is not its own slug, or is taken by an element or a relationship, is refused by name", () => {
+    const w = ws();
+    const s = ops.createElement(w, { kind: "softwareSystem", name: "Shop", id: "shop" });
+    const t = ops.createElement(w, { kind: "softwareSystem", name: "Bank" });
+    ops.createRelationship(w, { sourceId: s, destinationId: t, description: "Pays", id: "pays" });
+    for (const bad of ["Shop", "shop_api", "-shop", "shop--api", "shop-", "a".repeat(82), ""]) {
+      if (!bad) continue;
+      expect(() => ops.createElement(w, { kind: "person", name: `P ${bad}`, id: bad }), bad).toThrow(new RegExp(`"${bad}" is not a usable ID`));
+    }
+    expect(() => ops.createElement(w, { kind: "person", name: "Other shop", id: "shop" })).toThrow(/"shop" is already used/);
+    expect(() => ops.createElement(w, { kind: "person", name: "Payer", id: "pays" })).toThrow(/"pays" is already used/);
+    expect(() => ops.createRelationship(w, { sourceId: t, destinationId: s, description: "Refunds", id: "shop" })).toThrow(/"shop" is already used/);
+    expect(() => ops.createRelationship(w, { sourceId: t, destinationId: s, description: "Refunds", id: "bank---shop" })).toThrow(/is not a usable ID/);
+    expect(ops.isCleanId("bank--shop", true)).toBe(true);
+    expect(ops.isCleanId("bank--shop")).toBe(false);
+    expect(buildIndex(w).elements.size).toBe(2);
+  });
+});

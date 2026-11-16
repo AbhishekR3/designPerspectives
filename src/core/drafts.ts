@@ -26,6 +26,7 @@ import { DECISIONS_DIR, renumberAdded } from "./decisions.js";
 import { syncFlows } from "./flows.js";
 import { isObj, stableJson } from "./util.js";
 import { merge3 } from "./merge.js";
+import { dropPending, foldApplied } from "../import/ledger.js";
 import { ModelError, slugify, unique } from "./ops.js";
 import { FileSnapshot, NotFound, Project, SIDECAR_FILE, WORKSPACE_FILE, atomicWrite } from "./project.js";
 import { flatten, unflatten, UnitError } from "./units.js";
@@ -148,7 +149,8 @@ export class Drafts {
     return b;
   }
 
-  create(title: string, description = "", author?: string | null): string {
+  /** `created`: the date recorded (YYYY-MM-DD; default today), so a generated draft can be made byte for byte again. */
+  create(title: string, description = "", author?: string | null, created?: string): string {
     const t = title.trim();
     if (!t) throw new ModelError("A draft needs a name.");
     if (this.list().some((d) => d.title === t)) throw new ModelError(`A draft named "${t}" already exists.`);
@@ -165,7 +167,7 @@ export class Drafts {
       if (fs.existsSync(decs)) fs.cpSync(decs, path.join(dir, DECISIONS_DIR), { recursive: true });
     }
     const by = author?.trim() || this.author;
-    atomicWrite(path.join(f, DRAFT_FILE), stableJson({ title: t, description: description.trim(), created: new Date().toISOString().slice(0, 10), ...(by ? { author: by } : {}) }));
+    atomicWrite(path.join(f, DRAFT_FILE), stableJson({ title: t, description: description.trim(), created: created ?? new Date().toISOString().slice(0, 10), ...(by ? { author: by } : {}) }));
     return id;
   }
 
@@ -188,6 +190,7 @@ export class Drafts {
   remove(id: string): void {
     const f = this.folder(id);
     fs.rmSync(f, { recursive: true, force: true });
+    dropPending(this.main.dir, id); // a discarded import draft leaves nothing in the import ledger
     this.open.delete(id);
     this.bases.delete(id);
     this.behindCache.delete(id);
@@ -253,6 +256,12 @@ export class Drafts {
     } catch (e) {
       journal.rollback();
       throw e;
+    }
+    try {
+      // An import draft: what it wrote and main now holds becomes the import ledger's base (import/ledger.ts).
+      foldApplied(this.main.dir, this.main.workspace, id);
+    } catch (e) {
+      console.error(`designPerspectives: could not update the import ledger after applying draft "${id}":`, e);
     }
     this.remove(id);
   }

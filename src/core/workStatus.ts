@@ -18,10 +18,12 @@ const MAX_LINKS = 100;
 const PARALLEL = 4;
 const API_HOST = "api.github.com";
 
+/** The `fetch` the server uses for outside calls (injectable for tests). `method`, `body` and `text()` are
+ *  for the LLM backends (POST with a JSON body, error text); the GitHub calls here only GET and read JSON. */
 export type Fetch = (
   url: string,
-  init: { headers: Record<string, string>; signal: AbortSignal; redirect?: "error" | "manual" | "follow" },
-) => Promise<{ ok: boolean; status: number; json(): Promise<unknown> }>;
+  init: { method?: string; headers: Record<string, string>; body?: string; signal: AbortSignal; redirect?: "error" | "manual" | "follow" },
+) => Promise<{ ok: boolean; status: number; json(): Promise<unknown>; text?(): Promise<string> }>;
 
 export const isGitHubWork = (url: string | undefined): boolean => !!url && GH.test(url);
 

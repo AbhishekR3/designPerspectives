@@ -78,6 +78,7 @@ export function state(project: Project, readOnly = false, sel?: Selection, draft
     discardDraft: !readOnly && (sel?.ref ?? "main").startsWith("draft:"),
     writeCode: legacyEdit && (sel?.ref ?? "main") === "main",
     comment: !readOnly,
+    import: !readOnly,
   };
   const draftList = drafts?.list() ?? [];
   const ws = src.workspace;
