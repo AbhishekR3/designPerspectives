@@ -59,12 +59,42 @@ dp plan <draft> --check            # check the plan against the working copy; ex
 dp plan <draft> --against <branch> # check the plan against a git branch, tag or commit
 dp users init                     # sign-in: create architect, engineer and viewer (passwords printed once)
 dp users add NAME --role ROLE     # add a user; also: dp users passwd NAME, dp users remove NAME, dp users list
+dp serve HUB --hub                # serve several projects and a shared catalog from one hub folder (hub.json)
+dp init HUB --hub --demo          # the demo hub: two projects sharing a customer database
+dp check HUB --hub                # check every project of a hub and its catalog
+dp credentials add NAME --provider github < token.txt   # integration credentials (value from stdin); also list, rotate, remove
 dp --version
 ```
 
 The server listens on `127.0.0.1:8765` only. It answers only requests addressed to localhost and refuses changes sent from other websites. Hidden files and folders (names starting with a dot) in the code folder cannot be opened. Stop it with Ctrl+C.
 
 Model files written by the earlier Python version (0.2) open unchanged.
+
+## Home page, hub and shared catalog
+
+`#/home` (the house link at the top of the sidebar) is the home page: a card per project with a
+picture of its landscape, what needs a look (model problems, drafts behind main, decisions due or
+with a trigger met, shared tables written by several projects, copies that drifted from the
+catalog), what is being watched, and the latest decisions.
+
+A **hub** serves several projects from one folder:
+
+```json
+// hub.json
+{ "version": 1, "name": "Acme Retail Bank", "catalog": "catalog",
+  "projects": [{ "id": "onboarding", "path": "onboarding" }, { "id": "payments", "path": "payments" }] }
+```
+
+Each project is an ordinary project folder. `catalog/` holds the elements several projects share
+(people, systems, databases). A project keeps a **linked copy** of each one it uses: its name,
+description and technology come from the catalog (**Update from catalog** when it changes), the rest
+is the project's own. Elements list their **data** (tables, topics, buckets; shared on a catalog
+element, private on a project's copy), and each relationship says which data it **reads or writes**.
+The **Shared catalog** page shows who uses each shared element and who reads and writes each table.
+One sign-in (`<hub>/.dp/users.json`) covers every project.
+
+**Credentials** (architects): tokens dp will use to reach other services, kept in `.dp/credentials.json`,
+never in git and never shown again after saving. Set `DP_SECRET_KEY` to encrypt them at rest.
 
 ## Sign-in and roles (optional)
 
@@ -102,6 +132,8 @@ The users file holds password hashes and must not be committed. `.dp/` is added 
 | `architecture/workspace.json` | A [Structurizr](https://github.com/structurizr/structurizr) workspace: elements, relationships, views, positions, flows. Readable IDs (`api-application`), stable formatting for `git diff`. |
 | `architecture/comments.json` | Comments, ideas and questions about elements, relationships and diagrams, with replies and resolved state. Created with the first comment. |
 | `architecture/designperspectives.json` | Tag groups, lenses, the list of characteristics and cost settings (data Structurizr has no place for). |
+| `hub.json` (hub folder) | The projects of a hub and its catalog folder. |
+| `.dp/credentials.json` | Integration credentials (not in git; mode 0600; encrypted with `DP_SECRET_KEY`). |
 | `architecture/decisions/NNNN-title.md` | One decision record each: a short front matter (`status`, `kind`, `date`, `deciders`, `affects`, `supersedes`, `tags`, `review-by`, `decide-by`, `expires`, `applies-to`), then `# Title` and the sections Context, Decision, Alternatives (`### Option` with "Why not now" and "Would choose if"), Consequences and Revisit triggers (a checklist). Other sections are kept. Part of the model: drafts, diffs and undo include them. |
 | `architecture/drafts/<id>/` | A draft (planned change): its own `workspace.json`, `designperspectives.json` and `decisions/`, `draft.json` (title, description, date, and optional `branch` and `link`) and `base/` (the main model when the draft was made, used when applying it). `code.json` and `code/` hold planned code edits, kept out of your code folder until apply. |
 
@@ -110,8 +142,9 @@ designPerspectives data stored inside the workspace as Structurizr element prope
 `dp.notes`, `dp.tradeoffs`, `dp.usage`, `dp.sensitive`, `dp.code.paths`, `dp.characteristics`, `dp.cost`,
 `dp.work`, and on relationships `dp.kind`, `dp.stages` (the steps inside a pipeline or protocol, each with
 optional sample data), `dp.example` and `dp.format` (a sample of the data the relationship carries),
-`dp.endpoints` (HTTP calls it carries, for the live UI inspector) and `dp.work`; elements can have `dp.ui.url`
-(where their UI runs).
+`dp.endpoints` (HTTP calls it carries, for the live UI inspector), `dp.data.access` (which data at either
+end it reads or writes) and `dp.work`; elements can have `dp.ui.url` (where their UI runs), `dp.data` (the
+tables, topics or buckets they hold) and `dp.catalog` (the shared catalog element they are a copy of).
 
 The sidecar also holds per-object `styles` (colours, line style, text size) and per-diagram
 `layouts` (box sizes, line anchors/bends/label positions; box positions for connector and code

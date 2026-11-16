@@ -55,7 +55,8 @@ export const READ_ONLY_VERSION = "This version of the model is read-only.";
 const OPEN_PATHS = new Set(["/api/login", "/api/logout", "/api/me", "/api/health"]);
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
-export type Action = "open" | "comment" | "edit" | "code" | "draft.create" | "draft.edit" | "draft.discard" | "draft.apply";
+/** "admin": hub and server settings (adding a project, credentials); architects only. */
+export type Action = "open" | "comment" | "edit" | "code" | "draft.create" | "draft.edit" | "draft.discard" | "draft.apply" | "admin";
 
 /**
  * What every non-GET API route does, by "METHOD path" as registered ("ALL" for app.all). A route
@@ -94,6 +95,16 @@ export const ROUTE_RULES: Record<string, Action> = {
   "POST /api/flows": "edit",
   "PUT /api/flows/:key": "edit",
   "DELETE /api/flows/:key": "edit",
+  // routes/catalog.ts: linked copies of shared catalog elements (DEC-054)
+  "POST /api/elements/from-catalog": "edit",
+  "POST /api/elements/:id/catalog": "edit",
+  "POST /api/elements/:id/catalog/sync": "edit",
+  "DELETE /api/elements/:id/catalog": "edit",
+  // routes/credentials.ts: integration credentials, architects only (DEC-055)
+  "POST /api/credentials": "admin",
+  "PUT /api/credentials/:name": "admin",
+  "PATCH /api/credentials/:name": "admin",
+  "DELETE /api/credentials/:name": "admin",
   // routes/decisions.ts: decision records are part of the model (DEC-050)
   "POST /api/decisions": "edit",
   "PUT /api/decisions/:id": "edit",

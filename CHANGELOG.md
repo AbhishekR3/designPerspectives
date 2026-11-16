@@ -3,6 +3,28 @@
 ## Unreleased
 
 ### Added
+- Home page (`#/home`, linked from the top of the sidebar): a card per project with a picture of its
+  landscape, counts, drafts, problems and last commit (cards or a list); "Needs a look" (model
+  problems, drafts behind main, decisions proposed, due, expired or with a trigger met, and the
+  shared catalog's findings); "Watching" (open revisit triggers and dates within 120 days); the latest
+  decisions. Every item links to its diagram, decision, draft or element. `GET /api/home`, `GET /api/hub`
+  (DEC-052).
+- Hubs: `dp serve DIR --hub` serves several project folders listed in `DIR/hub.json`, with one
+  sign-in for all. Requests name the project with the `X-DP-Project` header; the URL keeps it as
+  `pr=`. Architects add a project from the home page (blank or the demo). `dp init --hub [--demo]`,
+  `dp check --hub`. The demo hub (`demo/hub/`) has two projects sharing a customer database (DEC-053).
+- Shared catalog: shared people, systems and databases live once in the hub's catalog; projects keep
+  linked copies (`dp.catalog`) whose name, description and technology come from the catalog (Update
+  from catalog, Add from catalog, Link, Unlink). Data: `dp.data` lists an element's tables, topics or
+  buckets (shared on a catalog element, private on a project's copy); `dp.data.access` says which a
+  relationship reads or writes. The Shared catalog page (Data in a single project) shows who uses each
+  shared element, copies that drifted, and readers and writers of each table, flagging tables used or
+  written by several projects. `GET /api/catalog`, `GET /api/catalog/usage`, `POST /api/elements/from-catalog`,
+  `POST/DELETE /api/elements/:id/catalog`, `POST /api/elements/:id/catalog/sync` (DEC-054).
+- Integration credentials (architects): kept in `.dp/credentials.json` (mode 0600, ignored by git),
+  encrypted with AES-256-GCM when `DP_SECRET_KEY` is set; values are write-only (a masked hint is
+  shown). Credentials page under the home page; `dp credentials list|add|rotate|remove` with values
+  from standard input; `/api/credentials` routes (DEC-055).
 - Decision records. **Decisions** in the navigation bar opens a page listing the model's decisions
   with filters (status, kind, "needs a look", search), each decision's record, and a form to write
   one. Six kinds: choice, conditional ("we would choose Q if X held; it does not, so A": the

@@ -47,6 +47,8 @@ export function blankNode(): Omit<DiagramNode, "id" | "kind" | "name" | "style" 
     childCount: 0,
     uiUrl: "",
     otelService: "",
+    catalogId: "",
+    data: [],
     inScope: true,
     position: null,
     drillKey: null,

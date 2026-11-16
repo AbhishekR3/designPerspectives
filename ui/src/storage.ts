@@ -14,6 +14,9 @@ export const RIGHT_OPEN_KEY = "dp.rightOpen";
 /** Whether the Add palette is open ("1") or collapsed to its button ("0"). Not set: open when the canvas is wide enough. */
 export const PALETTE_KEY = "dp.paletteOpen";
 
+/** How the home page lists projects: "grid" (cards) or "list". */
+export const HOME_VIEW_KEY = "dp.homeView";
+
 /** The name a person types on comments when sign-in is off (kept in this browser only). */
 export const AUTHOR_KEY = "dp.commentAuthor";
 

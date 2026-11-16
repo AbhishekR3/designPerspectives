@@ -1,0 +1,267 @@
+{
+  "name": "Payments",
+  "description": "Card and account-to-account payments, and the ledger behind them.",
+  "model": {
+    "people": [
+      {
+        "id": "customer",
+        "name": "Customer",
+        "description": "A retail customer of the bank.",
+        "tags": "Element,Person",
+        "properties": {
+          "dp.catalog": "customer"
+        },
+        "relationships": [
+          {
+            "id": "customer--payments-api",
+            "sourceId": "customer",
+            "destinationId": "payments-api",
+            "description": "Makes payments using",
+            "technology": "HTTPS",
+            "tags": "Relationship"
+          }
+        ]
+      }
+    ],
+    "softwareSystems": [
+      {
+        "id": "customer-data-platform",
+        "name": "Customer Data Platform",
+        "description": "Customer and account data shared by every product team.",
+        "tags": "Element,Software System",
+        "properties": {
+          "dp.catalog": "customer-data-platform"
+        },
+        "containers": [
+          {
+            "id": "customer-db",
+            "name": "Customer DB",
+            "description": "The bank's customer and account records.",
+            "tags": "Element,Container",
+            "properties": {
+              "dp.catalog": "customer-db",
+              "dp.data": "[{\"name\": \"payment_intents\", \"kind\": \"table\", \"description\": \"Payments in progress.\", \"owner\": \"payments\"}]"
+            },
+            "technology": "PostgreSQL"
+          },
+          {
+            "id": "customer-events",
+            "name": "Customer Events",
+            "description": "Changes to customers, for anyone who needs to follow them.",
+            "tags": "Element,Container",
+            "properties": {
+              "dp.catalog": "customer-events"
+            },
+            "technology": "Kafka"
+          }
+        ]
+      },
+      {
+        "id": "identity-provider",
+        "name": "Identity Provider",
+        "description": "Okta: sign-in for the payments app.",
+        "tags": "Element,Software System",
+        "properties": {
+          "dp.catalog": "identity-provider"
+        }
+      },
+      {
+        "id": "payments",
+        "name": "Payments",
+        "description": "Takes payments and keeps the ledger.",
+        "tags": "Element,Software System",
+        "containers": [
+          {
+            "id": "payments-api",
+            "name": "Payments API",
+            "description": "Takes payment requests.",
+            "tags": "Element,Container",
+            "properties": {
+              "dp.archType": "service"
+            },
+            "relationships": [
+              {
+                "id": "payments-api--identity-provider",
+                "sourceId": "payments-api",
+                "destinationId": "identity-provider",
+                "description": "Checks access tokens with",
+                "technology": "OIDC",
+                "tags": "Relationship"
+              },
+              {
+                "id": "payments-api--customer-db",
+                "sourceId": "payments-api",
+                "destinationId": "customer-db",
+                "description": "Reads customers and records payments in",
+                "technology": "JDBC",
+                "tags": "Relationship",
+                "properties": {
+                  "dp.data.access": "[{\"asset\": \"customers\", \"mode\": \"read\"}, {\"asset\": \"payment_intents\", \"mode\": \"write\"}]"
+                }
+              }
+            ],
+            "technology": "Java, Spring Boot"
+          },
+          {
+            "id": "ledger-worker",
+            "name": "Ledger Worker",
+            "description": "Posts ledger entries and updates balances.",
+            "tags": "Element,Container",
+            "properties": {
+              "dp.archType": "pipeline"
+            },
+            "relationships": [
+              {
+                "id": "ledger-worker--customer-db",
+                "sourceId": "ledger-worker",
+                "destinationId": "customer-db",
+                "description": "Posts ledger entries to",
+                "technology": "JDBC",
+                "tags": "Relationship",
+                "properties": {
+                  "dp.data.access": "[{\"asset\": \"accounts\", \"mode\": \"write\"}, {\"asset\": \"audit_log\", \"mode\": \"write\"}]"
+                }
+              },
+              {
+                "id": "ledger-worker--customer-events",
+                "sourceId": "ledger-worker",
+                "destinationId": "customer-events",
+                "description": "Follows customer changes on",
+                "technology": "Kafka",
+                "tags": "Relationship",
+                "properties": {
+                  "dp.data.access": "[{\"asset\": \"customer-changed\", \"mode\": \"read\"}]"
+                }
+              }
+            ],
+            "technology": "Go"
+          }
+        ]
+      }
+    ]
+  },
+  "views": {
+    "systemLandscapeViews": [
+      {
+        "key": "landscape",
+        "order": 1,
+        "description": "System landscape",
+        "properties": {
+          "dp.level": "landscape"
+        },
+        "elements": [
+          {
+            "id": "customer"
+          },
+          {
+            "id": "customer-data-platform"
+          },
+          {
+            "id": "identity-provider"
+          },
+          {
+            "id": "payments"
+          }
+        ]
+      }
+    ],
+    "systemContextViews": [
+      {
+        "key": "context-customer-data-platform",
+        "order": 2,
+        "description": "Customer Data Platform — context",
+        "properties": {
+          "dp.level": "context"
+        },
+        "softwareSystemId": "customer-data-platform",
+        "elements": [
+          {
+            "id": "customer-data-platform"
+          },
+          {
+            "id": "payments"
+          }
+        ]
+      },
+      {
+        "key": "context-payments",
+        "order": 3,
+        "description": "Payments — context",
+        "properties": {
+          "dp.level": "context"
+        },
+        "softwareSystemId": "payments",
+        "elements": [
+          {
+            "id": "payments"
+          },
+          {
+            "id": "customer"
+          },
+          {
+            "id": "identity-provider"
+          },
+          {
+            "id": "customer-data-platform"
+          }
+        ]
+      }
+    ],
+    "containerViews": [
+      {
+        "key": "containers-customer-data-platform",
+        "order": 4,
+        "description": "Customer Data Platform — containers",
+        "properties": {
+          "dp.level": "container"
+        },
+        "softwareSystemId": "customer-data-platform",
+        "elements": [
+          {
+            "id": "customer-db"
+          },
+          {
+            "id": "customer-events"
+          },
+          {
+            "id": "payments"
+          }
+        ]
+      },
+      {
+        "key": "containers-payments",
+        "order": 5,
+        "description": "Payments — containers",
+        "properties": {
+          "dp.level": "container"
+        },
+        "softwareSystemId": "payments",
+        "elements": [
+          {
+            "id": "payments-api"
+          },
+          {
+            "id": "ledger-worker"
+          },
+          {
+            "id": "customer"
+          },
+          {
+            "id": "identity-provider"
+          },
+          {
+            "id": "customer-data-platform"
+          }
+        ],
+        "relationships": [
+          {
+            "id": "customer--payments-api"
+          },
+          {
+            "id": "payments-api--identity-provider"
+          }
+        ]
+      }
+    ]
+  }
+}

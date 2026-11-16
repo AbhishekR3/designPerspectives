@@ -1,0 +1,267 @@
+{
+  "name": "Customer onboarding",
+  "description": "How a new customer signs up and is checked before an account is opened.",
+  "model": {
+    "people": [
+      {
+        "id": "customer",
+        "name": "Customer",
+        "description": "A retail customer of the bank.",
+        "tags": "Element,Person",
+        "properties": {
+          "dp.catalog": "customer"
+        },
+        "relationships": [
+          {
+            "id": "customer--sign-up-web-app",
+            "sourceId": "customer",
+            "destinationId": "sign-up-web-app",
+            "description": "Signs up using",
+            "technology": "HTTPS",
+            "tags": "Relationship"
+          }
+        ]
+      }
+    ],
+    "softwareSystems": [
+      {
+        "id": "customer-data-platform",
+        "name": "Customer Data Platform",
+        "description": "Customer and account data shared by every product team.",
+        "tags": "Element,Software System",
+        "properties": {
+          "dp.catalog": "customer-data-platform"
+        },
+        "containers": [
+          {
+            "id": "customer-db",
+            "name": "Customer DB",
+            "description": "The bank's customer and account records.",
+            "tags": "Element,Container",
+            "properties": {
+              "dp.catalog": "customer-db",
+              "dp.data": "[{\"name\": \"kyc_checks\", \"kind\": \"table\", \"description\": \"Results of identity checks.\", \"owner\": \"onboarding\", \"sensitive\": true}]"
+            },
+            "technology": "PostgreSQL"
+          },
+          {
+            "id": "customer-events",
+            "name": "Customer Events",
+            "description": "Changes to customers, for anyone who needs to follow them.",
+            "tags": "Element,Container",
+            "properties": {
+              "dp.catalog": "customer-events"
+            },
+            "technology": "Kafka"
+          }
+        ]
+      },
+      {
+        "id": "identity-provider",
+        "name": "Identity Provider",
+        "description": "Sign-in and access tokens for every customer-facing app.",
+        "tags": "Element,Software System",
+        "properties": {
+          "dp.catalog": "identity-provider"
+        }
+      },
+      {
+        "id": "onboarding",
+        "name": "Onboarding",
+        "description": "Sign-up and identity checks for new customers.",
+        "tags": "Element,Software System",
+        "containers": [
+          {
+            "id": "sign-up-web-app",
+            "name": "Sign-up Web App",
+            "description": "The sign-up journey.",
+            "tags": "Element,Container",
+            "properties": {
+              "dp.archType": "web"
+            },
+            "relationships": [
+              {
+                "id": "sign-up-web-app--kyc-service",
+                "sourceId": "sign-up-web-app",
+                "destinationId": "kyc-service",
+                "description": "Submits applications to",
+                "technology": "JSON/HTTPS",
+                "tags": "Relationship"
+              },
+              {
+                "id": "sign-up-web-app--identity-provider",
+                "sourceId": "sign-up-web-app",
+                "destinationId": "identity-provider",
+                "description": "Creates the customer's login in",
+                "technology": "OIDC",
+                "tags": "Relationship"
+              }
+            ],
+            "technology": "TypeScript, React"
+          },
+          {
+            "id": "kyc-service",
+            "name": "KYC Service",
+            "description": "Checks a new customer's identity and creates the customer.",
+            "tags": "Element,Container",
+            "properties": {
+              "dp.archType": "service"
+            },
+            "relationships": [
+              {
+                "id": "kyc-service--customer-db",
+                "sourceId": "kyc-service",
+                "destinationId": "customer-db",
+                "description": "Creates customers in",
+                "technology": "JDBC",
+                "tags": "Relationship",
+                "properties": {
+                  "dp.data.access": "[{\"asset\": \"customers\", \"mode\": \"write\"}, {\"asset\": \"kyc_checks\", \"mode\": \"write\"}, {\"asset\": \"audit_log\", \"mode\": \"write\"}]"
+                }
+              },
+              {
+                "id": "kyc-service--customer-events",
+                "sourceId": "kyc-service",
+                "destinationId": "customer-events",
+                "description": "Publishes new customers to",
+                "technology": "Kafka",
+                "tags": "Relationship",
+                "properties": {
+                  "dp.data.access": "[{\"asset\": \"customer-changed\", \"mode\": \"write\"}]"
+                }
+              }
+            ],
+            "technology": "Kotlin"
+          }
+        ]
+      }
+    ]
+  },
+  "views": {
+    "systemLandscapeViews": [
+      {
+        "key": "landscape",
+        "order": 1,
+        "description": "System landscape",
+        "properties": {
+          "dp.level": "landscape"
+        },
+        "elements": [
+          {
+            "id": "customer"
+          },
+          {
+            "id": "customer-data-platform"
+          },
+          {
+            "id": "identity-provider"
+          },
+          {
+            "id": "onboarding"
+          }
+        ]
+      }
+    ],
+    "systemContextViews": [
+      {
+        "key": "context-customer-data-platform",
+        "order": 2,
+        "description": "Customer Data Platform — context",
+        "properties": {
+          "dp.level": "context"
+        },
+        "softwareSystemId": "customer-data-platform",
+        "elements": [
+          {
+            "id": "customer-data-platform"
+          },
+          {
+            "id": "onboarding"
+          }
+        ]
+      },
+      {
+        "key": "context-onboarding",
+        "order": 3,
+        "description": "Onboarding — context",
+        "properties": {
+          "dp.level": "context"
+        },
+        "softwareSystemId": "onboarding",
+        "elements": [
+          {
+            "id": "onboarding"
+          },
+          {
+            "id": "customer"
+          },
+          {
+            "id": "identity-provider"
+          },
+          {
+            "id": "customer-data-platform"
+          }
+        ]
+      }
+    ],
+    "containerViews": [
+      {
+        "key": "containers-customer-data-platform",
+        "order": 4,
+        "description": "Customer Data Platform — containers",
+        "properties": {
+          "dp.level": "container"
+        },
+        "softwareSystemId": "customer-data-platform",
+        "elements": [
+          {
+            "id": "customer-db"
+          },
+          {
+            "id": "customer-events"
+          },
+          {
+            "id": "onboarding"
+          }
+        ]
+      },
+      {
+        "key": "containers-onboarding",
+        "order": 5,
+        "description": "Onboarding — containers",
+        "properties": {
+          "dp.level": "container"
+        },
+        "softwareSystemId": "onboarding",
+        "elements": [
+          {
+            "id": "sign-up-web-app"
+          },
+          {
+            "id": "kyc-service"
+          },
+          {
+            "id": "customer"
+          },
+          {
+            "id": "identity-provider"
+          },
+          {
+            "id": "customer-data-platform"
+          }
+        ],
+        "relationships": [
+          {
+            "id": "customer--sign-up-web-app"
+          },
+          {
+            "id": "sign-up-web-app--kyc-service"
+          },
+          {
+            "id": "sign-up-web-app--identity-provider"
+          }
+        ]
+      }
+    ]
+  }
+}

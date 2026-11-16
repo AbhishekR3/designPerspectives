@@ -36,12 +36,18 @@
  *   dp.endpoints     JSON [{"method","path"}]                  relationships; HTTP calls it carries (live UI inspector)
  *   dp.ui.url        where the UI runs (http/https)               elements; opened by the live UI inspector
  *   dp.otel.service  service.name in trace files                  elements; when it differs from the ID and name
+ *   dp.catalog       ID of the shared catalog element this copies   elements (hub, DEC-054); its name, description
+ *                    and technology come from the catalog and are refused here
+ *   dp.data          JSON [{"name","kind","description","owner","sensitive"}]  elements; tables, topics, buckets
+ *   dp.data.access   JSON [{"asset","mode"}]                       relationships; data of the element at either
+ *                    end that the relationship reads or writes (mode "read" | "write")
  */
 
 import path from "node:path";
 import { inlineJson, isObj, round2, str, type Obj } from "./json.js";
 import { STYLE_KEYS, type Sidecar } from "./sidecar.js";
 import { tagsFor, VIEW_LISTS, type Element, type Kind, type Relationship, type Workspace } from "./workspace.js";
+import { DATA_KINDS, type DataAccess, type DataAsset, type DataKind } from "../shared/types.js";
 import type { CostItem, DetailTable, ElementSummary, Endpoint, Enums, Rating, Relationship as RelationshipSummary, SensitiveItem, Stage, Style, Tradeoff, Usage, WorkItem } from "../shared/types.js";
 
 export const OWNER_KEY = "dp.owner";
@@ -63,6 +69,9 @@ export const EXAMPLE_MAX = 8000;
 export const ENDPOINTS_KEY = "dp.endpoints";
 export const UI_URL_KEY = "dp.ui.url";
 export const OTEL_SERVICE_KEY = "dp.otel.service";
+export const CATALOG_KEY = "dp.catalog";
+export const DATA_KEY = "dp.data";
+export const ACCESS_KEY = "dp.data.access";
 const HTTP_METHODS = new Set(["*", "GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]);
 
 /** Endpoints from objects ({method, path}) or lines ("GET /api/accounts/:id", "/health" = any method). */
@@ -110,7 +119,9 @@ export function cleanUiUrl(value: unknown): string {
 
 /** A sample payload: blank lines at the ends dropped, refused when longer than EXAMPLE_MAX. */
 export function cleanExample(value: unknown, what: string): string {
-  const text = str(value).replace(/^\s*\n|\n\s*$/g, "").replace(/\s+$/, "");
+  const text = str(value)
+    .replace(/^\s*\n|\n\s*$/g, "")
+    .replace(/\s+$/, "");
   if (text.length > EXAMPLE_MAX) throw new ModelError(`The example data for ${what} is ${text.length} characters; the limit is ${EXAMPLE_MAX}. Keep one short, representative sample.`);
   return text;
 }
@@ -674,6 +685,8 @@ export function elementSummary(idx: Index, elementId: string): ElementSummary {
     childCount: idx.childrenOf(el.id).length,
     uiUrl: props[UI_URL_KEY] ?? "",
     otelService: props[OTEL_SERVICE_KEY] ?? "",
+    catalogId: props[CATALOG_KEY] ?? "",
+    data: getJson<DataAsset>(el, DATA_KEY),
   };
 }
 
@@ -698,6 +711,7 @@ export function relationshipSummary(r: Relationship): RelationshipSummary {
     example: props[EXAMPLE_KEY] ?? "",
     format: props[FORMAT_KEY] ?? "",
     endpoints: getJson<Endpoint>(r, ENDPOINTS_KEY),
+    dataAccess: getJson<DataAccess>(r, ACCESS_KEY),
   };
 }
 
@@ -840,6 +854,14 @@ export function updateElement(ws: Workspace, sidecar: Sidecar, elementId: string
   const el = idx.el(elementId);
   const kind = idx.kindOf(elementId);
   const oldName = el.name;
+  const linked = getProps(el)[CATALOG_KEY];
+  if (linked) {
+    // A linked copy's name, description and technology come from the shared catalog (DEC-054).
+    const same = (k: string, now: string) => !(k in patch) || str(patch[k]).trim() === now;
+    if (!same("name", el.name) || !same("description", el.description || "") || ("technology" in patch && joinTech(patch.technology) !== (el.technology ?? null))) {
+      throw new ModelError(`"${el.name}" is a copy of the shared catalog element "${linked}": change its name, description and technology in the catalog, then update this copy from the catalog.`);
+    }
+  }
 
   if ("name" in patch) {
     const name = str(patch.name).trim();
@@ -881,6 +903,7 @@ export function updateElement(ws: Workspace, sidecar: Sidecar, elementId: string
   }
   if ("cost" in patch) setJson(el, COST_KEY, cleanCost(patch.cost));
   if ("work" in patch) setJson(el, WORK_KEY, cleanWork(patch.work));
+  if ("data" in patch) setJson(el, DATA_KEY, cleanData(patch.data));
   if ("tags" in patch) {
     const tags = isObj(patch.tags) ? patch.tags : {};
     for (const [group, value] of Object.entries(tags)) {
@@ -1071,6 +1094,7 @@ export function duplicateElement(ws: Workspace, sidecar: Sidecar, elementId: str
   const copy = buildIndex(ws).el(newId);
   copy.url = src.url ?? null;
   copy.properties = src.properties ? { ...src.properties } : null;
+  setProp(copy, CATALOG_KEY, null); // a copy named "X copy" is not the catalog's "X"
   setJson(copy, CODE_KEY, []);
   setJson(copy, WORK_KEY, []);
   if (sidecar.styles[elementId]) sidecar.styles[newId] = structuredClone(sidecar.styles[elementId]!);
@@ -1168,6 +1192,109 @@ export function updateRelationship(ws: Workspace, relId: string, patch: Obj): vo
   if ("example" in patch) setProp(r, EXAMPLE_KEY, cleanExample(patch.example, "this relationship") || null);
   if ("format" in patch) setProp(r, FORMAT_KEY, str(patch.format).trim() || null);
   if ("endpoints" in patch) setJson(r, ENDPOINTS_KEY, cleanEndpoints(patch.endpoints));
+  if ("dataAccess" in patch) setJson(r, ACCESS_KEY, cleanAccess(patch.dataAccess));
+}
+
+// --------------------------------------------------------------------------- data assets and the shared catalog (DEC-054)
+
+/** Data an element holds: names unique and non-empty; kind from DATA_KINDS (default "table"). */
+export function cleanData(items: unknown): DataAsset[] {
+  const out: DataAsset[] = [];
+  const seen = new Set<string>();
+  for (const x of asRows(items)) {
+    const name = s(x.name);
+    if (!name) continue;
+    if (seen.has(name.toLowerCase())) throw new ModelError(`The data "${name}" is listed twice.`);
+    seen.add(name.toLowerCase());
+    const kind = (str(x.kind) || "table") as DataKind;
+    if (!(DATA_KINDS as readonly string[]).includes(kind)) throw new ModelError(`Unknown kind of data "${kind}".`);
+    const row: DataAsset = { name: name.slice(0, 200), kind };
+    const description = s(x.description);
+    if (description) row.description = description;
+    const owner = s(x.owner);
+    if (owner) row.owner = owner.slice(0, 200);
+    if (x.sensitive === true) row.sensitive = true;
+    out.push(row);
+  }
+  return out;
+}
+
+/** What a relationship reads or writes: one entry per asset ("write" if both were given). */
+export function cleanAccess(items: unknown): DataAccess[] {
+  const out = new Map<string, DataAccess>();
+  for (const x of asRows(items)) {
+    const asset = s(x.asset);
+    if (!asset) continue;
+    const mode = str(x.mode) || "read";
+    if (mode !== "read" && mode !== "write") throw new ModelError(`Data access to "${asset}" must be "read" or "write".`);
+    if (out.get(asset)?.mode !== "write") out.set(asset, { asset, mode });
+  }
+  return [...out.values()];
+}
+
+/** The fields a linked copy takes from its catalog element. */
+export interface CatalogSource {
+  id: string;
+  kind: Kind;
+  name: string;
+  description: string;
+  technology: string | null;
+  /** The catalog parent's ID (containers and components). */
+  parentId: string | null;
+}
+
+/** The catalog element `catalogId` as a source for copies; a ModelError if there is none. */
+export function catalogSource(catalog: Workspace, catalogId: string): CatalogSource {
+  const idx = buildIndex(catalog);
+  const el = idx.elements.get(catalogId);
+  if (!el) throw new ModelError(`The shared catalog has no element "${catalogId}".`);
+  return { id: el.id, kind: idx.kindOf(el.id), name: el.name, description: el.description || "", technology: el.technology ?? null, parentId: idx.parentOf(el.id) };
+}
+
+/** Make an element a linked copy of a catalog element and take its name, description and technology. */
+export function linkCatalog(ws: Workspace, elementId: string, src: CatalogSource): void {
+  const idx = buildIndex(ws);
+  const el = idx.el(elementId);
+  if (idx.kindOf(elementId) !== src.kind) throw new ModelError(`"${el.name}" is a ${idx.kindOf(elementId)}; the catalog element "${src.name}" is a ${src.kind}.`);
+  const other = [...idx.elements.values()].find((e) => e.id !== elementId && getProps(e)[CATALOG_KEY] === src.id);
+  if (other) throw new ModelError(`"${other.name}" is already the copy of "${src.name}" in this project.`);
+  setProp(el, CATALOG_KEY, src.id);
+  syncFromCatalog(ws, elementId, src);
+}
+
+/** Take the catalog element's name, description and technology again. */
+export function syncFromCatalog(ws: Workspace, elementId: string, src: CatalogSource): void {
+  const idx = buildIndex(ws);
+  const el = idx.el(elementId);
+  if (el.name !== src.name && siblingNames(idx, idx.kindOf(elementId), idx.parentOf(elementId), elementId).has(src.name)) {
+    throw new ModelError(`Another element here is already named "${src.name}"; rename it first.`);
+  }
+  el.name = src.name;
+  el.description = src.description || null;
+  if (src.kind === "container" || src.kind === "component") el.technology = src.technology;
+}
+
+export function unlinkCatalog(ws: Workspace, elementId: string): void {
+  setProp(buildIndex(ws).el(elementId), CATALOG_KEY, null);
+}
+
+/** Add a linked copy of a catalog element. A container or component goes inside `parentId`, or else
+ *  inside the copy of its catalog parent (made too, as a linked copy, when the project has none). */
+export function addFromCatalog(ws: Workspace, catalog: Workspace, catalogId: string, parentId: string | null = null): string {
+  const src = catalogSource(catalog, catalogId);
+  const idx = buildIndex(ws);
+  const existing = [...idx.elements.values()].find((e) => getProps(e)[CATALOG_KEY] === catalogId);
+  if (existing) throw new ModelError(`"${existing.name}" is already the copy of "${src.name}" in this project.`);
+  let parent = parentId;
+  if (src.kind === "container" || src.kind === "component") {
+    if (!parent) {
+      const copyOfParent = [...idx.elements.values()].find((e) => getProps(e)[CATALOG_KEY] === src.parentId);
+      parent = copyOfParent ? copyOfParent.id : addFromCatalog(ws, catalog, src.parentId!);
+    }
+  } else parent = null;
+  const id = createElement(ws, { kind: src.kind, name: src.name, parentId: parent, description: src.description, technology: src.technology });
+  setProp(buildIndex(ws).el(id), CATALOG_KEY, src.id);
+  return id;
 }
 
 export function deleteRelationship(ws: Workspace, relId: string): void {

@@ -17,6 +17,10 @@ import { readDemoHistory, writeDemoHistory } from "./core/demoHistory.js";
 import { DEMO_APP_PORT, startDemoApp } from "./server/demoApp.js";
 import { addUser, ensureGitignored, initUsers, needUsers, readUsers, removeUser, setPassword, usersPath, UsersError, type NewPassword } from "./core/users.js";
 import { createApp, LOOPBACK_HOSTS } from "./server/app.js";
+import { CredentialStore } from "./core/credentials.js";
+import { ModelError } from "./core/ops.js";
+import { CREDENTIAL_PROVIDERS } from "./shared/types.js";
+import { checkHubFolder, copyDemoHub, createHubApp, HUB_FILE, HubError, initHub } from "./server/hub.js";
 
 /** Give a new demo folder its made-up git history (skipped inside an existing repository, or without git). */
 function demoHistory(dir: string): void {
@@ -69,14 +73,19 @@ export function program(): Command {
     .argument("[path]", "Project folder; the model goes in <path>/architecture/.", ".")
     .option("--demo", "Start with the sample model (with its sample code and a made-up git history) instead of an empty one.")
     .option("--empty", "Start with an empty model (the default; accepted for compatibility).")
-    .option("--name <name>", "Workspace name (empty model only).")
-    .action((dir: string, o: { demo?: boolean; empty?: boolean; name?: string }) => {
+    .option("--name <name>", "Workspace name (empty model only), or the hub's name with --hub.")
+    .option("--hub", "Create a hub instead: <path>/hub.json and an empty shared catalog (--demo: the demo hub, two projects sharing a database).")
+    .action((dir: string, o: { demo?: boolean; empty?: boolean; name?: string; hub?: boolean }) => {
       try {
         const demo = Boolean(o.demo) && !o.empty;
+        if (o.hub) {
+          console.log(`Created ${initHub(dir, { name: o.name, demo, copyDemo: copyDemoHub })}`);
+          return;
+        }
         console.log(`Created ${initProject(dir, { demo, name: o.name })}`);
         if (demo) demoHistory(dir);
       } catch (e) {
-        if (e instanceof AlreadyExists) {
+        if (e instanceof AlreadyExists || e instanceof HubError) {
           console.error(`Not overwriting: ${e.message}`);
           process.exit(1);
         }
@@ -95,77 +104,172 @@ export function program(): Command {
       (v: string, all: string[]) => [...all, v],
       [] as string[],
     )
-    .option(
-      "--allow-ui-host <name>",
-      "Let the live UI inspector open apps on this host (default: this machine only). Repeat for more.",
-      (v: string, all: string[]) => [...all, v],
-      [] as string[],
-    )
+    .option("--allow-ui-host <name>", "Let the live UI inspector open apps on this host (default: this machine only). Repeat for more.", (v: string, all: string[]) => [...all, v], [] as string[])
     .option("--traces <folder>", "Folder of OpenTelemetry trace files (OTLP JSON) for the live UI inspector (default: <path>/traces).")
     .option("--no-open", "Do not open the browser.")
     .option("--demo", "If the folder has no model, create the sample model (with its sample code and a made-up git history); also run the demo bank web app on 127.0.0.1:4200.")
     .option("--read-only", "Viewer role: browse only; every change is refused.")
     .option("--code-root <folder>", "Folder holding the source code that components point to (default: the project folder).")
     .option("--users <file>", "Users file for sign-in (default: <path>/.dp/users.json; sign-in is off without it).")
-    .action((dir: string, o: { port: number; host: string; allowHost: string[]; allowUiHost: string[]; traces?: string; open: boolean; demo?: boolean; readOnly?: boolean; codeRoot?: string; users?: string }) => {
-      const usersFile = path.resolve(o.users ?? usersPath(dir));
-      let users: ReturnType<typeof readUsers>;
-      try {
-        // A users file that is given but missing, or not valid, stops the server: never run without the login it asks for.
-        if (o.users && !fs.existsSync(usersFile)) throw new UsersError(`There is no users file at ${usersFile}.`);
-        users = readUsers(usersFile);
-      } catch (e) {
-        if (!(e instanceof UsersError)) throw e;
-        console.error(`Cannot start: ${e.message}`);
-        process.exit(1);
-      }
-      if (!fs.existsSync(path.join(dir, ARCH_DIR, WORKSPACE_FILE))) {
-        const demo = Boolean(o.demo);
-        const made = initProject(dir, { demo });
-        console.log(demo ? `No model found; created the sample model in ${made}` : `No model found; created an empty model in ${made} (use --demo for the sample model)`);
-        if (demo) demoHistory(dir);
-      }
-      const loopback = allowedHostsFor(o.host);
-      const allowedHosts = loopback && [...loopback, ...o.allowHost.map((h) => h.trim().toLowerCase())];
-      let app: ReturnType<typeof createApp>;
-      try {
-        app = createApp(dir, { codeRoot: o.codeRoot ?? null, readOnly: Boolean(o.readOnly), allowedHosts, usersFile: o.users ?? null, uiAllowHosts: o.allowUiHost.map((h) => h.trim().toLowerCase()), tracesDir: o.traces ?? null });
-      } catch (e) {
-        if (e instanceof UsersError) {
+    .option("--hub", "<path> is a hub of projects (hub.json); creates one if missing (--demo: the demo hub). Each project's code folder is its own folder.")
+    .action(
+      (
+        dir: string,
+        o: {
+          port: number;
+          host: string;
+          allowHost: string[];
+          allowUiHost: string[];
+          traces?: string;
+          open: boolean;
+          demo?: boolean;
+          readOnly?: boolean;
+          codeRoot?: string;
+          users?: string;
+          hub?: boolean;
+        },
+      ) => {
+        const usersFile = path.resolve(o.users ?? usersPath(dir));
+        let users: ReturnType<typeof readUsers>;
+        try {
+          // A users file that is given but missing, or not valid, stops the server: never run without the login it asks for.
+          if (o.users && !fs.existsSync(usersFile)) throw new UsersError(`There is no users file at ${usersFile}.`);
+          users = readUsers(usersFile);
+        } catch (e) {
+          if (!(e instanceof UsersError)) throw e;
           console.error(`Cannot start: ${e.message}`);
           process.exit(1);
         }
-        throw e;
-      }
-      if (users) console.log(`Login is on (${users.length} user${users.length === 1 ? "" : "s"})`);
-      else console.log("Login is off (no .dp/users.json; run `dp users init` to add users)");
-      if (allowedHosts === null) {
-        console.error(
-          users
-            ? `Warning: listening on ${o.host}, so other machines can reach this server. Sign-in is on, but the connection is plain HTTP: put an HTTPS proxy in front of it.`
-            : `Warning: listening on ${o.host}, so other machines can reach this server, and it has no login: anyone who can reach it can read and change the model and the code folder.`,
-        );
-      }
-      const url = `http://${o.host}:${o.port}/`;
-      const server = serve({ fetch: app.fetch, port: o.port, hostname: o.host }, () => {
-        console.log(`designPerspectives: ${url}  (Ctrl+C to stop)`);
-        if (o.open) setTimeout(() => openBrowser(url), 500);
-      });
-      if (o.demo) {
-        // The demo bank web app, for the live UI inspector (the demo model points at this address).
-        startDemoApp({ root: dir, webDir: path.join(DEMO_DIR, "web-app"), tracesDir: o.traces })
-          .then((d) => console.log(`Demo web app: ${d.url}  (open it from the Single-Page Application: Inspect live UI; traces go to ${d.tracesFile})`))
-          .catch((e: NodeJS.ErrnoException) =>
-            console.error(e.code === "EADDRINUSE" ? `The demo web app could not start: port ${DEMO_APP_PORT} is in use. The rest of dp works; the live UI inspector needs the app.` : `The demo web app could not start: ${e.message}`),
+        if (o.hub && !fs.existsSync(path.join(dir, HUB_FILE))) {
+          console.log(`No hub found; created ${initHub(dir, { demo: Boolean(o.demo), copyDemo: copyDemoHub })}`);
+        } else if (!o.hub && !fs.existsSync(path.join(dir, ARCH_DIR, WORKSPACE_FILE))) {
+          const demo = Boolean(o.demo);
+          const made = initProject(dir, { demo });
+          console.log(demo ? `No model found; created the sample model in ${made}` : `No model found; created an empty model in ${made} (use --demo for the sample model)`);
+          if (demo) demoHistory(dir);
+        }
+        const loopback = allowedHostsFor(o.host);
+        const allowedHosts = loopback && [...loopback, ...o.allowHost.map((h) => h.trim().toLowerCase())];
+        let app: ReturnType<typeof createApp>;
+        try {
+          const opts = {
+            codeRoot: o.codeRoot ?? null,
+            readOnly: Boolean(o.readOnly),
+            allowedHosts,
+            usersFile: o.users ?? null,
+            uiAllowHosts: o.allowUiHost.map((h) => h.trim().toLowerCase()),
+            tracesDir: o.traces ?? null,
+          };
+          if (o.hub && (o.codeRoot || o.traces)) console.error("In a hub, each project's code and traces folders are its own folder: --code-root and --traces are ignored.");
+          app = o.hub ? createHubApp(dir, opts).app : createApp(dir, opts);
+        } catch (e) {
+          if (e instanceof HubError) {
+            console.error(`Cannot start: ${e.message}`);
+            process.exit(1);
+          }
+          if (e instanceof UsersError) {
+            console.error(`Cannot start: ${e.message}`);
+            process.exit(1);
+          }
+          throw e;
+        }
+        if (users) console.log(`Login is on (${users.length} user${users.length === 1 ? "" : "s"})`);
+        else console.log("Login is off (no .dp/users.json; run `dp users init` to add users)");
+        if (allowedHosts === null) {
+          console.error(
+            users
+              ? `Warning: listening on ${o.host}, so other machines can reach this server. Sign-in is on, but the connection is plain HTTP: put an HTTPS proxy in front of it.`
+              : `Warning: listening on ${o.host}, so other machines can reach this server, and it has no login: anyone who can reach it can read and change the model and the code folder.`,
           );
+        }
+        const url = `http://${o.host}:${o.port}/`;
+        const server = serve({ fetch: app.fetch, port: o.port, hostname: o.host }, () => {
+          console.log(`designPerspectives: ${url}  (Ctrl+C to stop)`);
+          if (o.open) setTimeout(() => openBrowser(url), 500);
+        });
+        if (o.demo && !o.hub) {
+          // The demo bank web app, for the live UI inspector (the demo model points at this address).
+          startDemoApp({ root: dir, webDir: path.join(DEMO_DIR, "web-app"), tracesDir: o.traces })
+            .then((d) => console.log(`Demo web app: ${d.url}  (open it from the Single-Page Application: Inspect live UI; traces go to ${d.tracesFile})`))
+            .catch((e: NodeJS.ErrnoException) =>
+              console.error(
+                e.code === "EADDRINUSE"
+                  ? `The demo web app could not start: port ${DEMO_APP_PORT} is in use. The rest of dp works; the live UI inspector needs the app.`
+                  : `The demo web app could not start: ${e.message}`,
+              ),
+            );
+        }
+        server.on("error", (e: NodeJS.ErrnoException) => {
+          console.error(e.code === "EADDRINUSE" ? `Port ${o.port} is already in use. Try --port <another>.` : e.message);
+          process.exit(1);
+        });
+        const stop = () => server.close(() => process.exit(0));
+        process.on("SIGINT", stop);
+        process.on("SIGTERM", stop);
+      },
+    );
+
+  const cred = p.command("credentials").description("Integration credentials for dp itself, in <folder>/.dp/credentials.json (never in git). Set DP_SECRET_KEY to encrypt them.");
+  const store = (folder: string) => new CredentialStore(folder);
+  const fail = (e: unknown) => {
+    if (e instanceof ModelError) {
+      console.error(e.message);
+      process.exit(1);
+    }
+    throw e;
+  };
+  cred
+    .command("list")
+    .description("List credentials (names, providers, scopes; never values).")
+    .argument("[folder]", "Project or hub folder.", ".")
+    .action((folder: string) => {
+      const l = store(folder).list();
+      if (!l.credentials.length) console.log("No credentials.");
+      for (const c of l.credentials)
+        console.log(`  ${c.name.padEnd(24)} ${c.provider.padEnd(14)} ${c.hint}${c.locked ? "  (locked: another DP_SECRET_KEY)" : ""}${c.scopes.length ? `  [${c.scopes.join(", ")}]` : ""}`);
+      if (!l.encryptsNew) console.log("Values are not encrypted at rest (set DP_SECRET_KEY to encrypt new and rotated ones).");
+    });
+  cred
+    .command("add")
+    .description("Add a credential; the value is read from standard input (so it stays out of your shell history).")
+    .argument("<name>", "e.g. github-token")
+    .argument("[folder]", "Project or hub folder.", ".")
+    .option("--provider <provider>", `One of: ${CREDENTIAL_PROVIDERS.join(", ")}.`, "other")
+    .option("--scopes <list>", "Comma-separated scopes, for your reference.")
+    .option("--note <text>", "What it is for.")
+    .action((name: string, folder: string, o: { provider: string; scopes?: string; note?: string }) => {
+      try {
+        store(folder).add({ name, provider: o.provider, scopes: o.scopes ?? [], note: o.note ?? "", value: fs.readFileSync(0, "utf-8") });
+        console.log(`Added ${name}.`);
+      } catch (e) {
+        fail(e);
       }
-      server.on("error", (e: NodeJS.ErrnoException) => {
-        console.error(e.code === "EADDRINUSE" ? `Port ${o.port} is already in use. Try --port <another>.` : e.message);
-        process.exit(1);
-      });
-      const stop = () => server.close(() => process.exit(0));
-      process.on("SIGINT", stop);
-      process.on("SIGTERM", stop);
+    });
+  cred
+    .command("rotate")
+    .description("Give a credential a new value, read from standard input.")
+    .argument("<name>")
+    .argument("[folder]", "Project or hub folder.", ".")
+    .action((name: string, folder: string) => {
+      try {
+        store(folder).rotate(name, fs.readFileSync(0, "utf-8"));
+        console.log(`Rotated ${name}.`);
+      } catch (e) {
+        fail(e);
+      }
+    });
+  cred
+    .command("remove")
+    .description("Remove a credential.")
+    .argument("<name>")
+    .argument("[folder]", "Project or hub folder.", ".")
+    .action((name: string, folder: string) => {
+      try {
+        store(folder).remove(name);
+        console.log(`Removed ${name}.`);
+      } catch (e) {
+        fail(e);
+      }
     });
 
   p.command("check")
@@ -174,9 +278,9 @@ export function program(): Command {
     .argument("[path]", "Project folder containing architecture/.", ".")
     .option("--code-root <folder>", "Folder holding the source code that components point to (default: the project folder).")
     .option("--strict", "Also fail on warnings (code paths that do not exist).")
-    .action((dir: string, o: { codeRoot?: string; strict?: boolean }) => {
-      const project = openProject(dir, o.codeRoot);
-      const { errors, warnings } = checkProject(project);
+    .option("--hub", "<path> is a hub: check every project and the shared catalog.")
+    .action((dir: string, o: { codeRoot?: string; strict?: boolean; hub?: boolean }) => {
+      const { errors, warnings } = o.hub ? checkHubFolder(dir) : checkProject(openProject(dir, o.codeRoot));
       for (const e of errors) console.log(`- ${e}`);
       for (const w of warnings) console.log(`! ${w}`);
       if (errors.length || (o.strict && warnings.length)) process.exit(1);

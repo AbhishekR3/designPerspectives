@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "name": "Acme Retail Bank",
+  "catalog": "catalog",
+  "projects": [
+    {
+      "id": "onboarding",
+      "path": "onboarding",
+      "name": "Customer onboarding"
+    },
+    {
+      "id": "payments",
+      "path": "payments",
+      "name": "Payments"
+    }
+  ]
+}

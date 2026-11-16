@@ -2,6 +2,7 @@ import { useState } from "react";
 import { api } from "../api";
 import { Discussion } from "../comments";
 import { DecisionSection } from "./DecisionSection";
+import { CatalogSection, DataSection } from "./DataSections";
 import { CodePaths, NewPlannedFile, OpenCodeDiagram } from "../CodeParts";
 import { Fields, Section, TagInput, TextField } from "../fields";
 import { formatMoney, openWork } from "../overlays";
@@ -88,6 +89,8 @@ export function ObjectPanel({ element, ...p }: Common & { element: ElementSummar
           </div>
         )}
       </Fields>
+      {p.catalog && <CatalogSection key={`cat-${element.catalogId}`} element={element} catalog={p.catalog} mutate={p.mutate} readOnly={state.readOnly} />}
+      {element.kind !== "person" && <DataSection key={`data-${JSON.stringify(element.data)}`} element={element} catalog={p.catalog} mutate={p.mutate} />}
       <DecisionSection id={element.id} name={element.name} state={state} mutate={p.mutate} onOpenDecision={p.onOpenDecision} />
       <Discussion target={{ type: "element", id: element.id }} diagramKey={diagram.key} />
       {element.uiUrl && (

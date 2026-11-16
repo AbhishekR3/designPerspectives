@@ -22,6 +22,7 @@ import { errors } from "../src/core/validate.js";
 import { ARCH_DIR, DEMO_DIR, WORKSPACE_FILE } from "../src/core/store.js";
 import type { DemoHistory } from "../src/core/demoHistory.js";
 import * as decisions from "../src/core/decisions.js";
+import { writeDemoHub } from "./demo-hub.js";
 import type { Decision } from "../src/shared/types.js";
 import { dumpWorkspace, emptyWorkspace, parseWorkspace, type Workspace } from "../src/core/workspace.js";
 
@@ -1236,6 +1237,7 @@ function main(): void {
   fs.rmSync(decDir, { recursive: true, force: true });
   fs.mkdirSync(decDir, { recursive: true });
   for (const d of demoDecisions()) fs.writeFileSync(path.join(decDir, d.file), decisions.serializeDecision(d), "utf-8");
+  writeDemoHub(path.join(DEMO_DIR, "hub"));
   console.log(`Wrote ${DEMO_DIR}`);
 }
 

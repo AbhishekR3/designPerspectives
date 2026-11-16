@@ -1,5 +1,5 @@
 import type { BacktrackQuery } from "../api";
-import type { AppState, Diagram, Lens } from "../types";
+import type { AppState, CatalogEntry, Diagram, Lens } from "../types";
 
 export interface Common {
   state: AppState;
@@ -20,6 +20,8 @@ export interface Common {
   onBacktrack(q: BacktrackQuery): void;
   /** Open a decision record on the decisions page. */
   onOpenDecision(id: string): void;
+  /** The hub's shared catalog elements; null when this project is not in a hub with a catalog (or is the catalog). */
+  catalog: CatalogEntry[] | null;
   focusName: boolean;
 }
 

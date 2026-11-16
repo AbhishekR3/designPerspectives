@@ -1,6 +1,7 @@
 import { api } from "../api";
 import { Discussion } from "../comments";
 import { DecisionSection } from "./DecisionSection";
+import { DataAccessSection } from "./DataSections";
 import { CodePaths, OpenCodeDiagram } from "../CodeParts";
 import { Fields, Section, TagInput, TextField } from "../fields";
 import { openWork } from "../overlays";
@@ -101,6 +102,17 @@ export function EdgePanel({ edgeId, ...p }: Common & { edgeId: string }) {
             );
           })}
         </ul>
+        {/* A service's line to a shared database often shows only as a derived line: say what each relationship reads or writes here too. */}
+        {rels.map((r) => (
+          <DataAccessSection
+            key={`acc-${r.id}`}
+            rel={r}
+            state={state}
+            catalog={p.catalog}
+            mutate={mutate}
+            title={rels.length > 1 ? `Data access: ${name(r.sourceId)} → ${name(r.destinationId)}` : undefined}
+          />
+        ))}
         {!state.readOnly && (
           <Section title="Appearance">
             <StylePanel target={edge.id} style={style} edge mutate={mutate} />
@@ -143,6 +155,7 @@ export function EdgePanel({ edgeId, ...p }: Common & { edgeId: string }) {
           </select>
         </label>
       </Fields>
+      <DataAccessSection rel={r} state={state} catalog={p.catalog} mutate={p.mutate} />
       <DecisionSection id={r.id} name={r.description || "this relationship"} state={state} mutate={p.mutate} onOpenDecision={p.onOpenDecision} />
       <Discussion target={{ type: "relationship", id: r.id }} diagramKey={diagram.key} />
       <button className="primary" onClick={() => p.onOpen(detailKey)} data-testid="open-connector">

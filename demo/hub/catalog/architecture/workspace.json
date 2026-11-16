@@ -1,0 +1,121 @@
+{
+  "name": "Shared catalog",
+  "description": "Systems, databases and people that several projects use. Projects keep linked copies; change the shared parts here.",
+  "model": {
+    "people": [
+      {
+        "id": "customer",
+        "name": "Customer",
+        "description": "A retail customer of the bank.",
+        "tags": "Element,Person",
+        "location": "External"
+      }
+    ],
+    "softwareSystems": [
+      {
+        "id": "customer-data-platform",
+        "name": "Customer Data Platform",
+        "description": "Customer and account data shared by every product team.",
+        "tags": "Element,Software System",
+        "containers": [
+          {
+            "id": "customer-db",
+            "name": "Customer DB",
+            "description": "The bank's customer and account records.",
+            "tags": "Element,Container",
+            "properties": {
+              "dp.archType": "database",
+              "dp.data": "[{\"name\": \"customers\", \"kind\": \"table\", \"description\": \"One row per customer: name, address, date of birth.\", \"owner\": \"onboarding\", \"sensitive\": true}, {\"name\": \"accounts\", \"kind\": \"table\", \"description\": \"Accounts and balances.\", \"owner\": \"payments\", \"sensitive\": true}, {\"name\": \"audit_log\", \"kind\": \"table\", \"description\": \"Every change to customer data, append-only.\", \"owner\": \"platform\"}]"
+            },
+            "technology": "PostgreSQL"
+          },
+          {
+            "id": "customer-events",
+            "name": "Customer Events",
+            "description": "Changes to customers, for anyone who needs to follow them.",
+            "tags": "Element,Container",
+            "properties": {
+              "dp.archType": "queue",
+              "dp.data": "[{\"name\": \"customer-changed\", \"kind\": \"topic\", \"owner\": \"onboarding\"}]"
+            },
+            "technology": "Kafka"
+          }
+        ]
+      },
+      {
+        "id": "identity-provider",
+        "name": "Identity Provider",
+        "description": "Sign-in and access tokens for every customer-facing app.",
+        "tags": "Element,Software System"
+      },
+      {
+        "id": "e-mail-service",
+        "name": "E-mail Service",
+        "description": "Sends transactional e-mail.",
+        "tags": "Element,Software System",
+        "location": "External"
+      }
+    ]
+  },
+  "views": {
+    "systemLandscapeViews": [
+      {
+        "key": "landscape",
+        "order": 1,
+        "description": "System landscape",
+        "properties": {
+          "dp.level": "landscape"
+        },
+        "elements": [
+          {
+            "id": "customer"
+          },
+          {
+            "id": "customer-data-platform"
+          },
+          {
+            "id": "identity-provider"
+          },
+          {
+            "id": "e-mail-service"
+          }
+        ]
+      }
+    ],
+    "systemContextViews": [
+      {
+        "key": "context-customer-data-platform",
+        "order": 2,
+        "description": "Customer Data Platform — context",
+        "properties": {
+          "dp.level": "context"
+        },
+        "softwareSystemId": "customer-data-platform",
+        "elements": [
+          {
+            "id": "customer-data-platform"
+          }
+        ]
+      }
+    ],
+    "containerViews": [
+      {
+        "key": "containers-customer-data-platform",
+        "order": 3,
+        "description": "Customer Data Platform — containers",
+        "properties": {
+          "dp.level": "container"
+        },
+        "softwareSystemId": "customer-data-platform",
+        "elements": [
+          {
+            "id": "customer-db"
+          },
+          {
+            "id": "customer-events"
+          }
+        ]
+      }
+    ]
+  }
+}

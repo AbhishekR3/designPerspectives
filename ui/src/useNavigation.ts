@@ -12,6 +12,10 @@ export interface HashState {
   model: string;
   compare: string | null;
   page: string | null;
+  /** The hub project (`pr=`), or null for a single-project server. */
+  project: string | null;
+  /** An element to show once the model is loaded (`reveal=`, from links on the home page). */
+  reveal: string | null;
 }
 export function fromHash(): HashState {
   const h = window.location.hash;
@@ -19,7 +23,14 @@ export function fromHash(): HashState {
   // A page with no diagram yet: `#/decisions...` (a link someone typed or shared).
   const bare = /^#\/(decisions(?:\/[^?]*)?)(?:\?(.*))?$/.exec(h);
   const q = new URLSearchParams(m?.[2] ?? bare?.[2] ?? "");
-  return { key: m?.[1] ? decodeURIComponent(m[1]) : null, model: q.get("m") || "main", compare: q.get("c") || null, page: q.get("p") || bare?.[1] || null };
+  return {
+    key: m?.[1] ? decodeURIComponent(m[1]) : null,
+    model: q.get("m") || "main",
+    compare: q.get("c") || null,
+    page: q.get("p") || bare?.[1] || null,
+    project: q.get("pr") || null,
+    reveal: q.get("reveal") || null,
+  };
 }
 export function keyFromHash(): string | null {
   return fromHash().key;
@@ -27,9 +38,27 @@ export function keyFromHash(): string | null {
 
 /** The page shown over the diagram, as in the hash; hashes written for the diagram keep it. */
 let currentPage: string | null = fromHash().page;
+/** The hub project the app shows; every hash the app writes keeps it (set by Root before the app mounts). */
+let currentProject: string | null = null;
+export function setHashProject(id: string | null): void {
+  currentProject = id;
+}
+
+/** A link into a project: a diagram, with optional page, version and element to reveal. */
+export function projectLink(project: string | null, o: { key?: string; page?: string; model?: string; compare?: string; reveal?: string } = {}): string {
+  const q = new URLSearchParams();
+  if (project) q.set("pr", project);
+  if (o.model && o.model !== "main") q.set("m", o.model);
+  if (o.compare) q.set("c", o.compare);
+  if (o.page) q.set("p", o.page);
+  if (o.reveal) q.set("reveal", o.reveal);
+  const qs = q.toString().replace(/%2F/g, "/");
+  return `#/d/${encodeURIComponent(o.key ?? "landscape")}${qs ? `?${qs}` : ""}`;
+}
 
 export function hashFor(key: string, model: string, compare: string | null, page: string | null = currentPage): string {
   const q = new URLSearchParams();
+  if (currentProject) q.set("pr", currentProject);
   if (model !== "main") q.set("m", model);
   if (compare) q.set("c", compare);
   if (page) q.set("p", page);

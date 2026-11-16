@@ -18,6 +18,7 @@ export function Sidebar({
   onEditCost,
   onRenameWorkspace,
   draftsSection,
+  homeLabel,
 }: {
   state: AppState;
   lens: Lens;
@@ -36,6 +37,8 @@ export function Sidebar({
   onRenameWorkspace(): void;
   /** The Drafts section (main model and planned changes). */
   draftsSection?: React.ReactNode;
+  /** The link back to the home page (DEC-052): the hub's name, or "Home". */
+  homeLabel?: string;
 }) {
   // Editing the model (names, lenses, tag groups, ratings): not on a git version, and not for a role that cannot change this version.
   const canEdit = !state.readOnly;
@@ -60,7 +63,9 @@ export function Sidebar({
     <aside className="sidebar">
       <div className="brand row between">
         <div className="brand-name">
-          <div className="product">designPerspectives</div>
+          <a className="product home-link" href="#/home" title="Home: projects, what needs a look, decisions" data-testid="go-home">
+            <Icon name="home" size={11} /> {homeLabel ?? "Home"}
+          </a>
           {canEdit ? (
             <button className="ws-name link" onClick={onRenameWorkspace} title={`${state.workspace.name}: rename the workspace`} data-testid="ws-name">
               {state.workspace.name}

@@ -27,6 +27,8 @@ designPerspectives is a local tool. In plain words:
 - Sign-in is optional. `dp users init` turns it on. It has three roles (architect, engineer, viewer), and the server enforces them on every change. The browser cannot bypass them.
 - With `--host` set to another interface, the server speaks plain HTTP. Passwords and session cookies then travel in clear text. Put the server behind HTTPS (a TLS proxy) before you expose it.
 - To compare versions, it runs the `git` command. It only reads from git and never changes the repository.
+- In a hub (`dp serve --hub`), no project folder may hold the hub folder or another project, so one project's code routes cannot reach another's model, `hub.json` or the shared catalog.
+- Integration credentials are kept in `.dp/credentials.json` (mode 0600, ignored by git), encrypted with AES-256-GCM when `DP_SECRET_KEY` is set. Their values are never sent to the browser or printed; only architects manage them.
 
 ## Out of scope
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
-import App from "./App";
+import { Root } from "./Root";
 import { api, onSessionEnded, SESSION_ENDED } from "./api";
 import { errorMessage, notify } from "./notify";
 
@@ -119,5 +119,5 @@ export function AuthGate() {
         setPhase({ kind: "signin" });
       });
   };
-  return <App key={round} onSignOut={signOut} />;
+  return <Root key={round} onSignOut={signOut} />;
 }

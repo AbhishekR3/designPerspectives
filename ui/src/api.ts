@@ -1,5 +1,5 @@
 import { notify } from "./notify";
-import type { Decision, DecisionInput, DecisionStatus } from "./types";
+import type { CatalogEntry, CredentialList, Decision, DecisionInput, DecisionStatus, HomeSummary, HubInfo, SharedUsage } from "./types";
 import type {
   AppState,
   ApplyPreview,
@@ -44,6 +44,12 @@ export function setContext(model: string, compare: string | null): void {
   context.compare = compare;
 }
 
+/** The hub project every project request goes to (header X-DP-Project); null when the server serves one project. */
+let project: string | null = null;
+export function setProject(id: string | null): void {
+  project = id;
+}
+
 /** An error from the server; `conflicts` is set when applying a draft was refused. */
 export class ApiError extends Error {
   constructor(
@@ -73,9 +79,12 @@ export function onForbidden(fn: (() => void) | null): void {
   handlers.forbidden = fn;
 }
 
-async function request<T>(method: string, path: string, body?: unknown, opts: { auth?: boolean } = {}): Promise<T> {
-  const headers: Record<string, string> = { "X-DP-Model": context.model };
-  if (context.compare) headers["X-DP-Compare"] = context.compare;
+async function request<T>(method: string, path: string, body?: unknown, opts: { auth?: boolean; project?: string | null; main?: boolean } = {}): Promise<T> {
+  // `main`: a call about another project's main model (the catalog page), whatever version is shown.
+  const headers: Record<string, string> = { "X-DP-Model": opts.main ? "main" : context.model };
+  if (context.compare && !opts.main) headers["X-DP-Compare"] = context.compare;
+  const pr = opts.project === undefined ? project : opts.project;
+  if (pr) headers["X-DP-Project"] = pr;
   if (body !== undefined) headers["Content-Type"] = "application/json";
   const res = await fetch(`/api${path}`, {
     method,
@@ -175,6 +184,23 @@ export const api = {
   deleteFlow: (key: string) => request("DELETE", `/flows/${enc(key)}`),
   changes: () => request<ChangeSet>("GET", "/changes"),
   decisions: () => request<Decision[]>("GET", "/decisions"),
+  // Hub-level: the same in a hub and for one project (DEC-052 to DEC-055).
+  hub: () => request<HubInfo>("GET", "/hub"),
+  home: () => request<HomeSummary>("GET", "/home"),
+  catalog: () => request<CatalogEntry[]>("GET", "/catalog"),
+  catalogUsage: () => request<SharedUsage>("GET", "/catalog/usage"),
+  addProject: (body: { id: string; name: string; template: "empty" | "demo" }) => request<{ id: string }>("POST", "/hub/projects", body),
+  credentials: () => request<CredentialList>("GET", "/credentials"),
+  addCredential: (body: { name: string; provider: string; scopes: string[]; note: string; value: string }) => request("POST", "/credentials", body),
+  rotateCredential: (name: string, value: string) => request("PUT", `/credentials/${enc(name)}`, { value }),
+  updateCredential: (name: string, body: { provider?: string; scopes?: string[]; note?: string }) => request("PATCH", `/credentials/${enc(name)}`, body),
+  removeCredential: (name: string) => request("DELETE", `/credentials/${enc(name)}`),
+  // A project's linked copies of catalog elements; `project` given: that project's main model (the catalog page).
+  fromCatalog: (catalogId: string, parentId: string | null = null, project?: string) =>
+    request<{ id: string }>("POST", "/elements/from-catalog", { catalogId, parentId }, project ? { project, main: true } : {}),
+  linkCatalog: (id: string, catalogId: string) => request("POST", `/elements/${enc(id)}/catalog`, { catalogId }),
+  syncCatalog: (id: string, project?: string) => request("POST", `/elements/${enc(id)}/catalog/sync`, {}, project ? { project, main: true } : {}),
+  unlinkCatalog: (id: string) => request("DELETE", `/elements/${enc(id)}/catalog`),
   createDecision: (body: DecisionInput) => request<{ id: string }>("POST", "/decisions", body),
   updateDecision: (id: string, body: DecisionInput) => request("PUT", `/decisions/${enc(id)}`, body),
   setDecisionStatus: (id: string, status: DecisionStatus) => request("PATCH", `/decisions/${enc(id)}/status`, { status }),

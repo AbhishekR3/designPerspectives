@@ -35,6 +35,8 @@ import { inLens, useLens, useLensState } from "./useLens";
 import { useModel } from "./useModel";
 import { useHashSync, useNavigation, usePage, useReveal } from "./useNavigation";
 import { decisionFlags, DecisionsPage } from "./DecisionsPage";
+import { useCatalog } from "./useCatalog";
+import type { HubInfo } from "./types";
 import { usePanels } from "./usePanels";
 import { useSelection } from "./useSelection";
 import { useShortcuts } from "./useShortcuts";
@@ -55,7 +57,7 @@ type ModalState =
 /** The Add palette starts collapsed on a canvas narrower than this (until the person opens it). */
 const PALETTE_OPEN_FROM = 720;
 
-export default function App({ onSignOut }: { onSignOut(): void }) {
+export default function App({ onSignOut, hub, project = null, initialReveal = null }: { onSignOut(): void; hub?: HubInfo; project?: string | null; initialReveal?: string | null }) {
   // State. Hook order matters only for effects, which run in this order: first load (useModel),
   // URL/history sync (useHashSync), flow autoplay, keyboard shortcuts.
   const { selection, setSelection, focusName, setFocusName, renameId, setRenameId, clearRename, select, startRename, fresh } = useSelection();
@@ -121,6 +123,16 @@ export default function App({ onSignOut }: { onSignOut(): void }) {
   useHashSync({ key, keyRef, setKey, versionRef, loadDiagram, switchVersion, setSelection, setMenu, setFlowStep, setPlaying });
   const flow = useFlowAutoplay(diagram, player);
   const reveal = useReveal(state, diagram, setKey, setSelection);
+  // A link from the home page or the catalog page names an element to show (`reveal=`): once, when the model is in.
+  const revealed = useRef(false);
+  useEffect(() => {
+    if (revealed.current || !initialReveal || !state || !diagram) return;
+    revealed.current = true;
+    reveal(initialReveal, { home: true });
+    if (!rightOpen) toggleRight();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, as soon as the state and a diagram are loaded
+  }, [state, diagram]);
+  const catalog = useCatalog(hub, project);
   /** Open the decisions page (at one decision); the selection goes, so diagram keys cannot act on it unseen. */
   const openDecision = (id: string | null) => {
     setSelection(null);
@@ -267,6 +279,7 @@ export default function App({ onSignOut }: { onSignOut(): void }) {
     onInspectUi: setInspectId,
     onBacktrack: setBacktrackQ,
     onOpenDecision: (id: string) => openDecision(id),
+    catalog,
     focusName,
     onRename: renameElement,
     onMove: setMoveId,
@@ -367,6 +380,7 @@ export default function App({ onSignOut }: { onSignOut(): void }) {
           }}
           onEditCharacteristics={() => setModal({ type: "chars" })}
           onEditCost={() => setModal({ type: "cost" })}
+          homeLabel={hub?.mode === "hub" ? hub.name : "Home"}
           draftsSection={
             <DraftList
               state={state}

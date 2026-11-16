@@ -10,22 +10,13 @@ import { confirmDialog } from "./dialogs";
 import { Icon } from "./icons";
 import { errorMessage, notify } from "./notify";
 import { DecisionEditor } from "./DecisionEditor";
+import { decisionFlags as sharedFlags, isoDay } from "../../src/shared/decisionFlags";
 import { DECISION_KIND_INFO, DECISION_KINDS, DECISION_STATUS_LABEL, DECISION_STATUSES, type AppState, type Decision, type DecisionKind, type DecisionStatus, type DecisionSummary } from "./types";
 
-export const today = (): string => new Date().toISOString().slice(0, 10);
+export const today = (): string => isoDay();
 
-/** What a decision asks of the reader now: a review or a deadline that has come, a trigger that happened. */
-export function decisionFlags(d: DecisionSummary, now = today()): { text: string; tone: "warn" | "info" }[] {
-  const out: { text: string; tone: "warn" | "info" }[] = [];
-  if (d.error) return [{ text: "Cannot be read", tone: "warn" }];
-  const live = d.status === "accepted" || d.status === "proposed";
-  if (live && d.reviewBy && d.reviewBy <= now) out.push({ text: `Review was due ${d.reviewBy}`, tone: "warn" });
-  if (d.kind === "deferred" && d.status === "proposed" && d.decideBy && d.decideBy <= now) out.push({ text: `Decide by ${d.decideBy} has passed`, tone: "warn" });
-  if (d.kind === "time-boxed" && d.status === "accepted" && d.expires && d.expires <= now) out.push({ text: `Expired ${d.expires}`, tone: "warn" });
-  if (live && d.triggers.met) out.push({ text: `${d.triggers.met} trigger${d.triggers.met === 1 ? "" : "s"} met`, tone: "warn" });
-  if (d.status === "proposed") out.push({ text: "Proposed", tone: "info" });
-  return out;
-}
+/** What a decision asks of the reader now (shared rules with the server's home summary). */
+export const decisionFlags = (d: DecisionSummary, now = today()) => sharedFlags(d, now);
 
 export function StatusBadge({ status }: { status: DecisionStatus }) {
   return <span className={`dec-status s-${status}`}>{DECISION_STATUS_LABEL[status]}</span>;

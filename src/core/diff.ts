@@ -54,6 +54,8 @@ const ELEMENT_FIELDS: [string, string][] = [
   ["cost", "Cost"],
   ["work", "Linked work"],
   ["codePaths", "Code"],
+  ["catalogId", "Shared catalog"],
+  ["data", "Data"],
 ];
 
 const RELATIONSHIP_FIELDS: [string, string][] = [
@@ -70,6 +72,7 @@ const RELATIONSHIP_FIELDS: [string, string][] = [
   ["endpoints", "Endpoints"],
   ["work", "Linked work"],
   ["codePaths", "Code"],
+  ["dataAccess", "Data access"],
 ];
 
 const DECISION_FIELDS: [keyof Decision, string][] = [

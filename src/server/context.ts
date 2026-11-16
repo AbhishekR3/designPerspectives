@@ -180,6 +180,12 @@ export interface AppOptions {
   uiAllowHosts?: string[];
   /** Folder of OpenTelemetry trace files (default `<project>/traces`). */
   tracesDir?: string | null;
+  /** Sign-in shared with other projects (a hub); default: this project's own. */
+  auth?: Auth;
+  /** The hub's shared catalog model (DEC-054); absent or null: no catalog. */
+  catalog?: () => Workspace | null;
+  /** Key for credentials at rest (DEC-055); default: the DP_SECRET_KEY environment variable (tests set it). */
+  secretKey?: string | null;
 }
 
 /** Everything the route modules work with, built once per app by `createContext`. */
@@ -210,12 +216,14 @@ export interface Ctx {
   traces: TraceStore;
   /** Comments, ideas and questions (comments.ts); one store for the project, whatever version a request shows. */
   comments: CommentStore;
+  /** The hub's shared catalog model, or null (no hub, no catalog, or this is the catalog). */
+  catalog: () => Workspace | null;
 }
 
 export function createContext(root: string, opts: AppOptions = {}): Ctx {
   const readOnly = opts.readOnly ?? false;
   const project = new Project(root, opts.codeRoot);
-  const auth = new Auth(root, { usersFile: opts.usersFile, readOnly, codeRoot: project.codeRoot, now: opts.now, limits: opts.authLimits });
+  const auth = opts.auth ?? new Auth(root, { usersFile: opts.usersFile, readOnly, codeRoot: project.codeRoot, now: opts.now, limits: opts.authLimits });
   const drafts = new Drafts(project, gitUserName(project.dir));
   const gitModels = new GitModels(project.dir);
   const gitCodes = new GitCodes(project.codeRoot);
@@ -321,5 +329,6 @@ export function createContext(root: string, opts: AppOptions = {}): Ctx {
     uiProxies,
     traces,
     comments: new CommentStore(commentsPath(project.root), opts.now),
+    catalog: opts.catalog ?? (() => null),
   };
 }

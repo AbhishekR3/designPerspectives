@@ -4,9 +4,8 @@ import fs from "node:fs";
 import path from "node:path";
 import type { Hono } from "hono";
 import { staticDir } from "../../core/store.js";
-import type { Ctx } from "../context.js";
 
-export function registerUi(app: Hono, _ctx: Ctx): void {
+export function registerUi(app: Hono): void {
   const ui = staticDir();
   if (ui) {
     app.get("/*", (c) => {

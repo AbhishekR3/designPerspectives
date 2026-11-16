@@ -114,6 +114,26 @@ export interface EdgeLayout {
   routing?: "straight" | "curved" | "smooth" | "orthogonal" | "rounded";
 }
 
+/** Kinds of data held by an element (a database's tables, a broker's topics, ...); DEC-054. */
+export const DATA_KINDS = ["table", "view", "topic", "queue", "bucket", "collection", "file", "index", "other"] as const;
+export type DataKind = (typeof DATA_KINDS)[number];
+
+/** A piece of data an element holds (`dp.data`). In a hub, a catalog element's assets are shared. */
+export interface DataAsset {
+  name: string;
+  kind: DataKind;
+  description?: string;
+  /** The team or project that owns it. */
+  owner?: string;
+  sensitive?: boolean;
+}
+
+/** What a relationship does with an asset of the element at its other end (`dp.data.access`). */
+export interface DataAccess {
+  asset: string;
+  mode: "read" | "write";
+}
+
 export interface ElementSummary {
   id: string;
   kind: NodeKind;
@@ -146,6 +166,10 @@ export interface ElementSummary {
   uiUrl: string;
   /** The service.name this element has in trace files, when it differs from its ID and name; "" when not set. */
   otelService: string;
+  /** The shared catalog element this is a linked copy of (`dp.catalog`), or "". */
+  catalogId: string;
+  /** Data the element holds, its own (`dp.data`). A linked copy also has the catalog element's. */
+  data: DataAsset[];
 }
 
 export interface DiagramNode extends ElementSummary {
@@ -272,6 +296,8 @@ export interface Relationship {
   format: string;
   /** HTTP calls that travel along this relationship, so the live UI inspector can match them. */
   endpoints: Endpoint[];
+  /** Data of the element at either end that this relationship reads or writes. */
+  dataAccess: DataAccess[];
 }
 
 /** An HTTP call pattern: method ("*" for any) and a path ("/api/accounts/:id", "*" matches the rest) or a full URL. */
@@ -838,4 +864,172 @@ export interface TraceList {
   dir: string;
   exists: boolean;
   traces: TraceSummary[];
+}
+
+// ------------------------------------------------------------------ home page and hub (DEC-052, DEC-053)
+
+/** What the server serves: one project (`dp serve PATH`) or a hub of projects (`dp serve --hub DIR`). */
+export interface HubInfo {
+  mode: "single" | "hub";
+  /** The hub's name, or the single project's workspace name. */
+  name: string;
+  projects: HubProject[];
+  /** The catalog project's ID (hub mode with a catalog), or null. */
+  catalog: string | null;
+  /** The signed-in user may add projects and manage credentials (an architect, or sign-in is off). */
+  canAdmin: boolean;
+  loginRequired: boolean;
+  me: SessionUser | null;
+}
+
+export interface HubProject {
+  id: string;
+  name: string;
+  description: string;
+  /** The project's folder relative to the hub (or the folder itself in single mode). */
+  path: string;
+  /** Set when the project's model cannot be loaded. */
+  error: string | null;
+  /** The hub's shared catalog. */
+  catalog: boolean;
+}
+
+/** A small picture of a project's landscape: boxes and lines in a 0..w × 0..h space. */
+export interface Thumb {
+  w: number;
+  h: number;
+  boxes: { x: number; y: number; w: number; h: number; kind: string; external: boolean }[];
+  lines: [number, number, number, number][];
+}
+
+export interface ProjectCard {
+  id: string;
+  name: string;
+  description: string;
+  error: string | null;
+  catalog: boolean;
+  counts: { people: number; systems: number; containers: number; components: number; relationships: number; flows: number; decisions: number };
+  /** Elements linked to the shared catalog. */
+  linked: number;
+  drafts: { open: number; behind: number };
+  problems: { errors: number; warnings: number };
+  lastCommit: { sha: string; date: string; author: string; subject: string } | null;
+  thumb: Thumb | null;
+}
+
+/** Something on the home page that asks for a look, with where to go. */
+export interface AttentionItem {
+  kind: "errors" | "warnings" | "draft-behind" | "decision" | "catalog-drift" | "catalog-missing" | "multi-writer" | "unknown-asset";
+  severity: "error" | "warn" | "info";
+  project: string;
+  text: string;
+  target: { type: "diagram" | "decision" | "draft" | "element" | "catalog"; id: string } | null;
+}
+
+/** A revisit trigger still open, or a decision date coming up. */
+export interface WatchItem {
+  project: string;
+  decision: string;
+  title: string;
+  kind: "trigger" | "review" | "decide" | "expires";
+  text: string;
+  /** YYYY-MM-DD for dates; null for triggers. */
+  date: string | null;
+}
+
+export interface HomeSummary {
+  name: string;
+  mode: "single" | "hub";
+  projects: ProjectCard[];
+  attention: AttentionItem[];
+  watch: WatchItem[];
+  /** The most recent decisions of every project, newest date first. */
+  decisions: (DecisionSummary & { project: string })[];
+  /** Shared elements and data assets (hub with a catalog); null otherwise. */
+  shared: { elements: number; linkedCopies: number; assets: number; sharedAssets: number; multiWriter: number } | null;
+}
+
+// ------------------------------------------------------------------ shared catalog and data (DEC-054)
+
+/** A catalog element and the projects that have a linked copy of it. */
+export interface SharedElementUse {
+  catalogId: string;
+  name: string;
+  kind: Kind;
+  technology: string;
+  data: number;
+  usedBy: { project: string; elementId: string; drift: string[] }[];
+}
+
+/** One data asset (a table, topic, ...) and who reads and writes it, across projects. */
+export interface AssetUse {
+  key: string;
+  name: string;
+  kind: DataKind;
+  description: string;
+  owner: string;
+  sensitive: boolean;
+  /** Defined on a catalog element (shared by design) rather than in one project. */
+  shared: boolean;
+  /** The element that holds it: a catalog element, or a project's own element. */
+  holder: { name: string; catalogId: string | null; project: string | null; elementId: string | null };
+  access: { project: string; elementId: string; elementName: string; mode: "read" | "write"; relationshipId: string }[];
+  /** Distinct projects that use it / write it. */
+  projects: number;
+  writers: number;
+  flags: ("used-by-several" | "several-writers")[];
+}
+
+export interface SharedUsage {
+  mode: "single" | "hub";
+  elements: SharedElementUse[];
+  assets: AssetUse[];
+  /** Linked copies whose name, description or technology differ from the catalog. */
+  drift: { project: string; elementId: string; name: string; catalogId: string; fields: string[] }[];
+  /** Linked copies of catalog elements that no longer exist. */
+  missing: { project: string; elementId: string; name: string; catalogId: string }[];
+  /** Access to data the element at the other end does not have. */
+  unknown: { project: string; relationshipId: string; asset: string; holder: string }[];
+}
+
+/** A catalog element, for the "link to the catalog" pickers. */
+export interface CatalogEntry {
+  id: string;
+  name: string;
+  kind: Kind;
+  description: string;
+  technology: string;
+  parentId: string | null;
+  parentName: string | null;
+  data: DataAsset[];
+}
+
+// ------------------------------------------------------------------ integration credentials (DEC-055)
+
+export const CREDENTIAL_PROVIDERS = ["github", "gitlab", "jira", "issue-tracker", "observability", "llm", "ci", "other"] as const;
+export type CredentialProvider = (typeof CREDENTIAL_PROVIDERS)[number];
+
+/** A stored credential as the API shows it: never its value. */
+export interface CredentialInfo {
+  name: string;
+  provider: CredentialProvider;
+  scopes: string[];
+  note: string;
+  created: string;
+  updated: string;
+  lastUsed: string | null;
+  /** The value's last four characters, masked: "••••abcd" (shorter values: "••••"). */
+  hint: string;
+  /** Stored encrypted (DP_SECRET_KEY). */
+  encrypted: boolean;
+  /** Encrypted with a key this server does not have: it cannot be used until DP_SECRET_KEY is set right. */
+  locked: boolean;
+}
+
+export interface CredentialList {
+  credentials: CredentialInfo[];
+  /** New and rotated values are encrypted (DP_SECRET_KEY is set). */
+  encryptsNew: boolean;
+  /** Where they are kept, relative to the hub or project folder. */
+  file: string;
 }

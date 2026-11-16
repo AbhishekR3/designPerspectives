@@ -7,14 +7,17 @@ import { GitError } from "../core/git.js";
 import * as diagrams from "../core/diagrams.js";
 import { ModelError } from "../core/ops.js";
 import { NotFound } from "../core/store.js";
-import { createContext, HttpError, type AppOptions } from "./context.js";
+import { createContext, HttpError, type AppOptions, type Ctx } from "./context.js";
 import { authorize } from "./auth.js";
 import { installProtection } from "./protect.js";
 import { registerComments } from "./routes/comments.js";
+import { registerCatalog } from "./routes/catalog.js";
 import { registerCode } from "./routes/code.js";
+import { registerCredentials } from "./routes/credentials.js";
 import { registerDecisions } from "./routes/decisions.js";
 import { registerDrafts } from "./routes/drafts.js";
 import { registerFlows } from "./routes/flows.js";
+import { registerHub, type HubCtx } from "./routes/hub.js";
 import { registerHistory } from "./routes/history.js";
 import { registerBacktrack } from "./routes/backtrack.js";
 import { registerInspect } from "./routes/inspect.js";
@@ -28,9 +31,11 @@ export { ROUTE_RULES } from "./auth.js";
 export { LOOPBACK_HOSTS, MAX_BODY_BYTES } from "./protect.js";
 
 export function createApp(root: string, opts: AppOptions = {}): Hono {
-  const ctx = createContext(root, opts);
-  const app = new Hono();
+  return buildApp(root, opts).app;
+}
 
+/** Errors as JSON answers; the same mapping for a project's app and for the hub's. */
+export function onError(app: Hono): void {
   app.onError((err, c) => {
     if (err instanceof GitError) return c.json({ detail: err.message }, 422);
     if (err instanceof ApplyConflict) return c.json({ detail: err.message, conflicts: err.conflicts }, 409);
@@ -43,6 +48,17 @@ export function createApp(root: string, opts: AppOptions = {}): Hono {
     console.error(err);
     return c.json({ detail: "Internal error. See the server log." }, 500);
   });
+}
+
+/**
+ * A project's app and its context. `opts.hub` set: the app is one project of a hub, which answers the
+ * hub-level routes and the UI itself (hub.ts). Otherwise the app serves one project, and answers the
+ * hub-level routes as a hub of one.
+ */
+export function buildApp(root: string, opts: AppOptions & { hub?: boolean } = {}): { app: Hono; ctx: Ctx } {
+  const ctx = createContext(root, opts);
+  const app = new Hono();
+  onError(app);
 
   installProtection(app, { allowedHosts: opts.allowedHosts });
 
@@ -54,8 +70,14 @@ export function createApp(root: string, opts: AppOptions = {}): Hono {
 
   ctx.auth.register(app);
 
+  if (!opts.hub) {
+    const hub = singleHub(root, ctx);
+    registerHub(app, hub);
+    registerCredentials(app, hub, opts.secretKey);
+  }
   registerRead(app, ctx);
   registerDrafts(app, ctx);
+  registerCatalog(app, ctx); // before the model routes: "/api/elements/from-catalog" is not an element ID
   registerModel(app, ctx);
   registerSidecar(app, ctx);
   registerHistory(app, ctx);
@@ -68,7 +90,13 @@ export function createApp(root: string, opts: AppOptions = {}): Hono {
 
   app.all("/api/*", (c) => c.json({ detail: "Not Found" }, 404));
 
-  registerUi(app, ctx);
+  if (!opts.hub) registerUi(app);
 
-  return app;
+  return { app, ctx };
+}
+
+/** A single project seen as a hub of one. */
+function singleHub(root: string, ctx: Ctx): HubCtx {
+  const entry = { id: "main", name: "", path: root, catalog: false, ctx: () => ctx };
+  return { mode: "single", name: () => ctx.project.workspace.name, dir: root, auth: ctx.auth, readOnly: ctx.readOnly, entries: () => [entry], catalogId: null };
 }
