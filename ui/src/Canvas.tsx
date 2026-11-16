@@ -402,7 +402,9 @@ export function Canvas({
         return r === "orthogonal" || r === "rounded";
       })
       .map((e) => ({ id: e.id, source: e.source, target: e.target, sourceAnchor: e.layout.sourceAnchor, targetAnchor: e.layout.targetAnchor, control: e.layout.control }));
-    const ports = planPorts(boxes, routed);
+    const ports = planPorts(boxes, routed, { avoidBoxes: true });
+    // Every shown box is an obstacle for the lines that do not connect it (orthoRoute leaves out the two it is given).
+    const obstacles = Object.values(boxes);
     const commentsOf = (e: (typeof visible)[number]) => {
       const t = edgeCommentTarget(e);
       return t ? (commentCounts.relationship[t.id] ?? null) : null;
@@ -417,7 +419,7 @@ export function Canvas({
     for (const e of visible) {
       const pp = ports[e.id];
       if (!pp) continue;
-      const pts = orthoRoute(pp.source, pp.target, boxes[e.source]!, boxes[e.target]!, e.layout.control);
+      const pts = orthoRoute(pp.source, pp.target, boxes[e.source]!, boxes[e.target]!, e.layout.control, obstacles);
       routes[e.id] = pts;
       const c = commentsOf(e);
       const badges = [
@@ -453,6 +455,7 @@ export function Canvas({
         offset,
         ports: ports[e.id],
         route: routes[e.id],
+        obstacles,
         labelT: labelTs[e.id],
         highlight: current ? "current" : pastSteps.has(e.id) ? "past" : null,
         response: !!reverse,

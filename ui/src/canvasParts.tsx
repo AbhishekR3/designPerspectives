@@ -18,7 +18,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { canvasInsets } from "./insets";
 import { NODE_H, NODE_W } from "./layout";
 import { Icon, iconFor } from "./icons";
-import { defaultLabelT, orthoRoute, sideOfAnchor, type Port, type PortPair } from "./routing";
+import { defaultLabelT, orthoRoute, sideOfAnchor, type Box, type Port, type PortPair } from "./routing";
 import { Shape, shapeInset } from "./shapes";
 import { KIND_LABEL, type DiagramNode, type EdgeLayout, type Pt, type Section, type Style } from "./types";
 import type { CommentCount } from "./comments";
@@ -599,6 +599,8 @@ export type C4EdgeData = {
   /** The planned route of a right-angle line, and where its label sits when `layout.labelT` is not set (both from the whole diagram). */
   route?: Pt[];
   labelT?: number;
+  /** Every box of the diagram (one array shared by all lines; `orthoRoute` skips the line's own two), for routes recomputed while dragging. */
+  obstacles?: Box[];
   highlight: "current" | "past" | null;
   response: boolean;
   dimmed: boolean;
@@ -687,7 +689,7 @@ export function C4Edge({ id, source, target, data, selected, markerEnd, markerSt
     const src = port(rs, L.sourceAnchor, data.ports?.source, L.control ?? ct, drag?.kind === "source");
     const dst = port(rt, L.targetAnchor, data.ports?.target, L.control ?? cs, drag?.kind === "target");
     // The diagram-wide route stands unless an end or the bend is being dragged (then it follows the pointer).
-    pts = data.route && (!drag || drag.kind === "label") ? data.route : orthoRoute(src, dst, rs, rt, L.control);
+    pts = data.route && (!drag || drag.kind === "label") ? data.route : orthoRoute(src, dst, rs, rt, L.control, data.obstacles);
     path = routing === "rounded" ? roundedPath(pts) : `M ${pts.map((p) => `${p.x} ${p.y}`).join(" L ")}`;
   } else if (routing === "smooth") {
     // S-curve that leaves and enters the boxes square to their sides (cubic Bezier).

@@ -88,3 +88,44 @@ test("labels of lines that run side by side do not sit on each other", async ({ 
   // so a different font on another machine, which changes the label sizes a little, does not fail the test.
   expect(pairs.length, pairs.join("\n")).toBeLessThanOrEqual(2);
 });
+
+test("no automatic line is drawn through a box it does not connect", async ({ page, server }) => {
+  await openDiagram(page, KEY);
+  const diagram = await api(server, `/diagrams/${KEY}`);
+  const edges: { id: string; source: string; target: string }[] = diagram.edges;
+  const crossings = await page.evaluate(
+    (list) => {
+      const rects = new Map<string, DOMRect>();
+      for (const el of document.querySelectorAll<HTMLElement>(".react-flow__node[data-id]")) rects.set(el.dataset.id!, el.getBoundingClientRect());
+      const out: string[] = [];
+      for (const e of list) {
+        const path = document.querySelector(`[data-testid="rf__edge-${e.id}"] path.react-flow__edge-path`) as SVGPathElement | null;
+        if (!path) {
+          out.push(`${e.id}: not drawn`);
+          continue;
+        }
+        const m = path.getScreenCTM()!;
+        const total = path.getTotalLength();
+        const scale = Math.hypot(m.a, m.b) || 1;
+        const inset = 4; // screen px; the line's own ends touch their boxes, and rounded corners are not exact
+        for (const [id, r] of rects) {
+          if (id === e.source || id === e.target || id.startsWith("boundary:")) continue;
+          const steps = Math.max(2, Math.ceil((total * scale) / 3));
+          for (let i = 0; i <= steps; i++) {
+            const p = path.getPointAtLength((total * i) / steps);
+            const x = p.x * m.a + p.y * m.c + m.e;
+            const y = p.x * m.b + p.y * m.d + m.f;
+            if (x > r.left + inset && x < r.right - inset && y > r.top + inset && y < r.bottom - inset) {
+              out.push(`${e.id} crosses ${id}`);
+              break;
+            }
+          }
+        }
+      }
+      return out;
+    },
+    edges.map((e) => ({ id: e.id, source: e.source, target: e.target })),
+  );
+  // Measured: 26 crossings before lines avoided boxes (by the same sampling: see tests/routing.test.ts), none now.
+  expect(crossings, crossings.join("\n")).toEqual([]);
+});

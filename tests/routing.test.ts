@@ -499,3 +499,204 @@ describe("placeLabels", () => {
     expect(placeLabels([{ id: "a", pts: [{ x: 5, y: 5 }], size: SIZE }], [])).toEqual({ a: 0.5 });
   });
 });
+
+describe("avoiding other boxes", () => {
+  const W = 225;
+  const H = 120;
+  const box = (x: number, y: number, w = W, h = H): Box => ({ x, y, w, h });
+
+  /** Plan and route every line with the other boxes as obstacles (as the canvas does). */
+  function routeAvoiding(boxes: Record<string, Box>, edges: RouteEdge[], avoid = true) {
+    const plan = planPorts(boxes, edges, { avoidBoxes: avoid });
+    const all = Object.values(boxes);
+    const routes: Record<string, Pt[]> = {};
+    for (const e of edges) {
+      const p = plan[e.id]!;
+      routes[e.id] = orthoRoute(p.source, p.target, boxes[e.source]!, boxes[e.target]!, e.control, avoid ? all : undefined);
+    }
+    return { plan, routes };
+  }
+
+  /** The boxes (other than the line's own two) whose inside a route passes through. */
+  function crossed(pts: Pt[], boxes: Record<string, Box>, e: RouteEdge): string[] {
+    return Object.keys(boxes).filter((id) => id !== e.source && id !== e.target && pts.some((p, i) => i > 0 && crossesInside(pts[i - 1]!, p, boxes[id]!)));
+  }
+
+  test("a box between two aligned boxes: the line goes around it", () => {
+    const boxes = { a: box(0, 0), mid: box(0, 300), b: box(0, 600) };
+    const e: RouteEdge = { id: "e", source: "a", target: "b" };
+    const before = routeAvoiding(boxes, [e], false);
+    expect(crossed(before.routes.e!, boxes, e)).toEqual(["mid"]);
+    const { plan, routes } = routeAvoiding(boxes, [e]);
+    expect(crossed(routes.e!, boxes, e)).toEqual([]);
+    checkRoute(routes.e!, plan.e!.source, plan.e!.target, boxes.a, boxes.b);
+    // Around, not through: it keeps the 15px clearance from the box it passes.
+    for (let i = 1; i < routes.e!.length; i++) expect(crossesInside(routes.e![i - 1]!, routes.e![i]!, { x: -15 + 1e-3, y: 300 - 15 + 1e-3, w: W + 30 - 2e-3, h: H + 30 - 2e-3 })).toBe(false);
+  });
+
+  test("orthoRoute alone goes around an obstacle, and without obstacles nothing changes", () => {
+    const a = box(0, 0);
+    const b = box(0, 600);
+    const mid = box(0, 300);
+    const src: Port = { x: 112.5, y: 120, side: "bottom" };
+    const dst: Port = { x: 112.5, y: 600, side: "top" };
+    expect(orthoRoute(src, dst, a, b, undefined, [])).toEqual(orthoRoute(src, dst, a, b));
+    expect(orthoRoute(src, dst, a, b, undefined, [a, b])).toEqual(orthoRoute(src, dst, a, b));
+    // An obstacle that is not in the way leaves the route as it was.
+    expect(orthoRoute(src, dst, a, b, undefined, [box(900, 300)])).toEqual(orthoRoute(src, dst, a, b));
+    const pts = orthoRoute(src, dst, a, b, undefined, [mid]);
+    checkRoute(pts, src, dst, a, b);
+    for (let i = 1; i < pts.length; i++) expect(crossesInside(pts[i - 1]!, pts[i]!, mid)).toBe(false);
+  });
+
+  // The demo's containers diagram: the customer's lines to three boxes below it.
+  const demo = { customer: box(899, 20), web: box(843, 375), spa: box(928, 645), mobile: box(1243, 645) };
+  const demoEdges: RouteEdge[] = [
+    { id: "c-web", source: "customer", target: "web" },
+    { id: "c-spa", source: "customer", target: "spa" },
+    { id: "c-mobile", source: "customer", target: "mobile" },
+    { id: "web-spa", source: "web", target: "spa" },
+  ];
+
+  test("customer, web application, SPA and mobile app: no line runs through a box it does not connect", () => {
+    const before = routeAvoiding(demo, demoEdges, false);
+    const bad = demoEdges.filter((e) => crossed(before.routes[e.id]!, demo, e).length > 0).map((e) => e.id);
+    expect(bad).toContain("c-mobile");
+    expect(bad).toContain("c-spa");
+    const { plan, routes } = routeAvoiding(demo, demoEdges);
+    for (const e of demoEdges) {
+      expect(crossed(routes[e.id]!, demo, e), e.id).toEqual([]);
+      checkRoute(routes[e.id]!, plan[e.id]!.source, plan[e.id]!.target, demo[e.source as keyof typeof demo], demo[e.target as keyof typeof demo]);
+    }
+    // The customer's line to the mobile app leaves sideways and arrives from above.
+    expect(plan["c-mobile"]!.source.side).toBe("right");
+    expect(plan["c-mobile"]!.target.side).toBe("top");
+  });
+
+  test("the sides switch when the preferred shape is blocked, and stay when it is not", () => {
+    const a = box(0, 0);
+    const b = box(0, 600);
+    const free = planPorts({ a, b }, [{ id: "e", source: "a", target: "b" }], { avoidBoxes: true });
+    expect([free.e!.source.side, free.e!.target.side]).toEqual(["bottom", "top"]);
+    const boxes = { a, b, mid: box(0, 300) };
+    const blocked = planPorts(boxes, [{ id: "e", source: "a", target: "b" }], { avoidBoxes: true });
+    expect([blocked.e!.source.side, blocked.e!.target.side]).not.toEqual(["bottom", "top"]);
+    // Off by default.
+    const off = planPorts(boxes, [{ id: "e", source: "a", target: "b" }]);
+    expect([off.e!.source.side, off.e!.target.side]).toEqual(["bottom", "top"]);
+    // Hand-set anchors and bend points win.
+    const anchored = planPorts(boxes, [{ id: "e", source: "a", target: "b", sourceAnchor: { x: 0.5, y: 1 } }], { avoidBoxes: true });
+    expect(anchored.e!.source.side).toBe("bottom");
+    const bent = planPorts(boxes, [{ id: "e", source: "a", target: "b", control: { x: 112, y: 300 } }], { avoidBoxes: true });
+    expect([bent.e!.source.side, bent.e!.target.side]).toEqual(["bottom", "top"]);
+  });
+
+  test("a target boxed in on all sides still gets a line", () => {
+    const t = box(500, 500, 100, 100);
+    // Four walls, 8px from the target on every side: no clearance fits, and the gaps are closed.
+    const walls = [box(380, 380, 340, 112), box(380, 608, 340, 112), box(380, 380, 112, 340), box(608, 380, 112, 340)];
+    const a = box(0, 0);
+    const src: Port = { x: 112.5, y: 120, side: "bottom" };
+    const dst: Port = { x: 550, y: 500, side: "top" };
+    const pts = orthoRoute(src, dst, a, t, undefined, walls);
+    expect(pts[0]).toEqual({ x: src.x, y: src.y });
+    expect(pts[pts.length - 1]).toEqual({ x: dst.x, y: dst.y });
+    for (let i = 1; i < pts.length; i++) expect(pts[i - 1]!.x === pts[i]!.x || pts[i - 1]!.y === pts[i]!.y).toBe(true);
+    // And through planPorts + orthoRoute.
+    const boxes: Record<string, Box> = { a, t };
+    walls.forEach((w, i) => (boxes[`w${i}`] = w));
+    const { routes } = routeAvoiding(boxes, [{ id: "e", source: "a", target: "t" }]);
+    expect(routes.e!.length).toBeGreaterThanOrEqual(2);
+  });
+
+  test("the same input gives the same result", () => {
+    const one = routeAvoiding(demo, demoEdges);
+    const two = routeAvoiding(demo, demoEdges);
+    expect(two).toEqual(one);
+    const shuffled = routeAvoiding(demo, [...demoEdges].reverse());
+    expect(shuffled.plan).toEqual(one.plan);
+    expect(shuffled.routes).toEqual(one.routes);
+  });
+
+  // The 19 boxes and 27 lines of the demo's containers diagram (positions as the server sends them; size defaults to 225x120).
+  const POS: Record<string, [number, number]> = {
+    "single-page-application": [928, 645],
+    "mobile-app": [1243, 645],
+    "web-application": [843, 375],
+    "api-application": [928, 925],
+    database: [792, 1295],
+    "payments-service": [1243, 925],
+    "payment-events": [1355, 1295],
+    "notification-service": [1558, 925],
+    "session-cache": [1049, 1295],
+    "statement-store": [442, 1295],
+    "statement-job": [528, 375],
+    "personal-banking-customer": [899, 20],
+    "analytics-platform": [20, 1740],
+    "monitoring-platform": [1280, 1740],
+    "mainframe-banking-system": [335, 1740],
+    "e-mail-system": [650, 1740],
+    "fraud-detection-system": [965, 1740],
+    "sms-gateway": [1595, 1740],
+    "push-notification-service": [1910, 1740],
+  };
+  const LINES: [string, string][] = [
+    ["personal-banking-customer", "web-application"],
+    ["personal-banking-customer", "single-page-application"],
+    ["personal-banking-customer", "mobile-app"],
+    ["web-application", "single-page-application"],
+    ["api-application", "monitoring-platform"],
+    ["payments-service", "monitoring-platform"],
+    ["notification-service", "monitoring-platform"],
+    ["mainframe-banking-system", "statement-store"],
+    ["push-notification-service", "mobile-app"],
+    ["single-page-application", "api-application"],
+    ["single-page-application", "payments-service"],
+    ["mobile-app", "api-application"],
+    ["mobile-app", "payments-service"],
+    ["api-application", "analytics-platform"],
+    ["api-application", "statement-store"],
+    ["api-application", "database"],
+    ["api-application", "session-cache"],
+    ["api-application", "mainframe-banking-system"],
+    ["api-application", "e-mail-system"],
+    ["payments-service", "session-cache"],
+    ["payments-service", "mainframe-banking-system"],
+    ["payments-service", "fraud-detection-system"],
+    ["payments-service", "payment-events"],
+    ["notification-service", "payment-events"],
+    ["notification-service", "e-mail-system"],
+    ["notification-service", "sms-gateway"],
+    ["notification-service", "push-notification-service"],
+  ];
+  const demoBoxes: Record<string, Box> = Object.fromEntries(Object.entries(POS).map(([id, [x, y]]) => [id, box(x, y)]));
+  const demoLines: RouteEdge[] = LINES.map(([source, target]) => ({ id: `${source}--${target}`, source, target }));
+
+  test("the whole containers diagram: fewer boxes crossed than without avoidance", () => {
+    const count = (avoid: boolean) => {
+      const { routes } = routeAvoiding(demoBoxes, demoLines, avoid);
+      return demoLines.reduce((n, e) => n + crossed(routes[e.id]!, demoBoxes, e).length, 0);
+    };
+    const [after, before] = [count(true), count(false)]; // measured: 26 before, 0 after
+    expect(before).toBeGreaterThan(after);
+    expect(after).toBe(0);
+  });
+
+  test("a full pass over the 19-box, 27-line containers diagram is fast", () => {
+    const pass = () => {
+      const plan = planPorts(demoBoxes, demoLines, { avoidBoxes: true });
+      const all = Object.values(demoBoxes);
+      for (const e of demoLines) orthoRoute(plan[e.id]!.source, plan[e.id]!.target, demoBoxes[e.source]!, demoBoxes[e.target]!, undefined, all);
+    };
+    for (let i = 0; i < 5; i++) pass(); // warm up
+    const times: number[] = [];
+    for (let i = 0; i < 21; i++) {
+      const t0 = performance.now();
+      pass();
+      times.push(performance.now() - t0);
+    }
+    times.sort((a, b) => a - b);
+    const median = times[10]!;
+    expect(median).toBeLessThan(50);
+  });
+});

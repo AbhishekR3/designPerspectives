@@ -44,6 +44,10 @@ const MIN_ALIGN = 20;
 const STUB = 20;
 /** Cost of one turn, in px of length: a turn is worth a detour of this length. */
 const BEND = 40;
+/** Free space a line keeps from boxes it does not connect. */
+const CLEARANCE = 15;
+/** Smaller clearance tried when the full one leaves no way through. */
+const TIGHT_CLEARANCE = 5;
 /** Tie-break for parallel lines between the same pair (px): small enough never to beat real geometry. */
 const PAIR_NUDGE = 0.01;
 
@@ -222,6 +226,95 @@ function facing(a: Box, sideA: Side, b: Box, sideB: Side): boolean {
   return a.y >= b.y + b.h;
 }
 
+const SIDES: Side[] = ["right", "bottom", "left", "top"];
+
+/**
+ * The simple shape a line between `sa` of `a` and `sb` of `b` would take, from side midpoints:
+ * straight (facing sides that overlap), Z through the gap middle (facing sides), L (one side
+ * horizontal, one vertical) or a U round the outside (same side). Null when the sides do not make
+ * such a shape (opposite sides that do not face each other, an L whose corner is too close).
+ */
+function skeleton(a: Box, sa: Side, b: Box, sb: Side): Pt[] | null {
+  const ma = pointOnSide(a, sa, sideLength(a, sa) / 2);
+  const mb = pointOnSide(b, sb, sideLength(b, sb) / 2);
+  if (OPPOSITE[sa] === sb) {
+    if (!facing(a, sa, b, sb)) return null;
+    if (horizontalSide(sa)) {
+      const lo = Math.max(a.y, b.y);
+      const hi = Math.min(a.y + a.h, b.y + b.h);
+      if (hi - lo >= MIN_ALIGN) {
+        const y = (lo + hi) / 2;
+        return [
+          { x: ma.x, y },
+          { x: mb.x, y },
+        ];
+      }
+      const mx = (ma.x + mb.x) / 2;
+      return [ma, { x: mx, y: ma.y }, { x: mx, y: mb.y }, mb];
+    }
+    const lo = Math.max(a.x, b.x);
+    const hi = Math.min(a.x + a.w, b.x + b.w);
+    if (hi - lo >= MIN_ALIGN) {
+      const x = (lo + hi) / 2;
+      return [
+        { x, y: ma.y },
+        { x, y: mb.y },
+      ];
+    }
+    const my = (ma.y + mb.y) / 2;
+    return [ma, { x: ma.x, y: my }, { x: mb.x, y: my }, mb];
+  }
+  if (sa === sb) {
+    if (horizontalSide(sa)) {
+      const X = sa === "right" ? Math.max(a.x + a.w, b.x + b.w) + 2 * STUB : Math.min(a.x, b.x) - 2 * STUB;
+      return [ma, { x: X, y: ma.y }, { x: X, y: mb.y }, mb];
+    }
+    const Y = sa === "bottom" ? Math.max(a.y + a.h, b.y + b.h) + 2 * STUB : Math.min(a.y, b.y) - 2 * STUB;
+    return [ma, { x: ma.x, y: Y }, { x: mb.x, y: Y }, mb];
+  }
+  const corner = horizontalSide(sa) ? { x: mb.x, y: ma.y } : { x: ma.x, y: mb.y };
+  const o0 = DIRS[sa];
+  const o1 = DIRS[sb];
+  if ((corner.x - ma.x) * o0.x + (corner.y - ma.y) * o0.y < STUB) return null;
+  if ((mb.x - corner.x) * o1.x + (mb.y - corner.y) * o1.y > -STUB) return null;
+  return [ma, corner, mb];
+}
+
+/** The skeleton for a pair of sides with how many of `others` it crosses, its bends and length; null when it has no shape or goes through its own boxes. */
+function scoreSides(a: Box, sa: Side, b: Box, sb: Side, others: Box[]): { cross: number; bends: number; len: number } | null {
+  const sk = skeleton(a, sa, b, sb);
+  if (!sk) return null;
+  let len = 0;
+  for (let i = 1; i < sk.length; i++) {
+    if (hits(sk[i - 1]!, sk[i]!, a) || hits(sk[i - 1]!, sk[i]!, b)) return null;
+    len += Math.abs(sk[i]!.x - sk[i - 1]!.x) + Math.abs(sk[i]!.y - sk[i - 1]!.y);
+  }
+  let cross = 0;
+  for (const o of others) {
+    for (let i = 1; i < sk.length; i++)
+      if (hits(sk[i - 1]!, sk[i]!, o)) {
+        cross++;
+        break;
+      }
+  }
+  return { cross, bends: sk.length - 2, len };
+}
+
+/** `proposed` sides, or when their shape crosses other boxes, the pair of sides whose shape crosses fewer (see `planPorts`). */
+function avoidingSides(a: Box, b: Box, proposed: [Side, Side], others: Box[]): [Side, Side] {
+  const base = scoreSides(a, proposed[0], b, proposed[1], others);
+  if (!base || base.cross === 0) return proposed;
+  let best: { sides: [Side, Side]; cross: number; bends: number; len: number } | null = null;
+  for (const sa of SIDES)
+    for (const sb of SIDES) {
+      if (sa === proposed[0] && sb === proposed[1]) continue;
+      const sc = scoreSides(a, sa, b, sb, others);
+      if (!sc || sc.cross >= base.cross) continue;
+      if (!best || sc.cross < best.cross || (sc.cross === best.cross && (sc.bends < best.bends || (sc.bends === best.bends && sc.len < best.len - 1e-9)))) best = { sides: [sa, sb], ...sc };
+    }
+  return best ? best.sides : proposed;
+}
+
 type EndInfo = { edge: RouteEdge; end: End; box: string; side: Side; fixed: Pt | null; key: number };
 
 /**
@@ -236,9 +329,18 @@ type EndInfo = { edge: RouteEdge; end: End; box: string; side: Side; fixed: Pt |
  *   same positions inside the overlap, so the lines are straight. A lone line facing an already
  *   placed port lines up with it when it can.
  *
+ * - Obstacle-aware sides: when the simple shape of the line (straight, L or Z, drawn between the
+ *   side midpoints) would cross another box, every other pair of sides is tried and the one whose
+ *   shape crosses the fewest boxes wins (then fewest bends, then shortest; ties keep the first in
+ *   the order right, bottom, left, top). The proposed sides stay unless another pair crosses fewer
+ *   boxes. Lines with a hand-set anchor or bend point keep their sides. Off unless `opts.avoidBoxes` is true
+ *   (the canvas turns it on; a diagram of boxes packed so close that every shape crosses a neighbour then keeps its sides).
+ *
  * Lines whose boxes are missing are left out of the result.
  */
-export function planPorts(boxes: Record<string, Box>, edges: RouteEdge[]): Record<string, PortPair> {
+export function planPorts(boxes: Record<string, Box>, edges: RouteEdge[], opts: { avoidBoxes?: boolean } = {}): Record<string, PortPair> {
+  const avoid = opts.avoidBoxes === true;
+  const boxList = avoid ? Object.entries(boxes) : [];
   const list = edges.filter((e) => boxes[e.source] && boxes[e.target]);
 
   // Rank of each line among the lines of the same (unordered) pair, for the parallel-line tie-break.
@@ -270,7 +372,13 @@ export function planPorts(boxes: Record<string, Box>, edges: RouteEdge[]): Recor
     let auto: [Side, Side];
     if (e.source === e.target) auto = ["right", "top"];
     else if (e.control) auto = [sideFacingPoint(bs, e.control), sideFacingPoint(bt, e.control)];
-    else auto = sidesBetween(bs, bt);
+    else {
+      auto = sidesBetween(bs, bt);
+      if (avoid && !e.sourceAnchor && !e.targetAnchor) {
+        const others = boxList.filter(([id]) => id !== e.source && id !== e.target).map(([, b]) => b);
+        if (others.length) auto = avoidingSides(bs, bt, auto, others);
+      }
+    }
     // One hand-set end: the other end faces the point just outside it, where the line really starts.
     const stubOf = (p: Pt, a: Pt) => ({ x: p.x + DIRS[sideOfAnchor(a)].x * STUB, y: p.y + DIRS[sideOfAnchor(a)].y * STUB });
     if (e.source !== e.target && !e.control && fs && !ft) auto[1] = sideFacingPoint(bt, stubOf(fs, e.sourceAnchor!));
@@ -475,6 +583,21 @@ function search(s1: Pt, d0: number, d1: Pt, din: number, dst: Pt, xs: number[], 
   const total = nx * ny * 4 * phases;
   const dist = new Float64Array(total).fill(Infinity);
   const prev = new Int32Array(total).fill(-1);
+  // Which unit steps of the grid cross an obstacle (same test as `hits`): `hBlock[y*nx+x]` is the step
+  // (x,y)-(x+1,y), `vBlock[y*nx+x]` the step (x,y)-(x,y+1).
+  const hBlock = new Uint8Array(nx * ny);
+  const vBlock = new Uint8Array(nx * ny);
+  const e = 1e-6;
+  for (const o of obstacles) {
+    for (let y = 0; y < ny; y++) {
+      if (!(ys[y]! < o.y + o.h - e && ys[y]! > o.y + e)) continue;
+      for (let x = 0; x + 1 < nx; x++) if (xs[x]! < o.x + o.w - e && xs[x + 1]! > o.x + e) hBlock[y * nx + x] = 1;
+    }
+    for (let x = 0; x < nx; x++) {
+      if (!(xs[x]! < o.x + o.w - e && xs[x]! > o.x + e)) continue;
+      for (let y = 0; y + 1 < ny; y++) if (ys[y]! < o.y + o.h - e && ys[y + 1]! > o.y + e) vBlock[y * nx + x] = 1;
+    }
+  }
   // Binary heap of [cost, sequence, state]; the sequence keeps ties in insertion order (determinism).
   const heap: [number, number, number][] = [];
   let seq = 0;
@@ -536,7 +659,7 @@ function search(s1: Pt, d0: number, d1: Pt, din: number, dst: Pt, xs: number[], 
       if (x2 < 0 || y2 < 0 || x2 >= nx || y2 >= ny) continue;
       const a = { x: xs[x]!, y: ys[y]! };
       const b = { x: xs[x2]!, y: ys[y2]! };
-      if (obstacles.some((o) => hits(a, b, o))) continue;
+      if (step.x !== 0 ? hBlock[y * nx + Math.min(x, x2)] : vBlock[Math.min(y, y2) * nx + x]) continue;
       const turn = nd === d ? 0 : BEND + (step.x === 0 ? (preferX.some((v) => Math.abs(v - xs[x]!) < 1e-6) ? 0 : 1) : preferY.some((v) => Math.abs(v - ys[y]!) < 1e-6) ? 0 : 1);
       const c2 = c + Math.abs(b.x - a.x) + Math.abs(b.y - a.y) + turn;
       const ph2 = ph === 0 && x2 === vx && y2 === vy ? 1 : ph;
@@ -562,12 +685,17 @@ function search(s1: Pt, d0: number, d1: Pt, din: number, dst: Pt, xs: number[], 
  *
  * The line leaves `src` square to its side and enters `dst` square to its side, keeping a short
  * straight stub (up to 20px, less when the boxes are closer) next to each box, and goes around
- * `srcBox` and `dstBox` (other boxes are not avoided). Fewest turns win, then the shortest
- * length; free middle segments sit halfway between the boxes. With `control` (a dragged bend
- * point) the line passes through that point: for a Z its middle segment moves to it.
+ * `srcBox` and `dstBox`. Fewest turns win, then the shortest length; free middle segments sit
+ * halfway between the boxes. With `control` (a dragged bend point) the line passes through that
+ * point: for a Z its middle segment moves to it.
+ *
+ * `obstacles` are the other boxes of the diagram. When the line above would run through one (or
+ * within 15px of it), the search is repeated with the obstacles (grown by 15px) blocked and their
+ * edges added to the grid, so the line goes around them; if that leaves no way through, with 5px;
+ * if that fails too, the first line stands. Without obstacles the result does not change.
  * Returns the corner points, from `src` to `dst`, without repeated or collinear points.
  */
-export function orthoRoute(src: Port, dst: Port, srcBox: Box, dstBox: Box, control?: Pt): Pt[] {
+export function orthoRoute(src: Port, dst: Port, srcBox: Box, dstBox: Box, control?: Pt, obstacles?: Box[]): Pt[] {
   const gapX = Math.max(dstBox.x - (srcBox.x + srcBox.w), srcBox.x - (dstBox.x + dstBox.w));
   const gapY = Math.max(dstBox.y - (srcBox.y + srcBox.h), srcBox.y - (dstBox.y + dstBox.h));
   const maxGap = Math.max(gapX, gapY);
@@ -600,24 +728,54 @@ export function orthoRoute(src: Port, dst: Port, srcBox: Box, dstBox: Box, contr
     preferX.push(control.x);
     preferY.push(control.y);
   }
-  const gx = uniq(xs);
-  const gy = uniq(ys);
   const via = control ? { x: control.x, y: control.y } : null;
+  const same4 = (p: Box, q: Box) => p.x === q.x && p.y === q.y && p.w === q.w && p.h === q.h;
+  const others = (obstacles ?? []).filter((o) => !same4(o, srcBox) && !same4(o, dstBox));
 
   // Keep clear of both boxes (with the stub margin), then only of their insides, then of nothing.
   const tries: Box[][] = [[grow(srcBox, m), grow(dstBox, m)], [srcBox, dstBox], []];
-  for (const obstacles of tries) {
-    const path = search(s1, d0, d1, din, dst, gx, gy, preferX, preferY, obstacles, via);
+  const gx = uniq(xs);
+  const gy = uniq(ys);
+  let base: Pt[] | null = null;
+  for (const blocked of tries) {
+    const path = search(s1, d0, d1, din, dst, gx, gy, preferX, preferY, blocked, via);
+    if (path) {
+      base = simplify([{ x: src.x, y: src.y }, ...path, { x: dst.x, y: dst.y }]);
+      break;
+    }
+  }
+  if (!base) {
+    // Not reachable (cannot happen without obstacles); a plain Z keeps the line drawable.
+    const mx = (src.x + dst.x) / 2;
+    base = simplify([
+      { x: src.x, y: src.y },
+      { x: mx, y: src.y },
+      { x: mx, y: dst.y },
+      { x: dst.x, y: dst.y },
+    ]);
+  }
+  if (!others.length) return base;
+
+  const crosses = (pts: Pt[], boxes: Box[]) => boxes.some((o) => pts.some((p, i) => i > 0 && hits(pts[i - 1]!, p, o)));
+  const margins = [CLEARANCE, TIGHT_CLEARANCE];
+  for (const clear of margins) {
+    // Only look for another way when this line goes through (or too close to) an obstacle.
+    if (
+      !crosses(
+        base,
+        others.map((o) => grow(o, clear)),
+      )
+    )
+      return base;
+    const grownOthers = others.map((o) => grow(o, clear));
+    const ox = [...xs, ...grownOthers.flatMap((o) => [o.x, o.x + o.w])];
+    const oy = [...ys, ...grownOthers.flatMap((o) => [o.y, o.y + o.h])];
+    const hx = uniq(ox);
+    const hy = uniq(oy);
+    const path = search(s1, d0, d1, din, dst, hx, hy, preferX, preferY, [grow(srcBox, m), grow(dstBox, m), ...grownOthers], via);
     if (path) return simplify([{ x: src.x, y: src.y }, ...path, { x: dst.x, y: dst.y }]);
   }
-  // Not reachable (cannot happen without obstacles); a plain Z keeps the line drawable.
-  const mx = (src.x + dst.x) / 2;
-  return simplify([
-    { x: src.x, y: src.y },
-    { x: mx, y: src.y },
-    { x: mx, y: dst.y },
-    { x: dst.x, y: dst.y },
-  ]);
+  return base;
 }
 
 /**
