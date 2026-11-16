@@ -1,5 +1,5 @@
 import { notify } from "./notify";
-import type { CatalogEntry, CredentialList, Decision, DecisionInput, DecisionStatus, HomeSummary, HubInfo, SharedUsage } from "./types";
+import type { CatalogEntry, CredentialList, Decision, DecisionInput, DecisionStatus, HistoryList, HomeSummary, HubInfo, SharedUsage, WorkRefresh } from "./types";
 import type {
   AppState,
   ApplyPreview,
@@ -189,6 +189,8 @@ export const api = {
   home: () => request<HomeSummary>("GET", "/home"),
   catalog: () => request<CatalogEntry[]>("GET", "/catalog"),
   catalogUsage: () => request<SharedUsage>("GET", "/catalog/usage"),
+  history: (project?: string | null) => request<HistoryList>("GET", `/history${project ? `?project=${enc(project)}` : ""}`),
+  refreshWork: () => request<WorkRefresh>("POST", "/work/refresh"),
   addProject: (body: { id: string; name: string; template: "empty" | "demo" }) => request<{ id: string }>("POST", "/hub/projects", body),
   credentials: () => request<CredentialList>("GET", "/credentials"),
   addCredential: (body: { name: string; provider: string; scopes: string[]; note: string; value: string }) => request("POST", "/credentials", body),

@@ -17,6 +17,7 @@ import { registerCredentials } from "./routes/credentials.js";
 import { registerDecisions } from "./routes/decisions.js";
 import { registerDrafts } from "./routes/drafts.js";
 import { registerFlows } from "./routes/flows.js";
+import { registerWork } from "./routes/work.js";
 import { registerHub, type HubCtx } from "./routes/hub.js";
 import { registerHistory } from "./routes/history.js";
 import { registerBacktrack } from "./routes/backtrack.js";
@@ -65,6 +66,7 @@ export function buildApp(root: string, opts: AppOptions & { hub?: boolean } = {}
   // Sign-in first (401 before anything about the model is looked at), then the model version,
   // then the role check, which needs the version: one place decides every change (auth.ts).
   app.use("/api/*", ctx.auth.authenticate);
+  if (opts.projectId) app.use("/api/*", ctx.auth.projectRole(opts.projectId));
   app.use("/api/*", ctx.selectVersion);
   app.use("/api/*", authorize(ctx));
 
@@ -83,6 +85,7 @@ export function buildApp(root: string, opts: AppOptions & { hub?: boolean } = {}
   registerHistory(app, ctx);
   registerCode(app, ctx);
   registerFlows(app, ctx);
+  registerWork(app, ctx);
   registerDecisions(app, ctx);
   registerInspect(app, ctx);
   registerBacktrack(app, ctx);

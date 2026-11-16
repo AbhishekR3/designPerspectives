@@ -128,7 +128,7 @@ export function HomePage({ hub, onChanged }: { hub: HubInfo; onChanged(): Promis
           {view === "grid" ? (
             <div className="p-cards">
               {cards.map((p) => (
-                <ProjectTile key={p.id} p={p} hub={hub} />
+                <ProjectTile key={p.id} p={p} hub={hub} role={hub.projects.find((x) => x.id === p.id)?.role ?? null} />
               ))}
             </div>
           ) : (
@@ -208,6 +208,26 @@ export function HomePage({ hub, onChanged }: { hub: HubInfo; onChanged(): Promis
             </section>
           )}
 
+          {home.catalogUpdates.length > 0 && (
+            <section className="home-box" data-testid="home-catalog-updates">
+              <h2>Catalog changes copied</h2>
+              <ul className="watch">
+                {home.catalogUpdates.map((u, i) => (
+                  <li key={i}>
+                    <strong>{u.name}</strong> <span className="muted small">({u.fields.join(", ")})</span> →{" "}
+                    {u.projects.map((p, j) => (
+                      <span key={p.project}>
+                        {j > 0 && ", "}
+                        <a href={projectLink(p.project, { reveal: p.elementId })}>{projectName(p.project) ?? p.project}</a>
+                      </span>
+                    ))}
+                    <span className="muted small"> · {ago(u.at)}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
           {home.watch.length > 0 && (
             <section className="home-box" data-testid="home-watch">
               <h2>Watching</h2>
@@ -284,7 +304,7 @@ function Badges({ p }: { p: ProjectCard }) {
   );
 }
 
-function ProjectTile({ p, hub }: { p: ProjectCard; hub: HubInfo }) {
+function ProjectTile({ p, hub, role }: { p: ProjectCard; hub: HubInfo; role: string | null }) {
   const href = projectLink(hub.mode === "hub" ? p.id : null);
   return (
     <a className={`p-card${p.catalog ? " catalog" : ""}`} href={href} data-testid={`project-${p.id}`}>
@@ -293,6 +313,11 @@ function ProjectTile({ p, hub }: { p: ProjectCard; hub: HubInfo }) {
         <div className="p-card-title">
           <strong className="truncate">{p.name}</strong>
           <Badges p={p} />
+          {role && hub.mode === "hub" && (
+            <span className="pill-badge" title="Your role in this project" data-testid={`role-${p.id}`}>
+              {role}
+            </span>
+          )}
         </div>
         {p.error ? <p className="error-text small">{p.error}</p> : <p className="muted small clamp2">{p.description || stats(p)}</p>}
         <p className="muted small p-card-foot">

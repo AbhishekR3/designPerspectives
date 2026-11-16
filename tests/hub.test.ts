@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { checkHub, checkHubFolder, copyDemoHub, createHubApp, HubError, initHub } from "../src/server/hub.js";
+import { setRole, UsersError } from "../src/core/users.js";
 import { Client, client, demoDir, ok, tmpDir, writeTestUsers } from "./helpers.js";
 
 function demoHub(): string {
@@ -75,7 +76,7 @@ describe("hub", () => {
     expect(hub.projects.map((p: any) => p.id)).toEqual(["onboarding", "payments", "catalog"]);
   });
 
-  it("the home page shows every project, shared tables, a table with two writers, and a drifted copy", async () => {
+  it("the home page shows every project, shared tables, a table with two writers, and the copy it brought up to date", async () => {
     const c = hubClient(demoHub(), null);
     const home = await ok(c.get("/api/home"));
     expect(home.projects.map((p: any) => [p.id, p.linked > 0])).toEqual([
@@ -87,7 +88,9 @@ describe("hub", () => {
     expect(home.shared.sharedAssets).toBeGreaterThanOrEqual(2); // customers, audit_log, customer-changed
     const kinds = home.attention.map((a: any) => a.kind);
     expect(kinds).toContain("multi-writer");
-    expect(kinds).toContain("catalog-drift");
+    // The demo's payments copy of the identity provider had drifted: the hub brought it up to date.
+    expect(kinds).not.toContain("catalog-drift");
+    expect(home.catalogUpdates).toMatchObject([{ catalogId: "identity-provider", fields: ["description"], projects: [{ project: "payments", elementId: "identity-provider" }] }]);
     expect(home.attention.find((a: any) => a.kind === "multi-writer").text).toMatch(/audit_log.*onboarding, payments/);
     expect(home.decisions.map((d: any) => d.project).sort()).toEqual(["catalog", "onboarding", "payments"]);
   });
@@ -99,7 +102,7 @@ describe("hub", () => {
     expect(asset("audit_log").flags).toEqual(["used-by-several", "several-writers"]);
     expect(asset("kyc_checks")).toMatchObject({ shared: false, owner: "onboarding", holder: { catalogId: "customer-db", project: "onboarding" } });
     expect(u.elements.find((e: any) => e.catalogId === "customer-db").usedBy.map((x: any) => x.project)).toEqual(["onboarding", "payments"]);
-    expect(u.drift).toMatchObject([{ project: "payments", elementId: "identity-provider", fields: ["description"] }]);
+    expect(u.drift).toEqual([]); // brought up to date automatically
     expect(u.missing).toEqual([]);
     expect(u.unknown).toEqual([]);
   });
@@ -111,7 +114,7 @@ describe("hub", () => {
     expect(r.status).toBe(422);
     expect(r.json().detail).toMatch(/shared catalog/);
     await ok(pay.patch("/api/elements/customer-db", { owner: "DBA team" })); // other fields are the project's
-    await ok(pay.post("/api/elements/identity-provider/catalog/sync"));
+    await ok(pay.post("/api/elements/identity-provider/catalog/sync")); // nothing left to do: already in step
     expect((await ok(c.get("/api/catalog/usage"))).drift).toEqual([]);
 
     const { id } = await ok(pay.post("/api/elements/from-catalog", { catalogId: "e-mail-service" }));
@@ -125,9 +128,23 @@ describe("hub", () => {
     expect((await ok(pay.get("/api/state"))).elements.find((e: any) => e.id === id).name).toBe("E-mail Service");
     expect((await pay.post(`/api/elements/${id}/catalog`, { catalogId: "customer-db" })).status).toBe(422); // a container, not a system
 
-    // A changed catalog element shows as drift in every copy until they are updated.
+    // A catalog change reaches every copy as soon as it is saved (DEC-056), and the home page lists it.
+    await ok(pay.patch("/api/elements/customer-db", { owner: "Data team" }));
     await ok(on(c, "catalog").patch("/api/elements/customer-db", { description: "Customers, accounts and the audit log." }));
-    expect((await ok(c.get("/api/catalog/usage"))).drift.map((d: any) => d.project)).toEqual(["onboarding", "payments"]);
+    for (const p of ["onboarding", "payments"]) {
+      expect((await ok(on(c, p).get("/api/state"))).elements.find((e: any) => e.id === "customer-db").description).toBe("Customers, accounts and the audit log.");
+    }
+    expect((await ok(c.get("/api/home"))).catalogUpdates[0]).toMatchObject({ catalogId: "customer-db", fields: ["description"], projects: [{ project: "onboarding" }, { project: "payments" }] });
+    // The update is not an undo step of the project's own; the project's own edits still are.
+    await ok(pay.post("/api/undo"));
+    const db = (await ok(pay.get("/api/state"))).elements.find((e: any) => e.id === "customer-db");
+    expect(db).toMatchObject({ owner: "DBA team", description: "Customers, accounts and the audit log." });
+
+    // A copy that cannot take the catalog's new name (another element has it) stays as it is, listed as drift.
+    await ok(pay.post("/api/elements", { kind: "softwareSystem", name: "Mail" }));
+    await ok(on(c, "catalog").patch("/api/elements/e-mail-service", { name: "Mail" }));
+    const u = await ok(c.get("/api/catalog/usage"));
+    expect(u.drift).toMatchObject([{ project: "payments", elementId: id, fields: ["name"] }]);
     // A project outside a hub has no catalog to link to.
     expect((await client().post("/api/elements/from-catalog", { catalogId: "x" })).status).toBe(422);
   });
@@ -152,6 +169,39 @@ describe("hub", () => {
     for (const bad of [{ id: "cards" }, { id: "catalog" }, { id: "Bad Id" }, { id: "x", path: "." }, { id: "y", path: "onboarding/sub" }]) {
       expect((await arch.post("/api/hub/projects", bad)).status, JSON.stringify(bad)).toBe(422);
     }
+  });
+
+  it("roles per project: a user's role in one project can differ from their role elsewhere", async () => {
+    const dir = demoHub();
+    writeTestUsers(dir);
+    const file = path.join(dir, ".dp", "users.json");
+    setRole(file, "engineer", "architect", "payments");
+    setRole(file, "viewer", "engineer", "onboarding");
+    const c = hubClient(dir, null);
+    const eng = await c.as("engineer");
+    await ok(on(eng, "payments").patch("/api/elements/ledger-worker", { owner: "Payments team" })); // architect here
+    expect((await on(eng, "onboarding").patch("/api/elements/kyc-service", { owner: "x" })).status).toBe(403); // engineer there
+    expect((await ok(on(eng, "payments").get("/api/state"))).me.role).toBe("architect");
+    const hub = await ok(eng.get("/api/hub"));
+    expect(Object.fromEntries(hub.projects.map((p: any) => [p.id, p.role]))).toEqual({ onboarding: "engineer", payments: "architect", catalog: "engineer" });
+    expect(hub.canAdmin).toBe(false); // adding projects and credentials follow the role everywhere
+    const viewer = await c.as("viewer");
+    const { id } = await ok(on(viewer, "onboarding").post("/api/drafts", { title: "Plan" }));
+    expect(id).toBeTruthy();
+    expect((await on(viewer, "payments").post("/api/drafts", { title: "Plan" })).status).toBe(403);
+    // A change of project role applies on the next request, without signing out.
+    setRole(file, "engineer", "default", "payments");
+    expect((await on(eng, "payments").patch("/api/elements/ledger-worker", { owner: "y" })).status).toBe(403);
+    expect(() => setRole(file, "engineer", "boss", "payments")).toThrow(UsersError);
+    expect(() => setRole(file, "architect", "viewer")).toThrow(/last architect/);
+  });
+
+  it("a read-only hub copies nothing", async () => {
+    const dir = demoHub();
+    const before = fs.readFileSync(path.join(dir, "payments", "architecture", "workspace.json"), "utf-8");
+    const c = hubClient(dir, null, { readOnly: true });
+    await ok(c.get("/api/home"));
+    expect(fs.readFileSync(path.join(dir, "payments", "architecture", "workspace.json"), "utf-8")).toBe(before);
   });
 
   it("hub.json is checked: folders that hold the hub or another project are refused", () => {

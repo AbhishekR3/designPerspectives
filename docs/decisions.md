@@ -434,3 +434,61 @@ Entry format: **ID — title** · date · status · who decided · what was deci
   - The hint shows four characters.
   - There is no "test connection" (it would need network calls, and nothing uses the credentials yet).
   - No per-project credentials inside a hub.
+
+## DEC-056 — In a hub, roles are per project, and catalog copies follow the catalog automatically
+- Date: 2026-11-15 · Status: Proposal (amends DEC-053 and DEC-054) · Decided by: Owner [2026-11-15] ("project roles should be in a hub"; "every copy should update automatically once a user commits the changes", meaning once saved to the catalog), [Proposal] (shape)
+- Decision:
+  - **Roles per project.**
+    - Each user keeps a role everywhere and may have another role in some projects: `projects: {"<id>": "<role>"}` in `<hub>/.dp/users.json`.
+    - A project's app gives the request the user's role in that project, so every rule (drafts only for engineers, nothing for viewers) applies per project. The catalog is a project like the others.
+    - Adding projects and managing credentials (`admin`) follow the role everywhere.
+    - `dp users role NAME ROLE [--project ID]`; `default` with `--project` removes the project's own role.
+    - A project role is read live, so a change applies on the next request. A change of the role everywhere still signs the user out.
+    - `GET /api/hub` gives the user's role per project. The home page shows it on each card and in the rail.
+  - **Catalog copies follow the catalog.**
+    - As soon as a change is saved to the catalog's main model (an edit, an applied catalog draft, or files changed on disk), every project's linked copies take its name, description and technology.
+    - It runs before each project request and after each catalog request, and is checked by the revisions of the catalog and the project, so nothing is done when nothing changed. A project with nothing to update is not written.
+    - The copy is not an undo step of the project. An undo of the project's own edit is followed by the copy again, so a copy never stays behind.
+    - A copy that cannot take the catalog's name (another element there has it) is left as it is and listed as drift, with "Update from catalog" once the clash is resolved.
+    - Drafts get the change when they are applied, like any change on main.
+    - Not on a read-only server.
+    - The home page lists recent copies ("Catalog changes copied": element, fields, projects).
+- Why:
+  - The owner wants per-project access in one hub, and copies that never lag behind the shared definition.
+  - Doing it in the hub, on save, needs no git hook and works outside a repository.
+- Trade-off:
+  - **Writes on a read.** A project's files can change on a request that only reads (its first request after a catalog change); the change shows as uncommitted in git, and in History.
+  - **Memory.** The list of copies made is kept in memory and lost on restart; git history keeps the changes themselves.
+  - **No role can hide a project:** there is no "no access" role.
+
+## DEC-057 — History: what each commit changed in the models (git read-only)
+- Date: 2026-11-15 · Status: Proposal (keeps DEC-018: git is only read) · Decided by: Owner [2026-11-15] ("have a Git for this project to understand changes"; a read-only history view), [Proposal] (shape)
+- Decision:
+  - **The page.** A History page (`#/history`, in the home page's rail) lists the commits that touched the model folders, newest first, for one project or across a hub.
+  - **Each commit** shows its author, date and subject, and what it changed per project: added, changed and removed counts and up to 12 objects. Elements, relationships, flows, decisions and settings are compared with the commit's parent model.
+  - **Opening a version.** "Open this version" shows the model at that commit compared with its parent, in the usual compare view.
+  - **Uncommitted changes.** Above the list, each project's not-yet-committed changes (main model compared with HEAD) link to the compare view against HEAD.
+  - **API.** `GET /api/history[?project=&limit=]`. Results per commit are cached (commits never change).
+- Why:
+  - It answers "what changed, when, by whom" in model terms rather than JSON lines.
+  - It reuses the existing git reading and diff without dp ever writing to git.
+- Trade-off:
+  - The first load of a long history runs a model diff per commit (20 by default, 100 at most).
+  - Commits that only change drafts or layout show as such.
+  - Commits made outside the model folders are not listed.
+
+## DEC-058 — First use of the credentials: linked work status from GitHub
+- Date: 2026-11-15 · Status: Proposal (first use of DEC-055) · Decided by: Owner delegated [2026-11-15] ("keep it simple, go with whatever you think"), [Proposal]
+- Decision:
+  - **What it does.** "Refresh status from GitHub" under Linked work (`POST /api/work/refresh`, action `edit`) reads every work item of the shown version whose link is a GitHub issue or pull request, and asks api.github.com for its state.
+    - A closed issue or a closed or merged pull request becomes "done".
+    - An open one keeps "in-progress" or "blocked", and is otherwise "open"; a "done" one that is open again becomes "open".
+  - **How.** It runs only on request, with at most 100 links, 4 at a time and 10 seconds each.
+    - It uses the first stored credential with provider `github`; without one it reads public repositories only, at GitHub's lower rate.
+    - The changes are one undo step; nothing is written when nothing changed.
+    - The answer lists what changed and which links could not be read (not found, refused token, rate limit), never the token.
+- Why: linked work already holds GitHub links; keeping their status current is the smallest useful integration, it shows the credentials working end to end, and it needs no new model data.
+- Trade-off:
+  - It reaches out to the network (only to api.github.com, only when asked).
+  - Statuses are a snapshot, not live.
+  - GitHub Enterprise hosts and other trackers are not covered yet.

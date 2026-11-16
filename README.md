@@ -62,6 +62,7 @@ dp users add NAME --role ROLE     # add a user; also: dp users passwd NAME, dp u
 dp serve HUB --hub                # serve several projects and a shared catalog from one hub folder (hub.json)
 dp init HUB --hub --demo          # the demo hub: two projects sharing a customer database
 dp check HUB --hub                # check every project of a hub and its catalog
+dp users role NAME engineer HUB --project payments   # a role in one project of a hub (role "default" removes it)
 dp credentials add NAME --provider github < token.txt   # integration credentials (value from stdin); also list, rotate, remove
 dp --version
 ```
@@ -87,14 +88,21 @@ A **hub** serves several projects from one folder:
 
 Each project is an ordinary project folder. `catalog/` holds the elements several projects share
 (people, systems, databases). A project keeps a **linked copy** of each one it uses: its name,
-description and technology come from the catalog (**Update from catalog** when it changes), the rest
-is the project's own. Elements list their **data** (tables, topics, buckets; shared on a catalog
+description and technology come from the catalog and are copied into every project as soon as the
+catalog changes; the rest is the project's own. Elements list their **data** (tables, topics, buckets; shared on a catalog
 element, private on a project's copy), and each relationship says which data it **reads or writes**.
 The **Shared catalog** page shows who uses each shared element and who reads and writes each table.
-One sign-in (`<hub>/.dp/users.json`) covers every project.
+One sign-in (`<hub>/.dp/users.json`) covers every project, and a person's role can differ per
+project (`dp users role NAME ROLE HUB --project ID`).
 
-**Credentials** (architects): tokens dp will use to reach other services, kept in `.dp/credentials.json`,
-never in git and never shown again after saving. Set `DP_SECRET_KEY` to encrypt them at rest.
+**History** (`#/history`) lists the git commits that changed the models, each with what it changed
+(added, changed, removed objects, by project) and a link to that version compared with the one
+before, plus what is not committed yet. dp only reads git; commit with your usual tools.
+
+**Credentials** (architects): tokens dp uses to reach other services, kept in `.dp/credentials.json`,
+never in git and never shown again after saving. Set `DP_SECRET_KEY` to encrypt them at rest. The
+first use: **Refresh status from GitHub** under an object's Linked work reads the state of every
+linked GitHub issue and pull request (with a stored `github` credential, or public repositories only).
 
 ## Sign-in and roles (optional)
 

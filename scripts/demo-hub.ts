@@ -2,7 +2,9 @@
  * The demo hub (`demo/hub/`, DEC-053, DEC-054): a shared catalog and two projects that use the same
  * customer database. Each project reads or writes shared tables and has a private table of its own;
  * both projects write the audit log (flagged on the home page), and one project's copy of the identity
- * provider has drifted from the catalog. Written by `npm run make-demo`; `dp init --hub --demo` copies it.
+ * provider has drifted from the catalog (the hub brings it up to date when it first serves the demo, and
+ * the home page lists that under "Catalog changes copied", DEC-056). Written by `npm run make-demo`;
+ * `dp init --hub --demo` copies it.
  */
 
 import fs from "node:fs";
@@ -153,7 +155,7 @@ export function buildPayments(catalog: Workspace): Built {
     ["audit_log", "write"],
   ]);
   m.R(ledger, events, "Follows customer changes on", "Kafka", [["customer-changed", "read"]]);
-  // This copy has drifted from the catalog (edited by hand before linking was enforced).
+  // This copy has drifted from the catalog (edited by hand): the hub copies the catalog's description back in.
   ops.buildIndex(m.ws).el(idp).description = "Okta: sign-in for the payments app.";
   m.D({
     title: "Write balances to the shared accounts table until the ledger has its own store",

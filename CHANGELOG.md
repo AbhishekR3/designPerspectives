@@ -3,6 +3,15 @@
 ## Unreleased
 
 ### Added
+- Hub roles per project: a user's role can differ per project (`projects` in the users file,
+  `dp users role NAME ROLE --project ID`); shown on the home page (DEC-056).
+- Catalog copies follow the catalog: a change saved to the catalog reaches every project's linked
+  copies at once; the home page lists what was copied where (DEC-056).
+- History page (`#/history`): commits that changed the models, with what each changed per project,
+  links to each version compared with its parent, and what is not committed yet. `GET /api/history`.
+  Git stays read-only (DEC-057).
+- Linked work status from GitHub: **Refresh status from GitHub** under Linked work, using a stored
+  `github` credential. `POST /api/work/refresh` (DEC-058).
 - Home page (`#/home`, linked from the top of the sidebar): a card per project with a picture of its
   landscape, counts, drafts, problems and last commit (cards or a list); "Needs a look" (model
   problems, drafts behind main, decisions proposed, due, expired or with a trigger met, and the

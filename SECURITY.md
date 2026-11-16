@@ -29,6 +29,7 @@ designPerspectives is a local tool. In plain words:
 - To compare versions, it runs the `git` command. It only reads from git and never changes the repository.
 - In a hub (`dp serve --hub`), no project folder may hold the hub folder or another project, so one project's code routes cannot reach another's model, `hub.json` or the shared catalog.
 - Integration credentials are kept in `.dp/credentials.json` (mode 0600, ignored by git), encrypted with AES-256-GCM when `DP_SECRET_KEY` is set. Their values are never sent to the browser or printed; only architects manage them.
+- The server reaches out to the network only when someone clicks **Refresh status from GitHub**: it calls `api.github.com` for the GitHub links in linked work, with the stored `github` credential if there is one.
 
 ## Out of scope
 

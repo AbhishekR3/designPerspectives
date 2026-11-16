@@ -18,7 +18,10 @@ import path from "node:path";
 import { Hono } from "hono";
 import { isObj, stableJson } from "../core/json.js";
 import { ModelError } from "../core/ops.js";
+import { syncCopies } from "../core/catalog.js";
+import { CredentialStore } from "../core/credentials.js";
 import { checkProject, type CheckResult } from "../core/report.js";
+import type { CatalogUpdate } from "../shared/types.js";
 import { atomicWrite, DEMO_DIR, initProject, NotFound, Project } from "../core/store.js";
 import { Auth } from "./auth.js";
 import { buildApp, onError } from "./app.js";
@@ -113,6 +116,13 @@ export class Hub {
   private file!: HubFile;
   private stamp = "";
   private apps = new Map<string, { root: string; app: Hono; ctx: Ctx }>();
+  /** Per project: the catalog and project revisions last brought in step (DEC-056). */
+  private syncKeys = new Map<string, string>();
+  /** Catalog changes copied into projects, newest first. */
+  readonly updates: CatalogUpdate[] = [];
+
+  /** The hub's credentials (DEC-055), used by every project's integrations. */
+  readonly credentials: CredentialStore;
 
   constructor(
     dir: string,
@@ -120,6 +130,7 @@ export class Hub {
     readonly auth: Auth,
   ) {
     this.dir = path.resolve(dir);
+    this.credentials = new CredentialStore(this.dir, opts.secretKey === undefined ? (process.env.DP_SECRET_KEY ?? null) : opts.secretKey);
     this.reload();
   }
 
@@ -169,7 +180,7 @@ export class Hub {
     if (hit && hit.root === root) return hit;
     // Each project keeps its own code folder (its own root), traces folder and comments.
     const catalog = id === CATALOG_ID ? () => null : () => this.catalogWorkspace();
-    const built = buildApp(root, { ...this.opts, codeRoot: null, tracesDir: null, usersFile: null, auth: this.auth, hub: true, catalog });
+    const built = buildApp(root, { ...this.opts, codeRoot: null, tracesDir: null, usersFile: null, auth: this.auth, hub: true, catalog, projectId: id, credentials: this.credentials });
     const entry = { root, ...built };
     this.apps.set(id, entry);
     return entry;
@@ -185,6 +196,58 @@ export class Hub {
       return p.workspace;
     } catch {
       return null;
+    }
+  }
+
+  /**
+   * Copy catalog changes into the projects' main models (DEC-056): every linked copy takes its catalog
+   * element's name, description and technology as soon as the catalog's main model has them. Checked
+   * before each project request and after each catalog request, cheaply (by revisions). Not on a
+   * read-only server. Drafts get the change when they are applied, like any change made on main.
+   */
+  syncCatalog(only: string | null = null): void {
+    if (this.opts.readOnly) return;
+    this.reload();
+    if (!this.file.catalog) return;
+    let cat;
+    try {
+      cat = this.load(CATALOG_ID, path.resolve(this.dir, this.file.catalog)).ctx.project;
+      cat.reloadIfChanged();
+    } catch {
+      return; // the catalog cannot be loaded: its card says so
+    }
+    const at = new Date().toISOString();
+    const run = new Map<string, CatalogUpdate>();
+    for (const p of this.file.projects) {
+      if (only && p.id !== only) continue;
+      let project;
+      try {
+        project = this.load(p.id, path.resolve(this.dir, p.path)).ctx.project;
+        project.reloadIfChanged();
+      } catch {
+        continue;
+      }
+      const key = `${cat.revision}|${project.revision}`;
+      if (this.syncKeys.get(p.id) === key) continue;
+      // Look first on a copy, so a project with nothing to update is not written.
+      if (syncCopies(structuredClone(project.workspace), cat.workspace).length) {
+        try {
+          const done = project.edit((ws) => syncCopies(ws, cat.workspace), false);
+          for (const u of done) {
+            const k = `${u.catalogId}|${u.fields.join(",")}`;
+            const entry = run.get(k) ?? { at, catalogId: u.catalogId, name: u.name, fields: u.fields, projects: [] };
+            entry.projects.push({ project: p.id, elementId: u.elementId });
+            run.set(k, entry);
+          }
+        } catch (e) {
+          console.error(`Could not update the catalog copies in ${p.id}: ${(e as Error).message}`);
+        }
+      }
+      this.syncKeys.set(p.id, `${cat.revision}|${project.revision}`);
+    }
+    if (run.size) {
+      this.updates.unshift(...run.values());
+      this.updates.splice(50);
     }
   }
 
@@ -237,6 +300,8 @@ export function createHubApp(dir: string, opts: AppOptions = {}): { app: Hono; h
     auth,
     readOnly,
     entries: () => hub.entries(),
+    sync: () => hub.syncCatalog(),
+    updates: () => hub.updates,
     get catalogId() {
       return hub.catalogId;
     },
@@ -260,7 +325,11 @@ export function createHubApp(dir: string, opts: AppOptions = {}): { app: Hono; h
     const target = hub.app(id);
     const req = c.req.raw;
     const body = SAFE.has(req.method) ? undefined : await c.req.text();
-    return target.fetch(new Request(req.url, { method: req.method, headers: req.headers, body }), c.env);
+    // A project works on a model with the catalog's latest shared fields; a catalog change reaches every project.
+    if (id !== CATALOG_ID) hub.syncCatalog(id);
+    const res = await target.fetch(new Request(req.url, { method: req.method, headers: req.headers, body }), c.env);
+    if (id === CATALOG_ID && !SAFE.has(req.method)) hub.syncCatalog();
+    return res;
   });
 
   registerUi(app);

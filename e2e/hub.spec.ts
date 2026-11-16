@@ -35,22 +35,23 @@ test("home page: projects, what needs a look, into a project and back", async ({
   await expect(page.getByTestId("project-payments")).toContainText("Payments");
   const attention = page.getByTestId("home-attention");
   await expect(attention).toContainText("audit_log");
-  await expect(attention).toContainText("Identity Provider");
+  // The demo's drifted copy was brought up to date by the hub, and the home page says where.
+  await expect(attention).not.toContainText("Identity Provider");
+  const updates = page.getByTestId("home-catalog-updates");
+  await expect(updates).toContainText("Identity Provider");
   await expect(page.getByTestId("home-shared")).toContainText("Written by several");
   await page.getByTestId("view-list").click();
   await expect(page.getByTestId("project-list")).toContainText("Payments");
   await page.getByTestId("view-grid").click();
 
-  // A drifted copy: the link opens the project on that element.
-  await attention.getByText("Identity Provider").click();
+  // The link opens the project on that element: a linked copy, in step with the catalog.
+  await updates.getByRole("link", { name: "Payments" }).click();
   await expect(page).toHaveURL(/pr=payments/);
-  await expect(page.getByTestId("catalog-drift-note")).toContainText("description");
-  await page.getByTestId("catalog-sync").click();
+  await expect(page.getByTestId("catalog-linked")).toContainText("Identity Provider");
   await expect(page.getByTestId("catalog-drift-note")).toHaveCount(0);
 
   await page.getByTestId("go-home").click();
   await expect(page.getByTestId("home-page")).toBeVisible();
-  await expect(page.getByTestId("home-attention")).not.toContainText("Identity Provider");
   expect(errors).toEqual([]);
 });
 
@@ -109,4 +110,35 @@ test("data access on a line, and credentials that never show their value", async
   await expect(page.getByTestId("credential-jira")).toContainText("••••wxyz");
   await expect(page.locator("body")).not.toContainText("jira-secret-value");
   await expect(page.getByTestId("credentials-encryption")).toContainText("not encrypted");
+});
+
+test("a catalog change reaches every project; the home page lists it", async ({ page, hub }) => {
+  const res = await fetch(`${hub.url}api/elements/customer-db`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", "X-DP-Project": "catalog" },
+    body: JSON.stringify({ description: "Customers, accounts and the audit log." }),
+  });
+  expect(res.status).toBe(200);
+  await page.goto(`${hub.url}#/home`);
+  const box = page.getByTestId("home-catalog-updates");
+  await expect(box).toContainText("Customer DB");
+  await expect(box).toContainText("Customer onboarding");
+  await box.locator("li").filter({ hasText: "Customer DB" }).getByRole("link", { name: "Payments" }).click();
+  await expect(page.getByTestId("field-description")).toHaveValue("Customers, accounts and the audit log.");
+});
+
+test("history: commits with what they changed, and what is not committed", async ({ page, hub }) => {
+  const { execFileSync } = await import("node:child_process");
+  const git = (...a: string[]) => execFileSync("git", ["-c", "user.name=Ana", "-c", "user.email=a@example.com", "-c", "commit.gpgsign=false", ...a], { cwd: hub.root, stdio: "ignore" });
+  git("init", "-q", "-b", "main");
+  git("add", "-A");
+  git("commit", "-q", "-m", "Hub demo");
+  await fetch(`${hub.url}api/elements/ledger-worker`, { method: "PATCH", headers: { "Content-Type": "application/json", "X-DP-Project": "payments" }, body: JSON.stringify({ owner: "Ledger team" }) });
+  await page.goto(`${hub.url}#/history`);
+  await expect(page.getByTestId("history-list")).toContainText("Hub demo");
+  await expect(page.getByTestId("uncommitted-payments")).toContainText("not committed yet");
+  await page.getByTestId("history-list").getByText("Hub demo").click();
+  await expect(page.getByTestId("history-list")).toContainText("Customer DB");
+  await page.getByTestId("history-filter-onboarding").click();
+  await expect(page.getByTestId("uncommitted-payments")).toHaveCount(0);
 });

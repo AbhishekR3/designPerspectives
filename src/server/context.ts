@@ -9,6 +9,8 @@ import { Drafts } from "../core/drafts.js";
 import { DiskCode, NO_CODE, type CodeSource } from "../core/codefs.js";
 import { currentBranch, GitCodes, GitModels, gitUserName, listRefs } from "../core/git.js";
 import { decisionSummary } from "../core/decisions.js";
+import { CredentialStore } from "../core/credentials.js";
+import type { Fetch } from "../core/workStatus.js";
 import * as flows from "../core/flows.js";
 import { isObj, type Obj } from "../core/json.js";
 import * as ops from "../core/ops.js";
@@ -182,10 +184,16 @@ export interface AppOptions {
   tracesDir?: string | null;
   /** Sign-in shared with other projects (a hub); default: this project's own. */
   auth?: Auth;
+  /** This project's ID in a hub: requests act with the user's role in it (DEC-056). */
+  projectId?: string | null;
   /** The hub's shared catalog model (DEC-054); absent or null: no catalog. */
   catalog?: () => Workspace | null;
   /** Key for credentials at rest (DEC-055); default: the DP_SECRET_KEY environment variable (tests set it). */
   secretKey?: string | null;
+  /** Where credentials are kept (a hub's store); default: this project's `.dp/credentials.json`. */
+  credentials?: CredentialStore;
+  /** How the server calls other services (tests replace it); default: the global fetch. */
+  fetch?: Fetch;
 }
 
 /** Everything the route modules work with, built once per app by `createContext`. */
@@ -218,6 +226,9 @@ export interface Ctx {
   comments: CommentStore;
   /** The hub's shared catalog model, or null (no hub, no catalog, or this is the catalog). */
   catalog: () => Workspace | null;
+  /** Integration credentials (DEC-055): the hub's, or the project's own. */
+  credentials: CredentialStore;
+  fetch: Fetch;
 }
 
 export function createContext(root: string, opts: AppOptions = {}): Ctx {
@@ -330,5 +341,7 @@ export function createContext(root: string, opts: AppOptions = {}): Ctx {
     traces,
     comments: new CommentStore(commentsPath(project.root), opts.now),
     catalog: opts.catalog ?? (() => null),
+    credentials: opts.credentials ?? new CredentialStore(project.root, opts.secretKey === undefined ? (process.env.DP_SECRET_KEY ?? null) : opts.secretKey),
+    fetch: opts.fetch ?? ((url, init) => fetch(url, init)),
   };
 }

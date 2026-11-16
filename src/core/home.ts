@@ -165,7 +165,12 @@ const addDays = (day: string, n: number) => {
 };
 
 /** Everything the home page shows. `extra`: attention items from the shared catalog (hub). */
-export function homeSummary(name: string, mode: "single" | "hub", projects: HomeProject[], extra: { attention?: AttentionItem[]; shared?: HomeSummary["shared"] } = {}): HomeSummary {
+export function homeSummary(
+  name: string,
+  mode: "single" | "hub",
+  projects: HomeProject[],
+  extra: { attention?: AttentionItem[]; shared?: HomeSummary["shared"]; catalogUpdates?: HomeSummary["catalogUpdates"] } = {},
+): HomeSummary {
   const today = isoDay();
   const soon = addDays(today, WATCH_DAYS);
   const cards: ProjectCard[] = [];
@@ -231,5 +236,5 @@ export function homeSummary(name: string, mode: "single" | "hub", projects: Home
   attention.sort((a, b) => order[a.severity] - order[b.severity]);
   watch.sort((a, b) => (a.date ?? "9999").localeCompare(b.date ?? "9999"));
   decisions.sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
-  return { name, mode, projects: cards, attention, watch, decisions: decisions.slice(0, 20), shared: extra.shared ?? null };
+  return { name, mode, projects: cards, attention, watch, decisions: decisions.slice(0, 20), shared: extra.shared ?? null, catalogUpdates: extra.catalogUpdates ?? [] };
 }

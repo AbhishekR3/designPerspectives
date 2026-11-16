@@ -18,6 +18,7 @@ function pageOf(hash: string): HubPage | null {
   if (/^#\/home\/?$/.test(hash)) return "home";
   if (/^#\/catalog(\?.*)?$/.test(hash)) return "catalog";
   if (/^#\/settings\/credentials\/?$/.test(hash)) return "credentials";
+  if (/^#\/history(\?.*)?$/.test(hash)) return "history";
   return null;
 }
 

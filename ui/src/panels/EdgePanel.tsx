@@ -2,6 +2,7 @@ import { api } from "../api";
 import { Discussion } from "../comments";
 import { DecisionSection } from "./DecisionSection";
 import { DataAccessSection } from "./DataSections";
+import { WorkRefreshButton } from "./WorkRefresh";
 import { CodePaths, OpenCodeDiagram } from "../CodeParts";
 import { Fields, Section, TagInput, TextField } from "../fields";
 import { openWork } from "../overlays";
@@ -188,7 +189,12 @@ export function EdgePanel({ edgeId, ...p }: Common & { edgeId: string }) {
         </p>
       )}
       {has("work") && (
-        <Section title={`Linked work${openWork(r).length ? ` · ${openWork(r).length} open` : ""}`} count={r.work.length} testId="sec-rel-work">
+        <Section
+          title={`Linked work${openWork(r).length ? ` · ${openWork(r).length} open` : ""}`}
+          count={r.work.length}
+          testId="sec-rel-work"
+          footer={<WorkRefreshButton rows={r.work} mutate={p.mutate} readOnly={state.readOnly} />}
+        >
           <WorkEditor rows={r.work} enums={p.state.enums} onSave={(rows) => save({ work: rows })} />
         </Section>
       )}

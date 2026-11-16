@@ -30,7 +30,7 @@ import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { matchedRoutes } from "hono/route";
 import { isHidden } from "../core/codefs.js";
 import { isObj } from "../core/json.js";
-import { dummyHash, MAX_PASSWORD, readUsers, usersPath, UsersError, verifyPassword, type UserEntry } from "../core/users.js";
+import { dummyHash, MAX_PASSWORD, readUsers, roleIn, usersPath, UsersError, verifyPassword, type UserEntry } from "../core/users.js";
 import type { MeResponse, Permissions, Role, SessionUser } from "../shared/types.js";
 import type { Ctx } from "./context.js";
 
@@ -105,6 +105,8 @@ export const ROUTE_RULES: Record<string, Action> = {
   "PUT /api/credentials/:name": "admin",
   "PATCH /api/credentials/:name": "admin",
   "DELETE /api/credentials/:name": "admin",
+  // routes/work.ts: linked work status from GitHub, written to the model (DEC-058)
+  "POST /api/work/refresh": "edit",
   // routes/decisions.ts: decision records are part of the model (DEC-050)
   "POST /api/decisions": "edit",
   "PUT /api/decisions/:id": "edit",
@@ -308,6 +310,25 @@ export class Auth {
     this.on = users !== null;
     if (users) this.setUsers(users);
     if (this.on) dummyHash(); // made now, so the first sign-in with an unknown name is not slower than the rest
+  }
+
+  /** A signed-in user's role in a hub project (DEC-056): read live, so a change applies on the next request. */
+  roleIn(name: string, project: string): Role | null {
+    this.refresh();
+    const u = this.users.get(name.toLowerCase());
+    return u ? roleIn(u, project) : null;
+  }
+
+  /** Middleware for a hub project's app (after `authenticate`): the request acts with the user's role in that project. */
+  projectRole(project: string): MiddlewareHandler {
+    return async (c, next) => {
+      const w = c.get("dpWho");
+      if (w?.user && !w.readOnlyServer) {
+        const role = this.roleIn(w.user.name, project) ?? w.role;
+        c.set("dpWho", { ...w, role, user: { ...w.user, role } });
+      }
+      await next();
+    };
   }
 
   /** True when sign-in is required (the users file exists, or existed since the server started). */

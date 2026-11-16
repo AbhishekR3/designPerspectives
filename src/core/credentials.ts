@@ -191,6 +191,16 @@ export class CredentialStore {
     return v;
   }
 
+  /** The first usable credential for a provider (name and value), for code in the server only; marks it used. */
+  byProvider(provider: CredentialProvider): { name: string; value: string } | null {
+    for (const s of this.read()) {
+      if (s.provider !== provider) continue;
+      const v = this.get(s.name);
+      if (v !== null) return { name: s.name, value: v };
+    }
+    return null;
+  }
+
   private find(list: Stored[], name: string): Stored {
     const s = list.find((x) => x.name === name);
     if (!s) throw new ModelError(`No credential "${name}".`);

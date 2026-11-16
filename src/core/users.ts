@@ -30,10 +30,18 @@ export class UsersError extends Error {}
 
 export interface UserEntry {
   name: string;
+  /** The role everywhere, unless `projects` says otherwise. */
   role: Role;
   /** The scrypt hash string (see the file header). */
   password: string;
+  /** In a hub: a different role in some projects, by project ID (DEC-056). */
+  projects?: Record<string, Role>;
 }
+
+const PROJECT_ID_RE = /^[a-z0-9][a-z0-9-]{0,40}$/;
+
+/** The user's role in a hub project (their role everywhere unless the users file gives another). */
+export const roleIn = (u: Pick<UserEntry, "role" | "projects">, project: string | null): Role => (project && u.projects?.[project]) || u.role;
 
 /** `<project>/.dp/users.json`. */
 export function usersPath(root: string): string {
@@ -154,13 +162,24 @@ export function parseUsers(text: string, file = USERS_FILE): UserEntry[] {
   return (doc as { users: unknown[] }).users.map((u, i) => {
     const at = `user ${i + 1}`;
     if (!u || typeof u !== "object" || Array.isArray(u)) throw bad(`${at} is not an object.`);
-    const { name, role, password } = u as Record<string, unknown>;
+    const { name, role, password, projects } = u as Record<string, unknown>;
     if (typeof name !== "string" || !NAME_RE.test(name)) throw bad(`${at} has no valid "name" (1 to 40 letters, digits, dots, dashes or underscores).`);
     if (typeof role !== "string" || !(ROLES as readonly string[]).includes(role)) throw bad(`"${name}" has no valid "role" (${ROLES.join(", ")}).`);
     if (typeof password !== "string" || !parseHash(password)) throw bad(`"${name}" has no valid "password" hash (create users with \`dp users\`).`);
     if (seen.has(name.toLowerCase())) throw bad(`the name "${name}" is used twice (names are compared without case).`);
     seen.add(name.toLowerCase());
-    return { name, role: role as Role, password };
+    const entry: UserEntry = { name, role: role as Role, password };
+    if (projects !== undefined) {
+      if (!projects || typeof projects !== "object" || Array.isArray(projects)) throw bad(`"${name}" has "projects" that is not an object of project ID → role.`);
+      const map: Record<string, Role> = {};
+      for (const [id, r] of Object.entries(projects as Record<string, unknown>)) {
+        if (!PROJECT_ID_RE.test(id)) throw bad(`"${name}" has a role for "${id}", which is not a project ID.`);
+        if (typeof r !== "string" || !(ROLES as readonly string[]).includes(r)) throw bad(`"${name}" has no valid role for project "${id}" (${ROLES.join(", ")}).`);
+        map[id] = r as Role;
+      }
+      if (Object.keys(map).length) entry.projects = map;
+    }
+    return entry;
   });
 }
 
@@ -179,7 +198,7 @@ export function readUsers(file: string): UserEntry[] | null {
 /** Write the file atomically, readable by its owner only. */
 export function writeUsers(file: string, users: UserEntry[]): void {
   fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
-  const doc = { users: users.map((u) => ({ name: u.name, role: u.role, password: u.password })) };
+  const doc = { users: users.map((u) => ({ name: u.name, role: u.role, password: u.password, ...(u.projects && Object.keys(u.projects).length ? { projects: u.projects } : {}) })) };
   atomicWrite(file, JSON.stringify(doc, null, 2) + "\n", 0o600);
 }
 
@@ -239,6 +258,34 @@ export function removeUser(file: string, name: string): UserEntry {
     throw new UsersError(`"${u.name}" is the last architect and cannot be removed. Add another architect first.`);
   }
   users.splice(i, 1);
+  writeUsers(file, users);
+  return u;
+}
+
+/**
+ * Set a user's role everywhere (`project` null; signs them out, as the role is part of their session), or
+ * in one hub project (takes effect on their next request). `role` "default" removes a project's own role.
+ */
+export function setRole(file: string, name: string, role: string, project: string | null = null): UserEntry {
+  const users = needUsers(file);
+  const i = findUser(users, name);
+  if (i < 0) throw new UsersError(`No user named "${name}".`);
+  const u = { ...users[i]! };
+  if (project === null) {
+    const r = checkRole(role);
+    if (u.role === "architect" && r !== "architect" && users.filter((x) => x.role === "architect").length === 1) {
+      throw new UsersError(`"${u.name}" is the last architect. Make someone else an architect first.`);
+    }
+    u.role = r;
+  } else {
+    if (!PROJECT_ID_RE.test(project)) throw new UsersError(`"${project}" is not a project ID.`);
+    const map = { ...(u.projects ?? {}) };
+    if (role === "default") delete map[project];
+    else map[project] = checkRole(role);
+    u.projects = Object.keys(map).length ? map : undefined;
+    if (!u.projects) delete u.projects;
+  }
+  users[i] = u;
   writeUsers(file, users);
   return u;
 }

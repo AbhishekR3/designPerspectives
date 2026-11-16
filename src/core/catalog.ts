@@ -7,7 +7,7 @@
  * uses what": linked copies that drifted, tables used or written by several projects, unknown data.
  */
 
-import { buildIndex, CATALOG_KEY, DATA_KEY, ACCESS_KEY, getJson, getProps, splitTech, type Index } from "./ops.js";
+import { buildIndex, CATALOG_KEY, catalogSource, DATA_KEY, ACCESS_KEY, getJson, getProps, ModelError, splitTech, syncFromCatalog, type Index } from "./ops.js";
 import type { Workspace } from "./workspace.js";
 import type { AssetUse, CatalogEntry, DataAccess, DataAsset, SharedUsage } from "../shared/types.js";
 
@@ -143,4 +143,37 @@ export function sharedUsage(projects: UsageProject[], catalog: Workspace | null)
     if (a.writers > 1) a.flags.push("several-writers");
   }
   return { mode: cat ? "hub" : "single", elements: [...elements.values()], assets: [...assets.values()], drift, missing, unknown };
+}
+
+/** One linked copy brought up to date with its catalog element. */
+export interface CopyUpdate {
+  elementId: string;
+  catalogId: string;
+  name: string;
+  fields: string[];
+}
+
+/**
+ * Bring every linked copy in `ws` that differs from its catalog element up to date (DEC-056), in place.
+ * A copy that cannot take the catalog's name (another element here has it) is left as it is, and
+ * stays listed as drift. Returns what changed.
+ */
+export function syncCopies(ws: Workspace, catalog: Workspace): CopyUpdate[] {
+  const cat = index(catalog);
+  const idx = index(ws);
+  if (!cat || !idx) return [];
+  const out: CopyUpdate[] = [];
+  for (const el of [...idx.elements.values()]) {
+    const linked = getProps(el)[CATALOG_KEY];
+    if (!linked || !cat.elements.has(linked)) continue;
+    const fields = driftOf(buildIndex(ws), el.id, cat, linked);
+    if (!fields.length) continue;
+    try {
+      syncFromCatalog(ws, el.id, catalogSource(catalog, linked));
+      out.push({ elementId: el.id, catalogId: linked, name: cat.el(linked).name, fields });
+    } catch (e) {
+      if (!(e instanceof ModelError)) throw e;
+    }
+  }
+  return out;
 }

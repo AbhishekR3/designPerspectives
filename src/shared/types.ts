@@ -892,6 +892,8 @@ export interface HubProject {
   error: string | null;
   /** The hub's shared catalog. */
   catalog: boolean;
+  /** The signed-in user's role in this project (null when sign-in is off). */
+  role: Role | null;
 }
 
 /** A small picture of a project's landscape: boxes and lines in a 0..w × 0..h space. */
@@ -947,6 +949,19 @@ export interface HomeSummary {
   decisions: (DecisionSummary & { project: string })[];
   /** Shared elements and data assets (hub with a catalog); null otherwise. */
   shared: { elements: number; linkedCopies: number; assets: number; sharedAssets: number; multiWriter: number } | null;
+  /** Catalog changes copied into the projects since the server started, newest first (DEC-056). */
+  catalogUpdates: CatalogUpdate[];
+}
+
+/** A catalog element's change, copied into the projects that use it. */
+export interface CatalogUpdate {
+  /** ISO time. */
+  at: string;
+  catalogId: string;
+  name: string;
+  fields: string[];
+  /** The projects whose copy was updated, with the copy's ID there. */
+  projects: { project: string; elementId: string }[];
 }
 
 // ------------------------------------------------------------------ shared catalog and data (DEC-054)
@@ -1032,4 +1047,50 @@ export interface CredentialList {
   encryptsNew: boolean;
   /** Where they are kept, relative to the hub or project folder. */
   file: string;
+}
+
+// ------------------------------------------------------------------ history (DEC-057)
+
+/** One changed object in a commit, as the history lists it. */
+export interface HistoryItem {
+  type: ObjectChange["type"];
+  name: string;
+  change: Exclude<ChangeKind, "inner">;
+}
+
+/** A project's part of one commit: what changed in its main model. */
+export interface HistoryChange {
+  project: string;
+  /** The commit's parent (null: the first commit), to open the comparison. */
+  parent: string | null;
+  summary: ChangeSummary;
+  /** Up to 12 changed objects. */
+  items: HistoryItem[];
+}
+
+export interface HistoryEntry {
+  sha: string;
+  /** ISO 8601. */
+  date: string;
+  author: string;
+  subject: string;
+  changes: HistoryChange[];
+}
+
+export interface HistoryList {
+  /** Per project: whether it is in a git repository, and what is not committed yet (main model vs HEAD). */
+  projects: { project: string; git: boolean; uncommitted: ChangeSummary | null }[];
+  /** Newest first. */
+  commits: HistoryEntry[];
+}
+
+// ------------------------------------------------------------------ linked work status from GitHub (DEC-058)
+
+export interface WorkRefresh {
+  /** GitHub issue and pull request links looked up. */
+  checked: number;
+  updated: { owner: string; title: string; from: string; to: string }[];
+  failed: { url: string; reason: string }[];
+  /** A stored GitHub credential was used (otherwise public repositories only, at GitHub's lower rate). */
+  usedCredential: string | null;
 }

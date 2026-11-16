@@ -39,12 +39,12 @@ export function CatalogSection({ element, catalog, mutate, readOnly }: { element
         <>
           <p className="panel-note" data-testid="catalog-linked">
             <Icon name="star" size={12} /> A copy of the shared catalog's <strong>{entry?.name ?? element.catalogId}</strong>
-            {entry?.parentName ? ` (in ${entry.parentName})` : ""}. Its name, description and technology are kept in the catalog.
+            {entry?.parentName ? ` (in ${entry.parentName})` : ""}. Its name, description and technology are kept in the catalog and copied here when the catalog changes.
           </p>
           {!entry && <p className="error-text small">That element is no longer in the catalog.</p>}
           {drift.length > 0 && (
             <p className="warn-note small" data-testid="catalog-drift-note">
-              <Icon name="warning" size={12} /> Differs from the catalog: {drift.join(", ")}.
+              <Icon name="warning" size={12} /> Differs from the catalog: {drift.join(", ")}. {drift.includes("name") ? "Another element here has the catalog's name: rename it, then update." : ""}
             </p>
           )}
           {!readOnly && (

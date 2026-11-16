@@ -15,7 +15,7 @@ import { checkProject, diffMarkdown } from "./core/report.js";
 import { AlreadyExists, ARCH_DIR, DEMO_DIR, initProject, NotFound, Project, version, WORKSPACE_FILE } from "./core/store.js";
 import { readDemoHistory, writeDemoHistory } from "./core/demoHistory.js";
 import { DEMO_APP_PORT, startDemoApp } from "./server/demoApp.js";
-import { addUser, ensureGitignored, initUsers, needUsers, readUsers, removeUser, setPassword, usersPath, UsersError, type NewPassword } from "./core/users.js";
+import { addUser, setRole, ensureGitignored, initUsers, needUsers, readUsers, removeUser, setPassword, usersPath, UsersError, type NewPassword } from "./core/users.js";
 import { createApp, LOOPBACK_HOSTS } from "./server/app.js";
 import { CredentialStore } from "./core/credentials.js";
 import { ModelError } from "./core/ops.js";
@@ -488,6 +488,21 @@ function usersCommands(p: Command): void {
     );
 
   users
+    .command("role")
+    .description("Set a user's role everywhere, or (with --project, in a hub) in one project; role \"default\" with --project removes that project's own role.")
+    .argument("<name>", "User name.")
+    .argument("<role>", "architect, engineer or viewer (or default, with --project).")
+    .argument("[path]", "Project or hub folder.", ".")
+    .option("--project <id>", "A hub project's ID: the role applies there only.")
+    .addOption(fileOpt())
+    .action((name: string, role: string, dir: string, o: { project?: string; users?: string }) =>
+      run(() => {
+        const u = setRole(fileOf(dir, o), name, role, o.project ?? null);
+        console.log(o.project ? `${u.name} is ${u.projects?.[o.project] ?? `${u.role} (their role everywhere)`} in ${o.project}.` : `${u.name} is now ${u.role}. They are signed out.`);
+      }),
+    );
+
+  users
     .command("list")
     .description("List the users and their roles.")
     .argument("[path]", "Project folder.", ".")
@@ -496,7 +511,18 @@ function usersCommands(p: Command): void {
       run(() => {
         const list = needUsers(fileOf(dir, o));
         if (!list.length) console.log("No users: nobody can sign in. Add one with `dp users add <name> --role architect`.");
-        else table([["name", "role"], ...list.map((u) => [u.name, u.role])]);
+        else if (!list.some((u) => u.projects)) table([["name", "role"], ...list.map((u) => [u.name, u.role])]);
+        else
+          table([
+            ["name", "role", "in projects"],
+            ...list.map((u) => [
+              u.name,
+              u.role,
+              Object.entries(u.projects ?? {})
+                .map(([p, r]) => `${p}: ${r}`)
+                .join(", "),
+            ]),
+          ]);
       }),
     );
 }

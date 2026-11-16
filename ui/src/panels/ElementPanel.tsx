@@ -3,6 +3,7 @@ import { api } from "../api";
 import { Discussion } from "../comments";
 import { DecisionSection } from "./DecisionSection";
 import { CatalogSection, DataSection } from "./DataSections";
+import { WorkRefreshButton } from "./WorkRefresh";
 import { CodePaths, NewPlannedFile, OpenCodeDiagram } from "../CodeParts";
 import { Fields, Section, TagInput, TextField } from "../fields";
 import { formatMoney, openWork } from "../overlays";
@@ -120,7 +121,12 @@ export function ObjectPanel({ element, ...p }: Common & { element: ElementSummar
         </Section>
       )}
       {has("work") && (
-        <Section title={`Linked work${openWork(element).length ? ` · ${openWork(element).length} open` : ""}`} count={element.work.length} testId="sec-work">
+        <Section
+          title={`Linked work${openWork(element).length ? ` · ${openWork(element).length} open` : ""}`}
+          count={element.work.length}
+          testId="sec-work"
+          footer={<WorkRefreshButton rows={element.work} mutate={p.mutate} readOnly={state.readOnly} />}
+        >
           <WorkEditor rows={element.work} enums={state.enums} onSave={(r) => save({ work: r })} />
         </Section>
       )}
