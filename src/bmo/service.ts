@@ -15,6 +15,7 @@
  * sent; never the key, and the prompt only with `keepPrompts`.
  */
 
+import { createHash } from "node:crypto";
 import type { CodeSource } from "../core/codeFiles.js";
 import { diagramOf, diffModels } from "../core/diff.js";
 import * as decisions from "../core/decisions.js";
@@ -271,6 +272,14 @@ export function destinationOf(s: BmoSettings, injected: Backend | null): Destina
   return { provider: s.provider ?? null, model: effectiveModel(s), host: base ? new URL(base).host : null };
 }
 
+/** The hash a run must be confirmed with: the prompt's, and where it goes. A settings change between the preview and the run (another provider, host or model) makes the hash differ, so the run is refused. */
+export const confirmHashOf = (promptHash: string, dest: Destination): string =>
+  createHash("sha1")
+    .update(promptHash, "utf-8")
+    .update("\u0000", "utf-8")
+    .update(JSON.stringify([dest.provider, dest.host, dest.model]), "utf-8")
+    .digest("hex");
+
 /** The exact prompt of a plan, the files in it and its hash. Throws BmoError (`refused`, `too-large`) when it cannot be built. */
 export function previewOf(plan: Planned, s: BmoSettings, dest: Destination): BmoPreview {
   const p = preview(plan.task, plan.inputs, plan.context);
@@ -278,7 +287,7 @@ export function previewOf(plan: Planned, s: BmoSettings, dest: Destination): Bmo
     task: p.task,
     output: p.output,
     promptVersion: p.promptVersion,
-    hash: p.hash,
+    hash: confirmHashOf(p.hash, dest),
     estTokens: p.estTokens,
     maxInputTokens: plan.context.maxInputTokens ?? null,
     destination: dest,
@@ -356,6 +365,7 @@ function makeImportDraft(
     description: `Proposed by BMO (${plan.task.id}, prompt ${plan.task.promptVersion}). Review each item before accepting it.`,
     author: deps.author,
     code: env.disk,
+    ...(plan.task.id === "describe-to-model" ? { sourceText: (plan.inputs as { text: string }).text } : {}),
   });
   return { draftId: r.draftId, report: r.report, warnings: r.warnings };
 }
@@ -367,7 +377,7 @@ function makeImportDraft(
  */
 export async function runBmo(deps: RunDeps, plan: Planned, confirmHash: string): Promise<BmoRunResult> {
   const p = preview(plan.task, plan.inputs, plan.context);
-  if (!confirmHash || confirmHash !== p.hash) throw new StalePreview();
+  if (!confirmHash || confirmHash !== confirmHashOf(p.hash, deps.dest)) throw new StalePreview();
   const when = new Date().toISOString();
   const log = (outcome: Parameters<typeof logRun>[1]["outcome"], extra: { error?: string; usage?: { inputTokens?: number; outputTokens?: number } } = {}) => {
     try {

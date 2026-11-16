@@ -44,6 +44,16 @@ export interface HandoffRequest {
 export const HANDOFF_INSTRUCTION = `Read ${HANDOFF_FOLDER}/prompt.md and follow it; write the result to ${HANDOFF_FOLDER}/result.json.`;
 
 const requestPath = (root: string): string => path.join(importDir(root), "handoff-request.json");
+const descriptionPath = (root: string): string => path.join(importDir(root), "handoff-description.txt");
+
+/** The description of the last describe-to-model handoff, or undefined (another task, or none yet). */
+export function readHandoffDescription(root: string): string | undefined {
+  try {
+    return fs.readFileSync(descriptionPath(root), "utf-8");
+  } catch {
+    return undefined;
+  }
+}
 
 /** Check a request body ({task, level?, container?, text?}); a ModelError says what is wrong. */
 export function parseHandoffRequest(b: unknown): HandoffRequest {
@@ -142,6 +152,9 @@ export function writeImportHandoff(project: Project, drafts: Drafts, code: CodeS
   const manifest = writeHandoff(project.root, task, built);
   const { text: _text, ...rest } = req;
   atomicWrite(requestPath(project.root), stableJson({ ...rest, hash: manifest.hash }));
+  // The description is what a person typed: kept by the server so the draft made from the result can check the notes against it.
+  if (req.task === "describe-to-model") atomicWrite(descriptionPath(project.root), req.text ?? "");
+  else fs.rmSync(descriptionPath(project.root), { force: true });
   return { ...manifest, prompt: handoffPrompt(task, built), folder: HANDOFF_FOLDER, instruction: HANDOFF_INSTRUCTION, estTokens: built.estTokens };
 }
 

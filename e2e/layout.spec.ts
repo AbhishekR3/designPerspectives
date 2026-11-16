@@ -544,6 +544,13 @@ for (const size of SIZES) {
       const review = await box(byId(page, "import-review"));
       expect(review.x + review.width <= panel.x + panel.width + 1).toBe(true);
       expect(await noScrollX(byId(page, "panel"))).toBe(true);
+      // Picking an item selects its object: the review stays in the panel, above the details, and both fit.
+      await byId(page, "review-item-pick").click();
+      await expect(byId(page, "review-above")).toBeVisible();
+      await expect(byId(page, "import-review")).toBeVisible();
+      const above = await box(byId(page, "review-above"));
+      expect(above.x + above.width <= panel.x + panel.width + 1).toBe(true);
+      expect(await noScrollX(byId(page, "panel"))).toBe(true);
       const strip = await box(byId(page, "draft-banner"));
       expect(strip.height).toBeLessThanOrEqual(120);
       for (const t of ["draft-apply", "draft-exit"]) expect(inside(await box(byId(page, t)), view, 0.5), t).toBe(true);

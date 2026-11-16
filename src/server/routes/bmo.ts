@@ -27,11 +27,75 @@ import { BmoInvalid, destinationOf, EFFECT, parseSelectors, planTask, previewOf,
 import { allowedRolesFor, canRun, defaultSettings, parseSettings, publicStatus, readSettings, writeSettings, type BmoSettings } from "../../bmo/settings.js";
 import { ModelError } from "../../core/ops.js";
 import type { BmoPreview, BmoRunFailure, BmoRunResult, BmoSettingsData, BmoStatus } from "../../shared/types.js";
+import type { CredentialStore } from "../../core/credentials.js";
 import { decide } from "../auth.js";
+import { whoOf, type HubCtx } from "./hub.js";
 import { HttpError, objBody, type Ctx } from "../context.js";
 
 /** Where the plain-language refusals of a draft task point: the handoff, which needs no model call. */
 const HANDOFF_HINT = "BMO can still write the prompt for you to run in your own coding agent (the Import page, or dp scan --prompt); the result comes back through the import file.";
+
+/** The settings of a hub or project folder; a file that cannot be read gives the defaults and says why (`problem`). */
+function settingsOf(root: string): { s: BmoSettings; problem: string | null } {
+  try {
+    return { s: readSettings(root), problem: null };
+  } catch (e) {
+    if (e instanceof ModelError) return { s: defaultSettings(), problem: e.message };
+    throw e;
+  }
+}
+
+/** The status the settings page and the run button read; `project`: the hub project whose role list applies (none: the hub's own page). */
+function statusFor(s: BmoSettings, problem: string | null, creds: CredentialStore, g: { ok: true } | { ok: false; reason: string }, admin: boolean, fake: boolean, project?: string): BmoStatus {
+  return {
+    ...publicStatus(s, creds, project),
+    canRun: g.ok ? { ok: true } : { ok: false, reason: g.reason },
+    canAdmin: admin,
+    tasks: taskList(),
+    fake,
+    problem,
+    settings: admin ? (s satisfies BmoSettingsData) : null,
+  };
+}
+
+/**
+ * The hub's own BMO routes (the settings belong to the hub, so the settings page of a hub must not depend on one
+ * of its projects): `GET /api/bmo` and `PUT /api/bmo/settings` without `X-DP-Project`. Only an architect of the
+ * hub (the base role, not a role in one project) may change or see the settings; the status says what the caller's
+ * base role may run. The same file as the projects use (`<hub>/.dp/bmo.json`).
+ */
+export function registerHubBmo(app: Hono, hub: HubCtx, credentials: CredentialStore, fake: boolean): void {
+  const root = hub.dir;
+  const admin = (c: Context): boolean => {
+    const w = whoOf(hub, c);
+    return decide("admin", w, "main") === null && (!w.user || hub.auth.baseRole(w.user.name) === "architect");
+  };
+  const status = (c: Context): BmoStatus => {
+    const { s, problem } = settingsOf(root);
+    const role = whoOf(hub, c).role;
+    // With a plugged-in backend (tests) the provider checks are skipped, as in a project; the role list still applies.
+    const g = fake
+      ? allowedRolesFor(s).includes(role)
+        ? { ok: true as const }
+        : { ok: false as const, reason: `BMO is not open to the ${role} role here.` }
+      : problem
+        ? { ok: false as const, reason: problem }
+        : canRun(s, credentials, role);
+    return statusFor(s, problem, credentials, g, admin(c), fake);
+  };
+  // With `X-DP-Project` the request is one project's (its role list applies): the project answers it.
+  const forProject = (c: Context): boolean => !!c.req.header("x-dp-project")?.trim();
+  app.get("/api/bmo", async (c, next) => (forProject(c) ? next() : c.json(status(c))));
+  app.put("/api/bmo/settings", async (c, next) => {
+    if (forProject(c)) return next();
+    if (!admin(c)) throw new HttpError(403, "The BMO settings are shared by the whole hub: only an architect of the hub (not of one project only) can change them.");
+    const b = await objBody(c);
+    const { settings: parsed, errors } = parseSettings(b);
+    if (!parsed) return c.json({ detail: `The settings are not valid: ${errors.map((e) => `${e.pointer || "/"}: ${e.message}`).join("; ")}`, errors }, 422);
+    writeSettings(root, b);
+    return c.json(status(c));
+  });
+}
 
 const KIND_STATUS: Record<BmoError["kind"], number> = { off: 409, refused: 422, "invalid-output": 422, "too-large": 413, backend: 502 };
 
@@ -41,15 +105,7 @@ export function registerBmo(app: Hono, ctx: Ctx): void {
   const root = ctx.credentials.root;
   const dpDir = path.join(path.resolve(root), ".dp");
 
-  /** The settings; a file that cannot be read gives the defaults and says why (`problem`). */
-  const settings = (): { s: BmoSettings; problem: string | null } => {
-    try {
-      return { s: readSettings(root), problem: null };
-    } catch (e) {
-      if (e instanceof ModelError) return { s: defaultSettings(), problem: e.message };
-      throw e;
-    }
-  };
+  const settings = (): { s: BmoSettings; problem: string | null } => settingsOf(root);
 
   /** May the caller run BMO now? A plugged-in backend (tests) skips the provider checks but not the role. */
   const gate = (c: Context, s: BmoSettings, problem: string | null): { ok: true } | { ok: false; status: 403 | 409; reason: string } => {
@@ -74,16 +130,7 @@ export function registerBmo(app: Hono, ctx: Ctx): void {
   const statusOf = (c: Context): BmoStatus => {
     const { s, problem } = settings();
     const g = gate(c, s, problem);
-    const admin = canAdmin(c);
-    return {
-      ...publicStatus(s, ctx.credentials, ctx.projectId ?? undefined),
-      canRun: g.ok ? { ok: true } : { ok: false, reason: g.reason },
-      canAdmin: admin,
-      tasks: taskList(),
-      fake: !!ctx.bmoBackend,
-      problem,
-      settings: admin ? (s satisfies BmoSettingsData) : null,
-    };
+    return statusFor(s, problem, ctx.credentials, g, canAdmin(c), !!ctx.bmoBackend, ctx.projectId ?? undefined);
   };
 
   app.get("/api/bmo", (c) => c.json(statusOf(c)));

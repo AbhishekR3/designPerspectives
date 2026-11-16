@@ -50,6 +50,25 @@ export function importDir(projectDir: string): string {
   return path.join(projectDir, "architecture", "import");
 }
 
+/** What `architecture/import/.gitignore` lists: the handoff folder and the typed description hold excerpts of the code and of what a person wrote, which should not be committed by accident. The import files and reviews stay committable (they are the record of a review; `checkImport` keeps secrets out of them). */
+export const IMPORT_GITIGNORE = ["handoff/", "handoff-description.txt"];
+
+/** Make sure `<importDir>/.gitignore` lists `IMPORT_GITIGNORE` (created on the first write; lines a person added are kept). */
+export function ensureImportGitignore(dir: string): void {
+  const file = path.join(dir, ".gitignore");
+  let text = "";
+  try {
+    text = fs.readFileSync(file, "utf-8");
+  } catch {
+    // Not there yet.
+  }
+  const have = new Set(text.split(/\r?\n/).map((l) => l.trim()));
+  const missing = IMPORT_GITIGNORE.filter((l) => !have.has(l));
+  if (!missing.length) return;
+  fs.mkdirSync(dir, { recursive: true });
+  atomicWrite(file, `${text}${text && !text.endsWith("\n") ? "\n" : ""}${text ? "" : "# Written by dp: excerpts of the code and what people typed. Do not commit.\n"}${missing.join("\n")}\n`);
+}
+
 const MAX_TEXT = 5000;
 const MAX_LIST = 500;
 const MAX_GLOB = 300;
@@ -278,6 +297,32 @@ export function readIntake(projectDir: string): { intake: Intake; errors: Intake
     return { intake: defaultIntake(), errors: [{ path: "", message: `intake.json is not valid JSON (${(e as Error).message})` }] };
   }
   return parseIntake(data);
+}
+
+/**
+ * What `next` loosens compared with `old`: entries of `mustNotOpen` and `scope.exclude` that are no longer there
+ * (a changed entry counts as removed: it may open more), and the caps that grew (the files the scan walks, the
+ * bytes it parses, the folder depth, the tokens one pass reads). Adding to the lists and lowering caps is
+ * tightening, which anyone who may edit the intake can do. Returns plain sentences; empty: nothing is loosened.
+ */
+export function intakeLoosened(old: Intake, next: Intake): string[] {
+  const out: string[] = [];
+  for (const [what, a, b] of [
+    ["must-not-open", old.mustNotOpen, next.mustNotOpen],
+    ["scope.exclude", old.scope.exclude, next.scope.exclude],
+  ] as const) {
+    const gone = a.filter((g) => !b.includes(g));
+    if (gone.length) out.push(`${gone.length === 1 ? "an entry" : `${gone.length} entries`} of ${what} would be removed or changed (${gone.map((g) => `"${g}"`).join(", ")})`);
+  }
+  const caps: [string, number, number][] = [
+    ["the number of files scanned", old.settings.maxFiles, next.settings.maxFiles],
+    ["the size of a file that is read", old.settings.maxFileBytes, next.settings.maxFileBytes],
+    ["the folder depth", old.settings.maxDepth, next.settings.maxDepth],
+    ["the tokens one BMO pass reads", old.settings.passBudgetTokens, next.settings.passBudgetTokens],
+    ["the files in a step-by-step import", old.settings.stepByStep.files, next.settings.stepByStep.files],
+  ];
+  for (const [what, a, b] of caps) if (b > a) out.push(`${what} would grow from ${a} to ${b}`);
+  return out;
 }
 
 /** Check and write the intake (atomic, stable key order). Throws a `ModelError` listing the field errors. */

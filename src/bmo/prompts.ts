@@ -101,7 +101,7 @@ const IMPORT_RULES = [
   `1. Write one JSON import file: "schemaVersion": 1, "promptVersion": "${PROMPT_VERSION}", the "level" given below, and "source": {"kind": "bmo"}.`,
   '2. IDs are slugs: lower-case letters, digits and single dashes, made from the name ("Payment Service" becomes "payment-service"). An object that is already in the model keeps its ID (the model block lists them); never rename an existing ID.',
   '3. A relationship description says what flows, starting with a verb: "Sends payment requests to", "Reads customer records from". Never "Uses", and never empty. When a queue or topic carries it, use "via" with the broker\'s ID and give "viaDescription".',
-  '4. Every object and relationship carries evidence: a file with its path in the code folder (and "lines" when you can), or a scan fact by its ID, or {"kind": "user", "note": ...} when a person said it. If you have no evidence, leave the item out and ask about it in "questions".',
+  '4. Every object and relationship carries evidence: a file with its path in the code folder (and "lines" when you can), or a scan fact by its ID, or {"kind": "user", "note": ...} quoting, word for word and at least 12 characters, what a person wrote in the intake or the feedback. dp checks every piece of evidence itself: a scan fact only counts when it is about the item, and a user note only counts when dp finds the quoted words in the intake, the feedback or the description; what dp cannot confirm is shown to the person as unverified. If you have no evidence, leave the item out and ask about it in "questions".',
   "5. Environment variables: write their NAMES only, never their values.",
   '6. Put what you assumed in "assumptions" and what you could not settle in "questions". Each turn ends with them, so the next turn, or a new session, can continue from the files instead of from memory.',
   '7. Do not invent technologies, owners or tags. Tags only from the tag groups the model block lists. "confidence" is your own (high, medium, low); it is shown to the person and never used to decide.',
@@ -151,7 +151,8 @@ export function describeSystem(variant: Variant): string {
     [
       "Rules for this task:",
       '- The "level" of this file is "all".',
-      '- Every object and relationship carries evidence of kind "user" only: {"kind": "user", "note": "<the sentence or phrase of the description it comes from>"}. No file or scan evidence: you were not given any.',
+      '- Every object and relationship carries evidence of kind "user" only: {"kind": "user", "note": "<the sentence or phrase of the description it comes from, copied word for word, at least 12 characters>"}. No file or scan evidence: you were not given any.',
+      "- dp checks each note against the description: an item whose note is not found in it is shown to the person as unverified, so do not add items the description does not say.",
       "- Use the model's IDs for objects the model already has (the model block lists them).",
       '- Only what the description says. Put gaps in "questions" and your reading of unclear parts in "assumptions".',
     ].join("\n"),

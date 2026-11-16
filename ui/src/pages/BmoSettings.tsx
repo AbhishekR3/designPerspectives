@@ -33,7 +33,7 @@ function hostOf(s: BmoSettingsData): string | null {
 /** The field of a server error pointer (`/pricePerMTok`, `/endpoint`, `/projects/x/allowedRoles`). */
 const fieldOf = (pointer: string) => pointer.split("/")[1] ?? "";
 
-export function BmoSettings({ project, credentials }: { project: string | null; credentials: CredentialInfo[] }) {
+export function BmoSettings({ credentials }: { credentials: CredentialInfo[] }) {
   const [status, setStatus] = useState<BmoStatus | null>(null);
   const [form, setForm] = useState<BmoSettingsData | null>(null);
   const [saved, setSaved] = useState("");
@@ -51,8 +51,8 @@ export function BmoSettings({ project, credentials }: { project: string | null; 
     }
   }, []);
   useEffect(() => {
-    api.bmo(project).then(adopt, (e) => setLoadError(errorMessage(e)));
-  }, [project, adopt]);
+    api.bmoHub().then(adopt, (e) => setLoadError(errorMessage(e)));
+  }, [adopt]);
 
   if (loadError)
     return (
@@ -99,7 +99,7 @@ export function BmoSettings({ project, credentials }: { project: string | null; 
   const save = async () => {
     setBusy(true);
     try {
-      const next = await api.bmoSettings(body(), project);
+      const next = await api.bmoHubSettings(body());
       setErrors([]);
       adopt(next);
       notify.success("Saved the BMO settings.");
@@ -207,7 +207,10 @@ export function BmoSettings({ project, credentials }: { project: string | null; 
             />
             <span className="muted small">
               The Claude API and the OpenAI API go to their own hosts. Another address is allowed for Ollama, or when you also allow a custom endpoint below. It must start with https://, or http://
-              for this computer; no user name, query or fragment.
+              for this computer; no user name, query or fragment. Link-local and cloud-metadata addresses (169.254.x.x, fe80::) are refused.
+            </span>
+            <span className="muted small" data-testid="bmo-endpoint-note">
+              The endpoint is contacted by the server that runs dp, not by your browser: “127.0.0.1” means the server’s own computer, and the server can reach whatever machines it can reach.
             </span>
             <Err field="endpoint" />
           </label>

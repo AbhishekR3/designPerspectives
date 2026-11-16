@@ -2,7 +2,8 @@
 
 import type { Hono } from "hono";
 import * as codemod from "../../core/codeMap.js";
-import { checkSize, codeRel } from "../../core/codeFiles.js";
+import path from "node:path";
+import { checkSize, codeRel, inProtectedFolder, PROTECTED_MESSAGE } from "../../core/codeFiles.js";
 import { str } from "../../core/util.js";
 import { addCodePath, codePathCovered, ModelError } from "../../core/ops.js";
 import { HttpError, num, objBody, type Ctx } from "../context.js";
@@ -20,6 +21,12 @@ export function registerCode(app: Hono, ctx: Ctx): void {
     const rel = codeRel(str(p));
     if (!rel) throw new ModelError("That path is outside the code folder.");
     if (project.codeRoot === null) throw new ModelError("No code folder is set. Start the app with --code-root <folder>.");
+    return rel;
+  };
+  /** A path that a code edit (planned or direct) may write: not in the project's own folders. */
+  const writeRel = (p: unknown): string => {
+    const rel = relOf(p);
+    if (inProtectedFolder(project.codeRoot, rel, [project.dir, path.join(project.root, ".dp")])) throw new ModelError(PROTECTED_MESSAGE);
     return rel;
   };
   const draftOnly = (what: string): string => {
@@ -61,8 +68,11 @@ export function registerCode(app: Hono, ctx: Ctx): void {
     const mtime = b.mtime === null || b.mtime === undefined ? null : num(b.mtime, "mtime");
     const v = view();
     if (v.git) throw new HttpError(403, "This version of the model is read-only.");
-    if (!v.draft) return c.json(codemod.writeCodeFile(project.codeRoot, str(b.path), str(b.content), mtime));
-    const rel = relOf(b.path);
+    if (!v.draft) {
+      writeRel(b.path);
+      return c.json(codemod.writeCodeFile(project.codeRoot, str(b.path), str(b.content), mtime));
+    }
+    const rel = writeRel(b.path);
     const plan = drafts.codePlan(v.draft);
     const planned = plan.files().get(rel);
     const current = disk.read(rel);
@@ -79,7 +89,7 @@ export function registerCode(app: Hono, ctx: Ctx): void {
   app.post("/api/code/file", async (c) => {
     const b = await objBody(c);
     const id = draftOnly("New files");
-    const rel = relOf(b.path);
+    const rel = writeRel(b.path);
     if (drafts.code(id).kind(rel) !== null) throw new ModelError(`${rel} already exists.`);
     const plan = drafts.codePlan(id);
     // `mapTo`: also add the path to that element's (or relationship's) code paths. Both or neither:
@@ -108,7 +118,7 @@ export function registerCode(app: Hono, ctx: Ctx): void {
   /** Plan the removal of a file (drafts only). */
   app.delete("/api/code/file", (c) => {
     const id = draftOnly("Removing files");
-    const rel = relOf(c.req.query("path"));
+    const rel = writeRel(c.req.query("path"));
     if (drafts.code(id).kind(rel) !== "file") throw new ModelError("No such file.");
     drafts.codePlan(id).remove(rel, disk.read(rel));
     return ok(c);

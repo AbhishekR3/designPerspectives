@@ -331,6 +331,22 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
       }
     } else if (item.kind === "decision") openDecision(null);
   };
+  /** The review of an import draft stays visible whatever is selected: in the diagram's own panel when nothing is, above the object's details otherwise. */
+  const reviewInDefault = !selection && !!diagram && !flow && diagram.level !== "connector" && diagram.level !== "code";
+  const reviewBlock = draftId ? (
+    <ImportReview
+      draftId={draftId}
+      canEdit={state.can.editThis}
+      version={state.version}
+      onPick={pickReviewItem}
+      onChanged={() =>
+        refresh().then(
+          () => undefined,
+          () => undefined,
+        )
+      }
+    />
+  ) : null;
   const decisionsToLook = state.decisions.filter((d) => decisionFlags(d).some((f) => f.tone === "warn")).length;
   const multiIds = selection?.type === "nodes" ? selection.ids : null;
   const movingEl = moveId ? state.elements.find((e) => e.id === moveId) : undefined;
@@ -779,6 +795,11 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
                 onDelete={() => nodeActions?.removeMany(multiIds.filter((id) => state.elements.some((x) => x.id === id) && !diagram.nodes.find((n) => n.id === id)?.ghost))}
               />
             )}
+            {!reviewInDefault && reviewBlock && (
+              <div className="panel-body review-above" data-testid="review-above">
+                {reviewBlock}
+              </div>
+            )}
             {!showGhost && selectedChange && selectedChange.change !== "added" && <ChangeDetails change={selectedChange} against={againstLabel} />}
             {!showGhost && selectedElement && diagram && <ObjectPanel key={selectedElement.id} element={selectedElement} {...panelProps} />}
             {!showGhost && !selectedElement && selectedNode?.kind === "stage" && diagram && <StagePanel key={selectedNode.id} node={selectedNode} {...panelProps} />}
@@ -826,20 +847,7 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
                   </label>
                 )}
                 <p className="muted small">Click an object or connection to see its details here. Press ? or use the help button at the top right.</p>
-                {draftId && (
-                  <ImportReview
-                    draftId={draftId}
-                    canEdit={state.can.editThis}
-                    version={state.version}
-                    onPick={pickReviewItem}
-                    onChanged={() =>
-                      refresh().then(
-                        () => undefined,
-                        () => undefined,
-                      )
-                    }
-                  />
-                )}
+                {reviewBlock}
                 {changes && (
                   <>
                     <h3 className="panel-subtitle">Changes compared with {againstLabel}</h3>

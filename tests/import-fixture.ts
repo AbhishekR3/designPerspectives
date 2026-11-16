@@ -1,5 +1,7 @@
 /** A valid import file over the demo model, for the import tests (a fresh copy per call). */
 
+import fs from "node:fs";
+import path from "node:path";
 import type { ImportFile } from "../src/shared/types.js";
 
 export function sampleImport(): ImportFile {
@@ -66,3 +68,13 @@ export function sampleImport(): ImportFile {
     ignore: ["IGNORE-MARKER/generated"],
   };
 }
+
+/** Write what "a person typed" into the project's intake (`architecture/import/intake.json`): a `user` note counts only when it is found there. */
+export function typeIntake(dir: string, ...texts: string[]): void {
+  const d = path.join(dir, "architecture", "import");
+  fs.mkdirSync(d, { recursive: true });
+  fs.writeFileSync(path.join(d, "intake.json"), JSON.stringify({ schemaVersion: 1, system: { name: "", purpose: texts.join("\n") } }));
+}
+
+/** The notes of the sample import file and of the demo example. */
+export const SAMPLE_NOTES = ["EVIDENCE-MARKER-USER", "EVIDENCE-MARKER-DECISION"];

@@ -16,12 +16,13 @@ import { acceptAll, lowConfidence, MAX_FEEDBACK, readReview, reviewHooks, review
 import type { Evidence, Fact } from "../src/import/scan.js";
 import type { ImportFile } from "../src/shared/types.js";
 import { client, demoDir, ok, tmpDir } from "./helpers.js";
-import { sampleImport } from "./import-fixture.js";
+import { sampleImport, SAMPLE_NOTES, typeIntake } from "./import-fixture.js";
 
 const DATE = "2026-11-16";
 
 function setup() {
   const dir = demoDir();
+  typeIntake(dir, ...SAMPLE_NOTES, "Told us about it", "The store of everything", "The sample says Ledger Writer is real");
   const main = new Project(dir);
   const drafts = new Drafts(main);
   return { dir, main, drafts };
@@ -66,8 +67,15 @@ const draftValid = (s: Setup, id: string) => {
 /** The sample file plus a component inside the new container and a change to an existing container. */
 function bigImport(): ImportFile {
   const f = sampleImport();
-  f.objects.push({ id: "ledger-writer", type: "component", name: "Ledger Writer", parent: "ledger-service", description: "Writes entries.", evidence: [{ kind: "user", note: "Told us" }] });
-  f.objects.push({ id: "database", type: "container", name: "Database", parent: "internet-banking-system", codePaths: ["sample_code/api/store.py"], evidence: [{ kind: "user", note: "The store" }] });
+  f.objects.push({ id: "ledger-writer", type: "component", name: "Ledger Writer", parent: "ledger-service", description: "Writes entries.", evidence: [{ kind: "user", note: "Told us about it" }] });
+  f.objects.push({
+    id: "database",
+    type: "container",
+    name: "Database",
+    parent: "internet-banking-system",
+    codePaths: ["sample_code/api/store.py"],
+    evidence: [{ kind: "user", note: "The store of everything" }],
+  });
   return f;
 }
 
@@ -118,19 +126,59 @@ describe("reviewLevel", () => {
     fact({ id: "dockerfile:gone/Dockerfile:gone", kind: "dockerfile", path: "gone/Dockerfile" }),
   ]);
   const subject = (s: Partial<ReviewSubject>): ReviewSubject => ({ kind: "object", name: "Ledger Service", evidence: [], codePaths: [], ...s });
-  const level = (s: Partial<ReviewSubject>, e: Evidence | null = ev) => reviewLevel(subject(s), e, code());
+  const TYPED = ["The payments team confirmed that we run it on two hosts.\nIt is owned by finance."];
+  const level = (s: Partial<ReviewSubject>, e: Evidence | null = ev, typed: string[] = TYPED) => reviewLevel(subject(s), e, code(), typed);
 
-  it("verified: a scan fact that exists, a user note, a manifest at a mapped path, a known service by name", () => {
-    expect(level({ evidence: [{ kind: "scan", fact: "dockerfile:svc/Dockerfile:svc" }] })).toEqual({
-      level: "verified",
-      checks: [{ rule: "scan-fact", ok: true, path: "svc/Dockerfile", note: 'dockerfile "dockerfile:svc/Dockerfile:svc"' }],
+  it("verified: a scan fact about the item, a user note found in typed text, a manifest at a mapped path, a known service by name", () => {
+    expect(level({ codePaths: ["svc"], evidence: [{ kind: "scan", fact: "dockerfile:svc/Dockerfile:svc" }] }).checks[0]).toEqual({
+      rule: "scan-fact",
+      ok: true,
+      path: "svc/Dockerfile",
+      note: 'dockerfile "dockerfile:svc/Dockerfile:svc"',
     });
-    expect(level({ evidence: [{ kind: "user", note: "We run it" }] })).toEqual({ level: "verified", checks: [{ rule: "user-note", ok: true, note: "We run it" }] });
+    expect(level({ codePaths: ["svc"], evidence: [{ kind: "scan", fact: "dockerfile:svc/Dockerfile:svc" }] }).level).toBe("verified");
+    // The note is found whatever the letter case and line breaks.
+    expect(level({ evidence: [{ kind: "user", note: "we run it on two HOSTS. it is  owned by" }] })).toEqual({
+      level: "verified",
+      checks: [{ rule: "user-note", ok: true, note: "we run it on two HOSTS. it is  owned by" }],
+    });
     const m = level({ codePaths: ["svc"] });
     expect(m.level).toBe("verified");
     expect(m.checks).toContainEqual({ rule: "manifest-path", ok: true, path: "svc/Dockerfile", note: 'dockerfile "dockerfile:svc/Dockerfile:svc"' });
     expect(level({ name: "stripe", kind: "object" }).checks).toContainEqual(expect.objectContaining({ rule: "manifest-service", ok: true, path: "pay/charge.ts", line: 2 }));
     expect(level({ name: "Stripe" }).level).toBe("verified");
+  });
+
+  it("a user note counts only when it is found in text a person typed: not a model's own words, not a short one", () => {
+    const user = (note: string) => level({ evidence: [{ kind: "user", note }] });
+    for (const note of ["the user said so", "We run it", "invented by the model", "", "   "]) {
+      const r = user(note);
+      expect(r.level, note).toBe("unverified");
+      expect(r.checks, note).toContainEqual({ rule: "user-note", ok: false, note: "not found in the intake, the feedback or the description" });
+    }
+    // Found, but under 12 characters once spaces are squashed: not enough to count.
+    expect(level({ evidence: [{ kind: "user", note: "finance." }] }, ev, ["It is owned by finance."]).level).toBe("unverified");
+    expect(level({ evidence: [{ kind: "user", note: "owned by finance" }] }, ev, ["It is owned by finance."]).level).toBe("verified");
+    // Nothing typed at all: nothing to find it in.
+    expect(level({ evidence: [{ kind: "user", note: "We run it on two hosts" }] }, ev, []).level).toBe("unverified");
+    // A note that fails still leaves room for other evidence to verify the item.
+    expect(level({ codePaths: ["svc"], evidence: [{ kind: "user", note: "the user said so" }] }).level).toBe("verified");
+  });
+
+  it("a scan fact verifies only when it is about the item: its name or system, or a path of the item's code", () => {
+    const cite = (s: Partial<ReviewSubject>, fact: string) => level({ evidence: [{ kind: "scan", fact }], ...s }, ev);
+    // An existing fact about something else: a failed check, and no verification.
+    const other = cite({ name: "Totally Real Service", id: "exfil-service" }, "dockerfile:svc/Dockerfile:svc");
+    expect(other.level).toBe("unverified");
+    expect(other.checks[0]).toMatchObject({ rule: "scan-fact", ok: false });
+    // The fact's system is the item's name (slug compare), or its name is the item's ID.
+    expect(cite({ name: "stripe" }, "service-dependency:pay/package.json:stripe").level).toBe("verified");
+    expect(cite({ name: "Other", id: "dockerfile:svc/dockerfile:svc" }, "dockerfile:svc/Dockerfile:svc").level).toBe("verified");
+    // The fact's file is under one of the item's code paths (and a sibling folder is not).
+    expect(cite({ codePaths: ["svc"] }, "dockerfile:svc/Dockerfile:svc").level).toBe("verified");
+    expect(cite({ codePaths: ["sv"] }, "dockerfile:svc/Dockerfile:svc").level).toBe("unverified");
+    // A relationship: its ends' names count.
+    expect(cite({ kind: "relationship", name: "Charges", names: ["svc-api", "Stripe"] }, "service-dependency:pay/package.json:stripe").level).toBe("verified");
   });
 
   it("partly: the cited file and lines exist and hold the name or the quoted text", () => {
@@ -158,7 +206,7 @@ describe("reviewLevel", () => {
 
   it("unverified: no evidence, a missing path, missing lines, an unknown fact, a fact whose file is gone, a hidden path", () => {
     expect(level({})).toEqual({ level: "unverified", checks: [{ rule: "no-evidence", ok: false, note: "The import file cites no evidence for this." }] });
-    const user = { kind: "user" as const, note: "Sure" };
+    const user = { kind: "user" as const, note: "we run it on two hosts" };
     for (const bad of [
       { kind: "file" as const, path: "svc/nope.ts" },
       { kind: "file" as const, path: "svc/main.ts", lines: [2, 9] as [number, number] },
@@ -179,7 +227,12 @@ describe("reviewLevel", () => {
     const yes = level({ kind: "relationship", name: "Charges", edge });
     expect(yes.level).toBe("verified");
     expect(yes.checks).toContainEqual({ rule: "import-edge", ok: true, path: "svc/main.ts", note: "svc/main.ts imports pay/charge.ts" });
-    const back = level({ kind: "relationship", name: "Calls back", evidence: [{ kind: "user", note: "It does" }], edge: { source: "b", target: "a", sourcePaths: ["pay"], targetPaths: ["svc"] } });
+    const back = level({
+      kind: "relationship",
+      name: "Calls back",
+      evidence: [{ kind: "user", note: "It is owned by finance" }],
+      edge: { source: "b", target: "a", sourcePaths: ["pay"], targetPaths: ["svc"] },
+    });
     expect(back.level).toBe("unverified");
     expect(back.checks).toContainEqual({ rule: "import-edge", ok: false, note: 'No import from the code of "b" to the code of "a" was found.' });
   });
@@ -231,7 +284,7 @@ describe("review state", () => {
     const evidence: Evidence = {
       schemaVersion: 1,
       codeRoot: ".",
-      facts: [{ id: "EVIDENCE-MARKER-SCAN", level: "c2", kind: "package-entry", name: "payments", path: "sample_code/payments/controller.ts" }],
+      facts: [{ id: "EVIDENCE-MARKER-SCAN", level: "c2", kind: "package-entry", name: "ledger-service", path: "sample_code/payments/controller.ts" }],
       files: { total: 0, byLanguage: {}, notAnalysable: {}, binary: 0, skipped: [], sizes: [] },
       imports: [],
       notParsed: [],

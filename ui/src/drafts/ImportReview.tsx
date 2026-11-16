@@ -74,6 +74,8 @@ interface Props {
 export function ImportReview({ draftId, canEdit, version, onPick, onChanged }: Props) {
   const [data, setData] = useState<ImportReviewResponse | null>(null);
   const [none, setNone] = useState(false);
+  /** The draft was made by an import, but its review file is missing or unreadable (the server refuses to apply it until it is made again). */
+  const [lost, setLost] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [index, setIndex] = useState(0);
@@ -85,9 +87,11 @@ export function ImportReview({ draftId, canEdit, version, onPick, onChanged }: P
       const r = await api.importReview();
       setData(r);
       setNone(false);
+      setLost(null);
       setError(null);
     } catch (e) {
       if (e instanceof ApiError && e.status === 404) setNone(true);
+      else if (e instanceof ApiError && e.status === 422 && /review of this draft is missing/i.test(e.message)) setLost(e.message);
       else setError(errorMessage(e));
     }
   }, []);
@@ -96,6 +100,34 @@ export function ImportReview({ draftId, canEdit, version, onPick, onChanged }: P
   }, [load, draftId, version]);
 
   if (none) return null;
+  if (lost && !data) {
+    return (
+      <section className="import-review" data-testid="import-review-lost" aria-label="Review import">
+        <h3 className="panel-subtitle">Review import</h3>
+        <p className="small" role="alert">
+          {lost}
+        </p>
+        {canEdit && (
+          <button
+            className="small primary"
+            disabled={busy}
+            onClick={() => {
+              setBusy(true);
+              api
+                .reviewVerifyAll()
+                .then(() => load())
+                .then(() => onChanged())
+                .catch((e) => notify.error(errorMessage(e)))
+                .finally(() => setBusy(false));
+            }}
+            data-testid="review-rebuild"
+          >
+            Check again and rebuild the review
+          </button>
+        )}
+      </section>
+    );
+  }
   if (!data) return error ? <p className="error-text small">Could not load the review: {error}</p> : null;
   const { review } = data;
   const c = counts(review);

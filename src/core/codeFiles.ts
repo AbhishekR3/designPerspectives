@@ -32,6 +32,12 @@ export interface CodeSource {
   list(rel: string): CodeEntry[];
   /** Text of a file (at most MAX_BYTES), or null if it does not exist. */
   read(rel: string): string | null;
+  /**
+   * Where `rel` really is, relative to the code root, after symlinks are resolved (null: not readable). Only
+   * sources that can hold links have it; a rule that closes a path (must-not-open, deny-list) must hold for this
+   * path too, or a link would open what the rule closes.
+   */
+  resolved?(rel: string): string | null;
 }
 
 export const sha1 = (text: string): string => createHash("sha1").update(text, "utf-8").digest("hex");
@@ -57,6 +63,23 @@ export function codeRel(rel: string): string {
   if (p === null) throw new ModelError(OUTSIDE_MESSAGE);
   if (isHidden(p)) throw new ModelError(HIDDEN_MESSAGE);
   return p;
+}
+
+export const PROTECTED_MESSAGE =
+  "That path is inside the project's architecture/ or .dp/ folder, which hold the model, its review state and the settings. A code edit cannot change them: they change through dp.";
+
+/**
+ * Whether `rel` (under `codeRoot`, symlinks resolved) is, or is inside, one of `folders` (absolute paths of
+ * the project's own folders: its `architecture/` folder and `.dp/`). The code folder is often the project folder
+ * itself, so a code edit could otherwise rewrite the review state of a draft, or the model.
+ */
+export function inProtectedFolder(codeRoot: string | null, rel: string, folders: string[]): boolean {
+  if (codeRoot === null) return false;
+  const target = realLoose(path.resolve(realLoose(codeRoot), rel));
+  return folders.some((f) => {
+    const dir = realLoose(f);
+    return target === dir || target.startsWith(dir + path.sep);
+  });
 }
 
 /** Refuse content that could not be opened again (reads stop at MAX_BYTES). */
@@ -119,6 +142,11 @@ export class DiskCode implements CodeSource {
   kind(rel: string) {
     const a = this.abs(rel);
     return a ? statKind(a) : null;
+  }
+  resolved(rel: string): string | null {
+    const a = this.abs(rel);
+    if (!a) return null;
+    return path.relative(realLoose(this.root!), a).split(path.sep).join("/");
   }
   list(rel: string): CodeEntry[] {
     const a = this.abs(rel);
@@ -259,6 +287,10 @@ export class OverlayCode implements CodeSource {
   ) {
     this.hasRoot = base.hasRoot;
     this.planned = plan.files();
+  }
+  resolved(rel: string): string | null {
+    if (this.planned.has(rel)) return rel;
+    return this.base.resolved ? this.base.resolved(rel) : rel;
   }
   kind(rel: string) {
     if (isHidden(rel)) return null;

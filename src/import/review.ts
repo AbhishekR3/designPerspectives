@@ -7,7 +7,10 @@
  * relationship written; both carry the file entry's evidence.
  *
  * The review level is computed here from what the tool can check, never taken from the file's `confidence`:
- * - verified: a cited scan fact is in evidence.json (and its path is still there); a `user` note; a manifest
+ * - verified: a cited scan fact is in evidence.json (its path is still there) and is about the item (its name or
+ *   system is the item's name or ID, or its file is under one of the item's code paths); a `user` note that is
+ *   found in text a person typed (the intake, the feedback on the item or the draft, the description of a
+ *   describe-to-model draft: never the import file itself, which a model or a paste wrote); a manifest
  *   the scan found (package.json, Dockerfile, compose file, ...) sits at a code path the item maps; the scan
  *   found a known service with the item's name; for a relationship between two components with mapped code,
  *   an import from one's code to the other's. A flow is as verified as its least verified step.
@@ -21,14 +24,17 @@
  * State, outside the model (nothing here is written to it):
  *   architecture/import/reviews/<draftId>.json   ReviewState: per item its level, checks and decision
  *   architecture/import/files/<draftId>.json     the import file the draft was made from
- * Both are written when the importer makes the draft (`createReview`) and removed with the draft
+ *   architecture/import/files/<draftId>.source.txt   the description a person typed (describe-to-model), if any
+ * The first two are written when the importer makes the draft (`createReview`) and removed with the draft
  * (drafts.ts; the import file is kept when the draft is applied whole).
  *
  * Decisions: `acceptAll` accepts only verified and partly verified items; an unverified one is accepted
  * only by `setDecision` on that item, recorded with who did it. Rejecting resets the item's change in the
  * draft with what depends on it (`Drafts.revertUnits`); items that this takes out with it are marked rejected
  * too. On apply, everything not accepted stays in the draft: the hooks registered at the end of this file
- * give `Drafts.apply` the items to hold, so a client cannot apply a held item by calling apply directly.
+ * give `Drafts.apply` the items to hold, so a client cannot apply a held item by calling apply directly. A draft
+ * that has an import file but no readable review is not applied at all (`verifyAgain(..., null)` makes the review
+ * again with every item pending).
  */
 
 import fs from "node:fs";
@@ -55,7 +61,8 @@ import {
   type ReviewRule,
   type ReviewState,
 } from "../shared/types.js";
-import { importFilePath, reviewPath } from "./ledger.js";
+import { ensureImportGitignore } from "./intake.js";
+import { importDir, importFilePath, pendingPath, reviewPath, sourceTextPath } from "./ledger.js";
 import { readEvidence, type Evidence, type Fact } from "./scan.js";
 
 export const REVIEW_SCHEMA_VERSION = 1;
@@ -95,6 +102,10 @@ export interface ReviewSubject {
   kind: ReviewItemKind;
   /** Object name, relationship label, flow or decision title, as the draft has it now. */
   name: string;
+  /** The item's ID in the model (element or relationship ID), when it has one: a cited scan fact may be about it. */
+  id?: string;
+  /** Other names the item is known by: for a relationship, the names and IDs of its two ends. */
+  names?: string[];
   /** The file entry's evidence. */
   evidence: ImportEvidence[];
   /** The item's code mapping in the draft. */
@@ -106,6 +117,25 @@ export interface ReviewSubject {
 }
 
 const squash = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
+const slug = (s: string) =>
+  s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+/** A `user` note counts only when it is at least this long (after squashing) and found in text a person typed. */
+export const MIN_USER_NOTE = 12;
+const NOT_TYPED = "not found in the intake, the feedback or the description";
+
+/** Whether a scan fact is about the item: its name or system is the item's name or ID (compared as slugs), or its path is a code path of the item or under one. */
+function factRelates(f: Fact, item: ReviewSubject): boolean {
+  const names = new Set([item.id ?? "", item.name, ...(item.names ?? [])].map(slug).filter(Boolean));
+  if ([f.name, f.system ?? ""].some((n) => n && names.has(slug(n)))) return true;
+  return item.codePaths.some((p) => {
+    const c = cleanRel(p);
+    return !!c && (f.path === c || f.path.startsWith(`${c}/`));
+  });
+}
 const dirOf = (p: string) => (p.includes("/") ? p.slice(0, p.lastIndexOf("/")) : "");
 
 /** The first line (1-based, from `first`) of `lines` that holds `needle` (spaces and letter case ignored), or null. */
@@ -130,8 +160,10 @@ function importEdge(code: CodeSource, edge: NonNullable<ReviewSubject["edge"]>):
 /**
  * The review level of one item, and every check made for it (see the header for the rules). `evidence`: the
  * scan results (null: none yet, so cited scan facts cannot be checked, which does not count against the item).
+ * `typed`: text a person really typed and the server holds (intake, feedback, the description); a `user` note
+ * counts only when it is found in it.
  */
-export function reviewLevel(item: ReviewSubject, evidence: Evidence | null, code: CodeSource): { level: ReviewLevel; checks: ReviewCheck[] } {
+export function reviewLevel(item: ReviewSubject, evidence: Evidence | null, code: CodeSource, typed: string[] = []): { level: ReviewLevel; checks: ReviewCheck[] } {
   const checks: ReviewCheck[] = [];
   const check = (c: ReviewCheck) => checks.push(c);
 
@@ -148,11 +180,17 @@ export function reviewLevel(item: ReviewSubject, evidence: Evidence | null, code
   let failed = false;
   const facts = evidence ? new Map(evidence.facts.map((f) => [f.id, f])) : null;
   const where = (f: Fact) => ({ path: f.path, ...(f.line !== undefined ? { line: f.line } : {}) });
+  let haystack: string[] | null = null;
 
   for (const e of item.evidence) {
     if (e.kind === "user") {
-      check({ rule: "user-note", ok: true, note: e.note });
-      verified = true;
+      // The file is written by a model or pasted: a note counts only when it quotes what a person typed.
+      const needle = squash(e.note);
+      haystack ??= typed.map(squash);
+      if (needle.length >= MIN_USER_NOTE && haystack.some((t) => t.includes(needle))) {
+        check({ rule: "user-note", ok: true, note: e.note });
+        verified = true;
+      } else check({ rule: "user-note", ok: false, note: NOT_TYPED });
     } else if (e.kind === "scan") {
       if (!facts) {
         check({ rule: "scan-fact", ok: false, note: `"${e.fact}": there are no scan results (evidence.json) to check it against; run the scan.` });
@@ -165,6 +203,8 @@ export function reviewLevel(item: ReviewSubject, evidence: Evidence | null, code
       } else if (code.hasRoot && code.kind(f.path) === null) {
         check({ rule: "scan-fact", ok: false, ...where(f), note: `The scan found ${f.kind} "${f.name}" in ${f.path}, which is no longer there.` });
         failed = true;
+      } else if (!factRelates(f, item)) {
+        check({ rule: "scan-fact", ok: false, ...where(f), note: `The scan fact "${e.fact}" is about ${f.kind} "${f.name}", not about this item or its code.` });
       } else {
         check({ rule: "scan-fact", ok: true, ...where(f), note: `${f.kind} "${f.name}"` });
         verified = true;
@@ -297,12 +337,13 @@ function subjectOf(key: string, item: ReviewItem, file: ImportFile, v: DraftView
   const evidence = entryAt(file, item.pointer)?.evidence ?? [];
   if (kind === "object") {
     const el = idx.elements.get(id);
-    return el ? { kind, name: el.name, evidence, codePaths: getJson<string>(el, CODE_KEY).map(String) } : null;
+    return el ? { kind, id, name: el.name, evidence, codePaths: getJson<string>(el, CODE_KEY).map(String) } : null;
   }
   if (kind === "relationship") {
     const r = idx.relationships.get(id);
     if (!r) return null;
-    const s: ReviewSubject = { kind, name: r.description || "", evidence, codePaths: getJson<string>(r, CODE_KEY).map(String) };
+    const endNames = [r.sourceId, r.destinationId].flatMap((e) => (idx.elements.has(e) ? [e, idx.elements.get(e)!.name] : [e]));
+    const s: ReviewSubject = { kind, id, name: r.description || "", names: endNames, evidence, codePaths: getJson<string>(r, CODE_KEY).map(String) };
     const ends = [r.sourceId, r.destinationId].map((e) => (idx.elements.has(e) && idx.kindOf(e) === "component" ? getJson<string>(idx.elements.get(e)!, CODE_KEY).map(String) : []));
     if (ends[0]!.length && ends[1]!.length) s.edge = { source: r.sourceId, target: r.destinationId, sourcePaths: ends[0]!, targetPaths: ends[1]! };
     return s;
@@ -420,6 +461,8 @@ export interface ReviewOptions {
   code?: CodeSource;
   /** Scan results (default: `architecture/import/evidence.json`, if any). */
   evidence?: Evidence | null;
+  /** createReview: the description a person typed (describe-to-model), kept next to the import file for the user-note check. */
+  sourceText?: string;
 }
 
 interface Loaded {
@@ -428,6 +471,37 @@ interface Loaded {
   view: DraftView;
   code: CodeSource;
   evidence: Evidence | null;
+  /** Text a person typed that the server holds (intake, draft feedback, the description); an item's own feedback is added per item. */
+  typed: string[];
+}
+
+/** Every string value in a parsed JSON value. */
+function stringsIn(v: unknown, out: string[] = []): string[] {
+  if (typeof v === "string") out.push(v);
+  else if (Array.isArray(v)) for (const x of v) stringsIn(x, out);
+  else if (isObj(v)) for (const x of Object.values(v)) stringsIn(x, out);
+  return out;
+}
+
+/**
+ * The text a `user` note can be found in: what a person typed and the server holds, never what the import file
+ * says about itself: the intake's values, the description of a describe-to-model draft (`files/<id>.source.txt`)
+ * and the draft-wide feedback. The feedback of one item is added when that item is checked.
+ */
+function typedTexts(modelDir: string, draftId: string, state: ReviewState): string[] {
+  const out: string[] = [];
+  try {
+    stringsIn(JSON.parse(fs.readFileSync(path.join(importDir(modelDir), "intake.json"), "utf-8")), out);
+  } catch {
+    // No intake (or not readable): nothing to find notes in.
+  }
+  try {
+    out.push(fs.readFileSync(sourceTextPath(modelDir, draftId), "utf-8"));
+  } catch {
+    // Not a description draft.
+  }
+  if (state.draftFeedback) out.push(state.draftFeedback);
+  return out;
 }
 
 function load(drafts: Drafts, draftId: string, opts: ReviewOptions): Loaded {
@@ -437,7 +511,14 @@ function load(drafts: Drafts, draftId: string, opts: ReviewOptions): Loaded {
   if (!state) throw new ModelError(`Draft "${draftId}" is not an import draft: it has no review.`);
   const file = readImportFile(dir, draftId);
   if (!file) throw new ModelError(`The import file of draft "${draftId}" is missing, so its items cannot be checked again.`);
-  return { state, file, view: viewOf(drafts, draftId), code: opts.code ?? drafts.code(draftId), evidence: opts.evidence !== undefined ? opts.evidence : readEvidence(drafts.main.root) };
+  return {
+    state,
+    file,
+    view: viewOf(drafts, draftId),
+    code: opts.code ?? drafts.code(draftId),
+    evidence: opts.evidence !== undefined ? opts.evidence : readEvidence(drafts.main.root),
+    typed: typedTexts(dir, draftId, state),
+  };
 }
 
 function viewOf(drafts: Drafts, draftId: string): DraftView {
@@ -458,7 +539,7 @@ function recheck(l: Loaded, keys: string[] | null): void {
       cache.set(key, item.level);
       return item.level;
     }
-    const { level, checks } = reviewLevel(subject, l.evidence, l.code);
+    const { level, checks } = reviewLevel(subject, l.evidence, l.code, item.feedback ? [...l.typed, item.feedback] : l.typed);
     if (keys === null || keys.includes(key)) Object.assign(item, { name: subject.name, level, checks });
     cache.set(key, level);
     return level;
@@ -491,11 +572,23 @@ function liveItems(drafts: Drafts, draftId: string, state: ReviewState): Map<str
 export function createReview(drafts: Drafts, draftId: string, file: ImportFile, origins: ImportOrigin[], opts: ReviewOptions = {}): ReviewState {
   const dir = drafts.main.dir;
   const text = stableJson(file);
+  ensureImportGitignore(importDir(dir));
   atomicWrite(importFilePath(dir, draftId), text);
+  if (opts.sourceText) atomicWrite(sourceTextPath(dir, draftId), opts.sourceText);
   const items: Record<string, ReviewItem> = {};
   for (const o of origins) items[o.key] ??= { kind: o.kind, name: "", pointer: o.pointer, level: "unverified", checks: [], decision: "pending" };
   const state: ReviewState = { schemaVersion: 1, importFileSha1: sha1(text), revision: 1, items };
-  recheck({ state, file, view: viewOf(drafts, draftId), code: opts.code ?? drafts.code(draftId), evidence: opts.evidence !== undefined ? opts.evidence : readEvidence(drafts.main.root) }, null);
+  recheck(
+    {
+      state,
+      file,
+      view: viewOf(drafts, draftId),
+      code: opts.code ?? drafts.code(draftId),
+      evidence: opts.evidence !== undefined ? opts.evidence : readEvidence(drafts.main.root),
+      typed: typedTexts(dir, draftId, state),
+    },
+    null,
+  );
   writeReview(dir, draftId, state);
   return state;
 }
@@ -507,8 +600,90 @@ function itemOf(state: ReviewState, key: string): ReviewItem {
   return item;
 }
 
-/** Check one item again (`itemKey`), or every item (null): its level is computed afresh from the draft as it is now. */
+/** Whether the draft was made by an import: dp keeps the import file (or the pending ledger) for it. */
+export function isImportDraft(modelDir: string, draftId: string): boolean {
+  return fs.existsSync(importFilePath(modelDir, draftId)) || fs.existsSync(pendingPath(modelDir, draftId));
+}
+
+const slugOf = (s: string): string =>
+  s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+/**
+ * Make the review again from the import file kept for the draft and the draft as it is now, with every item
+ * pending (what was accepted is not known any more). Used when the review file is missing or cannot be read.
+ * Items are the draft's changes against its base that an import writes: elements, relationships, flows and
+ * decisions; each is matched to its entry in the import file for the evidence.
+ */
+export function rebuildReview(drafts: Drafts, draftId: string, opts: ReviewOptions = {}): ReviewState {
+  drafts.info(draftId);
+  const dir = drafts.main.dir;
+  const file = readImportFile(dir, draftId);
+  if (!file) throw new ModelError(`The import file of draft "${draftId}" is missing, so its review cannot be made again.`);
+  const view = viewOf(drafts, draftId);
+  const base = drafts.base(draftId);
+  const B = flatten(base.workspace, base.sidecar, base.decisions);
+  const draft = drafts.get(draftId);
+  const T = flatten(draft.workspace, draft.sidecar, draft.decisions);
+  const idx = buildIndex(view.ws);
+  const items: Record<string, ReviewItem> = {};
+  const add = (kind: ReviewItemKind, id: string, pointer: string) => {
+    items[itemKey(kind, id)] ??= { kind, name: "", pointer, level: "unverified", checks: [], decision: "pending" };
+  };
+  const changed = (unitKey: string) => !sameUnit(B.get(unitKey), T.get(unitKey));
+  for (const id of idx.elements.keys()) {
+    if (!changed(`el:${id}`)) continue;
+    const i = file.objects.findIndex((o) => o.id === id);
+    add("object", id, i >= 0 ? `/objects/${i}` : "");
+  }
+  for (const [id, r] of idx.relationships) {
+    if (!changed(`rel:${id}`)) continue;
+    const i = file.relationships.findIndex(
+      (x) =>
+        (x.source === r.sourceId && x.target === r.destinationId && x.description === r.description) ||
+        (x.via &&
+          ((x.source === r.sourceId && x.via === r.destinationId && x.description === r.description) ||
+            (x.via === r.sourceId && x.target === r.destinationId && (x.viaDescription ?? x.description) === r.description))),
+    );
+    add("relationship", id, i >= 0 ? `/relationships/${i}` : "");
+  }
+  for (const f of listFlows(view.ws)) {
+    if (!changed(`view:${f.key}`)) continue;
+    const i = (file.flows ?? []).findIndex((x) => `flow-${slugOf(x.title)}` === f.key);
+    add("flow", f.key, i >= 0 ? `/flows/${i}` : "");
+  }
+  for (const d of view.decisions) {
+    if (!changed(`dec:${d.file}`)) continue;
+    const i = (file.decisions ?? []).findIndex((x) => slugOf(x.title) === decisionSlug(d.file));
+    add("decision", decisionSlug(d.file), i >= 0 ? `/decisions/${i}` : "");
+  }
+  const text = stableJson(file);
+  const state: ReviewState = { schemaVersion: 1, importFileSha1: sha1(text), revision: 1, items };
+  recheck(
+    { state, file, view, code: opts.code ?? drafts.code(draftId), evidence: opts.evidence !== undefined ? opts.evidence : readEvidence(drafts.main.root), typed: typedTexts(dir, draftId, state) },
+    null,
+  );
+  writeReview(dir, draftId, state);
+  return state;
+}
+
+/**
+ * Check one item again (`itemKey`), or every item (null): its level is computed afresh from the draft as it is now.
+ * For every item (null) on a draft whose review is missing or unreadable, the review is made again (`rebuildReview`).
+ */
 export function verifyAgain(drafts: Drafts, draftId: string, itemKey: string | null, opts: ReviewOptions = {}): ReviewState {
+  if (itemKey === null) {
+    drafts.info(draftId);
+    let ok: boolean;
+    try {
+      ok = readReview(drafts.main.dir, draftId) !== null;
+    } catch {
+      ok = false;
+    }
+    if (!ok && isImportDraft(drafts.main.dir, draftId)) return rebuildReview(drafts, draftId, opts);
+  }
   const l = load(drafts, draftId, opts);
   if (itemKey !== null) itemOf(l.state, itemKey);
   recheck(l, itemKey === null ? null : [itemKey]);
@@ -616,12 +791,27 @@ export function lowConfidence(state: ReviewState): string[] {
 /** The hooks `Drafts.apply` uses for import drafts; registered when this module loads. */
 export const reviewHooks: DraftHooks = {
   applyGuard(drafts, id) {
-    const state = readReview(drafts.main.dir, id);
-    if (!state) return null;
+    let state: ReviewState | null = null;
+    try {
+      state = readReview(drafts.main.dir, id);
+    } catch {
+      // Unreadable: treated like a missing review below.
+    }
+    if (!state) {
+      if (!isImportDraft(drafts.main.dir, id)) return null;
+      // Fail closed: nothing says which items a person accepted, so nothing is applied.
+      throw new ModelError(
+        `The review of draft "${id}" is missing or cannot be read, so dp cannot tell which items were accepted and does not apply the draft. Use "Check again" in the review (or POST /api/import/review/verify) to make the review again from the import file, with every item waiting, then accept the items you want.`,
+      );
+    }
     const v = viewOf(drafts, id);
     const items = new Map<string, string[]>();
-    for (const [key, item] of Object.entries(state.items)) if (item.decision !== "accepted") items.set(key, itemUnits(key, v));
-    return { items };
+    const accepted: string[] = [];
+    for (const [key, item] of Object.entries(state.items)) {
+      if (item.decision !== "accepted") items.set(key, itemUnits(key, v));
+      else accepted.push(...itemUnits(key, v));
+    }
+    return { items, accepted };
   },
   afterPartialApply(drafts, id) {
     // Accepted items that reached main are no longer the draft's changes: they leave the review.

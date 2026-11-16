@@ -18,8 +18,8 @@ import { buildIndex, CATALOG_KEY, CHILD_KIND, cleanPaths, CODE_KEY, getJson, get
 import type { Sidecar } from "../core/sidecar.js";
 import { isHidden } from "../core/util.js";
 import type { Kind, Workspace } from "../core/workspace.js";
-import { secretLike } from "../shared/mask.js";
 import type { Decision, FieldError, ImportCheck, ImportEvidence, ImportFile, ImportObjectType } from "../shared/types.js";
+import { secretIn } from "../bmo/redact.js";
 import { pointer } from "./schema.js";
 import { compileGlob, globMatches, type Evidence, type Fact } from "./scan.js";
 
@@ -330,7 +330,7 @@ export function checkImport(file: ImportFile, model: ModelView, code: CodeSource
   const all: [string, string][] = [];
   strings(file, "", all);
   for (const [p, s] of all) {
-    const why = secretLike(s);
+    const why = secretIn(s);
     if (why) err(p, `This ${why}. An import file holds names, never secret values: remove it.`);
   }
 

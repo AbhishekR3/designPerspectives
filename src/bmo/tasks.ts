@@ -20,7 +20,7 @@ import { intakeData, type Intake } from "../import/intake.js";
 import { checkImport, type ModelView } from "../import/checks.js";
 import { parseImportFile, pointer, schemaErrors, IMPORT_SCHEMA } from "../import/schema.js";
 import { stableJson } from "../core/util.js";
-import { secretLike } from "../shared/mask.js";
+
 import type { ChangeSet, FieldError, ImportFile, ImportObjectType } from "../shared/types.js";
 import { asBmoError, BmoError, estimateTokens, promptHash, type Backend } from "./backend.js";
 import type { Digest, Sent } from "./digest.js";
@@ -42,7 +42,7 @@ import {
   type Block,
   type Variant,
 } from "./prompts.js";
-import { redactValue } from "./redact.js";
+import { redactValue, secretIn } from "./redact.js";
 
 export type { Sent };
 
@@ -464,7 +464,7 @@ const decisionFromDraft: Task<DraftChangesInput> = {
       ...d.alternatives.flatMap((a, k): [string, string][] => [[`/alternatives/${k}/name`, a.name], ...(a.whyNot ? [[`/alternatives/${k}/whyNot`, a.whyNot] as [string, string]] : [])]),
     ];
     for (const [p, s] of strings) {
-      const why = secretLike(s);
+      const why = secretIn(s);
       if (why) errs.push({ pointer: p, message: `This ${why}. A decision holds no secret values: remove it.` });
     }
     if (errs.length) return fail(id, "decision", errs);

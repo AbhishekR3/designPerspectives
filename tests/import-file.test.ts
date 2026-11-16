@@ -268,10 +268,10 @@ describe("checkImport", () => {
       /could mean 2 relationships/,
     ],
     ["decision about something unknown", (f) => f.decisions[0].affects.push("nothing-here"), "/decisions/0/affects/2", /No element or relationship "nothing-here"/],
-    ["AWS key", (f) => (f.objects[0].description = "Uses key AKIAIOSFODNN7EXAMPLE to sign"), "/objects/0/description", /AWS access key/],
-    ["PEM block", (f) => (f.objects[0].evidence[0].text = "-----BEGIN RSA PRIVATE KEY-----"), "/objects/0/evidence/0/text", /PEM/],
-    ["secret field with a value", (f) => (f.questions = ["Is DB_PASSWORD=hunter22 still used?"]), "/questions/0", /gives a value for "DB_PASSWORD"/],
-    ["long random token", (f) => (f.objects[1].description = "Token aZ3kQ9vB7xT2mL8pR4wE6yU1nC5sD0fG"), "/objects/1/description", /random-looking/],
+    ["AWS key", (f) => (f.objects[0].description = "Uses key AKIAIOSFODNN7EXAMPLE to sign"), "/objects/0/description", /holds a secret value/],
+    ["PEM block", (f) => (f.objects[0].evidence[0].text = "-----BEGIN RSA PRIVATE KEY-----"), "/objects/0/evidence/0/text", /holds a secret value/],
+    ["secret field with a value", (f) => (f.questions = ["Is DB_PASSWORD=hunter22 still used?"]), "/questions/0", /holds a secret value/],
+    ["long random token", (f) => (f.objects[1].description = "Token aZ3kQ9vB7xT2mL8pR4wE6yU1nC5sD0fG"), "/objects/1/description", /holds a secret value/],
   ];
   for (const [name, change, at, message] of cases) {
     it(`error: ${name}`, () => {

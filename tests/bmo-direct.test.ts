@@ -6,7 +6,19 @@ import { describe, expect, it } from "vitest";
 import { CredentialStore } from "../src/core/credentials.js";
 import { IMPORT_SCHEMA, parseImportFile } from "../src/import/schema.js";
 import { BmoError, type BmoRequest } from "../src/bmo/backend.js";
-import { ANTHROPIC_VERSION, directBackend, logRun, MAX_REQUEST_BYTES, providerSchema, restoreAnswer, RUNS_KEPT, runsDir, toProviderValue, type DirectFetch } from "../src/bmo/direct.js";
+import {
+  ANTHROPIC_VERSION,
+  directBackend,
+  logRun,
+  MAX_REQUEST_BYTES,
+  MAX_RESPONSE_BYTES,
+  providerSchema,
+  restoreAnswer,
+  RUNS_KEPT,
+  runsDir,
+  toProviderValue,
+  type DirectFetch,
+} from "../src/bmo/direct.js";
 import { DECISION_SCHEMA } from "../src/bmo/prompts.js";
 import { parseSettings, type BmoSettings } from "../src/bmo/settings.js";
 import { tmpDir } from "./helpers.js";
@@ -564,5 +576,95 @@ describe("run log", () => {
     const e = await fails(directBackend(settings({ provider: "openai" }), creds("openai"), st).run(req()));
     const f = logRun(dp, { ...entry, outcome: e.kind, error: e.message });
     expect(fs.readFileSync(f, "utf-8")).not.toContain(KEY);
+  });
+});
+
+describe("the Ollama endpoint and what comes back from it", () => {
+  const s = settings({ provider: "ollama", model: "qwen3:32b" });
+  const GENERIC = "The model server did not answer in the expected format.";
+
+  it("refuses link-local and cloud-metadata addresses, in every spelling the address parser knows", () => {
+    for (const endpoint of [
+      "http://169.254.169.254",
+      "http://169.254.169.254/latest/meta-data",
+      "https://169.254.169.254",
+      "http://169.254.0.1:11434",
+      "http://[fe80::1]:11434",
+      "http://[febf::1]",
+      "http://[::ffff:169.254.169.254]",
+      "http://2852039166",
+      "http://0xa9fea9fe",
+      "http://metadata.google.internal",
+    ]) {
+      const r = parseSettings({ enabled: true, backend: "direct", provider: "ollama", model: "m", endpoint });
+      expect(r.settings, endpoint).toBeUndefined();
+      expect(r.errors[0]!.pointer).toBe("/endpoint");
+      expect(r.errors[0]!.message, endpoint).toMatch(/link-local|metadata/);
+    }
+    for (const endpoint of ["http://127.0.0.1:11434", "http://localhost:11434", "http://[::1]:11434", "https://gpu.example.com/ollama", "https://169.253.1.1", "https://[fec0::1]"]) {
+      const r = parseSettings({ enabled: true, backend: "direct", provider: "ollama", model: "m", endpoint });
+      expect(r.errors, endpoint).toEqual([]);
+    }
+  });
+
+  it("does not echo a reply that is not JSON or not in the expected shape", async () => {
+    const page = "<html>INTERNAL-ADMIN-PAGE token=abc123def456</html>";
+    for (const body of [page, JSON.stringify({ secret: "INTERNAL-ADMIN-PAGE", items: [1, 2] }), JSON.stringify([page]), JSON.stringify({ message: { content: 5 }, note: page }), ""]) {
+      const e = await fails(directBackend(s, creds("ollama"), stub([{ body }])).run(req()));
+      expect(e.message, body).toBe(GENERIC);
+      expect(e.kind).toBe("invalid-output");
+      expect(JSON.stringify(e)).not.toContain("INTERNAL-ADMIN-PAGE");
+    }
+    // An error in the shape Ollama uses is still told, short.
+    const named = await fails(directBackend(s, creds("ollama"), stub([{ status: 404, body: JSON.stringify({ error: "model 'nope' not found" }) }])).run(req()));
+    expect(named.message).toBe("Ollama answered 404: model 'nope' not found");
+    // Any other error body: the status only.
+    const other = await fails(directBackend(s, creds("ollama"), stub([{ status: 500, body: page }])).run(req()));
+    expect(other.message).not.toContain("INTERNAL-ADMIN-PAGE");
+    expect(other.message).toMatch(/500/);
+    const other2 = await fails(directBackend(s, creds("ollama"), stub([{ status: 400, body: JSON.stringify({ message: "INTERNAL-ADMIN-PAGE", detail: "x" }) }])).run(req()));
+    expect(other2.message).not.toContain("INTERNAL-ADMIN-PAGE");
+  });
+
+  it("reads the reply as a stream and stops at the size limit instead of reading it whole", async () => {
+    let pulled = 0;
+    let textCalled = false;
+    const chunk = new Uint8Array(1024 * 1024).fill(97);
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulled++;
+        controller.enqueue(chunk);
+      },
+    });
+    const fetch: DirectFetch = () =>
+      Promise.resolve({
+        ok: true,
+        status: 200,
+        body,
+        text: () => {
+          textCalled = true;
+          return Promise.resolve("");
+        },
+      } as never);
+    const e = await fails(directBackend(s, creds("ollama"), { fetch, sleep: () => Promise.resolve() }).run(req()));
+    expect(e.kind).toBe("too-large");
+    expect(textCalled).toBe(false);
+    expect(pulled).toBeLessThanOrEqual(MAX_RESPONSE_BYTES / (1024 * 1024) + 3);
+  });
+
+  it("a declared length over the limit is refused before reading", async () => {
+    let read = false;
+    const fetch: DirectFetch = () =>
+      Promise.resolve({
+        ok: true,
+        status: 200,
+        headers: { get: (n: string) => (n.toLowerCase() === "content-length" ? String(MAX_RESPONSE_BYTES + 1) : null) },
+        text: () => {
+          read = true;
+          return Promise.resolve("{}");
+        },
+      });
+    expect((await fails(directBackend(s, creds("ollama"), { fetch }).run(req()))).kind).toBe("too-large");
+    expect(read).toBe(false);
   });
 });

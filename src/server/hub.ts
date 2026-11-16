@@ -32,6 +32,7 @@ import { Auth } from "./auth.js";
 import { buildApp, onError } from "./app.js";
 import type { AppOptions, Ctx } from "./context.js";
 import { installProtection } from "./protect.js";
+import { registerHubBmo } from "./routes/bmo.js";
 import { needAdmin, registerCredentials, registerHub, type HubCtx, type HubEntry } from "./routes/hub.js";
 import { registerUi } from "./routes/ui.js";
 import { HttpError, objBody } from "./context.js";
@@ -361,6 +362,7 @@ export function createHubApp(dir: string, opts: AppOptions = {}): { app: Hono; h
   };
   registerHub(app, hubCtx);
   registerCredentials(app, hubCtx, opts.secretKey);
+  registerHubBmo(app, hubCtx, hub.credentials, !!opts.bmoBackend);
 
   app.post("/api/hub/projects", async (c) => {
     needAdmin(hubCtx, c);

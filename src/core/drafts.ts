@@ -28,7 +28,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { prune, syncViews } from "./diagrams.js";
 import { writeCodeFile } from "./codeMap.js";
-import { CodePlan, DiskCode, OverlayCode, safePath, sha1, type PlannedFile } from "./codeFiles.js";
+import { CodePlan, DiskCode, inProtectedFolder, OverlayCode, PROTECTED_MESSAGE, safePath, sha1, type PlannedFile } from "./codeFiles.js";
 import { diffModels, type Snapshot } from "./diff.js";
 import { buildPlanItems, codingPlan } from "./plan.js";
 import type { CodeSource } from "./codeFiles.js";
@@ -53,6 +53,8 @@ const ID_RE = /^[a-z0-9][a-z0-9-]{0,80}$/;
 /** What an apply guard holds back: review item key → the draft's unit keys that carry the item. */
 export interface ApplyHold {
   items: Map<string, string[]>;
+  /** The draft's unit keys that carry the accepted items. Only an accepted item (and what it brings) may reach main: with none, nothing is applied, whatever else the draft changed. */
+  accepted: string[];
 }
 
 /** Hooks the import module registers (import/review.ts), so this module needs no review internals. */
@@ -309,6 +311,10 @@ export class Drafts {
       const planned = p.change === "deleted" ? null : plan.content(rel);
       if (cur === planned) continue; // already like that
       const label = `File ${rel}`;
+      if (inProtectedFolder(this.main.codeRoot, rel, [this.main.dir, path.join(this.main.root, ".dp")])) {
+        out.push({ label, reason: PROTECTED_MESSAGE });
+        continue;
+      }
       if (!disk.hasRoot) out.push({ label, reason: "There is no code folder to write it to (start with --code-root)." });
       else if (p.base === null && cur !== null) out.push({ label, reason: "Planned as a new file, but a file with that name now exists in the code folder." });
       else if (p.base !== null && cur === null) out.push({ label, reason: "Removed from the code folder since the draft planned a change to it." });
@@ -491,7 +497,9 @@ export class Drafts {
     const dependent: Conflict[] = [...set.keys]
       .filter((k) => !seedSet.has(k) && !sameIn(B, T, k) && !isLayoutUnit((T.get(k) ?? B.get(k))!))
       .map((k) => ({ label: labelOf(k), reason: `Held because it depends on ${labelOf(rootOf(k))}, which is not accepted.` }));
-    const nothingAccepted = changedKeys(B, TH).size === 0;
+    // Positions, styles, layout, tag groups and lenses are not items: they go along with an accepted item, never alone.
+    const acceptedKeys = new Set((guard?.accepted ?? []).map((k) => renamed.get(k) ?? k));
+    const nothingAccepted = ![...changedKeys(B, TH)].some((k) => acceptedKeys.has(k));
     const held: ApplyHeld = { items, dependent, nothingAccepted };
 
     const main = this.resolve(merge3(B, O, TH));

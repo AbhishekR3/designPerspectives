@@ -643,6 +643,17 @@
 .import-review p {
   margin: 0;
 }
+/* The review above the details of a selected object: it stays visible, and does not push the details off the panel. */
+.review-above {
+  border-bottom: 1px solid var(--line);
+  max-height: 45vh;
+  overflow-y: auto;
+}
+.review-above .import-review {
+  border-top: 0;
+  padding-top: 0;
+  margin-top: 0;
+}
 .review-item {
   border: 1px solid var(--line-strong);
   border-radius: var(--radius);

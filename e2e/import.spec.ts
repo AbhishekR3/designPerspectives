@@ -22,7 +22,8 @@ function importFile(level: "c2" | "all" = "c2") {
         parent: "internet-banking-system",
         description: "Keeps the ledger.",
         technologies: ["TypeScript"],
-        evidence: user("The team said so."),
+        // A note counts only when its words are in what a person typed: here, the answers saved on the import page (step 3).
+        evidence: user("Lets customers bank online."),
       },
       {
         id: "ledger-reader",
@@ -37,7 +38,7 @@ function importFile(level: "c2" | "all" = "c2") {
       { id: "audit-log", type: "container", name: "Audit Log", parent: "internet-banking-system", technologies: ["Postgres"] },
     ],
     relationships: [
-      { source: "api-application", target: "ledger-service", description: "Posts ledger entries to", technologies: ["HTTPS"], evidence: user("Seen in the design.") },
+      { source: "api-application", target: "ledger-service", description: "Posts ledger entries to", technologies: ["HTTPS"], evidence: user("The list of posted entries.") },
       { source: "ledger-service", target: "ledger-events", description: "Publishes ledger events to", technologies: ["Kafka"] },
     ],
   };
@@ -189,6 +190,9 @@ test.describe("the import page", () => {
     // An item of the list is shown on the diagram: its object is selected and its details open.
     await page.getByTestId("review-item-pick").click();
     await expect(page.getByTestId("field-name")).toHaveValue("Audit Log");
+    // The review stays visible next to the details of the picked object (above them), with its actions.
+    await expect(page.getByTestId("import-review")).toBeVisible();
+    await expect(page.getByTestId("review-accept")).toBeVisible();
     await page.getByTestId("draft-apply").click();
     await expect(page.getByTestId("apply-nothing-accepted")).toContainText("Nothing is accepted yet");
     await expect(page.getByTestId("apply-confirm")).toBeDisabled();

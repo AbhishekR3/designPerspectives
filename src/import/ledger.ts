@@ -7,6 +7,7 @@
  *   architecture/import/pending/<draftId>.json   the same, for one import draft not yet (fully) applied
  *   architecture/import/reviews/<draftId>.json   the review state of an import draft (review.ts)
  *   architecture/import/files/<draftId>.json     the import file the draft was made from
+ *   architecture/import/files/<draftId>.source.txt   the description a person typed (describe-to-model), if any
  *
  * On re-import, each field is a three-way: base = ledger, ours = the model, theirs = the new file (see
  * importer.ts). The folder sits next to `drafts/`, outside every model copy: a draft copies only the model
@@ -60,12 +61,17 @@ export const REVIEWS_DIR = "reviews";
 export const FILES_DIR = "files";
 export const reviewPath = (modelDir: string, draftId: string): string => path.join(importDir(modelDir), REVIEWS_DIR, `${draftId}.json`);
 export const importFilePath = (modelDir: string, draftId: string): string => path.join(importDir(modelDir), FILES_DIR, `${draftId}.json`);
+/** The description a person typed for a describe-to-model draft: written by the server, never part of the import file the model wrote. */
+export const sourceTextPath = (modelDir: string, draftId: string): string => path.join(importDir(modelDir), FILES_DIR, `${draftId}.source.txt`);
 
 /** Forget an import draft's review state and, unless `keepFile` (a fully applied draft: the file is the
  *  record of what was proposed), its import file. */
 export function dropReview(modelDir: string, draftId: string, opts: { keepFile?: boolean } = {}): void {
   fs.rmSync(reviewPath(modelDir, draftId), { force: true });
-  if (!opts.keepFile) fs.rmSync(importFilePath(modelDir, draftId), { force: true });
+  if (!opts.keepFile) {
+    fs.rmSync(importFilePath(modelDir, draftId), { force: true });
+    fs.rmSync(sourceTextPath(modelDir, draftId), { force: true });
+  }
 }
 
 /** Values compare by their JSON text. */

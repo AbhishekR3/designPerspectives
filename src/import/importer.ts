@@ -64,6 +64,8 @@ export interface ImportOptions {
   code?: CodeSource;
   /** The scan results the review levels are checked against (default: `architecture/import/evidence.json`, if any). */
   evidence?: Evidence | null;
+  /** The description a person typed that the file was made from (describe-to-model): kept so `user` notes can be found in it. */
+  sourceText?: string;
 }
 
 export interface ImportResult {
@@ -341,7 +343,7 @@ export function importToDraft(drafts: Drafts, file: ImportFile, opts: ImportOpti
   try {
     const { report, written, origins } = drafts.get(id).edit((ws, sc, decs) => applyImport(ws, sc, decs, file, ledger, { date }));
     writePending(main.dir, id, written);
-    createReview(drafts, id, file, origins, { code: opts.code, evidence: opts.evidence });
+    createReview(drafts, id, file, origins, { code: opts.code, evidence: opts.evidence, ...(opts.sourceText ? { sourceText: opts.sourceText } : {}) });
     return { draftId: id, report, warnings: check.warnings };
   } catch (e) {
     drafts.remove(id);

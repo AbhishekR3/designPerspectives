@@ -643,6 +643,22 @@ describe("the direct backend through the server", () => {
     }
   });
 
+  it("a settings change between the preview and the run (another model or provider) refuses the run and sends nothing", async () => {
+    const st = stub(() => message(TEXT));
+    const { c } = await direct({ fetch: st.fetch });
+    const pv = await ok(c.post("/api/bmo/preview", BODY.explain));
+    await ok(c.put("/api/bmo/settings", { enabled: true, backend: "direct", provider: "anthropic", credential: "anthropic-key", model: "claude-sonnet-5-5", pricePerMTok: { input: 5, output: 25 } }));
+    const stale = await c.post("/api/bmo/run", { ...BODY.explain, hash: pv.hash });
+    expect(stale.status).toBe(409);
+    expect(stale.json().detail).toMatch(/not the one that was shown/);
+    expect(st.calls).toHaveLength(0);
+    const again = await ok(c.post("/api/bmo/preview", BODY.explain));
+    expect(again.hash).not.toBe(pv.hash);
+    expect(again.destination.model).toBe("claude-sonnet-5-5");
+    expect((await c.post("/api/bmo/run", { ...BODY.explain, hash: again.hash })).status).toBe(200);
+    expect(st.calls).toHaveLength(1);
+  });
+
   it("keepPrompts puts the prompt in the log, still not the key", async () => {
     const st = stub(() => message(TEXT));
     const { dir, c } = await direct({ fetch: st.fetch, settings: { keepPrompts: true } });
@@ -746,5 +762,54 @@ describe("a hub", () => {
     expect(r.status, r.text).toBe(403);
     expect(r.json().detail).toMatch(/whole hub/);
     expect((await ok(onP.get("/api/bmo"))).canAdmin).toBe(false);
+  });
+});
+
+describe("the hub's own BMO settings routes", () => {
+  function hub() {
+    const dir = tmpDir();
+    copyDemoHub(dir);
+    writeTestUsers(dir, [
+      { name: "boss", role: "architect" },
+      { name: "lead", role: "engineer" },
+      { name: "eng", role: "engineer" },
+    ]);
+    const users = JSON.parse(fs.readFileSync(path.join(dir, ".dp", "users.json"), "utf-8"));
+    for (const u of users.users ?? users) if (u.name === "lead") u.projects = { payments: "architect" };
+    fs.writeFileSync(path.join(dir, ".dp", "users.json"), JSON.stringify(users));
+    const { app } = createHubApp(dir, { bmoBackend: fakeBackend(answers()) });
+    return { dir, base: new Client("", {}, app) };
+  }
+
+  it("answer without a project header, from the hub's own settings and the caller's role in the hub", async () => {
+    const { dir, base } = hub();
+    expect((await base.get("/api/bmo")).status).toBe(401);
+    const boss = await base.as("boss");
+    const st = await ok(boss.get("/api/bmo"));
+    expect(st).toMatchObject({ canAdmin: true, enabled: false });
+    expect(st.settings).not.toBeNull();
+    expect(st.tasks.length).toBeGreaterThan(0);
+    const put = await boss.put("/api/bmo/settings", { enabled: true, backend: "direct", provider: "ollama", model: "qwen3:32b", projects: { payments: { allowedRoles: ["architect"] } } });
+    expect(put.status, put.text).toBe(200);
+    expect(put.json()).toMatchObject({ enabled: true, provider: "ollama", model: "qwen3:32b" });
+    expect(fs.existsSync(path.join(dir, ".dp", "bmo.json"))).toBe(true);
+    // The same file the projects read: a project sees the setting.
+    const onP = new Client("", {}, boss.app, { ...boss.headers, "X-DP-Project": "onboarding" });
+    expect((await ok(onP.get("/api/bmo"))).provider).toBe("ollama");
+    // A bad body is refused with the field errors.
+    const bad = await boss.put("/api/bmo/settings", { provider: "nope" });
+    expect(bad.status).toBe(422);
+  });
+
+  it("an engineer, and an architect of one project only, can read the status but not change the settings or see them", async () => {
+    const { base } = hub();
+    for (const who of ["eng", "lead"]) {
+      const c = await base.as(who);
+      const st = await ok(c.get("/api/bmo"));
+      expect(st.canAdmin, who).toBe(false);
+      expect(st.settings, who).toBeNull();
+      const r = await c.put("/api/bmo/settings", { enabled: true });
+      expect(r.status, who).toBe(403);
+    }
   });
 });

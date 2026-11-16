@@ -43,8 +43,6 @@ export function CredentialsPage({ hub }: { hub: HubInfo }) {
   if (!hub.canAdmin) return <p className="page-pad muted">Only an architect can see and manage credentials.</p>;
   if (error) return <p className="page-pad error-text">Could not load: {error}</p>;
   if (!list) return <p className="page-pad muted">Loading…</p>;
-  // The BMO settings are one file for the whole hub, answered by any project's app: ask the first one (null: a single project; undefined: a hub without a project).
-  const bmoProject = hub.mode === "hub" ? hub.projects.find((p) => !p.catalog)?.id : null;
   const act = async (fn: () => Promise<unknown>, done: string) => {
     try {
       await fn();
@@ -150,7 +148,7 @@ export function CredentialsPage({ hub }: { hub: HubInfo }) {
         </div>
       )}
 
-      {bmoProject !== undefined && <BmoSettings project={bmoProject} credentials={list.credentials} />}
+      <BmoSettings credentials={list.credentials} />
     </div>
   );
 }

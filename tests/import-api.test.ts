@@ -10,7 +10,7 @@ import { createApp } from "../src/server/app.js";
 import type { ImportFile } from "../src/shared/types.js";
 import { Client, client, demoDir, ok, ROLE_USERS, tmpDir } from "./helpers.js";
 import { copyDemoHub, createHubApp } from "../src/server/hub.js";
-import { sampleImport } from "./import-fixture.js";
+import { sampleImport, typeIntake } from "./import-fixture.js";
 
 const importDir = (dir: string) => path.join(dir, "architecture", "import");
 const text = (f: ImportFile) => JSON.stringify(f);
@@ -38,6 +38,15 @@ function small(): ImportFile {
     ],
   };
 }
+
+/** What the person "typed" for the small file's notes and for the example. */
+const NOTES = ["The team said so.", "Seen in the design.", "The payments team confirmed card payments go through Stripe."];
+/** A demo project whose intake holds `NOTES`. */
+const typedDemo = (): string => {
+  const dir = demoDir();
+  typeIntake(dir, ...NOTES);
+  return dir;
+};
 
 const USERS = [...ROLE_USERS, { name: "engineer2", role: "engineer" as const }];
 const signedIn = (dir = demoDir()) => client(dir, { users: USERS });
@@ -123,7 +132,7 @@ describe("check and file", () => {
   });
 
   it("makes a draft credited to the signed-in user, with the report and the review", async () => {
-    const dir = demoDir();
+    const dir = typedDemo();
     const eng = await signedIn(dir).as("engineer");
     const made = await ok(eng.post("/api/import/file", { text: text(small()), description: "From the design doc" }));
     expect(made.draftId).toBe("import-c2");
@@ -160,7 +169,7 @@ describe("check and file", () => {
 
 describe("the demo example", () => {
   it("is offered for the demo, makes a draft, and is not offered where its objects do not fit", async () => {
-    const c = client(demoDir());
+    const c = client(typedDemo());
     const ex = await ok(c.get("/api/import/example"));
     expect(ex.available).toBe(true);
     expect(JSON.parse(ex.text)).toMatchObject({ schemaVersion: 1, level: "all" });
@@ -253,7 +262,7 @@ describe("handoff", () => {
 
 describe("review", () => {
   it("accept-all takes the verified items and skips the unverified; one item is accepted, rejected and verified by key", async () => {
-    const c = signedIn();
+    const c = signedIn(typedDemo());
     const arch = await c.as("architect");
     const id = await importDraft(arch);
     const d = arch.at(`draft:${id}`);
@@ -368,7 +377,7 @@ describe("ignore list and levels", () => {
   });
 
   it("counts items waiting for an explicit accept, and refuses to finalize while they wait", async () => {
-    const dir = demoDir();
+    const dir = typedDemo();
     const c = client(dir);
     await ok(c.post("/api/import/scan"));
     await importDraft(c);

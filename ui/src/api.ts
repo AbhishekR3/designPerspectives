@@ -250,12 +250,16 @@ export const api = {
   /** One review item: `key` is `object:<id>`, `relationship:<id>`, ... (the ":" stays as it is in the path). */
   reviewItem: (key: string, body: { action: "verify" | "accept" | "reject" | "pending" | "feedback"; text?: string }) =>
     request<ReviewActionResult>("POST", `/import/review/items/${enc(key).replace(/%3A/gi, ":")}`, body),
+  /** Check every item again; for a draft whose review file is lost, this makes the review again from the import file (every item pending). */
+  reviewVerifyAll: () => request<{ review: ImportReviewResponse["review"] }>("POST", "/import/review/verify", {}),
   reviewAcceptAll: () => request<AcceptAllResult>("POST", "/import/review/accept-all", {}),
   reviewDraftFeedback: (text: string) => request<{ review: ImportReviewResponse["review"] }>("POST", "/import/review/feedback", { text }),
   // BMO (DEC-051): the status, the settings, a preview of what would be sent, a run.
-  /** `project`: in a hub, the project whose app answers (the settings are shared by the whole hub). */
+  /** `project`: the project whose role list applies (the run button); the settings page uses `bmoHub`. */
   bmo: (project?: string | null) => request<BmoStatus>("GET", "/bmo", undefined, project ? { project } : {}),
-  bmoSettings: (settings: BmoSettingsData, project?: string | null) => request<BmoStatus>("PUT", "/bmo/settings", settings, project ? { project } : {}),
+  /** The settings page: the hub's own settings (no project header; a hub answers them itself, a single project is its own hub). */
+  bmoHub: () => request<BmoStatus>("GET", "/bmo", undefined, { project: null }),
+  bmoHubSettings: (settings: BmoSettingsData) => request<BmoStatus>("PUT", "/bmo/settings", settings, { project: null }),
   bmoPreview: (body: { task: BmoTaskId } & Record<string, unknown>, signal?: AbortSignal) => request<BmoPreview>("POST", "/bmo/preview", body, { signal }),
   bmoRun: (body: { task: BmoTaskId; hash: string } & Record<string, unknown>, signal?: AbortSignal) => request<BmoRunResult>("POST", "/bmo/run", body, { signal }),
 };

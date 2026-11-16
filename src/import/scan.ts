@@ -156,42 +156,125 @@ const cmp = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 
 // ---------------------------------------------------------------- globs
 
+/** Something that says whether a whole string matches (a regular expression for simple globs, `Nfa` for the rest). */
+interface Test {
+  test(s: string): boolean;
+}
+
 interface Glob {
-  re: RegExp;
+  re: Test;
   /** No slash in the pattern: it matches a file or folder name at any depth. */
   anywhere: boolean;
   segs: string[];
 }
 
-function segRegex(seg: string): RegExp {
+// The parts of a glob. s: a star (no slash), q: a question mark, a: a double star (anything), pre: a leading folder
+// double star and its slash (any folders, or nothing), suf: a closing slash and double star (anything below, or nothing).
+type Tok = { k: "c"; c: string } | { k: "q" } | { k: "s" } | { k: "a" } | { k: "pre" } | { k: "suf" };
+
+function tokens(p: string): Tok[] {
+  const out: Tok[] = [];
+  for (let i = 0; i < p.length;) {
+    if (p.startsWith("**/", i)) {
+      if (out[out.length - 1]?.k !== "pre") out.push({ k: "pre" });
+      i += 3;
+    } else if (p.startsWith("/**", i) && i + 3 === p.length) {
+      out.push({ k: "suf" });
+      i += 3;
+    } else if (p.startsWith("**", i)) {
+      if (out[out.length - 1]?.k !== "a") out.push({ k: "a" });
+      i += 2;
+    } else {
+      const ch = p[i]!;
+      if (ch === "*") {
+        if (out[out.length - 1]?.k !== "s") out.push({ k: "s" });
+      } else out.push(ch === "?" ? { k: "q" } : { k: "c", c: ch });
+      i++;
+    }
+  }
+  return out;
+}
+
+const WILD = new Set(["s", "q", "a", "pre", "suf"]);
+
+/**
+ * A pattern with three or more wildcards is matched by a small automaton, not a regular expression: a
+ * backtracking engine takes exponential time on `*a*a*a*a*…` against a long name, and both the pattern (the
+ * intake) and the names (the repository) come from outside. The automaton does at most (characters × parts) steps.
+ */
+class Nfa implements Test {
+  constructor(private readonly toks: Tok[]) {}
+  test(str: string): boolean {
+    const toks = this.toks;
+    const n = toks.length;
+    // `cur[i]`: before token i. `inner[i]`: inside the folders of a `pre` (or the rest of a `suf`) at token i.
+    let cur = new Uint8Array(n + 1);
+    let inner = new Uint8Array(n + 1);
+    const close = () => {
+      for (let i = 0; i < n; i++) {
+        const k = toks[i]!.k;
+        if (cur[i] && (k === "s" || k === "a" || k === "pre" || k === "suf")) cur[i + 1] = 1;
+        if (inner[i] && k === "suf") cur[i + 1] = 1;
+      }
+    };
+    cur[0] = 1;
+    close();
+    for (const ch of str) {
+      const next = new Uint8Array(n + 1);
+      const nextInner = new Uint8Array(n + 1);
+      for (let i = 0; i < n; i++) {
+        const t = toks[i]!;
+        if (cur[i]) {
+          if (t.k === "c") {
+            if (ch === t.c) next[i + 1] = 1;
+          } else if (t.k === "q") {
+            if (ch !== "/") next[i + 1] = 1;
+          } else if (t.k === "s") {
+            if (ch !== "/") next[i] = 1;
+          } else if (t.k === "a") next[i] = 1;
+          else if (t.k === "pre") {
+            nextInner[i] = 1;
+            if (ch === "/") next[i + 1] = 1;
+          } else if (ch === "/") nextInner[i] = 1;
+        }
+        if (inner[i]) {
+          if (t.k === "pre") {
+            nextInner[i] = 1;
+            if (ch === "/") next[i + 1] = 1;
+          } else nextInner[i] = 1;
+        }
+      }
+      cur = next;
+      inner = nextInner;
+      close();
+    }
+    return cur[n] === 1;
+  }
+}
+
+const regexOf = (toks: Tok[]): RegExp => {
   let s = "";
-  for (const ch of seg) s += ch === "*" ? "[^/]*" : ch === "?" ? "[^/]" : ch.replace(/[.+^${}()|[\]\\]/g, "\\$&");
+  for (const t of toks) {
+    if (t.k === "c") s += t.c.replace(/[.+^${}()|[\]\\]/g, "\\$&");
+    else s += t.k === "q" ? "[^/]" : t.k === "s" ? "[^/]*" : t.k === "a" ? ".*" : t.k === "pre" ? "(?:.*/)?" : "(?:/.*)?";
+  }
   return new RegExp(`^${s}$`);
+};
+
+function matcher(toks: Tok[]): Test {
+  return toks.filter((t) => WILD.has(t.k)).length >= 3 ? new Nfa(toks) : regexOf(toks);
+}
+
+function segMatcher(seg: string): Test {
+  return matcher(tokens(seg.replace(/\*\*/g, "*")).filter((t) => t.k !== "pre" && t.k !== "suf"));
 }
 
 /** A small glob: `*` (within a name), `**` (across folders) and `?`. A pattern without "/" matches names at any depth. */
 export function compileGlob(pattern: string): Glob {
   let p = pattern.trim().replace(/\\/g, "/").replace(/^\.\//, "").replace(/\/+$/, "");
   const anywhere = !p.includes("/");
-  let s = "";
-  for (let i = 0; i < p.length;) {
-    if (p.startsWith("**/", i)) {
-      s += "(?:.*/)?";
-      i += 3;
-    } else if (p.startsWith("/**", i) && i + 3 === p.length) {
-      s += "(?:/.*)?";
-      i += 3;
-    } else if (p.startsWith("**", i)) {
-      s += ".*";
-      i += 2;
-    } else {
-      const ch = p[i]!;
-      s += ch === "*" ? "[^/]*" : ch === "?" ? "[^/]" : ch.replace(/[.+^${}()|[\]\\]/g, "\\$&");
-      i++;
-    }
-  }
   p = p || "*";
-  return { re: new RegExp(`^${s}$`), anywhere, segs: p.split("/") };
+  return { re: matcher(tokens(p)), anywhere, segs: p.split("/") };
 }
 
 /** Whether the glob matches `rel` itself or any folder above it. */
@@ -212,7 +295,7 @@ function globCouldMatchUnder(g: Glob, dir: string): boolean {
     const seg = g.segs[i];
     if (seg === undefined) return false;
     if (seg === "**") return true;
-    if (!segRegex(seg).test(parts[i]!)) return false;
+    if (!segMatcher(seg).test(parts[i]!)) return false;
   }
   return true;
 }
@@ -289,7 +372,8 @@ function requirementName(spec: string): string | null {
 function readRequirements(text: string): Dep[] {
   const out: Dep[] = [];
   text.split(/\r?\n/).forEach((raw, i) => {
-    const line = raw.replace(/\s+#.*$/, "").trim();
+    const hash = raw.search(/\s#/);
+    const line = (hash >= 0 ? raw.slice(0, hash) : raw).trim();
     if (!line || line.startsWith("#") || line.startsWith("-") || /^(git\+|https?:|\.|\/)/.test(line)) return;
     const name = requirementName(line);
     if (name) out.push({ name, line: i + 1 });
@@ -316,7 +400,7 @@ function readPyproject(text: string): { deps: Dep[]; scripts: { name: string; ta
     const n = i + 1;
     const line = stripComment(raw).trim();
     if (!line) return;
-    const head = /^\[\[?\s*([^\]]+?)\s*\]\]?$/.exec(line);
+    const head = /^\[\[?([^\]]+)\]\]?$/.exec(line);
     if (!inArray && head) {
       section = head[1]!.replace(/\s+/g, "");
       return;
@@ -376,7 +460,7 @@ interface Entry {
 function entriesOf(text: string): Entry[] {
   const out: Entry[] = [];
   text.split(/\r?\n/).forEach((raw, i) => {
-    const t = stripComment(raw).replace(/\s+$/, "");
+    const t = stripComment(raw).trimEnd();
     if (!t.trim()) return;
     out.push({ indent: t.length - t.trimStart().length, text: t.trim(), line: i + 1 });
   });
@@ -547,7 +631,8 @@ function readEnvSample(text: string): { name: string; host: string | null; line:
 function readCodeowners(text: string): { owner: string; pattern: string; line: number }[] {
   const out: { owner: string; pattern: string; line: number }[] = [];
   text.split(/\r?\n/).forEach((raw, i) => {
-    const l = raw.replace(/\s+#.*$/, "").trim();
+    const hash = raw.search(/\s#/);
+    const l = (hash >= 0 ? raw.slice(0, hash) : raw).trim();
     if (!l || l.startsWith("#")) return;
     const [pattern, ...owners] = l.split(/\s+/);
     for (const o of owners) if (o.startsWith("@") || /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(o)) out.push({ owner: o, pattern: pattern!, line: i + 1 });
@@ -658,6 +743,15 @@ export function scanRepo(code: CodeSource, intake: Intake, options: ScanOptions 
       if (kind === null) {
         notParsed.push({ path: rel, reason: "not readable: a link that leaves the code folder, a broken link or a protected path" });
         continue;
+      }
+      // A link into a place the intake closes opens nothing: the rules hold for where it really is.
+      const real = code.resolved?.(rel);
+      if (real !== undefined && real !== null && real !== rel) {
+        const viaLink = [...never, ...exclude].find(([, g]) => globMatches(g, real));
+        if (viaLink) {
+          skipped.push({ path: rel, reason: `${viaLink[0]} (a link to ${real})` });
+          continue;
+        }
       }
       if (kind === "dir") {
         if (depth + 1 > st.maxDepth) limit("max-depth", rel, `not entered: deeper than ${st.maxDepth} folders`);

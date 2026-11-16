@@ -13,19 +13,20 @@ import fs from "node:fs";
 import path from "node:path";
 import type { Context, Hono } from "hono";
 import { gitUserName } from "../../core/git.js";
-import { parseHandoffRequest, writeImportHandoff, checkHandoffResult } from "../../bmo/importTasks.js";
+import { parseHandoffRequest, readHandoffDescription, writeImportHandoff, checkHandoffResult } from "../../bmo/importTasks.js";
 import { pasteBackText } from "../../bmo/tasks.js";
 import { LEVELS, readEvidence, type Level } from "../../import/scan.js";
 import { checkImport, missingContainers } from "../../import/checks.js";
 import { ImportRejected, importToDraft } from "../../import/importer.js";
-import { parseIntake, writeIntake } from "../../import/intake.js";
+import { intakeLoosened, parseIntake, readIntake, writeIntake } from "../../import/intake.js";
 import { changeIgnore, buildOverview, FinalizeRefused, lowConfidenceByLevel, scanProject, setLevelFinal } from "../../import/overview.js";
 import { parseImportFile } from "../../import/schema.js";
-import { acceptAll, lowConfidence, readReview, setDecision, setFeedback, verifyAgain } from "../../import/review.js";
+import { acceptAll, isImportDraft, lowConfidence, readReview, setDecision, setFeedback, verifyAgain } from "../../import/review.js";
 import { snapshotModel } from "../../import/analysis.js";
 import { ModelError } from "../../core/ops.js";
 import { DEMO_DIR } from "../../core/project.js";
 import type { AcceptAllResult, FieldError, ImportDraftResult, ImportExample, ImportFile, ImportReviewResponse, ReviewActionResult, ReviewDecision } from "../../shared/types.js";
+import { decide } from "../auth.js";
 import { body, HttpError, needStr, objBody, optStr, type Ctx } from "../context.js";
 
 const ITEM_ACTIONS = ["verify", "accept", "reject", "pending", "feedback"] as const;
@@ -69,10 +70,15 @@ export function registerImport(app: Hono, ctx: Ctx): void {
   };
 
   /** Make the draft from a parsed import file; `title` null: a free default. */
-  const makeDraft = (c: Context, file: ImportFile, title: string | null, description: string): ImportDraftResult => {
+  const makeDraft = (c: Context, file: ImportFile, title: string | null, description: string, sourceText?: string): ImportDraftResult => {
     project.reloadIfChanged();
     const extra = containerWarnings(file);
-    const r = importToDraft(drafts, file, { title: title?.trim() || freeTitle(`Import ${file.level === "all" ? "(all levels)" : file.level.toUpperCase()}`), description, author: author(c) });
+    const r = importToDraft(drafts, file, {
+      title: title?.trim() || freeTitle(`Import ${file.level === "all" ? "(all levels)" : file.level.toUpperCase()}`),
+      description,
+      author: author(c),
+      ...(sourceText ? { sourceText } : {}),
+    });
     return { draftId: r.draftId, report: r.report, warnings: [...r.warnings, ...extra] };
   };
 
@@ -101,6 +107,11 @@ export function registerImport(app: Hono, ctx: Ctx): void {
     const b = await body(c);
     const { errors } = parseIntake(b);
     if (errors.length) return refuse(c, `The intake is not valid: ${errors.map((e) => (e.path ? `${e.path} ${e.message}` : e.message)).join("; ")}`, { errors });
+    // What the scan and BMO must not open, and how much they read, is the architect's to loosen; anyone who may edit the intake can tighten it.
+    const loosened = intakeLoosened(readIntake(project.root).intake, parseIntake(b).intake);
+    if (loosened.length && decide("import.final", ctx.who(c), "main", null) !== null) {
+      throw new HttpError(403, `Only an architect can loosen what the scan and BMO may open: ${loosened.join("; ")}. You can add to those lists and lower the limits; ask an architect for the rest.`);
+    }
     writeIntake(project.root, b);
     return c.json(buildOverview(project, drafts));
   });
@@ -140,7 +151,7 @@ export function registerImport(app: Hono, ctx: Ctx): void {
     if (!result.ok) return refuse(c, `The result was refused: ${result.errors.length} problem${result.errors.length === 1 ? "" : "s"}.`, { errors: result.errors, pasteBack: result.pasteBack });
     if (result.output !== "import-file") throw new ModelError("This handoff does not make an import file.");
     try {
-      return c.json(makeDraft(c, result.file, optStr(b, "title"), optStr(b, "description") ?? ""));
+      return c.json(makeDraft(c, result.file, optStr(b, "title"), optStr(b, "description") ?? "", task === "describe-to-model" ? readHandoffDescription(project.root) : undefined));
     } catch (e) {
       if (e instanceof ImportRejected) return rejected(c, e, { pasteBack: pasteBackText(task, e.errors) });
       throw e;
@@ -150,8 +161,17 @@ export function registerImport(app: Hono, ctx: Ctx): void {
   // ---------------------------------------------------------------- review of an import draft
 
   const reviewOf = (id: string) => {
-    const review = readReview(drafts.main.dir, id);
-    if (!review) throw new HttpError(404, "This draft is not an import draft: it has no review.");
+    let review: ReturnType<typeof readReview> = null;
+    try {
+      review = readReview(drafts.main.dir, id);
+    } catch (e) {
+      if (!isImportDraft(drafts.main.dir, id)) throw e;
+    }
+    if (!review) {
+      if (isImportDraft(drafts.main.dir, id))
+        throw new HttpError(422, 'The review of this draft is missing or cannot be read. Use "Check again" to make it again from the import file; every item will be waiting.');
+      throw new HttpError(404, "This draft is not an import draft: it has no review.");
+    }
     return review;
   };
 

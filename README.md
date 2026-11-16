@@ -19,7 +19,7 @@ everywhere.
 
 ![A draft compared with the main model: one container added, one changed](docs/images/draft-changes.png)
 
-Version **0.4.0**. Changes per version: [CHANGELOG.md](CHANGELOG.md). How to contribute:
+Version **0.5.0**. Changes per version: [CHANGELOG.md](CHANGELOG.md). How to contribute:
 [CONTRIBUTING.md](CONTRIBUTING.md). How to report a security problem: [SECURITY.md](SECURITY.md).
 
 ## Install

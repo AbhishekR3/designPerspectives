@@ -19,7 +19,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { atomicWrite, isObj, stableJson } from "../core/util.js";
-import { importDir } from "../import/intake.js";
+import { ensureImportGitignore, importDir } from "../import/intake.js";
 import type { HandoffManifest } from "../shared/types.js";
 import { BmoError, promptHash, type Backend } from "./backend.js";
 import { HANDOFF_FOLDER, PROMPT_VERSION } from "./prompts.js";
@@ -51,7 +51,7 @@ export function handoffPrompt<I>(task: Task<I>, built: BuiltPrompt): string {
     "",
     `Read this file and follow it; write the result to \`result.json\` in this folder (\`${HANDOFF_FOLDER}/\`).`,
     "",
-    `This file was written by designPerspectives (dp) for the task \`${task.id}\`, prompt version ${task.promptVersion}. It has three parts: the result to write, the instructions, and the material in fenced data blocks. Run it in your own coding agent, then load the result in dp.`,
+    `This file was written by designPerspectives (dp) for the task \`${task.id}\`, prompt version ${task.promptVersion}. It has three parts: the result to write, the instructions, and the material in fenced data blocks. Run it in your own coding agent, then load the result in dp. This folder (\`${HANDOFF_FOLDER}/\`) can hold excerpts of your code, so it is not committed to git: dp lists it in \`architecture/import/.gitignore\`.`,
     "",
     "## The result",
     "",
@@ -93,6 +93,7 @@ export function writeHandoff<I>(projectDir: string, task: Task<I>, built: BuiltP
   };
   files.set(MANIFEST_FILE, stableJson(manifest));
   fs.mkdirSync(dir, { recursive: true });
+  ensureImportGitignore(importDir(projectDir));
   for (const name of HANDOFF_FILES) if (!files.has(name)) fs.rmSync(path.join(dir, name), { force: true });
   for (const [name, text] of [...files].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) atomicWrite(path.join(dir, name), text);
   return manifest;

@@ -30,7 +30,13 @@ import { credentialFor, destination, effectiveModel, MAX_OUTPUT_LIMIT, type BmoS
 export type DirectFetch = (
   url: string,
   init: { method: "POST"; headers: Record<string, string>; body: string; signal: AbortSignal; redirect: "error" },
-) => Promise<{ ok: boolean; status: number; headers?: { get(name: string): string | null }; text(): Promise<string> }>;
+) => Promise<{
+  ok: boolean;
+  status: number;
+  headers?: { get(name: string): string | null };
+  body?: { getReader(): { read(): Promise<{ done: boolean; value?: Uint8Array }>; cancel(reason?: unknown): Promise<void> } } | null;
+  text(): Promise<string>;
+}>;
 
 export interface DirectOptions {
   fetch?: DirectFetch;
@@ -262,6 +268,37 @@ function jsonOrNull(text: string): unknown {
 }
 
 /** The provider's own error message from an error body (`{error: {message}}` or `{error: "..."}`). */
+/**
+ * The answer's text, read as a stream and cut off at `max` bytes: a server that sends more than that (or never
+ * stops) is not read to the end. A declared length over the limit is refused before reading. Falls back to `text()` for
+ * a response without a readable body (tests).
+ */
+export async function readCapped(res: Awaited<ReturnType<DirectFetch>>, max: number, who: string): Promise<string> {
+  const declared = Number(res.headers?.get("content-length") ?? "");
+  const tooLarge = () => new BmoError("too-large", `The answer from ${who} is too large.`);
+  if (Number.isFinite(declared) && declared > max) throw tooLarge();
+  const reader = res.body?.getReader?.();
+  if (!reader) {
+    const text = await res.text();
+    if (Buffer.byteLength(text, "utf-8") > max) throw tooLarge();
+    return text;
+  }
+  const decoder = new TextDecoder();
+  let total = 0;
+  let out = "";
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value?.byteLength ?? 0;
+    if (total > max) {
+      await reader.cancel().catch(() => undefined);
+      throw tooLarge();
+    }
+    if (value) out += decoder.decode(value, { stream: true });
+  }
+  return out + decoder.decode();
+}
+
 function providerMessage(body: string): string {
   const j = jsonOrNull(body);
   if (isObj(j)) {
@@ -453,13 +490,23 @@ function ollamaCall(base: string, model: string, req: BmoRequest, maxOut: number
   return { url: `${base}${PROVIDER_PATH.ollama}`, headers: { "content-type": "application/json" }, body, parse: (text) => parseOllama(text) };
 }
 
+/** What an Ollama error says, when the body is exactly `{"error": "<short text>"}`; otherwise "" (the body is not repeated). */
+function ollamaErrorText(body: string): string {
+  const j = jsonOrNull(body);
+  return isObj(j) && Object.keys(j).length === 1 && typeof j.error === "string" && j.error.length <= 300 ? j.error : "";
+}
+
+const NOT_EXPECTED = "The model server did not answer in the expected format.";
+
 export function parseOllama(text: string): BmoResult {
   const j = jsonOrNull(text);
-  if (!isObj(j)) throw new BmoError("invalid-output", "Ollama sent an answer that is not JSON.");
-  if (typeof j.error === "string") throw new BmoError("backend", `Ollama failed: ${cut(j.error)}`);
+  // Nothing of a reply in another shape is repeated: the endpoint is reached by the server, so a wrong address could otherwise show what is behind it.
+  if (!isObj(j)) throw new BmoError("invalid-output", NOT_EXPECTED);
+  const err = ollamaErrorText(text);
+  if (err) throw new BmoError("backend", `Ollama failed: ${cut(err)}`);
   if (j.done_reason === "length") throw cutOff("ollama");
   const content = isObj(j.message) ? j.message.content : undefined;
-  if (typeof content !== "string" || !content.trim()) throw new BmoError("invalid-output", "Ollama sent no text.");
+  if (typeof content !== "string" || !content.trim()) throw new BmoError("invalid-output", NOT_EXPECTED);
   const result: BmoResult = { text: content, usage: {} };
   const i = num(j.prompt_eval_count);
   const o = num(j.eval_count);
@@ -540,15 +587,16 @@ export function directBackend(settings: BmoSettings, credentials: Credentials, o
         let text: string;
         try {
           res = await doFetch(call.url, { method: "POST", headers: call.headers, body, signal, redirect: "error" });
-          text = await res.text();
-        } catch {
+          text = await readCapped(res, MAX_RESPONSE_BYTES, host);
+        } catch (e) {
+          if (e instanceof BmoError) throw e;
           if (signal.aborted) throw stopped();
           throw new Retryable(1000, new BmoError("backend", `Could not reach ${host}.`));
         }
         if (res.status >= 300 && res.status < 400) throw new BmoError("backend", `${host} answered with a redirect (${res.status}); redirects are not followed.`);
-        if (text.length > MAX_RESPONSE_BYTES) throw new BmoError("too-large", `The answer from ${host} is too large.`);
         if (!res.ok) {
-          const msg = providerMessage(text);
+          // Ollama is on this computer or a machine the settings name: only its own error shape ({"error": "..."}) is repeated, never another body.
+          const msg = provider === "ollama" ? ollamaErrorText(text) : providerMessage(text);
           if (res.status === 401 || res.status === 403) throw new BmoError("backend", `${PROVIDER_NAME[provider]} refused the credential (${res.status}).`);
           const err = new BmoError("backend", clean(`${PROVIDER_NAME[provider]} answered ${res.status}${msg ? `: ${msg}` : ""}`));
           if (res.status === 429 || res.status >= 500) throw new Retryable(retryAfterMs(res.headers?.get("retry-after")), err);

@@ -62,8 +62,8 @@ export function ApplyDialog({
     };
   }, [held, draftId]);
   const accepted = review ? Object.values(review.items).filter((i) => i.decision === "accepted").length : null;
-  // The server counts position changes as accepted work; a person means items, so no accepted item is nothing to apply.
-  const nothing = !!held && (held.nothingAccepted || accepted === 0);
+  // The server says when no item is accepted: then nothing is applied, whatever else the draft changed (positions, styles, tag groups).
+  const nothing = !!held && held.nothingAccepted;
   const apply = async () => {
     setBusy(true);
     try {
