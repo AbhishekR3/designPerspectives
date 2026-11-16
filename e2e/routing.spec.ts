@@ -60,6 +60,35 @@ test("automatic lines use right angles only and their ends on a box are apart", 
   expect(crowded).toBeGreaterThan(0);
 });
 
+test("the end grips of a selected right-angle line sit on the ends of the drawn line", async ({ page, server }) => {
+  await openDiagram(page, KEY);
+  const diagram = await api(server, `/diagrams/${KEY}`);
+  const edges: { id: string }[] = diagram.edges;
+  expect(edges.length).toBeGreaterThan(3);
+  for (const e of edges.slice(0, 4)) {
+    await page.getByTestId(`edge-${e.id}`).click({ force: true });
+    await expect(page.getByTestId("grip-source")).toBeVisible();
+    // the ends of the path in screen coordinates
+    const ends = await page.evaluate((id) => {
+      const path = document.querySelector(`[data-testid="rf__edge-${id}"] path.react-flow__edge-path`) as SVGPathElement;
+      const m = path.getScreenCTM()!;
+      const at = (len: number) => {
+        const p = path.getPointAtLength(len);
+        return { x: p.x * m.a + p.y * m.c + m.e, y: p.x * m.b + p.y * m.d + m.f };
+      };
+      return { start: at(0), end: at(path.getTotalLength()) };
+    }, e.id);
+    const centre = async (testId: string) => {
+      const b = (await page.getByTestId(testId).boundingBox())!;
+      return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+    };
+    const gs = await centre("grip-source");
+    const gt = await centre("grip-target");
+    expect(Math.hypot(gs.x - ends.start.x, gs.y - ends.start.y), `${e.id}: source grip`).toBeLessThanOrEqual(3);
+    expect(Math.hypot(gt.x - ends.end.x, gt.y - ends.end.y), `${e.id}: target grip`).toBeLessThanOrEqual(3);
+  }
+});
+
 /** Pairs of line labels (`.edge-label`) on the page whose boxes share area. */
 async function overlappingLabels(page: import("@playwright/test").Page): Promise<string[]> {
   return page.evaluate(() => {

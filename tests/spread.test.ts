@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { crowdedPairs, spreadLayout, type Box, type Pt, type Rect, type SpreadInput } from "../ui/src/spread.js";
+import { crowdedPairs, selectionInput, spreadLayout, spreadSelected, type Box, type Pt, type Rect, type SpreadInput } from "../ui/src/spread.js";
 
 /** Small seeded generator so the random cases are the same on every run. */
 function rng(seed: number): () => number {
@@ -330,5 +330,208 @@ describe("spreadLayout", () => {
     for (let i = 0; i < runs; i++) spreadLayout({ boxes, routes, labels, grouped }, { factor: 1.2 });
     const per = (performance.now() - t0) / runs;
     expect(per).toBeLessThan(5);
+  });
+});
+
+const bounds = (boxes: Box[]) => ({
+  x0: Math.min(...boxes.map((b) => b.x)),
+  y0: Math.min(...boxes.map((b) => b.y)),
+  x1: Math.max(...boxes.map((b) => b.x + b.w)),
+  y1: Math.max(...boxes.map((b) => b.y + b.h)),
+});
+
+describe("anchor", () => {
+  test("topLeft (default) keeps the corner, centre keeps the middle of the bounding box", () => {
+    const boxes = grid(3, 2, 10, 10, 100, 60, 200, 100);
+    const a = moved(boxes, spreadLayout({ boxes }, { factor: 1.2 }));
+    expect(left(a)).toBe(left(boxes));
+    expect(top(a)).toBe(top(boxes));
+    expect(spreadLayout({ boxes }, { factor: 1.2, anchor: "topLeft" })).toEqual(spreadLayout({ boxes }, { factor: 1.2 }));
+
+    const c = moved(boxes, spreadLayout({ boxes }, { factor: 1.2, anchor: "centre" }));
+    const b0 = bounds(boxes);
+    const b1 = bounds(c);
+    expect(b1.x1 - b1.x0).toBeGreaterThan(b0.x1 - b0.x0);
+    expect(Math.abs((b1.x0 + b1.x1) / 2 - (b0.x0 + b0.x1) / 2)).toBeLessThanOrEqual(0.5);
+    expect(Math.abs((b1.y0 + b1.y1) / 2 - (b0.y0 + b0.y1) / 2)).toBeLessThanOrEqual(0.5);
+    // the same spacing as with the corner anchor, only moved as a whole
+    const dx = c[0]!.x - a[0]!.x;
+    const dy = c[0]!.y - a[0]!.y;
+    expect(dx).toBeLessThan(0);
+    for (let i = 0; i < c.length; i++) {
+      expect(c[i]!.x - a[i]!.x).toBe(dx);
+      expect(c[i]!.y - a[i]!.y).toBe(dy);
+    }
+  });
+
+  test("with nothing to do the centre anchor changes nothing", () => {
+    const boxes = grid(3, 2, 80, 80);
+    expect(spreadLayout({ boxes }, { anchor: "centre" })).toEqual(Object.fromEntries(boxes.map((b) => [b.id, { x: b.x, y: b.y }])));
+  });
+
+  test("whole pixels stay whole pixels", () => {
+    const r = rng(11);
+    for (let t = 0; t < 50; t++) {
+      const boxes = randomBoxes(r, 6);
+      for (const p of Object.values(spreadLayout({ boxes }, { factor: 1.2, anchor: "centre" }))) {
+        expect(Number.isInteger(p.x) && Number.isInteger(p.y)).toBe(true);
+      }
+    }
+  });
+});
+
+describe("spreadSelected", () => {
+  test("only the chosen boxes move when nothing else is near; they grow around their centre", () => {
+    const boxes = [box("a", 0, 0), box("b", 110, 0), box("c", 220, 0), box("far", 3000, 3000)];
+    const pos = spreadSelected({ boxes }, ["a", "b", "c"], { factor: 1.2 });
+    expect(pos.far).toEqual({ x: 3000, y: 3000 });
+    const after = moved(boxes, pos);
+    expect(gapX(after[0]!, after[1]!)).toBeGreaterThanOrEqual(50 * 1.0);
+    expect(gapX(after[1]!, after[2]!)).toBeGreaterThanOrEqual(50);
+    const b0 = bounds(boxes.slice(0, 3));
+    const b1 = bounds(after.slice(0, 3));
+    expect(Math.abs((b1.x0 + b1.x1) / 2 - (b0.x0 + b0.x1) / 2)).toBeLessThanOrEqual(0.5);
+  });
+
+  test("an unselected box that the spread runs into is pushed just far enough, in order", () => {
+    const boxes = [box("a", 0, 0), box("b", 110, 0), box("c", 220, 0), box("n", 420, 0), box("m", 800, 0)];
+    const pos = spreadSelected({ boxes }, ["a", "b", "c"], { factor: 1.2 });
+    const after = moved(boxes, pos);
+    const [a, b, c, n, m] = after as [Box, Box, Box, Box, Box];
+    expect(gapX(b, c)).toBeGreaterThanOrEqual(50);
+    expect(gapX(c, n)).toBeGreaterThanOrEqual(50);
+    expect(a.x < b.x && b.x < c.x && c.x < n.x && n.x < m.x).toBe(true);
+    // the box far to the right keeps its distance to n (it only moves along with it)
+    expect(m.x - n.x).toBe(800 - 420);
+    for (let i = 0; i < after.length; i++) for (let j = i + 1; j < after.length; j++) expect(overlap(after[i]!, after[j]!)).toBe(false);
+  });
+
+  test("well-spaced unselected boxes are not touched when the spread stays clear of them", () => {
+    const boxes = [...grid(3, 1, 10, 0), box("u1", 0, 400), box("u2", 600, 400)];
+    const pos = spreadSelected({ boxes }, ["g00", "g01", "g02"], { factor: 1.2 });
+    expect(pos.u1).toEqual({ x: 0, y: 400 });
+    expect(pos.u2).toEqual({ x: 600, y: 400 });
+  });
+
+  test("a selection that is not crowded has nothing for Make room to do, but crowded unselected boxes are not counted", () => {
+    const boxes = [box("a", 0, 0), box("b", 300, 0), box("x", 0, 400), box("y", 110, 400)];
+    expect(crowdedPairs(selectionInput({ boxes }, ["a", "b"]))).toBe(0);
+    expect(crowdedPairs({ boxes })).toBeGreaterThan(0);
+  });
+
+  test("selectionInput keeps the chosen boxes, the lines between them and labels inside their bounds", () => {
+    const boxes = [box("a", 0, 0), box("b", 300, 0), box("c", 1000, 0)];
+    const routes: Pt[][] = [
+      [
+        { x: 100, y: 30 },
+        { x: 300, y: 30 },
+      ],
+      [
+        { x: 100, y: 30 },
+        { x: 1000, y: 30 },
+      ],
+    ];
+    const labels: Rect[] = [
+      { x: 180, y: 10, w: 40, h: 16 },
+      { x: 600, y: 10, w: 40, h: 16 },
+    ];
+    const s = selectionInput({ boxes, routes, labels, grouped: ["a", "c"] }, ["a", "b"]);
+    expect(s.boxes.map((b) => b.id)).toEqual(["a", "b"]);
+    expect(s.routes).toHaveLength(1);
+    expect(s.labels).toEqual([labels[0]]);
+    expect(s.grouped).toEqual(["a"]);
+  });
+
+  test("every box gets a whole-pixel place on random layouts with a random selection", () => {
+    const r = rng(23);
+    for (let t = 0; t < 100; t++) {
+      const boxes = randomBoxes(r, 6 + Math.floor(r() * 8));
+      const sel = boxes.filter(() => r() < 0.5).map((b) => b.id);
+      if (sel.length < 2) continue;
+      const pos = spreadSelected({ boxes }, sel, { factor: t % 2 ? 1.2 : 1 });
+      expect(Object.keys(pos).sort()).toEqual(boxes.map((b) => b.id).sort());
+      for (const p of Object.values(pos)) expect(Number.isInteger(p.x) && Number.isInteger(p.y)).toBe(true);
+    }
+  });
+});
+
+describe("boxes on top of each other", () => {
+  test("the review's pair (centres within 8px on both axes) is pulled apart along x, by id", () => {
+    const boxes = [box("b1", 432, 253, 172, 106), box("b4", 458, 247, 121, 117)];
+    const after = moved(boxes, spreadLayout({ boxes }));
+    expect(overlap(after[0]!, after[1]!)).toBe(false);
+    expect(gapX(after[0]!, after[1]!)).toBeGreaterThanOrEqual(50);
+    // b1 (the smaller centre) stays on the left of b4, and nothing moves on y
+    expect(cx(after[0]!)).toBeLessThan(cx(after[1]!));
+    expect([after[0]!.y, after[1]!.y]).toEqual([253, 247]);
+    expect(crowdedPairs({ boxes })).toBeGreaterThan(0);
+    expect(crowdedPairs({ boxes: after })).toBe(0);
+    // idempotent
+    expect(spreadLayout({ boxes: after })).toEqual(Object.fromEntries(after.map((b) => [b.id, { x: b.x, y: b.y }])));
+  });
+
+  test("identical boxes and a pile of three are separated; the result is the same every time", () => {
+    const boxes = [box("c", 100, 100), box("a", 100, 100), box("b", 104, 103)];
+    const pos = spreadLayout({ boxes });
+    const after = moved(boxes, pos);
+    for (let i = 0; i < 3; i++) for (let j = i + 1; j < 3; j++) expect(overlap(after[i]!, after[j]!)).toBe(false);
+    expect(spreadLayout({ boxes: [...boxes].reverse() })).toEqual(pos);
+    // the order they had (centre x, then id) is kept: a and c tie, b is 4px right of them
+    const [a, b, c] = ["a", "b", "c"].map((id) => after.find((x) => x.id === id)!);
+    expect(cx(a!)).toBeLessThan(cx(c!));
+    expect(cx(c!)).toBeLessThan(cx(b!));
+  });
+
+  test("random layouts never keep two boxes overlapping, and a second pass changes nothing", () => {
+    const r = rng(77);
+    for (let t = 0; t < 300; t++) {
+      const boxes = randomBoxes(r, 3 + Math.floor(r() * 12), 500);
+      const pos = spreadLayout({ boxes });
+      const after = moved(boxes, pos);
+      for (let i = 0; i < after.length; i++) for (let j = i + 1; j < after.length; j++) expect(overlap(after[i]!, after[j]!), `layout ${t}`).toBe(false);
+      expect(crowdedPairs({ boxes: after }), `layout ${t}`).toBe(0);
+    }
+  });
+});
+
+describe("fixed boxes", () => {
+  test("a fixed box never moves; the others make room around it (the review's hidden box)", () => {
+    const boxes = [box("a", 0, 0, 200, 100), box("b", 220, 0, 200, 100), box("h", 480, 0, 200, 100)];
+    const pos = spreadLayout({ boxes }, { fixed: ["h"] });
+    expect(pos.h).toEqual({ x: 480, y: 0 });
+    const after = moved(boxes, pos);
+    expect(gapX(after[0]!, after[1]!)).toBeGreaterThanOrEqual(50);
+    expect(gapX(after[1]!, after[2]!)).toBeGreaterThanOrEqual(50);
+    expect(after.map((b) => b.x)).toEqual([-30, 220, 480]);
+    // idempotent
+    expect(spreadLayout({ boxes: after }, { fixed: ["h"] })).toEqual(Object.fromEntries(after.map((b) => [b.id, { x: b.x, y: b.y }])));
+  });
+
+  test("without a fixed box the layout is anchored at its top-left as before", () => {
+    const boxes = [box("a", 0, 0, 200, 100), box("b", 220, 0, 200, 100), box("h", 480, 0, 200, 100)];
+    expect(spreadLayout({ boxes }).a).toEqual({ x: 0, y: 0 });
+  });
+
+  test("a box that would end up on a fixed one is kept clear of it (B=150, H=400)", () => {
+    const boxes = [box("a", 0, 0, 200, 100), box("b", 150, 0, 200, 100), box("h", 400, 0, 200, 100)];
+    const after = moved(boxes, spreadLayout({ boxes }, { fixed: ["h"] }));
+    expect(after[2]!.x).toBe(400);
+    for (let i = 0; i < 3; i++) for (let j = i + 1; j < 3; j++) expect(gapX(after[i]!, after[j]!)).toBeGreaterThanOrEqual(50);
+  });
+
+  test("fixed boxes never move on random layouts, with or without a selection", () => {
+    const r = rng(5);
+    for (let t = 0; t < 200; t++) {
+      const boxes = randomBoxes(r, 4 + Math.floor(r() * 10));
+      const fixed = boxes.filter(() => r() < 0.2).map((b) => b.id);
+      const opts = { fixed, ...(t % 2 ? { factor: 1.2 } : {}) };
+      const pos = spreadLayout({ boxes }, opts);
+      for (const id of fixed) expect(pos[id]).toEqual({ x: boxes.find((b) => b.id === id)!.x, y: boxes.find((b) => b.id === id)!.y });
+      const free = boxes.filter((b) => !fixed.includes(b.id)).map((b) => b.id);
+      const sel = free.slice(0, Math.max(2, Math.floor(free.length / 2)));
+      if (sel.length < 2) continue;
+      const pos2 = spreadSelected({ boxes }, sel, opts);
+      for (const id of fixed) expect(pos2[id], `selected ${t}`).toEqual({ x: boxes.find((b) => b.id === id)!.x, y: boxes.find((b) => b.id === id)!.y });
+    }
   });
 });

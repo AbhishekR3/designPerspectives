@@ -17,14 +17,29 @@ import {
 import { toPng, toSvg } from "html-to-image";
 import { canvasInsets } from "./insets";
 import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type Ref } from "react";
-import { CUSTOM_HEADS, FLOW_CURRENT, MarkerDefs, edgeColor, edgeTypes, nodeTypes, pointAlong, type C4EdgeData, type C4NodeData, type NodeActions, type OverlayInfo, type Rect4 } from "./canvasParts";
+import {
+  CUSTOM_HEADS,
+  FLOW_CURRENT,
+  MarkerDefs,
+  edgeColor,
+  edgeTypes,
+  lineShape,
+  nodeTypes,
+  pointAlong,
+  type C4EdgeData,
+  type C4NodeData,
+  type NodeActions,
+  type OverlayInfo,
+  type Rect4,
+} from "./canvasParts";
 import { errorMessage, notify, run } from "./notify";
 import { edgeCommentTarget, type CommentCount } from "./comments";
 import { CHANGE_COLORS } from "./overlays";
 import { DRAG_TYPE, type PaletteItem } from "./Palette";
 import { estimateLabelSize } from "./labelSize";
-import { crowdedPairs, spreadLayout } from "./spread";
-import { orthoRoute, placeLabels, planPorts, separateRoutes, type Box, type LabelItem, type RouteEdge } from "./routing";
+import { crowdedPairs, selectionInput, spreadLayout, spreadSelected } from "./spread";
+import { layoutLines, type LineInput, type LinePrevious } from "./lineLayout";
+import type { Box } from "./routing";
 import { NODE_H, NODE_W, autoLayout, defaultSize, findFreeSpot, placeMissing, type Rect, type Size } from "./layout";
 import { nodeSelection, selectedNodeIds, type CommentTarget, type Diagram, type DiagramNode, type EdgeLayout, type Lens, type Pt, type Selection } from "./types";
 
@@ -39,6 +54,8 @@ export interface CanvasHandle {
   /**
    * Add space between boxes. "room": only where boxes, lines or labels are too close (nothing is saved when nothing is).
    * "out": the same, and every gap grows by about 20%. All moved boxes are saved in one request (one undo step).
+   * With two or more boxes selected only those boxes are spread among themselves (around their centre); boxes
+   * that are then too close to an unselected box push it away just far enough. Otherwise the whole diagram.
    */
   spread(mode: "room" | "out"): Promise<void>;
   fit(): void;
@@ -390,6 +407,11 @@ export function Canvas({
 
   /** The routes and label rectangles of the lines as drawn now (filled by `edges`); spread() counts what lies in each gap. */
   const lineGeometry = useRef<{ routes: Pt[][]; labels: Rect[] }>({ routes: [], labels: [] });
+  /** Boxes being dragged now (null: none), and a counter that changes when a drag ends so the lines are planned in full once more. */
+  const dragging = useRef<Set<string> | null>(null);
+  const [dragEpoch, setDragEpoch] = useState(0);
+  /** The last full planning of the lines (see lineLayout.ts) and the edges built from it, reused while boxes are dragged. */
+  const lineCache = useRef<{ deps: unknown[]; prev: LinePrevious; edges: Map<string, Edge> } | null>(null);
 
   const edges: Edge[] = useMemo(() => {
     const groups = new Map<string, string[]>();
@@ -405,15 +427,12 @@ export function Canvas({
     // the same rectangles React Flow measures for the nodes (position and the size set on them above).
     const boxes: Record<string, Box> = {};
     for (const n of nodes) if (!n.id.startsWith("boundary:")) boxes[n.id] = { x: n.position.x, y: n.position.y, w: n.width ?? NODE_W, h: n.height ?? NODE_H };
-    const routed: RouteEdge[] = visible
+    const routed: LineInput[] = visible
       .filter((e) => {
         const r = e.layout.routing ?? diagram.lineShape ?? "rounded";
         return r === "orthogonal" || r === "rounded";
       })
-      .map((e) => ({ id: e.id, source: e.source, target: e.target, sourceAnchor: e.layout.sourceAnchor, targetAnchor: e.layout.targetAnchor, control: e.layout.control }));
-    const ports = planPorts(boxes, routed, { avoidBoxes: true });
-    // Every shown box is an obstacle for the lines that do not connect it (orthoRoute leaves out the two it is given).
-    const obstacles = Object.values(boxes);
+      .map((e) => ({ id: e.id, source: e.source, target: e.target, sourceAnchor: e.layout.sourceAnchor, targetAnchor: e.layout.targetAnchor, control: e.layout.control, fixedT: e.layout.labelT }));
     const commentsOf = (e: (typeof visible)[number]) => {
       const t = edgeCommentTarget(e);
       return t ? (commentCounts.relationship[t.id] ?? null) : null;
@@ -422,16 +441,7 @@ export function Canvas({
       if (stepRel === e.id && step) return `${flowStep! + 1}. ${step.description || e.description}${step.response ? " (response)" : ""}`;
       return e.steps?.length ? `${e.steps.join(", ")}. ${e.description}` : e.description;
     };
-    // Routes of the right-angle lines, then where each label sits so labels keep off each other and off the boxes.
-    const routes: Record<string, Pt[]> = {};
-    const lanes: Record<string, Pt[]> = {}; // the lines free to move sideways (a line through a bend point the user set stays on it)
-    const items: LabelItem[] = [];
-    for (const e of visible) {
-      const pp = ports[e.id];
-      if (!pp) continue;
-      const pts = orthoRoute(pp.source, pp.target, boxes[e.source]!, boxes[e.target]!, e.layout.control, obstacles);
-      routes[e.id] = pts;
-      if (!e.layout.control) lanes[e.id] = pts;
+    const labelSizeOf = (e: (typeof visible)[number]) => {
       const c = commentsOf(e);
       const badges = [
         e.kind && e.kind.replace(/-/g, " "),
@@ -441,30 +451,52 @@ export function Canvas({
         (e.openWork ?? 0) > 0 && `${e.openWork} open`,
         c && c.open > 0 && `${c.open}`,
       ].filter((b): b is string => !!b);
-      const size = estimateLabelSize({ text: labelOf(e), technologies: e.technologies, badges, fontSize: e.style.fontSize ? e.style.fontSize - 2 : undefined });
-      items.push({ id: e.id, pts, size, fixedT: e.layout.labelT });
-    }
-    // Lines that share a corridor are spread into lanes; labels are placed on the final routes and keep off other lines.
-    Object.assign(routes, separateRoutes(lanes, obstacles));
-    for (const it of items) it.pts = routes[it.id]!;
-    const labelTs = placeLabels(
-      items,
-      obstacles,
-      items.map((it) => ({ id: it.id, pts: it.pts })),
-    );
-    lineGeometry.current = {
-      routes: items.map((it) => it.pts),
-      labels: items.flatMap((it) => {
+      return estimateLabelSize({ text: labelOf(e), technologies: e.technologies, badges, fontSize: e.style.fontSize ? e.style.fontSize - 2 : undefined });
+    };
+    const byId = new Map(visible.map((e) => [e.id, e]));
+    const offsetOf = (e: (typeof visible)[number]) => {
+      const g = groups.get([e.source, e.target].sort().join("|"))!;
+      return g.length > 1 && !e.layout.control ? (g.indexOf(e.id) - (g.length - 1) / 2) * 60 : 0;
+    };
+    // While boxes are dragged, only the lines at the dragged boxes are routed again (see lineLayout.ts); everything else
+    // comes from the last full result, and the edge objects of the lines that did not change are reused as they are.
+    const edgeDeps = [diagram, decorate, flow, flowStep, step, stepRel, selection, editable, onLayout, onSelect, openEdge, showChanges, onContextMenu, commentCounts, dragEpoch];
+    const cached = lineCache.current;
+    const reuse = dragging.current && cached && cached.deps.length === edgeDeps.length && cached.deps.every((d, i) => d === edgeDeps[i]) ? cached : null;
+    const layout = layoutLines(boxes, routed, (id) => labelSizeOf(byId.get(id)!), reuse ? { prev: reuse.prev, dragged: dragging.current! } : undefined);
+    const { ports, routes, labelTs } = layout;
+    const obstacles = Object.values(boxes);
+    if (!layout.partial) {
+      // What spread() counts lying in a gap: every line's polyline and label, whatever its shape.
+      const routes2: Pt[][] = layout.items.map((it) => it.pts);
+      const labels: Rect[] = layout.items.flatMap((it) => {
         const t = labelTs[it.id];
         if (t === undefined) return [];
         const c = pointAlong(it.pts, t).p;
         return [{ x: c.x - it.size.w / 2, y: c.y - it.size.h / 2, w: it.size.w, h: it.size.h }];
-      }),
-    };
-    return visible.map((e) => {
-      const g = groups.get([e.source, e.target].sort().join("|"))!;
-      const i = g.indexOf(e.id);
-      const offset = g.length > 1 && !e.layout.control ? (i - (g.length - 1) / 2) * 60 : 0;
+      });
+      for (const e of visible) {
+        if (ports[e.id]) continue;
+        const sb = boxes[e.source];
+        const tb = boxes[e.target];
+        if (!sb || !tb) continue;
+        const routing = e.layout.routing ?? diagram.lineShape ?? "rounded";
+        if (routing === "orthogonal" || routing === "rounded") continue; // a line the planner left out (a box to itself)
+        const pts = lineShape(sb, tb, e.layout, routing, e.source < e.target ? 1 : -1, offsetOf(e)).pts;
+        routes2.push(pts);
+        const size = labelSizeOf(e);
+        const c = pointAlong(pts, Math.min(0.95, Math.max(0.05, e.layout.labelT ?? 0.5))).p;
+        labels.push({ x: c.x - size.w / 2, y: c.y - size.h / 2, w: size.w, h: size.h });
+      }
+      lineGeometry.current = { routes: routes2, labels };
+    }
+    const built = visible.map((e): Edge => {
+      if (reuse) {
+        const old = reuse.edges.get(e.id);
+        const routedBefore = reuse.prev.layout.routes[e.id];
+        if (old && (routedBefore ? routes[e.id] === routedBefore : !routes[e.id])) return old;
+      }
+      const offset = offsetOf(e);
       const current = stepRel === e.id;
       const label = labelOf(e);
       const color = current ? FLOW_CURRENT : edgeColor(e);
@@ -516,7 +548,9 @@ export function Canvas({
         selected: selection?.type === "edge" && selection.id === e.id,
       };
     });
-  }, [diagram, nodes, decorate, flow, flowStep, step, stepRel, selection, editable, onLayout, onSelect, openEdge, showChanges, onContextMenu, commentCounts]);
+    if (!layout.partial) lineCache.current = { deps: edgeDeps, prev: { boxes, lines: routed, layout }, edges: new Map(built.map((e) => [e.id, e])) };
+    return built;
+  }, [diagram, nodes, decorate, flow, flowStep, step, stepRel, selection, editable, onLayout, onSelect, openEdge, showChanges, onContextMenu, commentCounts, dragEpoch]);
 
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => {
@@ -589,14 +623,20 @@ export function Canvas({
       },
       async spread(mode) {
         if (!editable) return;
-        const boxes = nodes.filter((n) => !n.id.startsWith("boundary:")).map((n) => ({ id: n.id, x: n.position.x, y: n.position.y, w: n.width ?? NODE_W, h: n.height ?? NODE_H }));
-        const shown = new Set(boxes.map((b) => b.id));
-        const input = { boxes, grouped: groupedIds(diagram).filter((id) => shown.has(id)), routes: lineGeometry.current.routes, labels: lineGeometry.current.labels };
-        if (mode === "room" && crowdedPairs(input) === 0) {
+        // Every placed box takes part, also those a lens or filter hides (their lines are not drawn, but the boxes are
+        // still there and would be run over). Boxes that cannot be saved (the compared version's ghosts) stay where they are.
+        const boxes = diagram.nodes.filter((n) => positions[n.id]).map((n) => ({ id: n.id, x: positions[n.id]!.x, y: positions[n.id]!.y, w: sizeOf(n.id).w, h: sizeOf(n.id).h }));
+        const placed = new Set(boxes.map((b) => b.id));
+        const input = { boxes, grouped: groupedIds(diagram).filter((id) => placed.has(id)), routes: lineGeometry.current.routes, labels: lineGeometry.current.labels };
+        const picked = selectedNodeIds(selRef.current).filter((id) => placed.has(id) && !ghosts.has(id));
+        const scoped = picked.length >= 2;
+        const fixed = [...ghosts].filter((id) => placed.has(id));
+        if (mode === "room" && crowdedPairs(scoped ? selectionInput(input, picked) : input, { fixed }) === 0) {
           notify.info("Nothing is too close.");
           return;
         }
-        const next = spreadLayout(input, mode === "out" ? { factor: 1.2 } : undefined);
+        const opts = { fixed, ...(mode === "out" ? { factor: 1.2 } : {}) };
+        const next = scoped ? spreadSelected(input, picked, opts) : spreadLayout(input, opts);
         const moved: P = {};
         for (const b of boxes) {
           const q = next[b.id];
@@ -661,7 +701,7 @@ export function Canvas({
         });
       },
     }),
-    [rf, diagram, nodes, onPositions, rects, sizeOf, direction, editable, ghosts, savable],
+    [rf, diagram, nodes, positions, onPositions, rects, sizeOf, direction, editable, ghosts, savable],
   );
 
   return (
@@ -672,7 +712,12 @@ export function Canvas({
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         onNodesChange={onNodesChange}
+        onNodeDragStart={(_, __, dragged) => {
+          dragging.current = new Set(dragged.filter((n) => !n.id.startsWith("boundary:")).map((n) => n.id));
+        }}
         onNodeDragStop={(_, node, dragged) => {
+          dragging.current = null;
+          setDragEpoch((n) => n + 1);
           const moved: P = {};
           for (const n of dragged) if (!n.id.startsWith("boundary:") && !ghosts.has(n.id)) moved[n.id] = n.position;
           // A box dropped on top of (or too close to) another goes to the nearest free spot.

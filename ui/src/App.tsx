@@ -16,7 +16,7 @@ import { HelpCard } from "./HelpCard";
 import { Icon } from "./icons";
 import { UserChip } from "./UserChip";
 import type { LineShape } from "./lineShapes";
-import { canSpread, diagramEditable, menuItems, useContextMenu } from "./menus";
+import { canSpread, diagramEditable, menuItems, spreadLabels, useContextMenu } from "./menus";
 import { canMove, MoveDialog } from "./MoveDialog";
 import { LiveUiInspector } from "./LiveUiInspector";
 import { Backtrack } from "./Backtrack";
@@ -303,8 +303,8 @@ export default function App({ onSignOut }: { onSignOut(): void }) {
           <button
             className="ghost icon"
             onClick={() => void canvasRef.current?.spread("room")}
-            title="Make room: add space where boxes, lines or labels are too close"
-            aria-label="Make room"
+            title={`${spreadLabels(selection).room}: add space where boxes, lines or labels are too close`}
+            aria-label={spreadLabels(selection).room}
             data-testid="make-room"
           >
             <Icon name="room" />
@@ -312,8 +312,8 @@ export default function App({ onSignOut }: { onSignOut(): void }) {
           <button
             className="ghost icon"
             onClick={() => void canvasRef.current?.spread("out")}
-            title="Spread out: add about 20% more space between all boxes"
-            aria-label="Spread out"
+            title={`${spreadLabels(selection).out}: add about 20% more space between ${spreadLabels(selection).scope === "selected" ? "the selected boxes" : "all boxes"}`}
+            aria-label={spreadLabels(selection).out}
             data-testid="spread-out"
           >
             <Icon name="spread" />
@@ -689,7 +689,8 @@ export default function App({ onSignOut }: { onSignOut(): void }) {
                     <span>Line shape</span>
                     <select
                       value={diagram.lineShape ?? "rounded"}
-                      onChange={(e) => void mutate(() => api.layout(diagram.key, { lineShape: e.target.value as LineShape }))}
+                      // The default option clears the setting (the key is removed) instead of storing "rounded".
+                      onChange={(e) => void mutate(() => api.layout(diagram.key, { lineShape: e.target.value === "rounded" ? null : (e.target.value as LineShape) }))}
                       data-testid="diagram-line-shape"
                     >
                       <option value="rounded">Rounded right angles (default)</option>

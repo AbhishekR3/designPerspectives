@@ -73,6 +73,12 @@ export function canSpread(state: AppState, diagram: Diagram | null): boolean {
   return diagramEditable(state, diagram) && !!diagram && diagram.level !== "flow" && diagram.nodes.length > 1;
 }
 
+/** Names of the two actions: with two or more boxes selected they act on those boxes only, and say so. */
+export function spreadLabels(selection: Selection): { room: string; out: string; scope: "selected" | "all" } {
+  const scoped = selectedNodeIds(selection).length >= 2;
+  return scoped ? { room: "Make room (selected boxes)", out: "Spread out (selected boxes)", scope: "selected" } : { room: "Make room", out: "Spread out", scope: "all" };
+}
+
 export function diagramEditable(state: AppState, diagram: Diagram | null): boolean {
   return !state.readOnly && !diagram?.compare?.removed;
 }
@@ -137,6 +143,8 @@ export function menuItems(menu: MenuState | null, c: MenuContext): MenuItem[] {
     return tidy([
       canEdit && deletable.length > 0 && { label: `Delete ${deletable.length} objects`, icon: "trash", shortcut: "Del", danger: true, testId: "ctx-delete", onSelect: () => deleteMany(deletable) },
       canEdit && { label: "Auto-layout", icon: "layout", testId: "ctx-auto-layout", onSelect: () => void canvasRef.current?.relayout() },
+      canSpread(state, diagram) && { label: spreadLabels(selection).room, icon: "room", testId: "ctx-make-room", onSelect: () => void canvasRef.current?.spread("room") },
+      canSpread(state, diagram) && { label: spreadLabels(selection).out, icon: "spread", testId: "ctx-spread-out", onSelect: () => void canvasRef.current?.spread("out") },
     ]);
   };
 
@@ -305,8 +313,8 @@ export function menuItems(menu: MenuState | null, c: MenuContext): MenuItem[] {
       canEdit && { label: "Redo", icon: "redo", shortcut: keys("Mod+Shift+Z"), testId: "ctx-redo", disabled: !state.canRedo, onSelect: () => void doHistory("redo") },
       { sep: true },
       canEdit && diagram.nodes.length > 0 && { label: "Auto-layout", icon: "layout", testId: "ctx-auto-layout", onSelect: () => void canvasRef.current?.relayout() },
-      canSpread(state, diagram) && { label: "Make room", icon: "room", testId: "ctx-make-room", onSelect: () => void canvasRef.current?.spread("room") },
-      canSpread(state, diagram) && { label: "Spread out", icon: "spread", testId: "ctx-spread-out", onSelect: () => void canvasRef.current?.spread("out") },
+      canSpread(state, diagram) && { label: spreadLabels(selection).room, icon: "room", testId: "ctx-make-room", onSelect: () => void canvasRef.current?.spread("room") },
+      canSpread(state, diagram) && { label: spreadLabels(selection).out, icon: "spread", testId: "ctx-spread-out", onSelect: () => void canvasRef.current?.spread("out") },
       { label: "Fit to screen", icon: "fit", shortcut: keys("Mod+0"), testId: "ctx-fit", onSelect: () => canvasRef.current?.fit() },
       { label: "Zoom in", icon: "zoomIn", shortcut: keys("Mod++"), onSelect: () => canvasRef.current?.zoom(1) },
       { label: "Zoom out", icon: "zoomOut", shortcut: keys("Mod+-"), onSelect: () => canvasRef.current?.zoom(-1) },

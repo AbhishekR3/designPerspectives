@@ -27,6 +27,17 @@ describe("diagram line shape", () => {
     expect(readSidecar(dir)).toBe(before);
   });
 
+  test("an explicit rounded (old files, the API) is accepted and returned; null removes it", async () => {
+    const dir = demoDir();
+    const before = readSidecar(dir);
+    const c = client(dir);
+    await ok(c.put(`/api/diagrams/${KEY}/layout`, { lineShape: "rounded" }));
+    expect((await ok(c.get(`/api/diagrams/${KEY}`))).lineShape).toBe("rounded");
+    expect(JSON.parse(readSidecar(dir)).layouts[KEY].lineShape).toBe("rounded");
+    await ok(c.put(`/api/diagrams/${KEY}/layout`, { lineShape: null }));
+    expect(readSidecar(dir)).toBe(before);
+  });
+
   test("rejects a value that is not a line shape and leaves the file alone", async () => {
     const dir = demoDir();
     const before = readSidecar(dir);
@@ -63,12 +74,32 @@ describe("diagram line shape", () => {
     const sc = parseSidecar(JSON.stringify({ version: 1, layouts: { landscape: { positions: { a: { y: 2, x: 1 } }, lineShape: "orthogonal", sizes: { a: { h: 5, w: 6 } } } } }));
     expect(sc.layouts.landscape!.lineShape).toBe("orthogonal");
     expect(Object.keys((sidecarData(sc).layouts as any).landscape)).toEqual(["lineShape", "sizes", "positions"]);
-    // A value that is not a line shape is dropped on reading.
-    const bad = parseSidecar(JSON.stringify({ version: 1, layouts: { landscape: { lineShape: "zigzag", positions: { a: { x: 1, y: 2 } } } } }));
-    expect(bad.layouts.landscape).not.toHaveProperty("lineShape");
+    // A value this version does not know (written by a newer one) is kept, so saving does not delete it; anything but a string is dropped.
+    const bad = parseSidecar(
+      JSON.stringify({ version: 1, layouts: { landscape: { lineShape: "zigzag", positions: { a: { x: 1, y: 2 } } }, other: { lineShape: 3, positions: { a: { x: 1, y: 2 } } } } }),
+    );
+    expect(bad.layouts.landscape!.lineShape).toBe("zigzag");
+    expect((sidecarData(bad).layouts as any).landscape.lineShape).toBe("zigzag");
+    expect(bad.layouts.other).not.toHaveProperty("lineShape");
     // A layout with nothing but the default shape is kept; an empty one is not written.
     expect(sidecarData(parseSidecar(JSON.stringify({ version: 1, layouts: { landscape: { lineShape: "curved" } } }))).layouts).toEqual({ landscape: { lineShape: "curved" } });
     expect(sidecarData(parseSidecar(JSON.stringify({ version: 1, layouts: { landscape: {} } }))).layouts).toBeUndefined();
+  });
+
+  test("a shape this version does not know stays in the file through other saves and is shown as the default", async () => {
+    const dir = demoDir();
+    const file = sidecarFile(dir);
+    const data = JSON.parse(fs.readFileSync(file, "utf-8"));
+    data.layouts = { ...data.layouts, [KEY]: { ...data.layouts?.[KEY], lineShape: "zigzag" } };
+    fs.writeFileSync(file, JSON.stringify(data, null, 2) + "\n");
+    const c = client(dir);
+    expect((await ok(c.get(`/api/diagrams/${KEY}`))).lineShape).toBeNull();
+    await ok(c.patch("/api/elements/database", { name: "Ledger store" }));
+    expect(JSON.parse(readSidecar(dir)).layouts[KEY].lineShape).toBe("zigzag");
+    expect((await c.put(`/api/diagrams/${KEY}/layout`, { lineShape: "zigzag" })).status).toBe(422);
+    // choosing a shape replaces it, and null removes it
+    await ok(c.put(`/api/diagrams/${KEY}/layout`, { lineShape: "curved" }));
+    expect(JSON.parse(readSidecar(dir)).layouts[KEY].lineShape).toBe("curved");
   });
 
   test("survives renaming an element and reopening the files", async () => {

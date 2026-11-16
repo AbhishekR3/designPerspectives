@@ -507,7 +507,7 @@ export function BoundaryNode({ data }: NodeProps<BoundaryNodeType>) {
 
 // ------------------------------------------------------------------ edges
 
-type R = { x: number; y: number; w: number; h: number };
+export type R = { x: number; y: number; w: number; h: number };
 
 function rectOf(n: InternalNode): R {
   const w = n.measured.width ?? n.width ?? NODE_W;
@@ -648,6 +648,49 @@ function edgeStyle(d: C4EdgeData, selected: boolean): React.CSSProperties {
   return { stroke, strokeWidth, strokeDasharray, fill: "none", opacity: d.dimmed ? 0.2 : d.ghost ? 0.6 : 1 };
 }
 
+/**
+ * Where a line that is not a right-angle line is drawn: its two ends on the box borders (towards the bend point, or towards the
+ * middle shifted sideways for parallel lines), the sampled polyline and the SVG path. `flip` is 1 when source < target by id.
+ * For right-angle lines only `p1`/`p2` (the centre-aimed ends) are meaningful; the route comes from the planner.
+ */
+export function lineShape(rs: R, rt: R, L: EdgeLayout, routing: NonNullable<EdgeLayout["routing"]>, flip: 1 | -1, offset: number): { p1: Pt; p2: Pt; pts: Pt[]; path: string } {
+  const cs = centerOf(rs);
+  const ct = centerOf(rt);
+  const len = Math.hypot(ct.x - cs.x, ct.y - cs.y) || 1;
+  const nx = (-(ct.y - cs.y) / len) * flip;
+  const ny = ((ct.x - cs.x) / len) * flip;
+  const parallel = { x: (cs.x + ct.x) / 2 + nx * offset, y: (cs.y + ct.y) / 2 + ny * offset };
+  const aim = L.control ?? parallel;
+  const p1 = L.sourceAnchor ? anchorPoint(rs, L.sourceAnchor) : borderPoint(rs, aim);
+  const p2 = L.targetAnchor ? anchorPoint(rt, L.targetAnchor) : borderPoint(rt, aim);
+  if (routing === "smooth") {
+    // S-curve that leaves and enters the boxes square to their sides (cubic Bezier).
+    const o1 = outward(L.sourceAnchor, p1, p2);
+    const o2 = outward(L.targetAnchor, p2, p1);
+    const k = Math.max(40, Math.hypot(p2.x - p1.x, p2.y - p1.y) * 0.4);
+    const c1 = { x: p1.x + o1.x * k, y: p1.y + o1.y * k };
+    const c2 = { x: p2.x + o2.x * k, y: p2.y + o2.y * k };
+    const pts = Array.from({ length: 33 }, (_, i) => {
+      const u = i / 32;
+      const m = 1 - u;
+      return {
+        x: m ** 3 * p1.x + 3 * m * m * u * c1.x + 3 * m * u * u * c2.x + u ** 3 * p2.x,
+        y: m ** 3 * p1.y + 3 * m * m * u * c1.y + 3 * m * u * u * c2.y + u ** 3 * p2.y,
+      };
+    });
+    return { p1, p2, pts, path: `M ${p1.x} ${p1.y} C ${c1.x} ${c1.y} ${c2.x} ${c2.y} ${p2.x} ${p2.y}` };
+  }
+  if (routing === "curved") {
+    const c = { x: 2 * aim.x - (p1.x + p2.x) / 2, y: 2 * aim.y - (p1.y + p2.y) / 2 };
+    const pts = Array.from({ length: 25 }, (_, i) => {
+      const u = i / 24;
+      return { x: (1 - u) ** 2 * p1.x + 2 * (1 - u) * u * c.x + u * u * p2.x, y: (1 - u) ** 2 * p1.y + 2 * (1 - u) * u * c.y + u * u * p2.y };
+    });
+    return { p1, p2, pts, path: `M ${p1.x} ${p1.y} Q ${c.x} ${c.y} ${p2.x} ${p2.y}` };
+  }
+  return { p1, p2, pts: [p1, p2], path: `M ${p1.x} ${p1.y} L ${p2.x} ${p2.y}` };
+}
+
 type Drag = { kind: "source" | "target" | "bend" | "label"; value: Pt | { t: number; offset: number } };
 
 export function C4Edge({ id, source, target, data, selected, markerEnd, markerStart }: EdgeProps & { data?: C4EdgeData }) {
@@ -668,15 +711,9 @@ export function C4Edge({ id, source, target, data, selected, markerEnd, markerSt
   const rt = rectOf(t);
   const cs = centerOf(rs);
   const ct = centerOf(rt);
-  const flip = source < target ? 1 : -1;
-  const len = Math.hypot(ct.x - cs.x, ct.y - cs.y) || 1;
-  const nx = (-(ct.y - cs.y) / len) * flip;
-  const ny = ((ct.x - cs.x) / len) * flip;
-  const parallel = { x: (cs.x + ct.x) / 2 + nx * data.offset, y: (cs.y + ct.y) / 2 + ny * data.offset };
-  const aim = L.control ?? parallel;
   const routing = L.routing ?? data.defaultRouting ?? "rounded";
-  const p1 = L.sourceAnchor ? anchorPoint(rs, L.sourceAnchor) : borderPoint(rs, aim);
-  const p2 = L.targetAnchor ? anchorPoint(rt, L.targetAnchor) : borderPoint(rt, aim);
+  const shape = lineShape(rs, rt, L, routing, source < target ? 1 : -1, data.offset);
+  const { p1, p2 } = shape;
 
   let pts: Poly;
   let path: string;
@@ -693,32 +730,9 @@ export function C4Edge({ id, source, target, data, selected, markerEnd, markerSt
     // The diagram-wide route stands unless an end or the bend is being dragged (then it follows the pointer).
     pts = data.route && (!drag || drag.kind === "label") ? data.route : orthoRoute(src, dst, rs, rt, L.control, data.obstacles);
     path = routing === "rounded" ? roundedPath(pts) : `M ${pts.map((p) => `${p.x} ${p.y}`).join(" L ")}`;
-  } else if (routing === "smooth") {
-    // S-curve that leaves and enters the boxes square to their sides (cubic Bezier).
-    const o1 = outward(L.sourceAnchor, p1, p2);
-    const o2 = outward(L.targetAnchor, p2, p1);
-    const k = Math.max(40, Math.hypot(p2.x - p1.x, p2.y - p1.y) * 0.4);
-    const c1 = { x: p1.x + o1.x * k, y: p1.y + o1.y * k };
-    const c2 = { x: p2.x + o2.x * k, y: p2.y + o2.y * k };
-    pts = Array.from({ length: 33 }, (_, i) => {
-      const u = i / 32;
-      const m = 1 - u;
-      return {
-        x: m ** 3 * p1.x + 3 * m * m * u * c1.x + 3 * m * u * u * c2.x + u ** 3 * p2.x,
-        y: m ** 3 * p1.y + 3 * m * m * u * c1.y + 3 * m * u * u * c2.y + u ** 3 * p2.y,
-      };
-    });
-    path = `M ${p1.x} ${p1.y} C ${c1.x} ${c1.y} ${c2.x} ${c2.y} ${p2.x} ${p2.y}`;
-  } else if (routing === "curved") {
-    const c = { x: 2 * aim.x - (p1.x + p2.x) / 2, y: 2 * aim.y - (p1.y + p2.y) / 2 };
-    pts = Array.from({ length: 25 }, (_, i) => {
-      const u = i / 24;
-      return { x: (1 - u) ** 2 * p1.x + 2 * (1 - u) * u * c.x + u * u * p2.x, y: (1 - u) ** 2 * p1.y + 2 * (1 - u) * u * c.y + u * u * p2.y };
-    });
-    path = `M ${p1.x} ${p1.y} Q ${c.x} ${c.y} ${p2.x} ${p2.y}`;
   } else {
-    pts = [p1, p2];
-    path = `M ${p1.x} ${p1.y} L ${p2.x} ${p2.y}`;
+    pts = shape.pts;
+    path = shape.path;
   }
 
   // A label slides along its line only; it never leaves it (labelOffset saved by older versions is ignored).
@@ -838,7 +852,7 @@ export function C4Edge({ id, source, target, data, selected, markerEnd, markerSt
           <>
             <div
               className="edge-grip end nodrag nopan"
-              style={handleStyle(p1)}
+              style={handleStyle(rightAngles ? pts[0]! : p1)}
               onPointerDown={begin("source")}
               onDoubleClick={reset("sourceAnchor")}
               {...grab}
@@ -847,7 +861,7 @@ export function C4Edge({ id, source, target, data, selected, markerEnd, markerSt
             />
             <div
               className="edge-grip end nodrag nopan"
-              style={handleStyle(p2)}
+              style={handleStyle(rightAngles ? pts[pts.length - 1]! : p2)}
               onPointerDown={begin("target")}
               onDoubleClick={reset("targetAnchor")}
               {...grab}

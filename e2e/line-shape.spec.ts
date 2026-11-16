@@ -47,7 +47,11 @@ test("the diagram's line shape applies to automatic lines and not to a line with
   await expect(page.getByTestId("line-shape").locator("option[value=auto]")).toHaveText("Automatic (diagram default: straight)");
   await clickEmptyCanvas(page);
   await page.getByTestId("diagram-line-shape").selectOption("rounded");
-  await waitUntil(async () => (await api(server, `/diagrams/${KEY}`)).lineShape === "rounded");
+  await waitUntil(async () => (await api(server, `/diagrams/${KEY}`)).lineShape === null);
+  // Choosing the default removes the setting instead of storing "rounded".
+  const afterDefault = JSON.parse(fs.readFileSync(path.join(server.root, "architecture", "designperspectives.json"), "utf-8"));
+  expect(afterDefault.layouts?.[KEY]?.lineShape).toBeUndefined();
+  await expect(page.getByTestId("diagram-line-shape")).toHaveValue("rounded");
   await page.waitForTimeout(400);
   const paths = await Promise.all(automatic.map((e: any) => pathOf(page, e.id)));
   expect(paths.some((d) => d?.includes("Q")), "some line has rounded corners again").toBe(true);

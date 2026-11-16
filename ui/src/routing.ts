@@ -409,10 +409,13 @@ export function planPorts(boxes: Record<string, Box>, edges: RouteEdge[], opts: 
     let ref: Pt;
     if (x.edge.source === x.edge.target) ref = { x: b.x + b.w + 40, y: b.y - 40 };
     else ref = x.edge.control ?? other.fixed ?? centre(boxes[other.box]!);
+    // Self-loops leave on the right and enter on the top: the later one must leave lower (outer) and enter further left (outer),
+    // so its nudge at the target end points the other way (the loops nest instead of crossing).
+    const flip = x.edge.source === x.edge.target && x.end === "target" ? -1 : 1;
     const n = nudge.get(x.edge.id)!;
     const c = centre(b);
-    const dx = ref.x + n.x - c.x;
-    const dy = ref.y + n.y - c.y;
+    const dx = ref.x + flip * n.x - c.x;
+    const dy = ref.y + flip * n.y - c.y;
     x.key = x.side === "top" ? Math.atan2(dx, -dy) : x.side === "bottom" ? Math.atan2(dx, dy) : x.side === "left" ? Math.atan2(dy, -dx) : Math.atan2(dy, dx);
   }
 
@@ -586,12 +589,51 @@ function simplify(pts: Pt[]): Pt[] {
 
 /** Sorted distinct values; of values closer than 1e-6 the earliest in `v` is kept (so port coordinates stay exact). */
 function uniq(v: number[]): number[] {
+  const order = v.map((_, i) => i).sort((a, b) => v[a]! - v[b]! || a - b);
   const out: number[] = [];
-  for (const n of v) if (!out.some((m) => Math.abs(m - n) < 1e-6)) out.push(n);
+  let first = -1; // index in `v` of the earliest value of the current cluster
+  let last = NaN;
+  for (const i of order) {
+    if (out.length && Math.abs(v[i]! - last) < 1e-6) {
+      if (i < first) {
+        first = i;
+        out[out.length - 1] = v[i]!;
+      }
+    } else {
+      out.push(v[i]!);
+      first = i;
+    }
+    last = v[i]!;
+  }
   return out.sort((a, b) => a - b);
 }
-/** Index of `v` in a list made by `uniq`. */
-const indexIn = (list: number[], v: number) => list.findIndex((m) => Math.abs(m - v) < 1e-6);
+/** Index of `v` in a list made by `uniq` (-1 when absent). */
+function indexIn(list: number[], v: number): number {
+  const i = firstGE(list, v - 1e-6);
+  return i < list.length && Math.abs(list[i]! - v) < 1e-6 ? i : -1;
+}
+/** First index of the sorted `list` whose value is >= `v` (list length when none). */
+function firstGE(list: number[], v: number): number {
+  let lo = 0;
+  let hi = list.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (list[mid]! < v) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
+}
+/** First index of the sorted `list` whose value is > `v` (list length when none). */
+function firstGT(list: number[], v: number): number {
+  let lo = 0;
+  let hi = list.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (list[mid]! <= v) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
+}
 
 /** Whether an axis-aligned segment crosses the open inside of a rectangle. */
 function hits(a: Pt, b: Pt, r: Box): boolean {
@@ -608,9 +650,23 @@ const grow = (b: Box, m: number): Box => ({ x: b.x - m, y: b.y - m, w: b.w + 2 *
 /**
  * Shortest orthogonal path (length + BEND per turn) on a small grid of candidate lines, from the
  * source stub `s1` (heading `d0`) to the target stub `d1`, then into `dst` along `din`. With `via`,
- * the path must pass through that point. Returns null when the obstacles leave no way through.
+ * the path must pass through that point. Returns null when the obstacles leave no way through; `found.cost`
+ * receives the cost of the path (its length and turns, with the last leg into `dst`).
  */
-function search(s1: Pt, d0: number, d1: Pt, din: number, dst: Pt, xs: number[], ys: number[], preferX: number[], preferY: number[], obstacles: Box[], via: Pt | null): Pt[] | null {
+function search(
+  s1: Pt,
+  d0: number,
+  d1: Pt,
+  din: number,
+  dst: Pt,
+  xs: number[],
+  ys: number[],
+  preferX: number[],
+  preferY: number[],
+  obstacles: Box[],
+  via: Pt | null,
+  found?: { cost: number },
+): Pt[] | null {
   const nx = xs.length;
   const ny = ys.length;
   const ix = (v: number) => indexIn(xs, v);
@@ -624,67 +680,114 @@ function search(s1: Pt, d0: number, d1: Pt, din: number, dst: Pt, xs: number[], 
   const phases = via ? 2 : 1;
   const state = (x: number, y: number, d: number, ph: number) => ((y * nx + x) * 4 + d) * phases + ph;
   const total = nx * ny * 4 * phases;
-  const dist = new Float64Array(total).fill(Infinity);
-  const prev = new Int32Array(total).fill(-1);
+  // Zero-filled arrays (cheap even for large grids); `seen` tells which entries of `dist` and `prev` hold a value.
+  const seen = new Uint8Array(total);
+  const dist = new Float64Array(total);
+  const prev = new Int32Array(total);
   // Which unit steps of the grid cross an obstacle (same test as `hits`): `hBlock[y*nx+x]` is the step
-  // (x,y)-(x+1,y), `vBlock[y*nx+x]` the step (x,y)-(x,y+1).
+  // (x,y)-(x+1,y), `vBlock[y*nx+x]` the step (x,y)-(x,y+1). Each obstacle marks only the index ranges
+  // it covers (found by binary search), not every step of the grid.
   const hBlock = new Uint8Array(nx * ny);
   const vBlock = new Uint8Array(nx * ny);
   const e = 1e-6;
   for (const o of obstacles) {
-    for (let y = 0; y < ny; y++) {
-      if (!(ys[y]! < o.y + o.h - e && ys[y]! > o.y + e)) continue;
-      for (let x = 0; x + 1 < nx; x++) if (xs[x]! < o.x + o.w - e && xs[x + 1]! > o.x + e) hBlock[y * nx + x] = 1;
-    }
-    for (let x = 0; x < nx; x++) {
-      if (!(xs[x]! < o.x + o.w - e && xs[x]! > o.x + e)) continue;
-      for (let y = 0; y + 1 < ny; y++) if (ys[y]! < o.y + o.h - e && ys[y + 1]! > o.y + e) vBlock[y * nx + x] = 1;
-    }
+    // Grid lines strictly inside the obstacle, and the steps that overlap it.
+    const y0 = firstGT(ys, o.y + e);
+    const y1 = firstGE(ys, o.y + o.h - e);
+    const x0 = firstGT(xs, o.x + e);
+    const x1 = firstGE(xs, o.x + o.w - e);
+    const sx0 = Math.max(0, x0 - 1);
+    const sx1 = Math.min(nx - 1, x1);
+    const sy0 = Math.max(0, y0 - 1);
+    const sy1 = Math.min(ny - 1, y1);
+    for (let y = y0; y < y1; y++) for (let x = sx0; x < sx1; x++) hBlock[y * nx + x] = 1;
+    for (let x = x0; x < x1; x++) for (let y = sy0; y < sy1; y++) vBlock[y * nx + x] = 1;
   }
-  // Binary heap of [cost, sequence, state]; the sequence keeps ties in insertion order (determinism).
-  const heap: [number, number, number][] = [];
+  // Whether the line a turn is made on is one that the route prefers (no extra cost for it).
+  const prefX = new Uint8Array(nx);
+  const prefY = new Uint8Array(ny);
+  for (let x = 0; x < nx; x++) prefX[x] = preferX.some((v) => Math.abs(v - xs[x]!) < 1e-6) ? 1 : 0;
+  for (let y = 0; y < ny; y++) prefY[y] = preferY.some((v) => Math.abs(v - ys[y]!) < 1e-6) ? 1 : 0;
+  // A*: binary heap of states, each at most once (`pos` is its place in the heap, 1-based, 0 when absent; improving a
+  // state moves it up). Ordered by cost so far plus the Manhattan distance to the target stub and one turn when it is
+  // neither in line horizontally nor vertically (never more than what is left); then the larger cost so far (closer to
+  // the target); then the order of insertion (determinism).
+  const heap: number[] = [];
+  const pos = new Int32Array(total);
+  const keyF = new Float64Array(total);
+  const keyQ = new Float64Array(total);
   let seq = 0;
-  const push = (c: number, s: number) => {
-    heap.push([c, seq++, s]);
-    let i = heap.length - 1;
+  const before = (a: number, b: number) => keyF[a]! < keyF[b]! || (keyF[a] === keyF[b] && (dist[a]! > dist[b]! || (dist[a] === dist[b] && keyQ[a]! < keyQ[b]!)));
+  const siftUp = (from: number) => {
+    let i = from;
+    const st = heap[i]!;
     while (i > 0) {
       const p = (i - 1) >> 1;
-      if (less(heap[i]!, heap[p]!)) {
-        [heap[i], heap[p]] = [heap[p]!, heap[i]!];
-        i = p;
-      } else break;
+      const ps = heap[p]!;
+      if (!before(st, ps)) break;
+      heap[i] = ps;
+      pos[ps] = i + 1;
+      i = p;
+    }
+    heap[i] = st;
+    pos[st] = i + 1;
+  };
+  const tgtX = xs[tx]!;
+  const tgtY = ys[ty]!;
+  const push = (c: number, x: number, y: number, dir: number, st: number) => {
+    const ex = tgtX - xs[x]!;
+    const ey = tgtY - ys[y]!;
+    const ux = Math.abs(ex) < 1e-6 ? 0 : Math.sign(ex);
+    const uy = Math.abs(ey) < 1e-6 ? 0 : Math.sign(ey);
+    // Fewest turns still needed: one to start along the other axis; two when heading away from where it has to go (no U-turns).
+    const horizontal = dir % 2 === 0;
+    const heading = dir === 0 || dir === 1 ? 1 : -1;
+    let turns = 0;
+    if (ux !== 0 && uy !== 0) turns = (horizontal ? heading !== ux : heading !== uy) ? 2 : 1;
+    else if (ux !== 0) turns = horizontal ? (heading === ux ? 0 : 2) : 1;
+    else if (uy !== 0) turns = horizontal ? 1 : heading === uy ? 0 : 2;
+    keyF[st] = c + Math.abs(ex) + Math.abs(ey) + turns * BEND;
+    keyQ[st] = seq++;
+    if (pos[st]) siftUp(pos[st]! - 1);
+    else {
+      heap.push(st);
+      siftUp(heap.length - 1);
     }
   };
-  const less = (a: [number, number, number], b: [number, number, number]) => a[0] < b[0] || (a[0] === b[0] && a[1] < b[1]);
-  const pop = (): [number, number, number] => {
+  const pop = (): number => {
     const top = heap[0]!;
+    pos[top] = 0;
     const last = heap.pop()!;
-    if (heap.length) {
-      heap[0] = last;
+    const n = heap.length;
+    if (n) {
       let i = 0;
       for (;;) {
         const l = 2 * i + 1;
+        if (l >= n) break;
         const r = l + 1;
-        let m = i;
-        if (l < heap.length && less(heap[l]!, heap[m]!)) m = l;
-        if (r < heap.length && less(heap[r]!, heap[m]!)) m = r;
-        if (m === i) break;
-        [heap[i], heap[m]] = [heap[m]!, heap[i]!];
+        const m = r < n && before(heap[r]!, heap[l]!) ? r : l;
+        if (!before(heap[m]!, last)) break;
+        heap[i] = heap[m]!;
+        pos[heap[i]!] = i + 1;
         i = m;
       }
+      heap[i] = last;
+      pos[last] = i + 1;
     }
     return top;
   };
 
   const start = state(sx, sy, d0, via && sx === vx && sy === vy ? 1 : 0);
+  seen[start] = 1;
   dist[start] = 0;
-  push(0, start);
+  push(0, sx, sy, d0, start);
   let best = Infinity;
   let bestState = -1;
   const lastLeg = Math.hypot(dst.x - d1.x, dst.y - d1.y);
   while (heap.length) {
-    const [c, , s] = pop();
-    if (c > dist[s]! || c >= best) continue;
+    const s = pop();
+    const c = dist[s]!;
+    if (keyF[s]! + lastLeg >= best) break; // every state left in the heap is at least as far
     const ph = s % phases;
     const d = Math.floor(s / phases) % 4;
     const cell = Math.floor(s / phases / 4);
@@ -700,25 +803,26 @@ function search(s1: Pt, d0: number, d1: Pt, din: number, dst: Pt, xs: number[], 
       const x2 = x + step.x;
       const y2 = y + step.y;
       if (x2 < 0 || y2 < 0 || x2 >= nx || y2 >= ny) continue;
-      const a = { x: xs[x]!, y: ys[y]! };
-      const b = { x: xs[x2]!, y: ys[y2]! };
       if (step.x !== 0 ? hBlock[y * nx + Math.min(x, x2)] : vBlock[Math.min(y, y2) * nx + x]) continue;
-      const turn = nd === d ? 0 : BEND + (step.x === 0 ? (preferX.some((v) => Math.abs(v - xs[x]!) < 1e-6) ? 0 : 1) : preferY.some((v) => Math.abs(v - ys[y]!) < 1e-6) ? 0 : 1);
-      const c2 = c + Math.abs(b.x - a.x) + Math.abs(b.y - a.y) + turn;
+      const turn = nd === d ? 0 : BEND + (step.x === 0 ? 1 - prefX[x]! : 1 - prefY[y]!);
+      const c2 = c + Math.abs(xs[x2]! - xs[x]!) + Math.abs(ys[y2]! - ys[y]!) + turn;
       const ph2 = ph === 0 && x2 === vx && y2 === vy ? 1 : ph;
       const s2 = state(x2, y2, nd, ph2);
-      if (c2 < dist[s2]!) {
+      if (!seen[s2] || c2 < dist[s2]!) {
+        seen[s2] = 1;
         dist[s2] = c2;
         prev[s2] = s;
-        push(c2, s2);
+        push(c2, x2, y2, nd, s2);
       }
     }
   }
   if (bestState < 0) return null;
+  if (found) found.cost = best;
   const pts: Pt[] = [];
-  for (let s = bestState; s >= 0; s = prev[s]!) {
+  for (let s = bestState; ; s = prev[s]!) {
     const cell = Math.floor(s / phases / 4);
     pts.push({ x: xs[cell % nx]!, y: ys[Math.floor(cell / nx)]! });
+    if (s === start) break;
   }
   return pts.reverse();
 }
@@ -735,10 +839,22 @@ function search(s1: Pt, d0: number, d1: Pt, din: number, dst: Pt, xs: number[], 
  * `obstacles` are the other boxes of the diagram. When the line above would run through one (or
  * within 15px of it), the search is repeated with the obstacles (grown by 15px) blocked and their
  * edges added to the grid, so the line goes around them; if that leaves no way through, with 5px;
- * if that fails too, the first line stands. Without obstacles the result does not change.
- * Returns the corner points, from `src` to `dst`, without repeated or collinear points.
+ * if that fails too, the first line stands. Without obstacles the result does not change. Only the
+ * obstacles near the two boxes are looked at first (a window that grows until the path found is the
+ * best there is), so the time depends on the obstacles around the line, not on all of them. The
+ * function reads nothing but its arguments, so any subset of lines can be routed on its own.
+ * Returns the corner points, from `src` to `dst`, without repeated or collinear points. Two facing ports on the same
+ * point (touching boxes) give the two points `src` and `dst`, which coincide: a line of no length.
  */
 export function orthoRoute(src: Port, dst: Port, srcBox: Box, dstBox: Box, control?: Pt, obstacles?: Box[]): Pt[] {
+  // Two facing ports on the same point (boxes that touch, lines aligned): nothing to draw between them, and no way to
+  // leave or enter square without going into the other box.
+  if (!control && OPPOSITE[src.side] === dst.side && Math.abs(src.x - dst.x) < 1e-6 && Math.abs(src.y - dst.y) < 1e-6) {
+    return [
+      { x: src.x, y: src.y },
+      { x: dst.x, y: dst.y },
+    ];
+  }
   const gapX = Math.max(dstBox.x - (srcBox.x + srcBox.w), srcBox.x - (dstBox.x + dstBox.w));
   const gapY = Math.max(dstBox.y - (srcBox.y + srcBox.h), srcBox.y - (dstBox.y + dstBox.h));
   const maxGap = Math.max(gapX, gapY);
@@ -800,26 +916,41 @@ export function orthoRoute(src: Port, dst: Port, srcBox: Box, dstBox: Box, contr
   if (!others.length) return base;
 
   const crosses = (pts: Pt[], boxes: Box[]) => boxes.some((o) => pts.some((p, i) => i > 0 && hits(pts[i - 1]!, p, o)));
+  // The search only looks at obstacles near the two boxes first (a window around them, grown by 250px); when that
+  // leaves no way through, or not a short one, the window grows to 800px, then to the whole diagram. The window is also the limit of the grid.
+  const region = [grow(srcBox, m), grow(dstBox, m), ...(control ? [{ x: control.x, y: control.y, w: 0, h: 0 }] : [])];
+  const wx1 = Math.min(...region.map((r) => r.x));
+  const wy1 = Math.min(...region.map((r) => r.y));
+  const wx2 = Math.max(...region.map((r) => r.x + r.w));
+  const wy2 = Math.max(...region.map((r) => r.y + r.h));
   const margins = [CLEARANCE, TIGHT_CLEARANCE];
   for (const clear of margins) {
-    // Only look for another way when this line goes through (or too close to) an obstacle.
-    if (
-      !crosses(
-        base,
-        others.map((o) => grow(o, clear)),
-      )
-    )
-      return base;
     const grownOthers = others.map((o) => grow(o, clear));
-    const ox = [...xs, ...grownOthers.flatMap((o) => [o.x, o.x + o.w])];
-    const oy = [...ys, ...grownOthers.flatMap((o) => [o.y, o.y + o.h])];
-    const hx = uniq(ox);
-    const hy = uniq(oy);
-    const path = search(s1, d0, d1, din, dst, hx, hy, preferX, preferY, [grow(srcBox, m), grow(dstBox, m), ...grownOthers], via);
-    if (path) return simplify([{ x: src.x, y: src.y }, ...path, { x: dst.x, y: dst.y }]);
+    // Only look for another way when this line goes through (or too close to) an obstacle.
+    if (!crosses(base, grownOthers)) return base;
+    const blockedBoxes = [grow(srcBox, m), grow(dstBox, m)];
+    for (const reach of WINDOWS) {
+      const [x1, y1, x2, y2] = [wx1 - reach, wy1 - reach, wx2 + reach, wy2 + reach];
+      const near = grownOthers.filter((o) => o.x < x2 && o.x + o.w > x1 && o.y < y2 && o.y + o.h > y1);
+      const whole = near.length === grownOthers.length;
+      const inX = (v: number) => whole || (v >= x1 && v <= x2);
+      const inY = (v: number) => whole || (v >= y1 && v <= y2);
+      const hx = uniq([...xs, ...near.flatMap((o) => [o.x, o.x + o.w]).filter(inX)]);
+      const hy = uniq([...ys, ...near.flatMap((o) => [o.y, o.y + o.h]).filter(inY)]);
+      const found = { cost: 0 };
+      const path = search(s1, d0, d1, din, dst, hx, hy, preferX, preferY, [...blockedBoxes, ...near], via, found);
+      // A path that leaves the window goes at least 2 x `reach` beyond the straight way, so a path found inside that is
+      // no longer than that (plus the last leg) is the best there is; a longer one may have a better way outside.
+      if (path && (whole || found.cost <= Math.abs(s1.x - d1.x) + Math.abs(s1.y - d1.y) + Math.hypot(dst.x - d1.x, dst.y - d1.y) + 2 * reach))
+        return simplify([{ x: src.x, y: src.y }, ...path, { x: dst.x, y: dst.y }]);
+      if (whole) break; // a wider window adds nothing
+    }
   }
   return base;
 }
+
+/** How far (px) around the two boxes of a line the search looks for obstacles, narrowest first; the last is the whole diagram. */
+const WINDOWS = [250, 800, Infinity];
 
 // ------------------------------------------------------------------ lanes
 
@@ -827,7 +958,10 @@ export function orthoRoute(src: Port, dst: Port, srcBox: Box, dstBox: Box, contr
 const MAX_PERMUTED = 5;
 
 /** All orders of 0..n-1, in lexicographic order. */
+const permutationCache = new Map<number, number[][]>();
 function permutations(n: number): number[][] {
+  const cached = permutationCache.get(n);
+  if (cached) return cached;
   const out: number[][] = [];
   const walk = (cur: number[], rest: number[]) => {
     if (!rest.length) out.push(cur);
@@ -837,6 +971,7 @@ function permutations(n: number): number[][] {
     [],
     Array.from({ length: n }, (_, k) => k),
   );
+  permutationCache.set(n, out);
   return out;
 }
 
@@ -861,32 +996,32 @@ function segClearance(a: Pt, b: Pt, r: Box): number {
   return Math.max(dx, dy);
 }
 
-/** Whether a line crosses another strictly inside both segments (touching ends and shared pieces do not count). */
-function crossCount(p: Pt[], q: Pt[]): number {
-  let n = 0;
-  for (let i = 1; i < p.length; i++)
-    for (let j = 1; j < q.length; j++) {
-      const [a, b, c, d] = [p[i - 1]!, p[i]!, q[j - 1]!, q[j]!];
-      const pv = a.x === b.x;
-      const qv = c.x === d.x;
-      if (pv === qv) continue;
-      const [v1, v2, h1, h2] = pv ? [a, b, c, d] : [c, d, a, b];
-      if (v1.x > Math.min(h1.x, h2.x) && v1.x < Math.max(h1.x, h2.x) && h1.y > Math.min(v1.y, v2.y) && h1.y < Math.max(v1.y, v2.y)) n++;
-    }
-  return n;
+/** Whether the segments a-b and c-d cross strictly inside both (touching ends and shared pieces do not count). */
+function segCross(a: Pt, b: Pt, c: Pt, d: Pt): boolean {
+  const pv = a.x === b.x;
+  const qv = c.x === d.x;
+  if (pv === qv) return false;
+  const [v1, v2, h1, h2] = pv ? [a, b, c, d] : [c, d, a, b];
+  return v1.x > Math.min(h1.x, h2.x) && v1.x < Math.max(h1.x, h2.x) && h1.y > Math.min(v1.y, v2.y) && h1.y < Math.max(v1.y, v2.y);
 }
 
-/** Number of crossings between the lines `ids` and every other line (a pair of lines in `ids` counts once). */
-function crossingsOf(ids: string[], routes: Record<string, Pt[]>): number {
-  const own = new Set(ids);
-  let n = 0;
-  for (const id of ids)
-    for (const other of Object.keys(routes)) {
-      if (other === id || (own.has(other) && other < id)) continue;
-      n += crossCount(routes[id]!, routes[other]!);
-    }
-  return n;
+/** The smallest rectangle around some points: [x1, y1, x2, y2]. */
+type Bounds = [number, number, number, number];
+function boundsOf(pts: Pt[]): Bounds {
+  let [x1, y1, x2, y2] = [Infinity, Infinity, -Infinity, -Infinity];
+  for (const p of pts) {
+    if (p.x < x1) x1 = p.x;
+    if (p.x > x2) x2 = p.x;
+    if (p.y < y1) y1 = p.y;
+    if (p.y > y2) y2 = p.y;
+  }
+  return [x1, y1, x2, y2];
 }
+const unionBounds = (a: Bounds, b: Bounds): Bounds => [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[2], b[2]), Math.max(a[3], b[3])];
+const growBounds = (a: Bounds, m: number): Bounds => [a[0] - m, a[1] - m, a[2] + m, a[3] + m];
+/** Whether two rectangles touch or overlap. */
+const meets = (a: Bounds, b: Bounds) => a[0] <= b[2] && b[0] <= a[2] && a[1] <= b[3] && b[1] <= a[3];
+const boxMeets = (r: Box, a: Bounds) => r.x <= a[2] && a[0] <= r.x + r.w && r.y <= a[3] && a[1] <= r.y + r.h;
 
 /**
  * Spread lines that share a corridor into lanes, so they read as separate lines.
@@ -896,8 +1031,12 @@ function crossingsOf(ids: string[], routes: Record<string, Pt[]>): number {
  * and overlap by more than 2px form a bundle. A bundle of n lines is moved to n lanes 10px apart,
  * centred on where the bundle was (the gap shrinks to 8, then 6, when the room is tight). The order of
  * the lanes follows where each line comes from and goes to, so the lines do not cross at the ends of
- * the bundle; a bundle whose spreading would add a crossing, push a line into a box (or closer to one
- * than 5px, or than it was) or make a neighbouring piece shorter than 12px or turn it round is left alone.
+ * the bundle; when that order adds crossings, bundles of up to 5 lines try every order and take the one with
+ * the fewest. Separate lines win over a clean crossing count: the best order is applied even when it adds a
+ * crossing (DEC-061). A bundle is left alone only when no order fits: a line would be pushed into a box (or
+ * closer to one than 5px, or than it was), or a neighbouring piece would get shorter than 12px or turn round.
+ * Only the moved pieces and their neighbours are counted, against pieces of other lines near them, so the time
+ * grows with the bundles, not with every pair of lines.
  *
  * A segment moves by changing its own coordinate and that of the two points it joins, so routes stay
  * orthogonal and connected. Tiny jogs (a middle piece under 12px between two parallel pieces) are made straight
@@ -942,13 +1081,13 @@ export function separateRoutes(routes: Record<string, Pt[]>, boxes: Box[], opts:
     return out.sort((p, q) => p.coord - q.coord || (p.id < q.id ? -1 : p.id > q.id ? 1 : 0) || p.i - q.i);
   };
 
-  /** Whether moving `pts[i]` and `pts[i+1]` to coordinate `v` keeps the segment and its two neighbours clear of the boxes and long enough. */
-  const fits = (pts: Pt[], i: number, horizontal: boolean, v: number, jog = -1): boolean => {
+  /** Whether moving `pts[i]` and `pts[i+1]` to coordinate `v` keeps the segment and its two neighbours clear of the boxes (only `near` ones, those within reach of the route) and long enough. */
+  const fits = (pts: Pt[], i: number, horizontal: boolean, v: number, jog = -1, near: Box[] = boxes): boolean => {
     const n = pts.length;
     const moved = (k: number): Pt => (k === i || k === i + 1 ? (horizontal ? { x: pts[k]!.x, y: v } : { x: v, y: pts[k]!.y }) : pts[k]!);
     for (const k of [i - 1, i, i + 1]) {
       const [oa, ob, na, nb] = [pts[k]!, pts[k + 1]!, moved(k), moved(k + 1)];
-      for (const r of boxes) {
+      for (const r of near) {
         if (hits(na, nb, r) && !hits(oa, ob, r)) return false;
         if (segClearance(na, nb, r) < Math.min(LANE_CLEARANCE, segClearance(oa, ob, r)) - 1e-6) return false;
       }
@@ -968,6 +1107,9 @@ export function separateRoutes(routes: Record<string, Pt[]>, boxes: Box[], opts:
    */
   const straightenJogs = () => {
     for (const id of Object.keys(cur)) {
+      // Pieces only slide onto lines the route already has, so only boxes within reach of its bounds matter.
+      const reach = growBounds(boundsOf(cur[id]!), LANE_CLEARANCE + 1);
+      const near = boxes.filter((r) => boxMeets(r, reach));
       for (let pass = 0; pass < 4; pass++) {
         const pts = cur[id]!;
         let changed = false;
@@ -978,11 +1120,14 @@ export function separateRoutes(routes: Record<string, Pt[]>, boxes: Box[], opts:
           if (len < 1e-6 || len >= JOG_MAX) continue;
           // The neighbours run across the jog: slide the one before onto the one after, or the other way round.
           const [before, after] = jogHorizontal ? [a.x, b.x] : [a.y, b.y];
+          // A U (the pieces on either side run in opposite directions) is not a jog: straightening it would fold the line back on itself.
+          const [p0, p3] = [pts[i - 1]!, pts[i + 2]!];
+          if (jogHorizontal ? Math.sign(a.y - p0.y) !== Math.sign(p3.y - b.y) : Math.sign(a.x - p0.x) !== Math.sign(p3.x - b.x)) continue;
           const tries: [number, number][] = [];
           if (i >= 2) tries.push([i - 1, after]);
           if (i + 3 < pts.length) tries.push([i + 1, before]);
           for (const [k, v] of tries) {
-            if (!fits(pts, k, !jogHorizontal, v, i)) continue;
+            if (!fits(pts, k, !jogHorizontal, v, i, near)) continue;
             setCoord(pts[k]!, !jogHorizontal, v);
             setCoord(pts[k + 1]!, !jogHorizontal, v);
             changed = true;
@@ -1037,12 +1182,58 @@ export function separateRoutes(routes: Record<string, Pt[]>, boxes: Box[], opts:
         if (a.id === b.id) continue;
         if (Math.min(a.hi, b.hi) - Math.max(a.lo, b.lo) > LANE_MIN_OVERLAP) root[find(q)] = find(p);
       }
+    // Where each route is, so a bundle only looks at the routes and boxes within its reach.
+    const bounds: Record<string, Bounds> = {};
+    for (const id of Object.keys(cur)) bounds[id] = boundsOf(cur[id]!);
     const bundles = new Map<number, LaneSeg[]>();
     segs.forEach((s, k) => bundles.set(find(k), [...(bundles.get(find(k)) ?? []), s]));
     for (const m of [...bundles.values()].sort((a, b) => a[0]!.coord - b[0]!.coord || (a[0]!.id < b[0]!.id ? -1 : 1))) {
       if (m.length < 2) continue;
       const ids = [...new Set(m.map((s) => s.id))];
-      const before = crossingsOf(ids, cur);
+      // Only the moved pieces and their two neighbours change, so crossings are counted for those: against the
+      // pieces of other lines near them (they move at most m.length * the largest gap), and between the lines of the bundle.
+      // Crossings between pieces that do not change are the same for every order and are left out.
+      const own = new Set(ids);
+      const reach = m.length * Math.max(gap, 8) + 2;
+      const changed = new Map<string, Set<number>>();
+      for (const s of m) {
+        const set = changed.get(s.id) ?? new Set<number>();
+        for (const j of [s.i - 1, s.i, s.i + 1]) set.add(j);
+        changed.set(s.id, set);
+      }
+      const cands = new Map<string, [Pt, Pt][]>();
+      let nearArea: Bounds | null = null; // where the moved pieces can end up, with room for the clearance to boxes
+      for (const id of ids) {
+        const pts = cur[id]!;
+        const area = growBounds([...changed.get(id)!].map((j) => boundsOf([pts[j]!, pts[j + 1]!])).reduce(unionBounds), reach);
+        const around = growBounds(area, LANE_CLEARANCE);
+        nearArea = nearArea ? unionBounds(nearArea, around) : around;
+        const list: [Pt, Pt][] = [];
+        for (const other of Object.keys(cur)) {
+          if (own.has(other) || !meets(bounds[other]!, area)) continue;
+          const q = cur[other]!;
+          for (let j = 0; j + 1 < q.length; j++) if (meets(boundsOf([q[j]!, q[j + 1]!]), area)) list.push([q[j]!, q[j + 1]!]);
+        }
+        cands.set(id, list);
+      }
+      const crossings = (routes: Record<string, Pt[]>): number => {
+        let n = 0;
+        for (const id of ids) {
+          const pts = routes[id]!;
+          for (const j of changed.get(id)!) for (const [c, d] of cands.get(id)!) if (segCross(pts[j]!, pts[j + 1]!, c, d)) n++;
+        }
+        for (let x = 0; x < ids.length; x++)
+          for (let y = x + 1; y < ids.length; y++) {
+            const [pa, pb] = [routes[ids[x]!]!, routes[ids[y]!]!];
+            const [ca, cb] = [changed.get(ids[x]!)!, changed.get(ids[y]!)!];
+            for (let ja = 0; ja + 1 < pa.length; ja++) for (let jb = 0; jb + 1 < pb.length; jb++) if ((ca.has(ja) || cb.has(jb)) && segCross(pa[ja]!, pa[ja + 1]!, pb[jb]!, pb[jb + 1]!)) n++;
+          }
+        return n;
+      };
+      // Boxes close enough to a moved piece to matter.
+      const area = nearArea!;
+      const near = boxes.filter((r) => boxMeets(r, area));
+      const before = crossings(cur);
       const centreCoord = (m[0]!.coord + m[m.length - 1]!.coord) / 2;
       /** The routes of the bundle's lines with the lines taking their lanes in `order` (smallest coordinate first), or null when that does not fit. */
       const spread = (order: number[], g: number): Record<string, Pt[]> | null => {
@@ -1052,7 +1243,7 @@ export function separateRoutes(routes: Record<string, Pt[]>, boxes: Box[], opts:
           const s = m[order[lane]!]!;
           const v = centreCoord + (lane - (m.length - 1) / 2) * g;
           const pts = trial[s.id]!;
-          if (!fits(pts, s.i, horizontal, v)) return null;
+          if (!fits(pts, s.i, horizontal, v, -1, near)) return null;
           setCoord(pts[s.i]!, horizontal, v);
           setCoord(pts[s.i + 1]!, horizontal, v);
         }
@@ -1064,27 +1255,32 @@ export function separateRoutes(routes: Record<string, Pt[]>, boxes: Box[], opts:
         const consider = (order: number[]) => {
           const trial = spread(order, g);
           if (!trial) return;
-          const after = crossingsOf(ids, { ...cur, ...trial });
+          const after = crossings(trial);
           if (after < best.after) [best.trial, best.after] = [trial, after];
         };
         consider(laneOrder(m));
         if (best.after > before && m.length <= MAX_PERMUTED) for (const order of permutations(m.length)) consider(order);
         if (!best.trial) continue;
-        for (const id of ids) cur[id] = best.trial[id]!;
+        for (const id of ids) {
+          cur[id] = best.trial[id]!;
+          bounds[id] = boundsOf(cur[id]!);
+        }
         break;
       }
     }
   };
 
+  // Repeated and collinear points go; a route of two points (a line of no length between touching boxes) stays as it is.
+  const tidy = (pts: Pt[]) => (pts.length <= 2 ? pts : simplify(pts));
   for (let round = 0; round < 2; round++) {
     straightenJogs();
     run(true);
-    for (const id of Object.keys(cur)) cur[id] = simplify(cur[id]!);
+    for (const id of Object.keys(cur)) cur[id] = tidy(cur[id]!);
     run(false);
-    for (const id of Object.keys(cur)) cur[id] = simplify(cur[id]!);
+    for (const id of Object.keys(cur)) cur[id] = tidy(cur[id]!);
   }
   straightenJogs();
-  for (const id of Object.keys(cur)) cur[id] = simplify(cur[id]!);
+  for (const id of Object.keys(cur)) cur[id] = tidy(cur[id]!);
   return cur;
 }
 
@@ -1194,6 +1390,8 @@ export function placeLabels(items: LabelItem[], boxes: Box[], lines: { id: strin
     out[it.id] = t;
     placed.push(labelBox(pointAtT(it.pts, t), it.size));
   }
+  // Where each line is, so a label only looks at the boxes and lines near its own line (a label sits on it).
+  const lineBounds = lines.map((l) => boundsOf(l.pts));
   const free = items.filter((it) => it.fixedT === undefined).sort((a, b) => polylineLength(b.pts) - polylineLength(a.pts) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   for (const it of free) {
     const total = polylineLength(it.pts);
@@ -1223,6 +1421,9 @@ export function placeLabels(items: LabelItem[], boxes: Box[], lines: { id: strin
     for (let d = LABEL_STEP / 2; d < total; d += LABEL_STEP) cands.push(d / total);
     let best = { t: dflt, score: Infinity };
     const seen = new Set<number>();
+    const reach = growBounds(boundsOf(it.pts), Math.max(it.size.w, it.size.h));
+    const nearBoxes = boxes.filter((b) => boxMeets(b, reach));
+    const nearLines = lines.map((l, k) => ({ l, b: lineBounds[k]! })).filter(({ l, b }) => l.id !== it.id && meets(b, reach));
     for (const c of cands) {
       const t = clampT(c);
       const key = Math.round(t * 1000);
@@ -1232,8 +1433,9 @@ export function placeLabels(items: LabelItem[], boxes: Box[], lines: { id: strin
       const r = labelBox(p, it.size);
       let score = 0.5 * Math.hypot(p.x - home.x, p.y - home.y);
       for (const o of placed) score += 10 * overlapArea(r, o);
-      for (const b of boxes) score += 4 * overlapArea(r, b);
-      for (const l of lines) if (l.id !== it.id) score += LINE_WEIGHT * lengthInside(l.pts, r);
+      for (const b of nearBoxes) score += 4 * overlapArea(r, b);
+      const rb: Bounds = [r.x, r.y, r.x + r.w, r.y + r.h];
+      for (const { l, b } of nearLines) if (meets(b, rb)) score += LINE_WEIGHT * lengthInside(l.pts, r);
       if (score < best.score - 1e-9) best = { t, score };
     }
     out[it.id] = best.t;

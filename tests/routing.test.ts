@@ -745,6 +745,17 @@ describe("avoiding other boxes", () => {
     return { plan, routes, plain, items, ts };
   }
 
+  test("the whole pass (ports, routes, lanes, labels) over the containers diagram is fast", () => {
+    const times: number[] = [];
+    for (let i = 0; i < 25; i++) {
+      const t0 = performance.now();
+      fullPass(true);
+      times.push(performance.now() - t0);
+    }
+    times.sort((a, b) => a - b);
+    expect(times[12]!).toBeLessThan(50); // measured about 2.5ms
+  });
+
   /** Pairs of lines with a collinear overlap of more than 20px within 4px of each other (every segment counts). */
   function sharedOverlaps(routes: Record<string, Pt[]>): number {
     const ids = Object.keys(routes).sort();
@@ -1013,5 +1024,239 @@ describe("placeLabels: keeping off other lines", () => {
       { id: "b", pts: b },
     ];
     expect(placeLabels(items, [], lines)).toEqual(placeLabels([...items].reverse(), [], lines));
+  });
+});
+
+describe("self-loops", () => {
+  const countCrossings = (r: Record<string, Pt[]>) => {
+    const ids = Object.keys(r);
+    let n = 0;
+    for (let i = 0; i < ids.length; i++) for (let j = i + 1; j < ids.length; j++) if (polylinesCross(r[ids[i]!]!, r[ids[j]!]!)) n++;
+    return n;
+  };
+  for (const count of [2, 3, 4]) {
+    test(`${count} self-loops on one box nest and do not cross`, () => {
+      const a: Box = { x: 0, y: 0, w: 200, h: 100 };
+      const edges: RouteEdge[] = Array.from({ length: count }, (_, i) => ({ id: `e${i + 1}`, source: "a", target: "a" }));
+      const plan = planPorts({ a }, edges, { avoidBoxes: true });
+      const routes: Record<string, Pt[]> = {};
+      for (const e of edges) routes[e.id] = orthoRoute(plan[e.id]!.source, plan[e.id]!.target, a, a, undefined, [a]);
+      const out = separateRoutes(routes, [a]);
+      expect(countCrossings(out)).toBe(0);
+      for (const e of edges) checkRoute(out[e.id]!, plan[e.id]!.source, plan[e.id]!.target, a, a);
+      // The same on the way in: ids in the other order give the same plan.
+      expect(planPorts({ a }, [...edges].reverse(), { avoidBoxes: true })).toEqual(plan);
+    });
+  }
+});
+
+describe("separateRoutes: U-shaped jogs", () => {
+  test("a short step between two pieces running opposite ways is not folded into the stub", () => {
+    // A self-loop with a bend point (seen on the canvas): out of the right side, a 7.5px step, back left over the box.
+    const box: Box = { x: 761, y: 17, w: 150, h: 119 };
+    const pts = orthoRoute({ x: 911, y: 76.5, side: "right" }, { x: 836, y: 17, side: "top" }, box, box, { x: 851, y: 69 }, [box]);
+    expect(pts.slice(0, 4)).toEqual([
+      { x: 911, y: 76.5 },
+      { x: 931, y: 76.5 },
+      { x: 931, y: 69 },
+      { x: 851, y: 69 },
+    ]);
+    const out = separateRoutes({ e: pts }, [box]).e!;
+    expect(out).toEqual(pts);
+    // The first piece still leaves the box (never back through it); the bend point is inside the box, so later pieces may be.
+    expect(out[1]!.x).toBeGreaterThan(out[0]!.x);
+    expect(crossesInside(out[0]!, out[1]!, box)).toBe(false);
+  });
+
+  test("a jog between two pieces running the same way is still straightened", () => {
+    const r = { j: [100, 0, 100, 50, 106, 50, 106, 150, 300, 150, 300, 200].reduce<Pt[]>((o, v, i, c) => (i % 2 ? o : [...o, { x: v, y: c[i + 1]! }]), []) };
+    expect(separateRoutes(r, []).j!.length).toBe(4);
+  });
+});
+
+describe("touching boxes", () => {
+  test("two boxes sharing an edge, ports on the same point: no piece inside either box", () => {
+    const boxes: Record<string, Box> = { n004: { x: 558, y: 302, w: 216, h: 97 }, n005: { x: 774, y: 305, w: 208, h: 126 } };
+    const e: RouteEdge = { id: "e", source: "n004", target: "n005" };
+    const plan = planPorts(boxes, [e], { avoidBoxes: true });
+    const p = plan.e!;
+    expect({ x: p.source.x, y: p.source.y }).toEqual({ x: p.target.x, y: p.target.y }); // the planner lines the ports up
+    const pts = orthoRoute(p.source, p.target, boxes.n004!, boxes.n005!, undefined, Object.values(boxes));
+    expect(pts).toEqual([
+      { x: p.source.x, y: p.source.y },
+      { x: p.target.x, y: p.target.y },
+    ]);
+    for (let i = 1; i < pts.length; i++) {
+      expect(crossesInside(pts[i - 1]!, pts[i]!, boxes.n004!)).toBe(false);
+      expect(crossesInside(pts[i - 1]!, pts[i]!, boxes.n005!)).toBe(false);
+    }
+    // It survives the rest of the canvas's pass.
+    const out = separateRoutes({ e: pts }, Object.values(boxes)).e!;
+    expect(out).toEqual(pts);
+    expect(placeLabels([{ id: "e", pts: out, size: { w: 100, h: 30 } }], Object.values(boxes)).e).toBe(0.5);
+  });
+});
+
+/** Small deterministic generator, so a failure always reproduces. */
+function seeded(seed: number) {
+  let s = seed;
+  return () => {
+    s = (s * 1103515245 + 12345) % 2147483648;
+    return s / 2147483648;
+  };
+}
+
+/** `count` boxes at random places with at least `spacing` between them (touching and snapped to 10px when `spacing` is 0), and `lines` random lines. */
+function randomDiagram(rnd: () => number, count: number, lines: number, spacing: number, area: [number, number] = [1200, 900]) {
+  const boxes: Record<string, Box> = {};
+  for (let tries = 0; Object.keys(boxes).length < count && tries < 2000; tries++) {
+    const b = { x: Math.round(rnd() * area[0]), y: Math.round(rnd() * area[1]), w: 120 + Math.round(rnd() * 120), h: 70 + Math.round(rnd() * 60) };
+    if (spacing === 0) for (const k of ["x", "y", "w", "h"] as const) b[k] = Math.round(b[k] / 10) * 10;
+    if (Object.values(boxes).some((o) => b.x < o.x + o.w + spacing && b.x + b.w + spacing > o.x && b.y < o.y + o.h + spacing && b.y + b.h + spacing > o.y)) continue;
+    boxes[`n${String(Object.keys(boxes).length).padStart(3, "0")}`] = b;
+  }
+  const ids = Object.keys(boxes);
+  const edges: RouteEdge[] = [];
+  for (let i = 0; i < lines; i++) edges.push({ id: `e${String(i).padStart(3, "0")}`, source: ids[Math.floor(rnd() * ids.length)]!, target: ids[Math.floor(rnd() * ids.length)]! });
+  return { boxes, edges };
+}
+
+/** The canvas's pass: ports (avoiding boxes), a route per line with the boxes as obstacles, lanes for lines without a bend point, label places. */
+function canvasPass(boxes: Record<string, Box>, edges: RouteEdge[]) {
+  const plan = planPorts(boxes, edges, { avoidBoxes: true });
+  const all = Object.values(boxes);
+  const routes: Record<string, Pt[]> = {};
+  for (const e of edges) routes[e.id] = orthoRoute(plan[e.id]!.source, plan[e.id]!.target, boxes[e.source]!, boxes[e.target]!, e.control, all);
+  const lanes: Record<string, Pt[]> = {};
+  for (const e of edges) if (!e.control) lanes[e.id] = routes[e.id]!;
+  const final = { ...routes, ...separateRoutes(lanes, all) };
+  const items = edges.map((e) => ({ id: e.id, pts: final[e.id]!, size: { w: 140, h: 40 } }));
+  const labels = placeLabels(
+    items,
+    all,
+    items.map((i) => ({ id: i.id, pts: i.pts })),
+  );
+  return { plan, final, labels };
+}
+
+describe("random diagrams: the canvas's whole pass", () => {
+  for (const spacing of [40, 5, 0]) {
+    test(`boxes ${spacing}px apart: routes are orthogonal, start and end at their ports, leave square${spacing >= 40 ? " and avoid every other box" : ""}`, () => {
+      const rnd = seeded(1000 + spacing);
+      for (let t = 0; t < 120; t++) {
+        const { boxes, edges } = randomDiagram(rnd, 3 + Math.floor(rnd() * 10), 2 + Math.floor(rnd() * 16), spacing);
+        for (const e of edges) {
+          if (rnd() < 0.1) e.sourceAnchor = { x: 1, y: Math.round(rnd() * 100) / 100 };
+          if (rnd() < 0.1) e.targetAnchor = { x: Math.round(rnd() * 100) / 100, y: 0 };
+          if (rnd() < 0.08) e.control = { x: Math.round(rnd() * 1400), y: Math.round(rnd() * 1000) };
+        }
+        const { plan, final, labels } = canvasPass(boxes, edges);
+        for (const e of edges) {
+          const [pts, p, tag] = [final[e.id]!, plan[e.id]!, `t${t} ${e.id}`];
+          expect(
+            pts.every((q) => Number.isFinite(q.x) && Number.isFinite(q.y)),
+            `${tag} has no NaN`,
+          ).toBe(true);
+          expect(pts[0], `${tag} starts at its port`).toEqual({ x: p.source.x, y: p.source.y });
+          expect(pts[pts.length - 1], `${tag} ends at its port`).toEqual({ x: p.target.x, y: p.target.y });
+          for (let i = 1; i < pts.length; i++) expect(pts[i]!.x === pts[i - 1]!.x || pts[i]!.y === pts[i - 1]!.y, `${tag} segment ${i} is axis-aligned`).toBe(true);
+          const noLength = pts.length === 2 && pts[0]!.x === pts[1]!.x && pts[0]!.y === pts[1]!.y; // facing ports on one point
+          if (!noLength) {
+            const first = { x: Math.sign(pts[1]!.x - pts[0]!.x), y: Math.sign(pts[1]!.y - pts[0]!.y) };
+            expect(first, `${tag} leaves square`).toEqual({ x: OUT[p.source.side].x || 0, y: OUT[p.source.side].y || 0 });
+            const n = pts.length;
+            const last = { x: Math.sign(pts[n - 2]!.x - pts[n - 1]!.x), y: Math.sign(pts[n - 2]!.y - pts[n - 1]!.y) };
+            expect(last, `${tag} enters square`).toEqual({ x: OUT[p.target.side].x || 0, y: OUT[p.target.side].y || 0 });
+          }
+          if (spacing >= 40 && !e.control) {
+            for (const id of Object.keys(boxes)) {
+              if (id === e.source || id === e.target) continue;
+              expect(
+                pts.some((q, i) => i > 0 && crossesInside(pts[i - 1]!, q, boxes[id]!)),
+                `${tag} stays out of ${id}`,
+              ).toBe(false);
+            }
+          }
+          expect(labels[e.id], `${tag} has a label place`).toBeGreaterThanOrEqual(0.05);
+          expect(labels[e.id]).toBeLessThanOrEqual(0.95);
+        }
+      }
+    });
+  }
+});
+
+describe("orthoRoute: windows and subsets", () => {
+  const box = (x: number, y: number, w = 200, h = 100): Box => ({ x, y, w, h });
+
+  test("a wall of boxes wider than the first window still gets a way round it", () => {
+    const a = box(0, 0);
+    const b = box(0, 1200);
+    // A row of boxes from x=-1500 to x=1700 between the two (far wider than the 250px window around a and b).
+    const wall: Box[] = [];
+    for (let x = -1500; x < 1700; x += 260) wall.push(box(x, 580));
+    const src: Port = { x: 100, y: 100, side: "bottom" };
+    const dst: Port = { x: 100, y: 1200, side: "top" };
+    const pts = orthoRoute(src, dst, a, b, undefined, [a, b, ...wall]);
+    checkRoute(pts, src, dst, a, b);
+    for (const w of wall) for (let i = 1; i < pts.length; i++) expect(crossesInside(pts[i - 1]!, pts[i]!, w)).toBe(false);
+  });
+
+  test("far-away boxes do not change a route", () => {
+    const a = box(0, 0);
+    const b = box(0, 600);
+    const mid = box(0, 300);
+    const src: Port = { x: 100, y: 100, side: "bottom" };
+    const dst: Port = { x: 100, y: 600, side: "top" };
+    const far: Box[] = Array.from({ length: 40 }, (_, i) => box(3000 + (i % 8) * 300, (Math.floor(i / 8) - 2) * 250));
+    expect(orthoRoute(src, dst, a, b, undefined, [mid, ...far])).toEqual(orthoRoute(src, dst, a, b, undefined, [mid]));
+  });
+
+  test("a line routes the same alone as within the whole diagram (no state is kept between calls)", () => {
+    const rnd = seeded(77);
+    const { boxes, edges } = randomDiagram(rnd, 12, 10, 40);
+    const plan = planPorts(boxes, edges, { avoidBoxes: true });
+    const all = Object.values(boxes);
+    const route = (e: RouteEdge) => orthoRoute(plan[e.id]!.source, plan[e.id]!.target, boxes[e.source]!, boxes[e.target]!, undefined, all);
+    const together = edges.map(route);
+    const reversed = [...edges].reverse().map(route).reverse();
+    expect(reversed).toEqual(together);
+    const subset = [edges[3]!, edges[7]!].map(route);
+    expect(subset).toEqual([together[3], together[7]]);
+  });
+});
+
+describe("speed of the canvas's whole pass", () => {
+  /** Median time (ms) of a few runs, after one warm-up. */
+  function timeOf(run: () => void): number {
+    run();
+    const times: number[] = [];
+    for (let i = 0; i < 5; i++) {
+      const t0 = performance.now();
+      run();
+      times.push(performance.now() - t0);
+    }
+    return times.sort((a, b) => a - b)[2]!;
+  }
+
+  // Measured on a laptop (ms per pass): grid 30 (was 185), scattered 130 (was 2600). The bounds leave room for slow CI machines
+  // and still catch a return to the old behaviour.
+  test("100 boxes in a grid with 200 local lines", () => {
+    const boxes: Record<string, Box> = {};
+    for (let i = 0; i < 10; i++) for (let j = 0; j < 10; j++) boxes[`b${i}_${j}`] = { x: i * 300, y: j * 220, w: 200, h: 120 };
+    const rnd = seeded(7);
+    const edges: RouteEdge[] = [];
+    while (edges.length < 200) {
+      const [i, j] = [Math.floor(rnd() * 10), Math.floor(rnd() * 10)];
+      const [i2, j2] = [i + Math.floor(rnd() * 7) - 3, j + Math.floor(rnd() * 7) - 3];
+      if (i2 < 0 || j2 < 0 || i2 > 9 || j2 > 9 || (i2 === i && j2 === j)) continue;
+      edges.push({ id: `e${edges.length}`, source: `b${i}_${j}`, target: `b${i2}_${j2}` });
+    }
+    expect(timeOf(() => canvasPass(boxes, edges))).toBeLessThan(100);
+  });
+
+  test("100 boxes scattered over a large area with 200 random lines", () => {
+    const { boxes, edges } = randomDiagram(seeded(42), 100, 200, 30, [3500, 2500]);
+    const real = edges.filter((e) => e.source !== e.target);
+    expect(timeOf(() => canvasPass(boxes, real))).toBeLessThan(800);
   });
 });

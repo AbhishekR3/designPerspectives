@@ -112,6 +112,57 @@ test("Spread out grows the space between neighbouring boxes by at least 15 perce
   expect(Math.sign(after.pos[b]!.x - after.pos[a]!.x)).toBe(Math.sign(before.pos[b]!.x - before.pos[a]!.x));
 });
 
+test("with three boxes selected, Spread out spreads only those, around their centre, in one undo step", async ({ page, server }) => {
+  await openDiagram(page, KEY);
+  const before = await saved(server);
+  const ids = ["single-page-application", "mobile-app", "web-application"];
+  const far = "database";
+  const bottom = Math.max(...Object.keys(before.pos).map((id) => before.pos[id]!.y + before.size[id]!.h));
+  const left = Math.min(...Object.values(before.pos).map((p) => p.x));
+  // The three in a row 60px apart in free space below everything, and one other box far away to the right of them.
+  const start: P = { ...before.pos };
+  ids.forEach((id, i) => (start[id] = { x: left + i * (NODE.w + 60), y: bottom + 250 }));
+  start[far] = { x: left + 1800, y: bottom + 250 };
+  await putPositions(server, start);
+  await page.reload();
+  await openDiagram(page, KEY);
+
+  await node(page, ids[0]!).click();
+  await node(page, ids[1]!).click({ modifiers: ["Shift"] });
+  await node(page, ids[2]!).click({ modifiers: ["Shift"] });
+  await expect(page.getByTestId("multi-count")).toHaveText("3 objects selected");
+  await expect(page.getByTestId("spread-out")).toHaveAttribute("aria-label", "Spread out (selected boxes)");
+  await expect(page.getByTestId("make-room")).toHaveAttribute("title", /Make room \(selected boxes\)/);
+  await page.getByTestId("spread-out").click();
+  const after = await waitUntil(async () => {
+    const s = await saved(server);
+    return ids.some((id) => s.pos[id]!.x !== start[id]!.x) ? s : null;
+  });
+
+  // The gaps between the three grew by at least 15 percent; the unselected boxes did not move.
+  expect(gapX(after.pos, after.size, ids[0]!, ids[1]!)).toBeGreaterThanOrEqual(60 * 1.15);
+  expect(gapX(after.pos, after.size, ids[1]!, ids[2]!)).toBeGreaterThanOrEqual(60 * 1.15);
+  for (const id of Object.keys(start).filter((i) => !ids.includes(i))) expect(after.pos[id], id).toEqual(start[id]);
+  // The group grew around its centre.
+  const mid = (p: P) => (Math.min(...ids.map((i) => p[i]!.x)) + Math.max(...ids.map((i) => p[i]!.x + NODE.w))) / 2;
+  expect(Math.abs(mid(after.pos) - mid(start))).toBeLessThanOrEqual(1);
+
+  // One undo restores every box.
+  await page.getByTestId("undo").click();
+  await waitUntil(async () => {
+    const s = await saved(server);
+    return JSON.stringify(s.pos) === JSON.stringify(start);
+  });
+
+  // The right-click menu on one of the selected boxes offers the same two actions, named for the selection.
+  await node(page, ids[0]!).click();
+  await node(page, ids[1]!).click({ modifiers: ["Shift"] });
+  await node(page, ids[2]!).click({ modifiers: ["Shift"] });
+  await node(page, ids[1]!).click({ button: "right" });
+  await expect(page.getByTestId("ctx-make-room")).toHaveText(/Make room \(selected boxes\)/);
+  await expect(page.getByTestId("ctx-spread-out")).toHaveText(/Spread out \(selected boxes\)/);
+});
+
 test("Make room on a diagram with plenty of space shows a notice and saves nothing", async ({ page, server }) => {
   await openDiagram(page, KEY);
   const before = await saved(server);

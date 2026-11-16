@@ -95,6 +95,32 @@ Date: 2026-11-15. Decision: [DEC-061](../decisions.md#dec-061--default-line-shap
 1. Should the explicit "Rounded right angles (default)" choice clear the `lineShape` key instead of storing `"rounded"`?
 2. Should Make room / Spread out apply only to the selected boxes when several are selected?
 
+## Review round (Opus) and fixes
+
+Date: 2026-11-15. An Opus reviewer read the committed diff 9e602dd..cb2f833 and checked the findings with probe scripts. Nine findings, all fixed:
+
+1. Every drag frame re-ran the whole routing pass. It took 2.6 s per frame on 100 boxes and 200 lines. Now only the lines touching the dragged box are re-routed (5–35 ms per frame), and a full pass runs on release. The router itself is faster: windowed obstacle search, binary-search blocking, A* search and local crossing counts. One full pass went from 2550 to 127 ms (scattered, 100 boxes and 200 lines) and from 134 to 21 ms (grid, same size). Demo containers take about 1.7 ms. Routes are identical to before on about 5,800 fuzz routes.
+2. End grips of right-angle lines were drawn away from the real line ends. They now sit at the line ends.
+3. Make room ignored boxes hidden by a filter and moved compare-mode ghost boxes. Fixed with the `fixed` option in `spreadLayout`.
+4. Make room counted no lines or labels on non-right-angle diagrams. Fixed.
+5. A doc comment in `separateRoutes` overstated the behaviour. Corrected; the code keeps the trade-off in DEC-061.
+6. Several self-loops on one box always crossed. They now nest.
+7. Jog straightening could fold a line back through its own box. It is refused now.
+8. Boxes with centres within 8px were never separated. Fixed.
+9. Touching boxes gave a route that looped inside the target. It is now a zero-length line.
+
+Also from the review:
+
+- Unknown `lineShape` values are kept on disk (see DEC-061).
+- New tests fuzz the full Canvas routing pipeline with spacing 40, 5 and 0, with anchors and bend points.
+
+Owner answers:
+
+- Clearing the key: the main session chose to clear the key. The owner said "do whatever you think is best".
+- Selected boxes: both the whole diagram and the selection [Owner].
+
+Checks: typecheck and lint clean; vitest 388 passed (26 files); UI build; e2e 134 passed; `npm run make-demo` leaves demo/ unchanged.
+
 ## Owner feedback
 
 <!-- Please add feedback here. -->

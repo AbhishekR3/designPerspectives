@@ -21,7 +21,12 @@
  *      in cluster k. Because every box is only displaced by its cluster's D, the order
  *      never changes, alignment is exact, sizes are untouched and no distance shrinks.
  *   4. The result is shifted so the top-left corner of the bounding box of all boxes stays
- *      where it was (nothing jumps on screen at the corner the viewer is anchored to).
+ *      where it was (nothing jumps on screen at the corner the viewer is anchored to). With
+ *      `anchor: "centre"` the centre of that bounding box stays where it was instead (used when
+ *      only some boxes are spread: the group grows around its middle). With `fixed` boxes the shift
+ *      is the one that keeps the first fixed box where it was, and every fixed box is put back at the end.
+ *   0. Before all that, boxes whose centres coincide on both axes (within ALIGN) are pulled apart along x (see
+ *      splitCoincident), because a cluster moves as a unit and could never separate them.
  *
  * Whole-pixel displacements keep integer positions integer, so a second "Make room" on the
  * result finds nothing to do (as long as the lanes and labels it is given do not change).
@@ -57,6 +62,15 @@ export interface SpreadOptions {
   boundaryPad?: number;
   /** Extra clearance on the side where the boundary's title sits (the top), on the y axis. */
   boundaryHeader?: number;
+  /** Which point of the bounding box of all boxes stays where it was: its top-left corner (default) or its centre. */
+  anchor?: "topLeft" | "centre";
+  /**
+   * Ids of boxes that must not move (for example boxes that cannot be saved): they end where they began, and the others
+   * make room around them (the whole layout is shifted instead of the fixed box). When fixed boxes would need different
+   * shifts on one axis (they are too close to each other for everything in between), the first fixed one on that axis
+   * decides and the others are put back, so their neighbours may then be closer than asked.
+   */
+  fixed?: Iterable<string>;
 }
 
 interface Resolved {
@@ -92,6 +106,7 @@ interface Model {
   lo: [number[], number[]];
   size: [number[], number[]];
   inGroup: boolean[];
+  isFixed: boolean[];
   /** lanes[ax]: segments that cross a gap measured along ax (they run along the other axis). */
   lanes: [Lane[], Lane[]];
   /** Label centres and sizes. */
@@ -117,8 +132,9 @@ function resolve(o: SpreadOptions | undefined): Resolved {
   };
 }
 
-function buildModel(input: SpreadInput): Model {
+function buildModel(input: SpreadInput, fixed?: Iterable<string>): Model {
   const boxes = input.boxes;
+  const pinned = new Set(fixed ?? []);
   const grouped = input.grouped instanceof Set ? input.grouped : new Set(input.grouped ?? []);
   const lanes: [Lane[], Lane[]] = [[], []];
   for (const route of input.routes ?? []) {
@@ -139,10 +155,43 @@ function buildModel(input: SpreadInput): Model {
     lo: [boxes.map((b) => b.x), boxes.map((b) => b.y)],
     size: [boxes.map((b) => b.w), boxes.map((b) => b.h)],
     inGroup: boxes.map((b) => grouped.has(b.id)),
+    isFixed: boxes.map((b) => pinned.has(b.id)),
     lanes,
     labelC: [labels.map((l) => l.x + l.w / 2), labels.map((l) => l.y + l.h / 2)],
     labelS: [labels.map((l) => l.w), labels.map((l) => l.h)],
   };
+}
+
+/**
+ * Boxes whose centres are within ALIGN of each other on both axes are in one cluster on both axes and would never be
+ * separated. For each such pair the right one (smaller centre x first, then smaller id, so the order they already have is
+ * kept) and every box after it in that order move right until the pair is just past ALIGN apart; the x pass then spaces
+ * them. Moving the whole tail keeps the order and every distance between the other boxes. Fixed boxes do not move: if the
+ * right one is fixed, the left one and every box before it move left instead; a pair of fixed boxes is left as it is.
+ */
+function splitCoincident(m: Model): void {
+  const cx = (i: number) => m.lo[0][i]! + m.size[0][i]! / 2;
+  const cy = (i: number) => m.lo[1][i]! + m.size[1][i]! / 2;
+  /** Whether box i comes before box j in the order along x (centre, then id). */
+  const before = (i: number, j: number) => cx(i) < cx(j) || (cx(i) === cx(j) && m.ids[i]! < m.ids[j]!);
+  const order = m.ids.map((_, i) => i).sort((i, j) => (m.ids[i]! < m.ids[j]! ? -1 : m.ids[i]! > m.ids[j]! ? 1 : i - j));
+  const done: number[] = [];
+  for (const i of order) {
+    for (let guard = 0; guard < m.n + 1; guard++) {
+      const other = done.find((j) => Math.abs(cx(i) - cx(j)) <= ALIGN && Math.abs(cy(i) - cy(j)) <= ALIGN);
+      if (other === undefined) break;
+      const [l, r] = before(i, other) ? [i, other] : [other, i];
+      const by = Math.ceil(cx(l) + ALIGN + 1 - cx(r));
+      if (!m.isFixed[r]) {
+        const tail = m.ids.map((_, j) => j).filter((j) => !m.isFixed[j] && (j === r || !before(j, r)));
+        for (const j of tail) m.lo[0][j]! += by;
+      } else if (!m.isFixed[l]) {
+        const head = m.ids.map((_, j) => j).filter((j) => !m.isFixed[j] && (j === l || before(j, l)));
+        for (const j of head) m.lo[0][j]! -= by;
+      } else break;
+    }
+    done.push(i);
+  }
 }
 
 /** Clusters of centres (sorted, then cut when a centre is more than ALIGN past the cluster's first). Cluster ids and means are in increasing order. */
@@ -281,20 +330,26 @@ function stretchAxis(m: Model, ax: Axis, o: Resolved): boolean {
     oldMin = Math.min(oldMin, m.lo[ax][i]!);
     newMin = Math.min(newMin, m.lo[ax][i]! + d[ca.cl[i]!]!);
   }
-  const shift = Math.round(oldMin - newMin);
+  let shift = Math.round(oldMin - newMin);
+  // with fixed boxes the layout is shifted so the first fixed box (in this axis' order) stays where it was
+  let pin = Infinity;
+  for (let i = 0; i < m.n; i++) if (m.isFixed[i]) pin = Math.min(pin, ca.cl[i]!);
+  if (pin !== Infinity) shift = -d[pin]!;
   for (let i = 0; i < m.n; i++) m.lo[ax][i]! += d[ca.cl[i]!]! + shift;
   return true;
 }
 
 /**
  * New top-left per box id (whole pixels). Boxes that do not need to move keep their coordinates.
- * The top-left corner of the bounding box of all boxes stays where it was.
+ * The top-left corner of the bounding box of all boxes stays where it was (or its centre, with `anchor: "centre"`).
  */
 export function spreadLayout(input: SpreadInput, opts?: SpreadOptions): Record<string, { x: number; y: number }> {
   const o = resolve(opts);
-  const m = buildModel(input);
+  const m = buildModel(input, opts?.fixed);
   const orig: [number[], number[]] = [m.lo[0].slice(), m.lo[1].slice()];
+  const hasFixed = m.isFixed.some(Boolean);
   if (m.n > 1) {
+    splitCoincident(m);
     // Moving one axis can turn two boxes into neighbours on the other (they drift out of overlap or into
     // tolerance), so repeat until nothing more is needed. Only the first round applies `factor`.
     let again = { ...o };
@@ -303,6 +358,21 @@ export function spreadLayout(input: SpreadInput, opts?: SpreadOptions): Record<s
       const movedY = stretchAxis(m, 1, again);
       if (!movedX && !movedY) break;
       again = { ...o, factor: 1 };
+    }
+  }
+  if (opts?.anchor === "centre" && m.n > 0 && !hasFixed) {
+    // the bounding box grew (or stayed): move everything so its centre is where it was
+    for (const ax of [0, 1] as const) {
+      const mid = (lo: number[]) => (Math.min(...lo) + Math.max(...lo.map((v, i) => v + m.size[ax][i]!))) / 2;
+      const shift = Math.round(mid(orig[ax]) - mid(m.lo[ax]));
+      if (shift !== 0) for (let i = 0; i < m.n; i++) m.lo[ax][i]! += shift;
+    }
+  }
+  // fixed boxes never move (see `fixed`)
+  for (let i = 0; i < m.n; i++) {
+    if (m.isFixed[i]) {
+      m.lo[0][i] = orig[0][i]!;
+      m.lo[1][i] = orig[1][i]!;
     }
   }
   const out: Record<string, { x: number; y: number }> = {};
@@ -317,9 +387,51 @@ export function spreadLayout(input: SpreadInput, opts?: SpreadOptions): Record<s
 /** How many neighbour pairs of boxes are closer than they should be (0 = nothing for "Make room" to do). */
 export function crowdedPairs(input: SpreadInput, opts?: SpreadOptions): number {
   const o = resolve(opts);
-  const m = buildModel(input);
+  const m = buildModel(input, opts?.fixed);
   if (m.n < 2) return 0;
+  splitCoincident(m);
   const seen = new Set<number>();
   for (const ax of [0, 1] as const) for (const p of pairsFor(m, ax, o).pairs) seen.add(Math.min(p.a, p.b) * m.n + Math.max(p.a, p.b));
   return seen.size;
+}
+
+/** The part of the input that concerns the chosen boxes: those boxes, the lines that run between them and the labels inside their bounding box. */
+export function selectionInput(input: SpreadInput, selected: Iterable<string>): SpreadInput {
+  const ids = new Set(selected);
+  const boxes = input.boxes.filter((b) => ids.has(b.id));
+  if (!boxes.length) return { boxes };
+  const x0 = Math.min(...boxes.map((b) => b.x));
+  const y0 = Math.min(...boxes.map((b) => b.y));
+  const x1 = Math.max(...boxes.map((b) => b.x + b.w));
+  const y1 = Math.max(...boxes.map((b) => b.y + b.h));
+  const inside = (p: Pt) => p.x >= x0 - 1 && p.x <= x1 + 1 && p.y >= y0 - 1 && p.y <= y1 + 1;
+  const grouped = input.grouped instanceof Set ? input.grouped : new Set(input.grouped ?? []);
+  return {
+    boxes,
+    grouped: boxes.filter((b) => grouped.has(b.id)).map((b) => b.id),
+    routes: (input.routes ?? []).filter((r) => r.length > 0 && r.every(inside)),
+    labels: (input.labels ?? []).filter((l) => inside({ x: l.x + l.w / 2, y: l.y + l.h / 2 })),
+  };
+}
+
+/**
+ * Spread only the chosen boxes among themselves (around the centre of their bounding box), then, if one of them
+ * now sits closer than the base gap to a box that was not chosen, make room in the whole diagram with the chosen
+ * boxes at their new places, so the others move only as far as needed. New top-left per box id (every box).
+ */
+export function spreadSelected(input: SpreadInput, selected: Iterable<string>, opts?: SpreadOptions): Record<string, { x: number; y: number }> {
+  const ids = new Set(selected);
+  const first = spreadLayout(selectionInput(input, ids), { ...opts, anchor: "centre" });
+  const now = input.boxes.map((b) => (first[b.id] ? { ...b, ...first[b.id] } : b));
+  const base = resolve(opts).base;
+  const tooClose = (a: Box, b: Box) => Math.max(a.x, b.x) - Math.min(a.x + a.w, b.x + b.w) < base && Math.max(a.y, b.y) - Math.min(a.y + a.h, b.y + b.h) < base;
+  const was = new Map(input.boxes.map((b) => [b.id, b]));
+  const movedSel = now.filter((b) => ids.has(b.id) && (b.x !== was.get(b.id)!.x || b.y !== was.get(b.id)!.y));
+  const pushed = movedSel.some((s) => now.some((u) => !ids.has(u.id) && tooClose(s, u)));
+  const out: Record<string, { x: number; y: number }> = {};
+  for (const b of now) out[b.id] = { x: b.x, y: b.y };
+  if (!pushed) return out;
+  const second = spreadLayout({ ...input, boxes: now }, { ...opts, factor: 1, anchor: "topLeft" });
+  for (const id of Object.keys(second)) out[id] = second[id]!;
+  return out;
 }

@@ -93,8 +93,11 @@ export type LineShape = NonNullable<EdgeLayout["routing"]>;
 export const isLineShape = (v: unknown): v is LineShape => typeof v === "string" && (LINE_SHAPES as readonly string[]).includes(v);
 
 export interface DiagramLayout {
-  /** The default line shape of this diagram; absent means rounded right angles. */
-  lineShape?: LineShape;
+  /**
+   * The default line shape of this diagram; absent means rounded right angles. A string that is not one of LINE_SHAPES
+   * (written by a newer version) is kept as it is so saving does not delete it; the diagram API treats it as absent.
+   */
+  lineShape?: LineShape | (string & {});
   sizes: Record<string, Size>;
   edges: Record<string, EdgeLayout>;
   positions: Record<string, Pt>;
@@ -191,7 +194,7 @@ export function toSidecar(data: unknown): Sidecar {
     const { lineShape, ...o } = objOr(v);
     sc.layouts[k] = {
       ...o,
-      ...(isLineShape(lineShape) ? { lineShape } : {}),
+      ...(typeof lineShape === "string" && lineShape !== "" ? { lineShape } : {}),
       sizes: objOr(o.sizes) as Record<string, Size>,
       edges: objOr(o.edges) as Record<string, EdgeLayout>,
       positions: objOr(o.positions) as Record<string, Pt>,
