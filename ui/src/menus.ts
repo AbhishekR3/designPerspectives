@@ -15,7 +15,7 @@ import type { Clipboard } from "./useClipboard";
 
 /** Choices in the line menus; labels match the panel. */
 const LINE_SHAPES: ["auto" | NonNullable<EdgeLayout["routing"]>, string][] = [
-  ["auto", "Automatic"],
+  ["auto", "Automatic (rounded right angles)"],
   ["straight", "Straight"],
   ["curved", "Curved"],
   ["smooth", "Smooth S-curve"],

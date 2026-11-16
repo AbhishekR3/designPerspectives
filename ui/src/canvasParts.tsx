@@ -18,6 +18,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { canvasInsets } from "./insets";
 import { NODE_H, NODE_W } from "./layout";
 import { Icon, iconFor } from "./icons";
+import { defaultLabelT, orthoRoute, sideOfAnchor, type Port, type PortPair } from "./routing";
 import { Shape, shapeInset } from "./shapes";
 import { KIND_LABEL, type DiagramNode, type EdgeLayout, type Pt, type Section, type Style } from "./types";
 import type { CommentCount } from "./comments";
@@ -593,6 +594,11 @@ export type C4EdgeData = {
   kind: string;
   derived: boolean;
   offset: number; // perpendicular offset for parallel edges
+  /** Planned line ends for right-angle lines (computed for the whole diagram, not saved). */
+  ports?: PortPair;
+  /** The planned route of a right-angle line, and where its label sits when `layout.labelT` is not set (both from the whole diagram). */
+  route?: Pt[];
+  labelT?: number;
   highlight: "current" | "past" | null;
   response: boolean;
   dimmed: boolean;
@@ -664,21 +670,24 @@ export function C4Edge({ id, source, target, data, selected, markerEnd, markerSt
   const ny = ((ct.x - cs.x) / len) * flip;
   const parallel = { x: (cs.x + ct.x) / 2 + nx * data.offset, y: (cs.y + ct.y) / 2 + ny * data.offset };
   const aim = L.control ?? parallel;
+  const routing = L.routing ?? "rounded";
   const p1 = L.sourceAnchor ? anchorPoint(rs, L.sourceAnchor) : borderPoint(rs, aim);
   const p2 = L.targetAnchor ? anchorPoint(rt, L.targetAnchor) : borderPoint(rt, aim);
-  const routing = L.routing ?? (L.control || data.offset !== 0 ? "curved" : "straight");
 
   let pts: Poly;
   let path: string;
   if (routing === "orthogonal" || routing === "rounded") {
-    const horizontal = Math.abs(p2.x - p1.x) >= Math.abs(p2.y - p1.y);
-    if (horizontal) {
-      const mx = L.control?.x ?? (p1.x + p2.x) / 2;
-      pts = [p1, { x: mx, y: p1.y }, { x: mx, y: p2.y }, p2];
-    } else {
-      const my = L.control?.y ?? (p1.y + p2.y) / 2;
-      pts = [p1, { x: p1.x, y: my }, { x: p2.x, y: my }, p2];
-    }
+    // The planned ports spread the line ends along the box sides; a grip being dragged overrides its own end.
+    const port = (r: R, anchor: Pt | undefined, planned: Port | undefined, other: Pt, dragging: boolean): Port => {
+      if (anchor && (dragging || !planned)) return { ...anchorPoint(r, anchor), side: sideOfAnchor(anchor) };
+      if (planned) return planned;
+      const p = borderPoint(r, other);
+      return { ...p, side: sideOfAnchor(toAnchor(r, p)) };
+    };
+    const src = port(rs, L.sourceAnchor, data.ports?.source, L.control ?? ct, drag?.kind === "source");
+    const dst = port(rt, L.targetAnchor, data.ports?.target, L.control ?? cs, drag?.kind === "target");
+    // The diagram-wide route stands unless an end or the bend is being dragged (then it follows the pointer).
+    pts = data.route && (!drag || drag.kind === "label") ? data.route : orthoRoute(src, dst, rs, rt, L.control);
     path = routing === "rounded" ? roundedPath(pts) : `M ${pts.map((p) => `${p.x} ${p.y}`).join(" L ")}`;
   } else if (routing === "smooth") {
     // S-curve that leaves and enters the boxes square to their sides (cubic Bezier).
@@ -709,11 +718,13 @@ export function C4Edge({ id, source, target, data, selected, markerEnd, markerSt
   }
 
   // A label slides along its line only; it never leaves it (labelOffset saved by older versions is ignored).
-  const lt = Math.min(0.95, Math.max(0.05, L.labelT ?? 0.5));
+  const rightAngles = routing === "orthogonal" || routing === "rounded";
+  const lt = Math.min(0.95, Math.max(0.05, L.labelT ?? (rightAngles ? (data.labelT ?? defaultLabelT(pts)) : 0.5)));
   const at = pointAlong(pts, lt);
   const lx = at.p.x;
   const ly = at.p.y;
-  const bend = pointAlong(pts, 0.5).p;
+  // The grip sits on the bend point when there is one, so it does not jump when released.
+  const bend = L.control ?? pointAlong(pts, 0.5).p;
 
   const cls = ["c4-edge", data.derived ? "derived" : "", selected ? "selected" : "", data.highlight ?? "", data.dimmed ? "dimmed" : "", data.ghost ? "ghost" : ""].filter(Boolean).join(" ");
 
@@ -808,7 +819,11 @@ export function C4Edge({ id, source, target, data, selected, markerEnd, markerSt
               {data.hasNotes && <span className="badge subtle">Notes</span>}
               {data.openWork > 0 && <span className="badge work">{data.openWork} open</span>}
               {data.comments && data.comments.open > 0 && (
-                <span className={`badge comments${data.comments.question ? " q" : ""}`} title={`${data.comments.open} open comment${data.comments.open === 1 ? "" : "s"}. Click the line to read.`} data-testid={`comments-edge-${data.testId}`}>
+                <span
+                  className={`badge comments${data.comments.question ? " q" : ""}`}
+                  title={`${data.comments.open} open comment${data.comments.open === 1 ? "" : "s"}. Click the line to read.`}
+                  data-testid={`comments-edge-${data.testId}`}
+                >
                   <Icon name="comment" size={10} /> {data.comments.open}
                 </span>
               )}

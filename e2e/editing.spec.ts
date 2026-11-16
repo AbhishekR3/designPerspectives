@@ -117,17 +117,20 @@ test("a label slides only along its line", async ({ page }) => {
   await page.mouse.move(cx + 200, cy + 200, { steps: 8 }); // pull far off the line
   await page.mouse.up();
   await page.waitForTimeout(500);
-  // The label's centre must still lie on the line: its distance to the straight line between
-  // the two boxes' centres stays small.
+  // The label's centre must still lie on the drawn line (whatever its shape): sample the path in screen
+  // coordinates and take the distance from the label centre to the nearest sample.
   const d = await page.evaluate(() => {
-    const c = (id: string) => {
-      const r = document.querySelector(`[data-testid="${id}"]`)!.getBoundingClientRect();
-      return [r.x + r.width / 2, r.y + r.height / 2] as const;
-    };
-    const [ax, ay] = c("node-web-application");
-    const [bx, by] = c("node-single-page-application");
-    const [px, py] = c("edge-web-application--single-page-application");
-    return Math.abs((by - ay) * px - (bx - ax) * py + bx * ay - by * ax) / Math.hypot(by - ay, bx - ax);
+    const path = document.querySelector('[data-testid="rf__edge-web-application--single-page-application"] path.react-flow__edge-path') as SVGPathElement;
+    const r = document.querySelector('[data-testid="edge-web-application--single-page-application"]')!.getBoundingClientRect();
+    const [px, py] = [r.x + r.width / 2, r.y + r.height / 2];
+    const m = path.getScreenCTM()!;
+    const total = path.getTotalLength();
+    let best = Infinity;
+    for (let i = 0; i <= 400; i++) {
+      const q = path.getPointAtLength((total * i) / 400).matrixTransform(m);
+      best = Math.min(best, Math.hypot(q.x - px, q.y - py));
+    }
+    return best;
   });
   expect(d).toBeLessThan(25);
 });

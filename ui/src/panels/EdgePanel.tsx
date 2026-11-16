@@ -37,7 +37,7 @@ export function EdgePanel({ edgeId, ...p }: Common & { edgeId: string }) {
           }}
           data-testid="line-shape"
         >
-          <option value="auto">Automatic</option>
+          <option value="auto">Automatic (rounded right angles)</option>
           <option value="straight">Straight</option>
           <option value="curved">Curved (through the bend point)</option>
           <option value="smooth">Smooth S-curve</option>

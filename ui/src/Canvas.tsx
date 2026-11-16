@@ -22,6 +22,8 @@ import { errorMessage, notify, run } from "./notify";
 import { edgeCommentTarget, type CommentCount } from "./comments";
 import { CHANGE_COLORS } from "./overlays";
 import { DRAG_TYPE, type PaletteItem } from "./Palette";
+import { estimateLabelSize } from "./labelSize";
+import { orthoRoute, placeLabels, planPorts, type Box, type LabelItem, type RouteEdge } from "./routing";
 import { NODE_H, NODE_W, autoLayout, defaultSize, findFreeSpot, placeMissing, type Rect, type Size } from "./layout";
 import { nodeSelection, selectedNodeIds, type CommentTarget, type Diagram, type DiagramNode, type EdgeLayout, type Lens, type Pt, type Selection } from "./types";
 
@@ -347,7 +349,27 @@ export function Canvas({
       });
     }
     return out;
-  }, [diagram, positions, decorate, actions, archTypes, renameId, onRenameStarted, lens, activeNodes, step, selection, multiIds, sizeOf, editable, canConnect, onResize, onResizeEnd, commentCounts, onComments]);
+  }, [
+    diagram,
+    positions,
+    decorate,
+    actions,
+    archTypes,
+    renameId,
+    onRenameStarted,
+    lens,
+    activeNodes,
+    step,
+    selection,
+    multiIds,
+    sizeOf,
+    editable,
+    canConnect,
+    onResize,
+    onResizeEnd,
+    commentCounts,
+    onComments,
+  ]);
 
   const openEdge = useCallback(
     (id: string) => {
@@ -369,63 +391,100 @@ export function Canvas({
     const pastSteps = new Set(flow && flowStep !== null ? flow.steps.slice(0, flowStep).map((s) => s.relationshipId) : []);
     const shown = new Set(nodes.map((n) => n.id));
     const unfocused = new Set(diagram.nodes.filter((n) => decorate(n).outOfFocus).map((n) => n.id));
-    return diagram.edges
-      .filter((e) => shown.has(e.source) && shown.has(e.target))
-      .map((e) => {
-        const g = groups.get([e.source, e.target].sort().join("|"))!;
-        const i = g.indexOf(e.id);
-        const offset = g.length > 1 && !e.layout.control ? (i - (g.length - 1) / 2) * 60 : 0;
-        const current = stepRel === e.id;
-        let label = e.description;
-        if (e.steps?.length) label = `${e.steps.join(", ")}. ${e.description}`;
-        if (current && step) label = `${flowStep! + 1}. ${step.description || e.description}${step.response ? " (response)" : ""}`;
-        const color = current ? FLOW_CURRENT : edgeColor(e);
-        const head = e.style.arrowHead ?? "filled";
-        const arrow: Edge["markerEnd"] = (CUSTOM_HEADS as readonly string[]).includes(head)
-          ? `dp-head-${head}`
-          : { type: head === "open" ? MarkerType.Arrow : MarkerType.ArrowClosed, color, width: 18, height: 18 };
-        const reverse = current && step?.response;
-        const mode = e.style.arrow ?? "end";
-        const data: C4EdgeData = {
-          label,
-          technologies: e.technologies,
-          kind: e.kind,
-          derived: e.derived,
-          offset,
-          highlight: current ? "current" : pastSteps.has(e.id) ? "past" : null,
-          response: !!reverse,
-          dimmed: (!!step && !current && !pastSteps.has(e.id)) || unfocused.has(e.source) || unfocused.has(e.target),
-          testId: e.id,
-          style: e.style,
-          layout: e.layout,
-          sensitivityLevel: e.sensitivityLevel,
-          hasNotes: e.hasNotes,
-          stageCount: e.stageCount,
-          openWork: e.openWork ?? 0,
-          comments: (() => {
-            const t = edgeCommentTarget(e);
-            return t ? (commentCounts.relationship[t.id] ?? null) : null;
-          })(),
-          hasDetail: !!e.detailKey || e.drillTargets.length === 1,
-          editable: editable && !flow && !e.ghost,
-          ghost: !!e.ghost,
-          changeColor: showChanges && e.change ? CHANGE_COLORS[e.change] : null,
-          onGeom: (id, layout) => onLayout({ edges: { [id]: layout } }),
-          onSelect: (id) => onSelect({ type: "edge", id }),
-          onOpen: openEdge,
-          onContextMenu: (id, client) => onContextMenu({ type: "edge", id }, client),
-        };
-        return {
-          id: e.id,
-          source: e.source,
-          target: e.target,
-          type: "c4",
-          data,
-          markerEnd: reverse ? undefined : mode === "end" || mode === "both" ? arrow : undefined,
-          markerStart: reverse || mode === "start" || mode === "both" ? arrow : undefined,
-          selected: selection?.type === "edge" && selection.id === e.id,
-        };
-      });
+    const visible = diagram.edges.filter((e) => shown.has(e.source) && shown.has(e.target));
+    // Right-angle lines are planned together so lines that meet one side of a box get separate slots. The boxes are
+    // the same rectangles React Flow measures for the nodes (position and the size set on them above).
+    const boxes: Record<string, Box> = {};
+    for (const n of nodes) if (!n.id.startsWith("boundary:")) boxes[n.id] = { x: n.position.x, y: n.position.y, w: n.width ?? NODE_W, h: n.height ?? NODE_H };
+    const routed: RouteEdge[] = visible
+      .filter((e) => {
+        const r = e.layout.routing ?? "rounded";
+        return r === "orthogonal" || r === "rounded";
+      })
+      .map((e) => ({ id: e.id, source: e.source, target: e.target, sourceAnchor: e.layout.sourceAnchor, targetAnchor: e.layout.targetAnchor, control: e.layout.control }));
+    const ports = planPorts(boxes, routed);
+    const commentsOf = (e: (typeof visible)[number]) => {
+      const t = edgeCommentTarget(e);
+      return t ? (commentCounts.relationship[t.id] ?? null) : null;
+    };
+    const labelOf = (e: (typeof visible)[number]) => {
+      if (stepRel === e.id && step) return `${flowStep! + 1}. ${step.description || e.description}${step.response ? " (response)" : ""}`;
+      return e.steps?.length ? `${e.steps.join(", ")}. ${e.description}` : e.description;
+    };
+    // Routes of the right-angle lines, then where each label sits so labels keep off each other and off the boxes.
+    const routes: Record<string, Pt[]> = {};
+    const items: LabelItem[] = [];
+    for (const e of visible) {
+      const pp = ports[e.id];
+      if (!pp) continue;
+      const pts = orthoRoute(pp.source, pp.target, boxes[e.source]!, boxes[e.target]!, e.layout.control);
+      routes[e.id] = pts;
+      const c = commentsOf(e);
+      const badges = [
+        e.kind && e.kind.replace(/-/g, " "),
+        e.stageCount > 0 && `${e.stageCount} stages`,
+        e.sensitivityLevel && `Sensitive: ${e.sensitivityLevel}`,
+        e.hasNotes && "Notes",
+        (e.openWork ?? 0) > 0 && `${e.openWork} open`,
+        c && c.open > 0 && `${c.open}`,
+      ].filter((b): b is string => !!b);
+      const size = estimateLabelSize({ text: labelOf(e), technologies: e.technologies, badges, fontSize: e.style.fontSize ? e.style.fontSize - 2 : undefined });
+      items.push({ id: e.id, pts, size, fixedT: e.layout.labelT });
+    }
+    const labelTs = placeLabels(items, Object.values(boxes));
+    return visible.map((e) => {
+      const g = groups.get([e.source, e.target].sort().join("|"))!;
+      const i = g.indexOf(e.id);
+      const offset = g.length > 1 && !e.layout.control ? (i - (g.length - 1) / 2) * 60 : 0;
+      const current = stepRel === e.id;
+      const label = labelOf(e);
+      const color = current ? FLOW_CURRENT : edgeColor(e);
+      const head = e.style.arrowHead ?? "filled";
+      const arrow: Edge["markerEnd"] = (CUSTOM_HEADS as readonly string[]).includes(head)
+        ? `dp-head-${head}`
+        : { type: head === "open" ? MarkerType.Arrow : MarkerType.ArrowClosed, color, width: 18, height: 18 };
+      const reverse = current && step?.response;
+      const mode = e.style.arrow ?? "end";
+      const data: C4EdgeData = {
+        label,
+        technologies: e.technologies,
+        kind: e.kind,
+        derived: e.derived,
+        offset,
+        ports: ports[e.id],
+        route: routes[e.id],
+        labelT: labelTs[e.id],
+        highlight: current ? "current" : pastSteps.has(e.id) ? "past" : null,
+        response: !!reverse,
+        dimmed: (!!step && !current && !pastSteps.has(e.id)) || unfocused.has(e.source) || unfocused.has(e.target),
+        testId: e.id,
+        style: e.style,
+        layout: e.layout,
+        sensitivityLevel: e.sensitivityLevel,
+        hasNotes: e.hasNotes,
+        stageCount: e.stageCount,
+        openWork: e.openWork ?? 0,
+        comments: commentsOf(e),
+        hasDetail: !!e.detailKey || e.drillTargets.length === 1,
+        editable: editable && !flow && !e.ghost,
+        ghost: !!e.ghost,
+        changeColor: showChanges && e.change ? CHANGE_COLORS[e.change] : null,
+        onGeom: (id, layout) => onLayout({ edges: { [id]: layout } }),
+        onSelect: (id) => onSelect({ type: "edge", id }),
+        onOpen: openEdge,
+        onContextMenu: (id, client) => onContextMenu({ type: "edge", id }, client),
+      };
+      return {
+        id: e.id,
+        source: e.source,
+        target: e.target,
+        type: "c4",
+        data,
+        markerEnd: reverse ? undefined : mode === "end" || mode === "both" ? arrow : undefined,
+        markerStart: reverse || mode === "start" || mode === "both" ? arrow : undefined,
+        selected: selection?.type === "edge" && selection.id === e.id,
+      };
+    });
   }, [diagram, nodes, decorate, flow, flowStep, step, stepRel, selection, editable, onLayout, onSelect, openEdge, showChanges, onContextMenu, commentCounts]);
 
   const onNodesChange = useCallback(
