@@ -30,7 +30,7 @@ import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { matchedRoutes } from "hono/route";
 import { isHidden } from "../core/codefs.js";
 import { isObj } from "../core/json.js";
-import { dummyHash, MAX_PASSWORD, readUsers, roleIn, usersPath, UsersError, verifyPassword, type UserEntry } from "../core/users.js";
+import { dummyHash, MAX_PASSWORD, NO_ACCESS, readUsers, roleIn, usersPath, UsersError, verifyPassword, type ProjectRole, type UserEntry } from "../core/users.js";
 import type { MeResponse, Permissions, Role, SessionUser } from "../shared/types.js";
 import type { Ctx } from "./context.js";
 
@@ -313,22 +313,29 @@ export class Auth {
   }
 
   /** A signed-in user's role in a hub project (DEC-056): read live, so a change applies on the next request. */
-  roleIn(name: string, project: string): Role | null {
+  roleIn(name: string, project: string): ProjectRole | null {
     this.refresh();
     const u = this.users.get(name.toLowerCase());
     return u ? roleIn(u, project) : null;
   }
 
-  /** Middleware for a hub project's app (after `authenticate`): the request acts with the user's role in that project. */
+  /** Middleware for a hub project's app (after `authenticate`): the request acts with the user's role in that
+   *  project; a user with no access to it (DEC-059) is refused everything there, reading included. */
   projectRole(project: string): MiddlewareHandler {
     return async (c, next) => {
       const w = c.get("dpWho");
-      if (w?.user && !w.readOnlyServer) {
+      if (w?.user) {
         const role = this.roleIn(w.user.name, project) ?? w.role;
-        c.set("dpWho", { ...w, role, user: { ...w.user, role } });
+        if (role === NO_ACCESS) return c.json({ detail: "You have no access to this project. Ask an architect for access." }, 403);
+        if (!w.readOnlyServer) c.set("dpWho", { ...w, role, user: { ...w.user, role } });
       }
       await next();
     };
+  }
+
+  /** Whether a signed-in user may see a hub project at all (always true when sign-in is off). */
+  canSee(name: string | null | undefined, project: string): boolean {
+    return !name || this.roleIn(name, project) !== NO_ACCESS;
   }
 
   /** True when sign-in is required (the users file exists, or existed since the server started). */

@@ -459,7 +459,10 @@ Entry format: **ID — title** · date · status · who decided · what was deci
 - Trade-off:
   - **Writes on a read.** A project's files can change on a request that only reads (its first request after a catalog change); the change shows as uncommitted in git, and in History.
   - **Memory.** The list of copies made is kept in memory and lost on restart; git history keeps the changes themselves.
-  - **No role can hide a project:** there is no "no access" role.
+  - **No role can hide a project:** there is no "no access" role. Amended by DEC-059, which adds one.
+- Owner answer [2026-11-15, delegated: "do what you think is best"]: dp does **not** commit the copies it makes.
+  - They show as "not committed yet" on the History page and in git, and are committed with the rest of the work, with the team's own tools and messages.
+  - Why: a tool that commits on its own surprises people, can land on whatever branch is checked out, and would turn DEC-018's read-only git into read-write for one case.
 
 ## DEC-057 — History: what each commit changed in the models (git read-only)
 - Date: 2026-11-15 · Status: Proposal (keeps DEC-018: git is only read) · Decided by: Owner [2026-11-15] ("have a Git for this project to understand changes"; a read-only history view), [Proposal] (shape)
@@ -487,8 +490,24 @@ Entry format: **ID — title** · date · status · who decided · what was deci
     - It uses the first stored credential with provider `github`; without one it reads public repositories only, at GitHub's lower rate.
     - The changes are one undo step; nothing is written when nothing changed.
     - The answer lists what changed and which links could not be read (not found, refused token, rate limit), never the token.
+- Owner [2026-11-15]: on demand only. No schedule, no background polling.
 - Why: linked work already holds GitHub links; keeping their status current is the smallest useful integration, it shows the credentials working end to end, and it needs no new model data.
 - Trade-off:
   - It reaches out to the network (only to api.github.com, only when asked).
   - Statuses are a snapshot, not live.
   - GitHub Enterprise hosts and other trackers are not covered yet.
+
+## DEC-059 — "No access" to a hub project
+- Date: 2026-11-15 · Status: Proposal (amends DEC-056) · Decided by: Owner [2026-11-15] ("a role should have no access to an entire project too"), [Proposal] (shape)
+- Decision:
+  - **The role.** A user's role in one hub project can be `none`: `"projects": {"payments": "none"}` in `<hub>/.dp/users.json`, set with `dp users role NAME none HUB --project payments`.
+  - **Refused.** Every request to that project is refused with 403, reading included and on a read-only server too: model, diagrams, drafts, comments, code, history.
+  - **Hidden.** The project is left out of everything the hub shows that user: the project list and rail, the home page (cards, attention, decisions, catalog changes copied), the shared catalog usage (its copies, readers and writers), and History. A link to it opens the home page.
+  - **What still shows.** The catalog's own definitions stay visible, since they are shared by design.
+  - **Scope.** `none` exists only per project. A user's role everywhere stays architect, engineer or viewer, so a hub cannot have a signed-in user who sees nothing.
+  - **Changes apply live**, on the next request.
+- Why: the owner asked for it. Hiding rather than only refusing keeps a project's names, tables and decisions out of the other projects' views, where usage would otherwise reveal them.
+- Trade-off:
+  - **Sign-in off.** With sign-in off there are no users, so nothing is hidden; this is a sign-in feature.
+  - **Not a security boundary for the files.** Someone with access to the hub folder or its git repository still sees every project.
+  - **Architects too.** An architect everywhere can still be given `none` in a project; hub administration (adding projects, credentials) follows the role everywhere.

@@ -196,6 +196,33 @@ describe("hub", () => {
     expect(() => setRole(file, "architect", "viewer")).toThrow(/last architect/);
   });
 
+  it("no access: a project hidden from a user and refused, reading included", async () => {
+    const dir = demoHub();
+    writeTestUsers(dir);
+    setRole(path.join(dir, ".dp", "users.json"), "viewer", "none", "payments");
+    for (const opts of [{}, { readOnly: true }]) {
+      const c = hubClient(dir, null, opts);
+      const viewer = await c.as("viewer");
+      const r = await on(viewer, "payments").get("/api/state");
+      expect(r.status).toBe(403);
+      expect(r.json().detail).toMatch(/no access/);
+      expect((await on(viewer, "payments").post("/api/comments", { kind: "comment", target: { type: "diagram", id: "landscape" }, text: "hi" })).status).toBe(403);
+      await ok(on(viewer, "onboarding").get("/api/state"));
+      const hub = await ok(viewer.get("/api/hub"));
+      expect(hub.projects.map((p: any) => p.id)).toEqual(["onboarding", "catalog"]);
+      const home = await ok(viewer.get("/api/home"));
+      expect(home.projects.map((p: any) => p.id)).toEqual(["onboarding", "catalog"]);
+      expect(JSON.stringify(home)).not.toContain("payments");
+      const usage = await ok(viewer.get("/api/catalog/usage"));
+      expect(usage.assets.flatMap((a: any) => a.access.map((x: any) => x.project))).not.toContain("payments");
+      expect((await viewer.get("/api/history", { project: "payments" })).status).toBe(404);
+      // Others still see it.
+      const arch = await c.as("architect");
+      expect((await ok(arch.get("/api/hub"))).projects.map((p: any) => p.id)).toContain("payments");
+    }
+    expect(() => setRole(path.join(dir, ".dp", "users.json"), "viewer", "none")).toThrow(UsersError); // only per project
+  });
+
   it("a read-only hub copies nothing", async () => {
     const dir = demoHub();
     const before = fs.readFileSync(path.join(dir, "payments", "architecture", "workspace.json"), "utf-8");

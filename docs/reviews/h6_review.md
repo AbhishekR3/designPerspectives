@@ -59,4 +59,7 @@ This stage answers the owner's feedback on the H2–H5 questions:
 
 ## Owner feedback
 
-<!-- Please add feedback here. -->
+- 2026-11-15, on the questions above:
+  1. "Yes, a role should have no access to an entire project too." Built as role `none` per project (DEC-059): the project is hidden and every request to it is refused, on read-only servers too. Tested in `tests/hub.test.ts` ("no access…").
+  2. "Do what you think is best." dp does not commit the catalog copies; they show as uncommitted and are committed with the team's own tools (recorded in DEC-056).
+  3. "GitHub refresh is on demand only." Already so; recorded in DEC-058.

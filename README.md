@@ -62,7 +62,7 @@ dp users add NAME --role ROLE     # add a user; also: dp users passwd NAME, dp u
 dp serve HUB --hub                # serve several projects and a shared catalog from one hub folder (hub.json)
 dp init HUB --hub --demo          # the demo hub: two projects sharing a customer database
 dp check HUB --hub                # check every project of a hub and its catalog
-dp users role NAME engineer HUB --project payments   # a role in one project of a hub (role "default" removes it)
+dp users role NAME engineer HUB --project payments   # a role in one project of a hub ("none": no access, the project is hidden; "default" removes it)
 dp credentials add NAME --provider github < token.txt   # integration credentials (value from stdin); also list, rotate, remove
 dp --version
 ```
@@ -93,7 +93,8 @@ catalog changes; the rest is the project's own. Elements list their **data** (ta
 element, private on a project's copy), and each relationship says which data it **reads or writes**.
 The **Shared catalog** page shows who uses each shared element and who reads and writes each table.
 One sign-in (`<hub>/.dp/users.json`) covers every project, and a person's role can differ per
-project (`dp users role NAME ROLE HUB --project ID`).
+project (`dp users role NAME ROLE HUB --project ID`), including `none`: no access, and the project is
+hidden from that person everywhere in the hub.
 
 **History** (`#/history`) lists the git commits that changed the models, each with what it changed
 (added, changed, removed objects, by project) and a link to that version compared with the one

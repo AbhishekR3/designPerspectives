@@ -3,6 +3,8 @@
 ## Unreleased
 
 ### Added
+- "No access" to a hub project: role `none` per project hides the project from that user (projects,
+  home page, catalog usage, history) and refuses every request to it (DEC-059).
 - Hub roles per project: a user's role can differ per project (`projects` in the users file,
   `dp users role NAME ROLE --project ID`); shown on the home page (DEC-056).
 - Catalog copies follow the catalog: a change saved to the catalog reaches every project's linked

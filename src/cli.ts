@@ -491,7 +491,7 @@ function usersCommands(p: Command): void {
     .command("role")
     .description("Set a user's role everywhere, or (with --project, in a hub) in one project; role \"default\" with --project removes that project's own role.")
     .argument("<name>", "User name.")
-    .argument("<role>", "architect, engineer or viewer (or default, with --project).")
+    .argument("<role>", "architect, engineer or viewer; with --project also none (no access: the project is hidden) or default.")
     .argument("[path]", "Project or hub folder.", ".")
     .option("--project <id>", "A hub project's ID: the role applies there only.")
     .addOption(fileOpt())

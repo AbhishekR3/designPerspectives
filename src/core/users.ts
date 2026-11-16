@@ -34,14 +34,18 @@ export interface UserEntry {
   role: Role;
   /** The scrypt hash string (see the file header). */
   password: string;
-  /** In a hub: a different role in some projects, by project ID (DEC-056). */
-  projects?: Record<string, Role>;
+  /** In a hub: a different role in some projects, by project ID (DEC-056); "none": no access at all (DEC-059). */
+  projects?: Record<string, ProjectRole>;
 }
+
+/** A role in one hub project: one of the roles, or "none" (the project is hidden and refused). */
+export type ProjectRole = Role | "none";
+export const NO_ACCESS = "none";
 
 const PROJECT_ID_RE = /^[a-z0-9][a-z0-9-]{0,40}$/;
 
 /** The user's role in a hub project (their role everywhere unless the users file gives another). */
-export const roleIn = (u: Pick<UserEntry, "role" | "projects">, project: string | null): Role => (project && u.projects?.[project]) || u.role;
+export const roleIn = (u: Pick<UserEntry, "role" | "projects">, project: string | null): ProjectRole => (project && u.projects?.[project]) || u.role;
 
 /** `<project>/.dp/users.json`. */
 export function usersPath(root: string): string {
@@ -171,11 +175,12 @@ export function parseUsers(text: string, file = USERS_FILE): UserEntry[] {
     const entry: UserEntry = { name, role: role as Role, password };
     if (projects !== undefined) {
       if (!projects || typeof projects !== "object" || Array.isArray(projects)) throw bad(`"${name}" has "projects" that is not an object of project ID → role.`);
-      const map: Record<string, Role> = {};
+      const map: Record<string, ProjectRole> = {};
       for (const [id, r] of Object.entries(projects as Record<string, unknown>)) {
         if (!PROJECT_ID_RE.test(id)) throw bad(`"${name}" has a role for "${id}", which is not a project ID.`);
-        if (typeof r !== "string" || !(ROLES as readonly string[]).includes(r)) throw bad(`"${name}" has no valid role for project "${id}" (${ROLES.join(", ")}).`);
-        map[id] = r as Role;
+        if (typeof r !== "string" || !(r === NO_ACCESS || (ROLES as readonly string[]).includes(r)))
+          throw bad(`"${name}" has no valid role for project "${id}" (${ROLES.join(", ")} or ${NO_ACCESS}).`);
+        map[id] = r as ProjectRole;
       }
       if (Object.keys(map).length) entry.projects = map;
     }
@@ -281,7 +286,7 @@ export function setRole(file: string, name: string, role: string, project: strin
     if (!PROJECT_ID_RE.test(project)) throw new UsersError(`"${project}" is not a project ID.`);
     const map = { ...(u.projects ?? {}) };
     if (role === "default") delete map[project];
-    else map[project] = checkRole(role);
+    else map[project] = role === NO_ACCESS ? NO_ACCESS : checkRole(role);
     u.projects = Object.keys(map).length ? map : undefined;
     if (!u.projects) delete u.projects;
   }

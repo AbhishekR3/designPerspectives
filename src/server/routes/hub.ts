@@ -37,11 +37,20 @@ export interface HubCtx {
   updates?(): CatalogUpdate[];
 }
 
-/** Every loadable project's main model (the catalog apart). */
-function usageOf(hub: HubCtx): SharedUsage {
+/** The projects the request's user may see (DEC-059): all of them, except where their role is "none". */
+export function visibleEntries(hub: HubCtx, c: Context): HubEntry[] {
+  if (hub.mode !== "hub") return hub.entries();
+  const name = whoOf(hub, c).user?.name;
+  return hub.entries().filter((e) => hub.auth.canSee(name, e.id));
+}
+
+/** Every loadable project's main model that the user may see; the catalog's definitions are used either way. */
+function usageOf(hub: HubCtx, c: Context): SharedUsage {
   const projects: { id: string; ws: import("../../core/workspace.js").Workspace }[] = [];
   let catalog = null;
+  const seen = new Set(visibleEntries(hub, c).map((e) => e.id));
   for (const e of hub.entries()) {
+    if (!e.catalog && !seen.has(e.id)) continue;
     try {
       const p = e.ctx().project;
       p.reloadIfChanged();
@@ -117,8 +126,9 @@ export function hubInfo(hub: HubCtx, c: Context): HubInfo {
     canAdmin: decide("admin", who, "main") === null,
     loginRequired: who.loginRequired,
     me: who.user,
-    projects: hub.entries().map((e) => {
-      const role = who.user && !who.readOnlyServer ? (hub.mode === "hub" ? (hub.auth.roleIn(who.user.name, e.id) ?? who.role) : who.role) : who.user ? "viewer" : null;
+    projects: visibleEntries(hub, c).map((e) => {
+      const r = who.user && !who.readOnlyServer ? (hub.mode === "hub" ? (hub.auth.roleIn(who.user.name, e.id) ?? who.role) : who.role) : who.user ? "viewer" : null;
+      const role = r === "none" ? null : r; // not listed (visibleEntries); narrows the type
       try {
         const ws = e.ctx().project.workspace;
         return { id: e.id, name: e.name || ws.name, description: ws.description || "", path: e.path, error: null, catalog: e.catalog, role };
@@ -136,7 +146,7 @@ export function registerHub(app: Hono, hub: HubCtx): void {
   });
 
   app.get("/api/home", (c) => {
-    const projects: HomeProject[] = hub.entries().map((e) => ({
+    const projects: HomeProject[] = visibleEntries(hub, c).map((e) => ({
       id: e.id,
       name: e.name,
       catalog: e.catalog,
@@ -147,7 +157,12 @@ export function registerHub(app: Hono, hub: HubCtx): void {
     }));
     // In a hub, the catalog's own card comes last and its problems show like any project's.
     hub.sync?.();
-    return c.json(homeSummary(hub.name(), hub.mode, projects, { ...usageAttention(usageOf(hub)), catalogUpdates: hub.updates?.().slice(0, 10) ?? [] }));
+    const seen = new Set(projects.map((p) => p.id));
+    const catalogUpdates = (hub.updates?.() ?? [])
+      .map((u) => ({ ...u, projects: u.projects.filter((p) => seen.has(p.project)) }))
+      .filter((u) => u.projects.length)
+      .slice(0, 10);
+    return c.json(homeSummary(hub.name(), hub.mode, projects, { ...usageAttention(usageOf(hub, c)), catalogUpdates }));
   });
 
   /** The shared catalog's elements (empty without a catalog), for "add from the catalog" and "link". */
@@ -161,7 +176,7 @@ export function registerHub(app: Hono, hub: HubCtx): void {
     const want = c.req.query("project") || null;
     const limit = Math.max(1, Math.min(100, Number(c.req.query("limit")) || 20));
     const list: { id: string; project: Project; models: GitModels }[] = [];
-    for (const e of hub.entries()) {
+    for (const e of visibleEntries(hub, c)) {
       if (want && e.id !== want) continue;
       try {
         const x = e.ctx();
@@ -180,6 +195,6 @@ export function registerHub(app: Hono, hub: HubCtx): void {
   /** Who uses which shared element and which data, across the projects (one project when not a hub). */
   app.get("/api/catalog/usage", (c) => {
     hub.sync?.();
-    return c.json(usageOf(hub));
+    return c.json(usageOf(hub, c));
   });
 }
