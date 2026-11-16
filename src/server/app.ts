@@ -10,6 +10,7 @@ import { NotFound } from "../core/store.js";
 import { createContext, HttpError, type AppOptions } from "./context.js";
 import { authorize } from "./auth.js";
 import { installProtection } from "./protect.js";
+import { registerComments } from "./routes/comments.js";
 import { registerCode } from "./routes/code.js";
 import { registerDrafts } from "./routes/drafts.js";
 import { registerFlows } from "./routes/flows.js";
@@ -61,6 +62,7 @@ export function createApp(root: string, opts: AppOptions = {}): Hono {
   registerFlows(app, ctx);
   registerInspect(app, ctx);
   registerBacktrack(app, ctx);
+  registerComments(app, ctx);
 
   app.all("/api/*", (c) => c.json({ detail: "Not Found" }, 404));
 

@@ -839,3 +839,22 @@ button.link.tree-link .tree-mark {
     max-width: 70%;
   }
 }
+
+/* The Comments button in the tools bar, with the number of open threads. */
+.comments-btn {
+  position: relative;
+}
+.comments-count {
+  position: absolute;
+  top: 1px;
+  right: 0;
+  min-width: 14px;
+  padding: 0 3px;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 14px;
+  text-align: center;
+  color: var(--bg);
+  background: var(--link);
+  border-radius: 999px;
+}

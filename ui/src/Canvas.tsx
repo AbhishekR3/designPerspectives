@@ -19,10 +19,11 @@ import { canvasInsets } from "./insets";
 import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type Ref } from "react";
 import { CUSTOM_HEADS, FLOW_CURRENT, MarkerDefs, edgeColor, edgeTypes, nodeTypes, type C4EdgeData, type C4NodeData, type NodeActions, type OverlayInfo, type Rect4 } from "./canvasParts";
 import { errorMessage, notify, run } from "./notify";
+import { edgeCommentTarget, type CommentCount } from "./comments";
 import { CHANGE_COLORS } from "./overlays";
 import { DRAG_TYPE, type PaletteItem } from "./Palette";
 import { NODE_H, NODE_W, autoLayout, defaultSize, findFreeSpot, placeMissing, type Rect, type Size } from "./layout";
-import { nodeSelection, selectedNodeIds, type Diagram, type DiagramNode, type EdgeLayout, type Lens, type Pt, type Selection } from "./types";
+import { nodeSelection, selectedNodeIds, type CommentTarget, type Diagram, type DiagramNode, type EdgeLayout, type Lens, type Pt, type Selection } from "./types";
 
 export interface CanvasHandle {
   freeSpot(size?: Size): Pt;
@@ -79,6 +80,9 @@ interface Props {
   onOpenFile(path: string): void;
   onContextMenu(target: ContextTarget, client: Pt): void;
   handleRef: Ref<CanvasHandle>;
+  /** Open comment threads per element and per relationship (badges), and a click on one. */
+  commentCounts: { element: Record<string, CommentCount>; relationship: Record<string, CommentCount> };
+  onComments(target: CommentTarget): void;
   /** The model shown cannot be changed by this person: no dragging, resizing, connecting or dropping, and nothing is saved. */
   readOnly: boolean;
 }
@@ -128,6 +132,8 @@ export function Canvas({
   onOpenFile,
   onContextMenu,
   handleRef,
+  commentCounts,
+  onComments,
   readOnly,
 }: Props) {
   const rf = useReactFlow();
@@ -317,6 +323,8 @@ export function Canvas({
         dimmed: (!!step && !activeNodes.has(n.id)) || dec.outOfFocus,
         focused: dec.focused,
         costLabel: dec.costLabel,
+        comments: n.ghost ? null : (commentCounts.element[n.id] ?? null),
+        onComments: (id) => onComments({ type: "element", id }),
         actions,
         archTypes,
         renameNow: renameId === n.id,
@@ -339,7 +347,7 @@ export function Canvas({
       });
     }
     return out;
-  }, [diagram, positions, decorate, actions, archTypes, renameId, onRenameStarted, lens, activeNodes, step, selection, multiIds, sizeOf, editable, canConnect, onResize, onResizeEnd]);
+  }, [diagram, positions, decorate, actions, archTypes, renameId, onRenameStarted, lens, activeNodes, step, selection, multiIds, sizeOf, editable, canConnect, onResize, onResizeEnd, commentCounts, onComments]);
 
   const openEdge = useCallback(
     (id: string) => {
@@ -394,6 +402,10 @@ export function Canvas({
           hasNotes: e.hasNotes,
           stageCount: e.stageCount,
           openWork: e.openWork ?? 0,
+          comments: (() => {
+            const t = edgeCommentTarget(e);
+            return t ? (commentCounts.relationship[t.id] ?? null) : null;
+          })(),
           hasDetail: !!e.detailKey || e.drillTargets.length === 1,
           editable: editable && !flow && !e.ghost,
           ghost: !!e.ghost,
@@ -414,7 +426,7 @@ export function Canvas({
           selected: selection?.type === "edge" && selection.id === e.id,
         };
       });
-  }, [diagram, nodes, decorate, flow, flowStep, step, stepRel, selection, editable, onLayout, onSelect, openEdge, showChanges, onContextMenu]);
+  }, [diagram, nodes, decorate, flow, flowStep, step, stepRel, selection, editable, onLayout, onSelect, openEdge, showChanges, onContextMenu, commentCounts]);
 
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => {

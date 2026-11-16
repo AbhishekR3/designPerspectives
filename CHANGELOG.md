@@ -3,6 +3,15 @@
 ## Unreleased
 
 ### Added
+- Comments, ideas and questions on diagrams. Right-click a box, a line or empty space and choose
+  **Comment…** (or use the speech-bubble button in the tools bar): write a comment, suggest an idea
+  or ask a question about an element, a relationship or a whole diagram, reply in a thread, and mark
+  it resolved. Boxes with open threads show a pin with the count; lines show it on their label; the
+  details panel shows each object's discussion, and with nothing selected it lists every thread about
+  what the diagram shows, filterable by open, questions, ideas and resolved. Every role can comment,
+  a viewer too; only the author or an architect can edit or delete a note. Comments are stored in
+  `architecture/comments.json` (separate from the model: no undo step, not part of drafts) and are
+  routes `GET/POST /api/comments` and friends (DEC-049).
 - Sample data on relationships and connector stages (`dp.example`, `dp.format`, and `example`/`format`
   on each stage in `dp.stages`). Clicking a line shows what it carries; a pipeline shows the sample
   entering it and leaving each stage, with added, removed and changed fields marked. Up to 8,000

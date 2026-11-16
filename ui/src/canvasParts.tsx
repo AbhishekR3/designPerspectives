@@ -20,6 +20,7 @@ import { NODE_H, NODE_W } from "./layout";
 import { Icon, iconFor } from "./icons";
 import { Shape, shapeInset } from "./shapes";
 import { KIND_LABEL, type DiagramNode, type EdgeLayout, type Pt, type Section, type Style } from "./types";
+import type { CommentCount } from "./comments";
 
 // Accent colour per C4 kind (icon colour on the dark cards).
 export const KIND_COLOR: Record<string, string> = {
@@ -149,6 +150,9 @@ export type C4NodeData = {
   focused: boolean; // matches an active Focus filter
   editable: boolean;
   costLabel: string | null;
+  /** Comment threads about this box (null: none, or the box is not an element). */
+  comments: CommentCount | null;
+  onComments(id: string): void;
   actions: NodeActions | null;
   archTypes: { id: string; label: string }[];
   /** Part of a selection of several boxes: no quick bar, resize handles or click-to-rename. */
@@ -327,6 +331,21 @@ export function C4Node({ data, selected }: NodeProps<C4NodeType>) {
         <div className="drill-mark open-mark" title="Nothing inside yet; double-click to open and add" data-testid={`open-mark-${el.id}`}>
           <Icon name="search" size={11} /> open
         </div>
+      )}
+      {data.comments && data.comments.open > 0 && (
+        <button
+          className={`comment-pin${data.comments.question ? " q" : ""}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            data.onComments(el.id);
+          }}
+          onDoubleClick={(e) => e.stopPropagation()}
+          title={`${data.comments.open} open comment${data.comments.open === 1 ? "" : "s"}${data.comments.question ? ", with a question" : ""}. Click to read.`}
+          aria-label={`${data.comments.open} open comments`}
+          data-testid={`comments-${el.id}`}
+        >
+          <Icon name="comment" size={11} /> {data.comments.open}
+        </button>
       )}
       {overlay && (
         <div className={`ov-chip${overlay.color ? "" : " none"}`} data-testid={`badge-${el.id}`} title={`${overlay.group}: ${overlay.value ?? "no value"}`}>
@@ -584,6 +603,8 @@ export type C4EdgeData = {
   hasNotes: boolean;
   stageCount: number;
   openWork: number;
+  /** Open comment threads about the relationship, and whether one is a question. */
+  comments: CommentCount | null;
   hasDetail: boolean;
   editable: boolean;
   /** Only in the compared version (drawn faded, dotted). */
@@ -779,13 +800,18 @@ export function C4Edge({ id, source, target, data, selected, markerEnd, markerSt
               <Icon name="code" size={10} /> {techs}
             </div>
           )}
-          {(data.kind || data.sensitivityLevel || data.hasNotes || data.stageCount > 0 || data.openWork > 0) && (
+          {(data.kind || data.sensitivityLevel || data.hasNotes || data.stageCount > 0 || data.openWork > 0 || (data.comments?.open ?? 0) > 0) && (
             <div className="edge-badges">
               {data.kind && <span className="badge subtle">{data.kind.replace(/-/g, " ")}</span>}
               {data.stageCount > 0 && <span className="badge subtle">{data.stageCount} stages</span>}
               {data.sensitivityLevel && <span className={`badge sens-${data.sensitivityLevel}`}>Sensitive: {data.sensitivityLevel}</span>}
               {data.hasNotes && <span className="badge subtle">Notes</span>}
               {data.openWork > 0 && <span className="badge work">{data.openWork} open</span>}
+              {data.comments && data.comments.open > 0 && (
+                <span className={`badge comments${data.comments.question ? " q" : ""}`} title={`${data.comments.open} open comment${data.comments.open === 1 ? "" : "s"}. Click the line to read.`} data-testid={`comments-edge-${data.testId}`}>
+                  <Icon name="comment" size={10} /> {data.comments.open}
+                </span>
+              )}
             </div>
           )}
         </div>

@@ -6,6 +6,7 @@ import { draftActions, diagramActions, useElementActions } from "./actions";
 import { api } from "./api";
 import { ApplyDialog, ChangeDetails, ChangeList, DraftDialog, DraftList, GhostPanel, PlanDialog, VersionStrip } from "./ChangesPanel";
 import { Canvas, type CanvasHandle } from "./Canvas";
+import { CommentsContext, DiagramComments, useComments } from "./comments";
 import { ContextMenu, type MenuItem } from "./ContextMenu";
 import { Dock } from "./Dock";
 import { CharacteristicsEditor, CostSettingsEditor, LensEditor, TagGroupEditor } from "./editors";
@@ -27,7 +28,7 @@ import { ReadOnlyContext } from "./fields";
 import { CodeDiagramPanel, ConnectorPanel, EdgePanel, FilePanel, MultiPanel, ObjectPanel, StagePanel } from "./panels";
 import { SearchBox } from "./SearchBox";
 import { Sidebar } from "./Sidebar";
-import { LEVEL_LABEL, type Lens, type Pt, type TagGroup } from "./types";
+import { LEVEL_LABEL, type CommentTarget, type Lens, type Pt, type Selection, type TagGroup } from "./types";
 import { useClipboard } from "./useClipboard";
 import { useFlowAutoplay, useFlowPlayer } from "./useFlowPlayer";
 import { inLens, useLens, useLensState } from "./useLens";
@@ -118,6 +119,14 @@ export default function App({ onSignOut }: { onSignOut(): void }) {
   const { lens, chooseLens, chooseLensAfterSave, activeOverlay, decorate } = useLens({ state, refresh, diagram, open, lensState });
   const clip = useClipboard({ keyRef, mutate, setSelection });
   const { pasteFrom } = clip;
+  const comments = useComments(state);
+  /** Show an object's discussion: select it and open the details panel (with `compose`, a new comment box too). */
+  const showComments = (target: CommentTarget, selectAs: Selection, compose: boolean) => {
+    setFocusName(false);
+    select(selectAs);
+    if (!rightOpen) toggleRight();
+    if (compose) comments.askFor(target);
+  };
   const { deleteRelationship, nodeActions, renameElement } = useElementActions({ state, mutate, pasteFrom, open, setSelection, setRenameId, fresh });
 
   // After a move: show the moved box, selected, where it now is (its new parent's diagram).
@@ -213,6 +222,8 @@ export default function App({ onSignOut }: { onSignOut(): void }) {
         addItem,
         doHistory,
         canvasRef,
+        comment: (target, selectAs) => showComments(target, selectAs, true),
+        canComment: comments.can,
       })
     : [];
 
@@ -246,6 +257,21 @@ export default function App({ onSignOut }: { onSignOut(): void }) {
             <Icon name="layout" />
           </button>
         </>
+      )}
+      {(comments.can || comments.openTotal > 0) && (
+        <button
+          className={`ghost icon comments-btn${!selection && rightOpen ? " on" : ""}`}
+          onClick={() => {
+            select(null);
+            if (!rightOpen) toggleRight();
+          }}
+          title={`Comments, ideas and questions (${comments.openTotal} open). Shows the discussion of this diagram.`}
+          aria-label={`Comments: ${comments.openTotal} open`}
+          data-testid="comments-open"
+        >
+          <Icon name="comment" />
+          {comments.openTotal > 0 && <span className="comments-count">{comments.openTotal > 99 ? "99+" : comments.openTotal}</span>}
+        </button>
       )}
       <span className="export-wrap" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setExportOpen(false)}>
         <button
@@ -383,6 +409,8 @@ export default function App({ onSignOut }: { onSignOut(): void }) {
                 onOpenFile={setOpenFile}
                 onContextMenu={openMenu}
                 handleRef={canvasRef}
+                commentCounts={comments.counts}
+                onComments={(t) => showComments(t, { type: "node", id: t.id }, false)}
                 readOnly={state.readOnly}
               />
             </ReactFlowProvider>
@@ -542,6 +570,7 @@ export default function App({ onSignOut }: { onSignOut(): void }) {
             <Icon name="panel" className="flip" />
           </button>
         </div>
+        <CommentsContext.Provider value={comments}>
         <ReadOnlyContext.Provider value={state.readOnly}>
           {showGhost && <GhostPanel node={selectedNode} edge={selectedEdge} change={selectedChange} against={againstLabel} />}
           {multiIds && diagram && (
@@ -588,7 +617,13 @@ export default function App({ onSignOut }: { onSignOut(): void }) {
               )}
             </div>
           )}
+          {!selection && diagram && !diagram.compare?.removed && (
+            <div className="panel-body">
+              <DiagramComments state={state} diagram={diagram} onSelect={select} onReveal={reveal} onOpen={open} />
+            </div>
+          )}
         </ReadOnlyContext.Provider>
+        </CommentsContext.Provider>
       </aside>
 
       {menu && shownMenu.length > 0 && <ContextMenu key={menu.seq} x={menu.x} y={menu.y} items={shownMenu} keyboard={menu.keyboard} onClose={closeMenu} />}

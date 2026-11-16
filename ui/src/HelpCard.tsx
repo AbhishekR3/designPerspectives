@@ -46,6 +46,7 @@ export function HelpCard({ onClose }: { onClose(): void }) {
         <li>Rename on the canvas: select a box, then click its name (or press F2). The bar above a selected box also changes its symbol, opens it, duplicates or deletes it.</li>
         <li>Select a box to resize it; select a line to drag its ends, bend it, or slide its label along it.</li>
         <li>Double-click a line to open the connector behind it.</li>
+        <li>Comments: right-click a box, a line or empty space and choose Comment…, or use the speech-bubble button in the tools bar for the list of this diagram. Mark a note as a comment, an idea or a question; reply, then resolve it. Every role can do this, a viewer too.</li>
         <li>Dashed lines are derived from relationships between elements inside the boxes.</li>
         <li>Bottom left: colour boxes by a tag group, technology, characteristic or cost; click a value to focus on or hide those boxes.</li>
       </ul>

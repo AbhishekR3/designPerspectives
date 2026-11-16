@@ -9,7 +9,8 @@ import { iconFor } from "./icons";
 import { defaultSize } from "./layout";
 import { addBlockedReason } from "./connectRequired";
 import { paletteItems, type PaletteItem } from "./Palette";
-import { selectedNodeIds, type AppState, type Diagram, type DiagramEdge, type DiagramNode, type EdgeLayout, type Pt, type Selection, type Style } from "./types";
+import { edgeCommentTarget } from "./comments";
+import { selectedNodeIds, type AppState, type CommentTarget, type Diagram, type DiagramEdge, type DiagramNode, type EdgeLayout, type Pt, type Selection, type Style } from "./types";
 import type { Clipboard } from "./useClipboard";
 
 /** Choices in the line menus; labels match the panel. */
@@ -104,6 +105,10 @@ export interface MenuContext {
   addItem(item: PaletteItem, at?: Pt): Promise<string | null | undefined>;
   doHistory(dir: "undo" | "redo"): Promise<void>;
   canvasRef: RefObject<CanvasHandle | null>;
+  /** Select the object (or none: the diagram) and start a comment on it in the details panel. */
+  comment(target: CommentTarget, selectAs: Selection): void;
+  /** The server takes comments. */
+  canComment: boolean;
 }
 
 /** The items of the open menu (empty when none is open or its box or line is gone). */
@@ -138,6 +143,7 @@ export function menuItems(menu: MenuState | null, c: MenuContext): MenuItem[] {
       n.drillKey && { label: "Open", icon: "search", shortcut: "Double-click", testId: "ctx-open", onSelect: () => open(n.drillKey!) },
       n.filePath && { label: "Open file", icon: "file", shortcut: "Double-click", testId: "ctx-open-file", onSelect: () => setOpenFile(n.filePath!) },
       { label: canEditEl ? "Edit details…" : "Show details", icon: "panel", testId: "ctx-details", onSelect: () => (select({ type: "node", id: n.id }), setFocusName(canEditEl)) },
+      el && !n.ghost && c.canComment && { label: "Comment…", icon: "comment", testId: "ctx-comment", onSelect: () => c.comment({ type: "element", id: n.id }, { type: "node", id: n.id }) },
       { sep: true },
       canEditEl && { label: "Rename", icon: "edit", shortcut: "F2", testId: "ctx-rename", onSelect: () => setRenameId(n.id) },
       canEditEl &&
@@ -201,6 +207,7 @@ export function menuItems(menu: MenuState | null, c: MenuContext): MenuItem[] {
     const lineEditable = canEdit && diagram?.level !== "flow";
     const setLine = (layout: EdgeLayout) => key && void mutate(() => api.layout(key, { edges: { [e.id]: layout } }));
     const setStyle = (patch: Partial<Style>) => void mutate(() => api.style(styleTarget, { ...e.style, ...patch }));
+    const commentTarget = edgeCommentTarget(e);
     const routing = e.layout.routing ?? "auto";
     const arrow = e.style.arrow ?? "end";
     const head = e.style.arrowHead ?? "filled";
@@ -220,6 +227,7 @@ export function menuItems(menu: MenuState | null, c: MenuContext): MenuItem[] {
         testId: "ctx-details",
         onSelect: () => (select({ type: "edge", id: e.id }), setFocusName(!!relId && canEdit)),
       },
+      commentTarget && c.canComment && { label: "Comment…", icon: "comment", testId: "ctx-comment", onSelect: () => c.comment(commentTarget, { type: "edge", id: e.id }) },
       { sep: true },
       lineEditable && {
         label: "Line shape",
@@ -264,6 +272,7 @@ export function menuItems(menu: MenuState | null, c: MenuContext): MenuItem[] {
     const clipHere = clip && diagram.nodes.some((n) => n.id === clip.id);
     const up = diagram.breadcrumb.length > 1 ? diagram.breadcrumb[diagram.breadcrumb.length - 2] : null;
     return tidy([
+      c.canComment && { label: "Comment on this diagram…", icon: "comment", testId: "ctx-comment", onSelect: () => c.comment({ type: "diagram", id: diagram.key }, null) },
       addable.length > 0 && {
         label: "Add here",
         icon: "plus",

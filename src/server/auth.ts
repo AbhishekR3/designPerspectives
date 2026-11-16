@@ -15,6 +15,7 @@
  *   draft.edit      yes         yes                    no      title, description, branch, link
  *   draft.discard   yes         own drafts only        no
  *   draft.apply     yes         no                     no
+ *   comment         yes         yes                    yes     comments, ideas, questions, replies, resolving (own text only to change or delete; an architect any)
  *   (unlisted)      yes         no                     no      deny by default
  *
  * A git version (`ref:`) is read-only for everyone; --read-only makes everyone a viewer.
@@ -54,7 +55,7 @@ export const READ_ONLY_VERSION = "This version of the model is read-only.";
 const OPEN_PATHS = new Set(["/api/login", "/api/logout", "/api/me", "/api/health"]);
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
-export type Action = "open" | "edit" | "code" | "draft.create" | "draft.edit" | "draft.discard" | "draft.apply";
+export type Action = "open" | "comment" | "edit" | "code" | "draft.create" | "draft.edit" | "draft.discard" | "draft.apply";
 
 /**
  * What every non-GET API route does, by "METHOD path" as registered ("ALL" for app.all). A route
@@ -103,6 +104,12 @@ export const ROUTE_RULES: Record<string, Action> = {
   "POST /api/code/revert": "code",
   // routes/inspect.ts: the live UI inspector reads the model and opens a local proxy; it changes nothing
   "POST /api/ui-proxy": "open",
+  // routes/comments.ts: a conversation about the model, kept in its own file, not part of it (DEC-049)
+  "POST /api/comments": "comment",
+  "POST /api/comments/:id/replies": "comment",
+  "PATCH /api/comments/:id": "comment",
+  "DELETE /api/comments/:id": "comment",
+  "DELETE /api/comments/:id/replies/:rid": "comment",
   "POST /api/inspect": "open",
   // routes/drafts.ts (by draft id in the path, whatever version is selected)
   "POST /api/drafts": "draft.create",
@@ -136,6 +143,7 @@ const sameName = (a: string | null | undefined, b: string) => typeof a === "stri
 export function decide(action: Action | undefined, who: Who, ref: string, author?: string | null): string | null {
   if (action === "open") return null;
   if (who.readOnlyServer) return READ_ONLY_SERVER;
+  if (action === "comment") return null; // every role, on every version
   const versioned = action === "edit" || action === "code";
   if (versioned && ref.startsWith("ref:")) return READ_ONLY_VERSION;
   const role = who.role;
@@ -172,6 +180,7 @@ export function permissions(who: Who, ref: string, openDraftAuthor: string | nul
     applyDraft: yes("draft.apply"),
     discardDraft: ref.startsWith("draft:") && yes("draft.discard", ref, openDraftAuthor),
     writeCode: ref === "main" && yes("code"),
+    comment: yes("comment"),
   };
 }
 

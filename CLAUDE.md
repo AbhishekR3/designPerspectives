@@ -43,7 +43,7 @@ ESLint (typescript-eslint recommended + react-hooks) is configured; Prettier is 
 **Data on disk** (per project, in `architecture/`):
 - `workspace.json` — a Structurizr workspace (elements, relationships, views, positions, flows). Written with stable key order and formatting for clean `git diff`; IDs are readable slugs. Unknown fields are kept.
 - `designperspectives.json` — the "sidecar": tag groups, lenses, characteristics list, cost settings, plus per-object `styles` and per-diagram `layouts`.
-- Anything Structurizr has no field for is stored as `dp.*` element/relationship **properties** inside the workspace (full list in the [ops.ts](src/core/ops.ts) header). Add new per-object data the same way rather than inventing new files.
+- Anything Structurizr has no field for is stored as `dp.*` element/relationship **properties** inside the workspace (full list in the [ops.ts](src/core/ops.ts) header). Add new per-object data the same way rather than inventing new files. The exception is `comments.json` (conversation about the model, not part of it: DEC-049), handled by `core/comments.ts` and `server/routes/comments.ts`, with `ui/src/comments.tsx` on the UI side.
 
 **Backend** (`src/core/`, `src/server/`, `src/cli.ts`):
 - `workspace.ts` — read/check/write the Structurizr file format (`toWorkspace` normalises; `dumpWorkspace` writes known keys in a fixed order, drops empty defaults). `sidecar.ts` — the sidecar model. `json.ts` — small helpers (`inlineJson` for `dp.*` property values, `roundHalfEven`).

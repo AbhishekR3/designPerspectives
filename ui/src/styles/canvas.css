@@ -559,3 +559,37 @@
 .react-flow__nodesselection {
   display: none;
 }
+
+/* Comments: a pin on a box that has open comments, and the same count on a line's label. */
+.comment-pin {
+  position: absolute;
+  top: -11px;
+  right: -11px;
+  z-index: var(--z-ov-chip);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-height: 0;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--bg);
+  background: var(--link);
+  border: 1px solid var(--bg);
+  border-radius: 999px;
+  cursor: pointer;
+}
+.comment-pin.q,
+.badge.comments.q {
+  background: var(--amber);
+  color: var(--bg);
+}
+.badge.comments {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: var(--link);
+  border-color: var(--link);
+  color: var(--bg);
+}

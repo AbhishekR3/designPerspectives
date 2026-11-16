@@ -575,3 +575,173 @@ button.change-item:disabled {
 .sample-chip.removed {
   color: #f87171;
 }
+
+/* Comments, ideas and questions: the discussion block and the diagram's list. */
+.diagram-comments {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.discussion {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  border-top: 1px solid var(--line);
+  padding-top: var(--space-3);
+}
+.discussion h4 {
+  margin: 0;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.discussion h4 .count {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--bg);
+  background: var(--link);
+  border-radius: 999px;
+  padding: 0 6px;
+}
+.threads,
+.replies {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.thread {
+  background: var(--raise);
+  border: 1px solid var(--line);
+  border-left-width: 3px;
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.thread[data-kind="comment"] {
+  border-left-color: var(--link);
+}
+.thread[data-kind="idea"] {
+  border-left-color: var(--accent);
+}
+.thread[data-kind="question"] {
+  border-left-color: var(--amber);
+}
+.thread.resolved {
+  opacity: 0.7;
+}
+.thread-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 12px;
+}
+.thread-text {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.thread .about {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.replies {
+  border-left: 1px solid var(--line-strong);
+  padding-left: var(--space-3);
+  gap: var(--space-2);
+}
+.thread-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+.thread-actions button.danger-link,
+.reply-del {
+  color: var(--danger);
+}
+.reply-del {
+  margin-left: auto;
+}
+.resolved-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.ck {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0 6px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+}
+.ck-comment {
+  color: var(--link);
+}
+.ck-idea {
+  color: var(--accent);
+}
+.ck-question {
+  color: var(--amber);
+}
+.composer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.composer textarea {
+  width: 100%;
+  min-height: 64px;
+  resize: vertical;
+}
+.composer-actions,
+.kind-pick,
+.discussion .filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.ck-btn,
+.discussion .filters .chip {
+  font-size: 11px;
+  padding: 1px 8px;
+  min-height: 0;
+  border-radius: 999px;
+  background: transparent;
+  border: 1px solid var(--line-strong);
+  color: var(--muted);
+  cursor: pointer;
+}
+.ck-btn.on {
+  color: var(--bg);
+  border-color: transparent;
+}
+.ck-btn.ck-comment.on {
+  background: var(--link);
+}
+.ck-btn.ck-idea.on {
+  background: var(--accent);
+}
+.ck-btn.ck-question.on {
+  background: var(--amber);
+}
+.discussion .filters .chip.on {
+  color: var(--text);
+  border-color: var(--accent);
+}
+.add-comment {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}

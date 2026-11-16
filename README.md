@@ -9,6 +9,7 @@ everywhere.
 - **Plan a change in a draft**: edit a copy of the model, see what was added, changed and removed,
   then apply it to the main model.
 - **Lenses** show the same model differently for different audiences.
+- **Comments, ideas and questions** on any box, line or diagram, with replies and a resolved state; every role can write them, a viewer too.
 - The model is two JSON files in your repository (`architecture/`), written for clean `git diff`.
   It runs on your machine; nothing is sent anywhere.
 
@@ -98,6 +99,7 @@ The users file holds password hashes and must not be committed. `.dp/` is added 
 | File | What it holds |
 |---|---|
 | `architecture/workspace.json` | A [Structurizr](https://github.com/structurizr/structurizr) workspace: elements, relationships, views, positions, flows. Readable IDs (`api-application`), stable formatting for `git diff`. |
+| `architecture/comments.json` | Comments, ideas and questions about elements, relationships and diagrams, with replies and resolved state. Created with the first comment. |
 | `architecture/designperspectives.json` | Tag groups, lenses, the list of characteristics and cost settings (data Structurizr has no place for). |
 | `architecture/drafts/<id>/` | A draft (planned change): its own `workspace.json` and `designperspectives.json`, `draft.json` (title, description, date, and optional `branch` and `link`) and `base/` (the main model when the draft was made, used when applying it). `code.json` and `code/` hold planned code edits, kept out of your code folder until apply. |
 

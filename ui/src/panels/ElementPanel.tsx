@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { api } from "../api";
+import { Discussion } from "../comments";
 import { CodePaths, NewPlannedFile, OpenCodeDiagram } from "../CodeParts";
 import { Fields, Section, TagInput, TextField } from "../fields";
 import { formatMoney, openWork } from "../overlays";
@@ -86,6 +87,7 @@ export function ObjectPanel({ element, ...p }: Common & { element: ElementSummar
           </div>
         )}
       </Fields>
+      <Discussion target={{ type: "element", id: element.id }} diagramKey={diagram.key} />
       {element.uiUrl && (
         <button className="primary" onClick={() => p.onInspectUi(element.id)} data-testid="inspect-ui" title={element.uiUrl}>
           Inspect live UI

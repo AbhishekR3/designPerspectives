@@ -19,6 +19,7 @@ import type { AppState, DraftInfo, Lens, Permissions, SessionUser, Style } from 
 import { Auth, defaultLensFor, permissions, type AuthOptions, type Who } from "./auth.js";
 import { UiProxies } from "./uiProxy.js";
 import { TraceStore } from "../core/traces.js";
+import { CommentStore, commentsPath } from "../core/comments.js";
 import path from "node:path";
 
 /** An HTTP error with a status code; the body is {"detail": message}. */
@@ -71,6 +72,7 @@ export function state(project: Project, readOnly = false, sel?: Selection, draft
     applyDraft: !readOnly,
     discardDraft: !readOnly && (sel?.ref ?? "main").startsWith("draft:"),
     writeCode: legacyEdit && (sel?.ref ?? "main") === "main",
+    comment: !readOnly,
   };
   const draftList = drafts?.list() ?? [];
   const ws = src.workspace;
@@ -204,6 +206,8 @@ export interface Ctx {
   uiProxies: UiProxies;
   /** Trace files (traces.ts). */
   traces: TraceStore;
+  /** Comments, ideas and questions (comments.ts); one store for the project, whatever version a request shows. */
+  comments: CommentStore;
 }
 
 export function createContext(root: string, opts: AppOptions = {}): Ctx {
@@ -296,5 +300,5 @@ export function createContext(root: string, opts: AppOptions = {}): Ctx {
 
   const uiProxies = new UiProxies({ allowHosts: opts.uiAllowHosts ?? [] });
   const traces = new TraceStore(opts.tracesDir ? path.resolve(opts.tracesDir) : path.join(project.root, "traces"));
-  return { readOnly, auth, who, access, project, drafts, gitModels, gitCodes, disk, ok, sel, writable, edit, draftId, selectVersion, uiProxies, traces };
+  return { readOnly, auth, who, access, project, drafts, gitModels, gitCodes, disk, ok, sel, writable, edit, draftId, selectVersion, uiProxies, traces, comments: new CommentStore(commentsPath(project.root), opts.now) };
 }

@@ -391,6 +391,46 @@ export interface Permissions {
   discardDraft: boolean;
   /** Save, create or delete real code files (main model only). */
   writeCode: boolean;
+  /** Add comments, ideas and questions, reply, and resolve them (every role; not on a --read-only server). */
+  comment: boolean;
+}
+
+// ------------------------------------------------------------------ comments (DEC-049)
+
+export const COMMENT_KINDS = ["comment", "idea", "question"] as const;
+/** A note on the model: a remark, a suggestion for a change, or something to be answered. */
+export type CommentKind = (typeof COMMENT_KINDS)[number];
+export const COMMENT_KIND_LABEL: Record<CommentKind, string> = { comment: "Comment", idea: "Idea", question: "Question" };
+/** What a thread is about: an element or relationship (by ID), or a whole diagram (by diagram key). */
+export interface CommentTarget {
+  type: "element" | "relationship" | "diagram";
+  id: string;
+}
+export interface CommentReply {
+  id: string;
+  author: string;
+  /** ISO 8601 time. */
+  at: string;
+  text: string;
+}
+export interface CommentThread {
+  id: string;
+  kind: CommentKind;
+  target: CommentTarget;
+  /** The diagram the author was looking at (a hint for where to open it). */
+  diagram: string | null;
+  author: string;
+  at: string;
+  text: string;
+  status: "open" | "resolved";
+  resolvedBy?: string;
+  resolvedAt?: string;
+  replies: CommentReply[];
+  /** Set by the server for the version shown: the target is not in it (deleted, or only in another draft). */
+  missing?: boolean;
+}
+export interface CommentList {
+  threads: CommentThread[];
 }
 
 export interface AppState {

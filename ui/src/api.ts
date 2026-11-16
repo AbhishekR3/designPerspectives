@@ -1,5 +1,5 @@
 import { notify } from "./notify";
-import type { AppState, ApplyPreview, BacktrackResult, ObservedTrace, TraceList, ChangeSet, CodingPlan, Conflict, Diagram, EdgeLayout, InspectResult, MeResponse, ObservedCall, Pt, SessionUser, Style } from "./types";
+import type { AppState, ApplyPreview, CommentKind, CommentList, CommentTarget, CommentThread, BacktrackResult, ObservedTrace, TraceList, ChangeSet, CodingPlan, Conflict, Diagram, EdgeLayout, InspectResult, MeResponse, ObservedCall, Pt, SessionUser, Style } from "./types";
 
 export interface CodeFile {
   path: string;
@@ -130,6 +130,12 @@ export const api = {
   trace: (id: string, ui: string | null) => request<ObservedTrace>("GET", `/traces/${enc(id)}${ui ? `?ui=${enc(ui)}` : ""}`),
   backtrack: (q: BacktrackQuery, days: number) =>
     request<BacktrackResult>("GET", `/backtrack?${new URLSearchParams("connector" in q ? { connector: q.connector, stage: String(q.stage), days: String(days) } : { flow: q.flow, step: String(q.step), days: String(days) })}`),
+  comments: () => request<CommentList>("GET", "/comments"),
+  addComment: (body: { kind: CommentKind; target: CommentTarget; diagram: string | null; text: string; author?: string }) => request<CommentThread>("POST", "/comments", body),
+  replyToComment: (id: string, text: string, author?: string) => request<CommentThread>("POST", `/comments/${enc(id)}/replies`, { text, ...(author ? { author } : {}) }),
+  updateComment: (id: string, patch: { status?: "open" | "resolved"; text?: string; kind?: CommentKind; author?: string }) => request<CommentThread>("PATCH", `/comments/${enc(id)}`, patch),
+  deleteComment: (id: string) => request("DELETE", `/comments/${enc(id)}`),
+  deleteReply: (id: string, replyId: string) => request<CommentThread>("DELETE", `/comments/${enc(id)}/replies/${enc(replyId)}`),
   deleteRelationship: (id: string) => request("DELETE", `/relationships/${enc(id)}`),
   createTagGroup: (body: object) => request("POST", "/tag-groups", body),
   updateTagGroup: (name: string, body: object) => request("PUT", `/tag-groups/${enc(name)}`, body),
