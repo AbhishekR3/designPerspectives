@@ -2,6 +2,36 @@
 
 ## Unreleased
 
+## 0.5.0 — 2026-11-16
+
+### Added
+- **Code import** (DEC-051). `dp scan` reads a code folder for dependencies, Dockerfiles, compose services, folders and imports. It uses no network and no model. `dp scan --plan` prints a readiness analysis: per C4 level, the candidates, what is decided and what is left.
+- Intake: the answers the code cannot give (the system, its users, what to leave out, the scan limits), kept in `architecture/import/intake.json`.
+- Import file (JSON, schema v1) with a JSON Schema (`dp import --schema`), errors that name their field, and checks against the model and the code (`dp import --check`). `dp import FILE` makes a draft. Nothing reaches the main model until its items are accepted and the draft is applied.
+- Re-import keeps hand edits. The importer records what it wrote in `architecture/import/ledger.json`, so a field a person changed is kept and reported.
+- Review level computed by the tool: each item is verified, partly verified or unverified. Accept each item or all verified items; reject, verify again or give a note for BMO.
+- Import page (**Import code** in the navigation bar): scan, readiness table, intake, bring in one level (own coding agent, pasted file), from a description, better labels, and the import drafts.
+- The demo gains manifests (a Dockerfile, `requirements.txt`, `package.json`, a compose file and a sample environment file) and an example import file, `demo/import-example.json`.
+- **BMO**, the optional assistant (DEC-051, DEC-065). Off by default. Seven tasks: import a level, a model from a description, explain a diagram, element or relationship, challenge a diagram, propose a decision in a draft, summarise a draft, suggest labels.
+- Two ways to run BMO: *handoff* (dp writes the prompt and files, and calls no model) and *direct* (the Claude API, the OpenAI API or a local Ollama, with a key from the credentials store).
+- Preview before send: the sheet shows the exact prompt, the files, their size, how many values were hidden, and where it goes. A run needs the same hash as the preview.
+- BMO settings in `.dp/bmo.json` (outside git): backend, provider, model, endpoint, credential, the roles allowed to run it and a token budget per run. Hubs keep their own settings.
+- Run log for direct runs in `.dp/bmo/runs/`.
+- Commands `dp scan`, `dp import` and `dp bmo` (`status`, `set`, `run`). Routes under `/api/import` and `/api/bmo`.
+
+### Changed
+- `dp check` warns about code that no component maps, once a scan exists.
+- Applying an import draft applies the accepted items only; the rest stay in the draft. `POST /api/drafts/:id/apply` answers `{ok, kept, held}`: `kept` says the draft stays, `held` counts the items left in it.
+
+### Security
+- Review levels come from what a person typed or from files that can be checked, never from the file's own claim. A note counts only when its words appear in the intake, the feedback or the description a person typed. A cited scan fact counts only when it is about the item.
+- Links are followed before the rules are checked: a symlink is resolved, and then the must-not-open, deny-list and hidden-path rules apply to where it points.
+- One secret detection runs before anything is sent or saved. The list of secret names is wider. An import file or a decision that holds a secret is refused. The detection has a stated limit (see SECURITY.md).
+- Fail closed: an import draft whose review file is missing or unreadable is not applied, and with no accepted item nothing is applied. A code edit cannot be written under `architecture/` or `.dp/`.
+- Only an architect can remove or narrow a must-not-open or scope exclusion, or raise a size cap.
+- A BMO run is confirmed for its destination as well as its prompt: the provider, host and model are part of the hash. The Ollama endpoint refuses link-local and cloud-metadata addresses. Replies are read with a size cap, and a reply in the wrong shape is not repeated.
+- The secret scan of PEM blocks and the glob matcher are linear in the length of the text; they no longer backtrack.
+
 ## 0.4.0 — 2026-11-16
 
 First release meant for other people. Earlier notes and commit messages that say 1.0.0 refer to this line of work.

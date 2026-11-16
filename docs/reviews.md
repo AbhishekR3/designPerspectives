@@ -6,6 +6,7 @@ File paths inside older sections are the paths at the time; see DEC-062 for the 
 
 ## Contents
 
+- [Release 0.5.0: codebase to model and BMO](#release-050-codebase-to-model-and-bmo)
 - [Release 0.4.0: one branch, answers applied, files regrouped, security fixes](#release-040-one-branch-answers-applied-files-regrouped-security-fixes)
 - [Orthogonal line routing (stage 1 and routing around boxes)](#orthogonal-line-routing-stage-1-and-routing-around-boxes)
 - [Stage H6 — roles per project, catalog copies that follow, history, GitHub status](#stage-h6--roles-per-project-catalog-copies-that-follow-history-github-status)
@@ -26,6 +27,55 @@ File paths inside older sections are the paths at the time; see DEC-062 for the 
 - [Stage A3 review: canvas-first layout, characteristics and cost](#stage-a3-review-canvas-first-layout-characteristics-and-cost)
 - [Stage A2 review: feature round of 14 November](#stage-a2-review-feature-round-of-14-november)
 - [Stage A review — Model and diagrams (Proof of Concept)](#stage-a-review--model-and-diagrams-proof-of-concept)
+
+## Release 0.5.0: codebase to model and BMO
+
+Date: 2026-11-16. Branch: `feat/import-and-bmo`, from `release/0.4`. Decisions: [DEC-051](decisions.md#dec-051--stage-b-import-bmo-a-purpose-built-import-file-one-c4-level-at-a-time-no-inferred-labels) (the import design, now built), [DEC-064](decisions.md#dec-064--what-an-import-file-cannot-vouch-for-itself-and-what-the-import-and-bmo-code-will-not-read-or-keep) (security rules; a proposal until the owner confirms it), and [DEC-065](decisions.md#dec-065--bmo-where-it-runs-who-may-run-it-and-how-an-import-draft-is-applied) (where BMO runs, who may run it, partial apply).
+
+### What was built
+
+| # | Item | Where |
+|---|---|---|
+| 0.5 | **Scan, readiness analysis, intake.** Deterministic scan through `CodeSource` only: dependencies, Dockerfiles, compose, folders and imports, with every cap hit recorded. Known-services list. Readiness analysis per level. Intake answers and scan limits. | `src/import/scan.ts`, `knownServices.ts`, `analysis.ts`, `intake.ts`, `overview.ts` |
+| 0.5 | **Import file, checks, importer, ledger.** Schema v1 with field-level errors. Checks against the model and the code. One draft per import, applied in one undo step. A re-import keeps hand edits. The `dp check` warning for unmapped code. | `src/import/schema.ts`, `checks.ts`, `importer.ts`, `ledger.ts`, `unmapped.ts` |
+| 0.5 | **Review and partial apply.** Review level computed from checkable evidence. Accept, reject, verify again, note for BMO. Apply takes the accepted items and holds the rest. A draft whose review file is missing or unreadable is not applied. | `src/import/review.ts`; `src/core/drafts.ts` (apply guard, hold, rebase) |
+| 0.5 | **Routes and CLI.** `/api/import/*` and `/api/bmo/*`. `dp scan`, `dp import`, `dp bmo`. `POST /api/drafts/:id/apply` answers `{ok, kept, held}`. | `src/server/routes/import.ts`, `bmo.ts`; `src/cli.ts` |
+| 0.5 | **BMO core.** Seven tasks. Prompts with fixed system text and data blocks. The model as text. Digest of code excerpts. Redaction. Handoff files. Preview with a hash. A fake backend for tests. | `src/bmo/tasks.ts`, `prompts.ts`, `modelText.ts`, `digest.ts`, `redact.ts`, `handoff.ts`, `fake.ts`, `service.ts`, `importTasks.ts`, `backend.ts` |
+| 0.5 | **Direct backends and settings.** Claude API, OpenAI API and Ollama, with plain `fetch`: pinned hosts, no redirects, one retry, one deadline. Settings in `.dp/bmo.json` with their checks. Run log. Credential providers `anthropic`, `openai` and `ollama`. | `src/bmo/direct.ts`, `settings.ts`; `src/shared/types.ts` (`CREDENTIAL_PROVIDERS`) |
+| 0.5 | **UI.** Import code page (`p=import`): scan, readiness, intake, bring in a level, from a description, labels, import drafts. Review in the draft. BMO sheet (preview, send, result). BMO settings on the Credentials page. | `ui/src/pages/ImportPage.tsx`, `ImportIntake.tsx`, `ImportBringIn.tsx`, `BmoSettings.tsx`; `ui/src/drafts/ImportReview.tsx`; `ui/src/common/BmoSheet.tsx`, `CopyButton.tsx`; `ui/src/hooks/useBmo.ts` |
+| 0.5 | **Demo.** A Dockerfile, `requirements.txt`, `package.json`, a compose file and a sample environment file in the sample code. An example import file. | `demo/sample_code/` (`api/Dockerfile`, `api/requirements.txt`, `payments/package.json`, `docker-compose.yml`, `config.example.env`); `demo/import-example.json` |
+
+### How it was checked
+
+- 852 unit and API tests in 43 files pass. Typecheck, lint and Prettier pass (all three re-run for this docs pass).
+- 181 browser tests in 26 files: counted with `playwright test --list`, not run in this pass.
+- `npm run make-demo` leaves `demo/` unchanged. Checked at the release; not run again in this pass.
+- BMO was tested with the fake backend, and with a local stub server per provider for the request shape, the pinned host, the refused redirect, the timeout and the gates. No test used a real provider.
+- Redaction is tested with planted secrets and injection strings.
+- Two security reviews with probes. Their findings are fixed (DEC-064).
+
+### Limits
+
+- No run against any real provider has been made. The owner's first run with a key will be the first real one.
+- Default model ids (`claude-opus-5-5` for the Claude API, `gpt-6-astra` for the OpenAI API, in `src/bmo/settings.ts`) have no source note. In `src/bmo/direct.ts` the request shapes are marked verified on 2026-11-16, except two details marked not verified (`store: false`, and Ollama's `done_reason` at `num_predict`). Check the model ids before the first real run.
+- Redaction does not catch a secret written as a plain word, outside a key and value form. Use the must-not-open list for such files.
+- The typed description of a describe-to-model draft is kept in `architecture/import/files/<draft>.source.txt`. The import `.gitignore` does not list it, although DEC-064 says it does. Decide whether to add it to the ignore list, or to change DEC-064.
+- The import-edge check reads at most 60 files per component (`MAX_FILES` in `src/core/codeMap.ts`).
+- The demo scan finds 4 C1 candidates and 5 C2 candidates, and no component candidates (C3: 0). Measured on a scratch copy of the demo.
+- The thresholds (300 files, 5 containers, 2 passes) and the 20-second review estimate are guesses.
+- A layout-only change in an import draft (a moved box, a line shape) is not a review item. It goes with an accepted item and cannot be accepted on its own.
+- Not built: the MCP backend, Structurizr DSL input, YAML.
+
+### Questions for the owner
+
+1. Confirm DEC-064. It stays a proposal until you do.
+2. Should viewers be able to run BMO text tasks by default, given that each direct run costs money? Today every role may run them.
+3. Is 1.5 × the pass budget the right cut-off for a run that is too large?
+4. Should removing `scope.include` entries from the intake also be architect-only? Today only narrowing them is.
+
+### Owner feedback
+
+<!-- Please add feedback here. -->
 
 ## Release 0.4.0: one branch, answers applied, files regrouped, security fixes
 

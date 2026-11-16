@@ -67,6 +67,53 @@ each feature.
 To start your own model, run `dp serve` in your project folder. It starts empty and shows a
 "Start your architecture" card with three steps. `dp serve PATH` does the same in another folder.
 
+## Bring in an existing codebase
+
+`dp scan` reads a code folder and records what it can see: dependencies, Dockerfiles, compose services,
+folders and imports. It uses no network and no model. Then:
+
+1. **Scan.** Run `dp scan`, or **Run scan** on the Import code page. A readiness table shows, per C4
+   level, the candidates, what is decided, what is left and the order to go in.
+2. **Intake.** Answer what the code cannot tell you: the system's name and purpose, who uses it, what
+   to leave out. The answers go into every prompt.
+3. **Bring in one level at a time.** Start with C1 (people and systems), then C2 (containers), then C3
+   (components). Either give the level to your own coding agent (dp writes the prompt and the files),
+   or paste an import file (`dp import FILE`). Either way the result is a draft, not the model.
+4. **Review.** Each item is marked *verified*, *partly verified* or *unverified*, from what dp can check
+   in the files. Accept all verified items at once. Go through the low-confidence items one at a time:
+   accept, reject, verify again, or tell BMO what is wrong.
+5. **Apply.** The accepted items go into the model. The rest stay in the draft; accept them later and
+   apply again.
+
+Nothing imported is labelled in the model: there is no "imported" or "confidence" field. What came from
+the code, and the review, is kept in `architecture/import/`. Commands: `dp scan [PATH]`, `dp import FILE`,
+and `dp import --schema`, which prints the JSON Schema of the import file.
+
+## BMO, the optional assistant
+
+BMO is the assistant in dp. It is **off by default**. An architect turns it on under **Credentials**, in
+the BMO section, or with `dp bmo set --enabled`. It works in one of two ways:
+
+- **Handoff.** dp writes the prompt and its files into `architecture/import/handoff/`. You run the prompt
+  in your own coding agent and bring the result back. dp calls no model, needs no key and makes no network
+  call.
+- **Direct.** dp calls the Claude API, the OpenAI API or a local Ollama model. The cloud providers need a
+  key, which you store in the credentials store; Ollama needs none.
+
+BMO can import a level of the model from the code, make a draft from a description of up to 60 KB of text,
+explain a diagram, an element or a relationship, challenge a diagram, propose a decision inside a draft,
+summarise a draft for a pull request, and suggest labels for relationships that say only "Uses".
+
+Before anything is sent, a sheet shows where it goes, which files and how many bytes, how many values were
+hidden, and the full prompt. You send it or cancel. Code excerpts leave the machine only in direct mode, and
+only after this step. Answers are proposals: a text answer is shown and not stored; an import file or a
+decision goes into a draft that you review and apply.
+
+The settings live on the server in `.dp/bmo.json`, outside git, and only architects change them. They also
+list the roles that may run BMO; all three are allowed by default. Text tasks (explain, challenge, the
+summary) work for every allowed role, including viewers. Tasks that make a draft need the right to create
+one, so viewers cannot run them.
+
 ## Commands
 
 | Command | What it does | Main options |
@@ -76,6 +123,11 @@ To start your own model, run `dp serve` in your project folder. It starts empty 
 | `dp check [PATH]` | Check the model, its drafts and its code mapping. Also `dp validate`. Exit code 0 OK, 1 problems, 2 no model. | `--strict` also fail on warnings; `--code-root DIR`; `--hub` check every project and the catalog |
 | `dp diff [PATH]` | What changed since a git branch, tag or commit. | `--base REF`; `--head REF`; `--format md\|json`; `--out FILE`; `--exit-code`; `--no-code`; `--code-root DIR` |
 | `dp plan DRAFT [PATH]` | The coding plan of a draft: what to build, connect, change or remove. | `--check` how much the code already does (exit 1 while steps are open); `--against REF`; `--format md\|json`; `--out FILE`; `--code-root DIR` |
+| `dp scan [PATH]` | Scan the code for what a C4 model needs: dependencies, Dockerfiles, compose, folders and imports. No network, no model. Writes `architecture/import/evidence.json` and `analysis.json`. Exit code 0 OK, 1 problem, 2 no model. | `--plan` print the readiness table; `--prompt` write the handoff files for one level; `--level c1\|c2\|c3` (with `--prompt`); `--container ID` (with `--prompt --level c3`); `--json`; `--code-root DIR` |
+| `dp import FILE [PATH]` | Check a JSON import file and bring it into the model as a draft. Nothing reaches the main model until its items are accepted and the draft is applied. Exit code 0 OK, 1 problems, 2 no model. | `--check` check only, create nothing; `--title TITLE`; `--schema` print the JSON Schema and exit (no file needed); `--code-root DIR` |
+| `dp bmo status [PATH]` | Show the BMO settings and whether a run is possible. Never prints a key. | |
+| `dp bmo set [PATH]` | Change the BMO settings in `.dp/bmo.json`. Only the options given change. | `--enabled` / `--disabled`; `--backend handoff\|direct`; `--provider anthropic\|openai\|ollama`; `--model NAME`; `--endpoint URL`; `--clear-endpoint`; `--allow-custom-endpoint`; `--credential NAME`; `--roles LIST` (architect, engineer, viewer); `--budget TOKENS` |
+| `dp bmo run TASK [PATH]` | Run one BMO task: `import-level`, `describe-to-model`, `explain`, `decision-from-draft`, `draft-summary`, `challenge` or `suggest-labels`. Shows what would be sent and sends nothing without `--yes-send` (exit code 1). | `--yes-send`; `--show-prompt`; `--level c1\|c2\|c3`; `--container ID`; `--diagram KEY`; `--element ID`; `--relationship ID`; `--lens NAME`; `--draft ID`; `--text-file FILE` (at most 60 KB); `--code-root DIR` |
 | `dp users init [PATH]` | Turn on sign-in: create architect, engineer and viewer with random passwords (printed once). | `--users FILE` |
 | `dp users add NAME [PATH]` | Add a user. | `--role architect\|engineer\|viewer`; `--password-stdin` |
 | `dp users passwd NAME [PATH]` | Set a new password. Signs that user out. | `--password-stdin` |
@@ -193,6 +245,9 @@ The users file holds password hashes and must not be committed. `.dp/` is added 
 | `hub.json` (hub folder) | The projects of a hub and its catalog folder. |
 | `.dp/users.json` | Sign-in users and password hashes. Not in git. |
 | `.dp/credentials.json` | Integration credentials. Not in git; mode 0600; encrypted with `DP_SECRET_KEY` when that is set. |
+| `.dp/bmo.json` | BMO settings (on or off, backend, provider, model, endpoint, the credential to use, the roles allowed to run it). Not in git; mode 0600; changed by architects only. |
+| `.dp/bmo/runs/` | A record of each direct BMO run. Not in git; it holds code excerpts. |
+| `architecture/import/` | Code import review data, kept out of the model: `evidence.json`, `analysis.json`, `intake.json`, `ignore.json`, `levels.json`, `ledger.json`, `reviews/`, `files/`. Committable, except `handoff/` and the typed description, which `.gitignore` lists. |
 
 designPerspectives data stored inside the workspace as Structurizr element properties:
 `dp.owner`, `dp.links`, `dp.tag.<Group>` (e.g. `dp.tag.Risk = High`), `dp.archType` (symbol),
@@ -389,7 +444,9 @@ Layout:
 |---|---|
 | `src/shared/types.ts` | API types and constants used by both the server and the UI |
 | `src/core/` | The model: `workspace.ts` file format, `sidecar.ts`, `ops.ts` all edits and rules, `diagrams.ts` what each level shows, `connectors.ts`, `flows.ts`, `validate.ts`, `project.ts` files and undo, `drafts.ts`, `merge.ts`, `diff.ts`, `codeMap.ts` code mapping, `codeFiles.ts`, `decisions.ts`, `catalog.ts`, `credentials.ts`, `users.ts`, `history.ts`, `git.ts` (read-only) |
-| `src/server/` | `app.ts` the HTTP app (Hono), `context.ts` the shared context, `protect.ts` request checks, `auth.ts` sign-in and roles, `hub.ts` the hub of projects, `routes/` one module per area (read, drafts, model, sidecar, code, decisions, inspect, comments, hub, ui) |
+| `src/server/` | `app.ts` the HTTP app (Hono), `context.ts` the shared context, `protect.ts` request checks, `auth.ts` sign-in and roles, `hub.ts` the hub of projects, `routes/` one module per area (read, drafts, model, sidecar, code, decisions, inspect, comments, hub, import, bmo, ui) |
+| `src/import/` | Codebase import (DEC-051): `scan.ts`, `knownServices.ts`, `intake.ts`, `analysis.ts`, `schema.ts`, `checks.ts`, `importer.ts`, `ledger.ts`, `review.ts`, `overview.ts`, `unmapped.ts` |
+| `src/bmo/` | BMO, the optional assistant: `tasks.ts`, `prompts.ts`, `service.ts`, `backend.ts`, `handoff.ts`, `direct.ts` (Claude API, OpenAI API, Ollama), `settings.ts`, `redact.ts`, `digest.ts`, `modelText.ts`, `importTasks.ts`, `fake.ts` (tests) |
 | `src/cli.ts` | the `dp` command |
 | `src/demo/` | the demo bank web app and the made-up git history |
 | `ui/src/` | React UI with xyflow and elkjs. Folders: `canvas/` (drawing, line routing, palette, dock), `panels/` (property panels), `pages/` (home, catalog, credentials, history, decisions, sign-in), `drafts/` (draft list, change list, apply dialog), `inspect/` (live UI inspector), `hooks/`, `common/` (shared dialogs and widgets), `styles/`; builds into `static/` |
