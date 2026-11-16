@@ -26,6 +26,8 @@ export interface BmoRequest {
 export interface BmoResult {
   text: string;
   usage?: { inputTokens?: number; outputTokens?: number };
+  /** The model that answered, when the provider says (it can differ from the one asked for after a fallback). */
+  model?: string;
 }
 
 export interface Backend {

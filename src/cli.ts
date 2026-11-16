@@ -10,7 +10,7 @@ import { Command, Option } from "commander";
 import { diffModels, type Snapshot } from "./core/diff.js";
 import { DiskCode, NO_CODE, type CodeSource } from "./core/codeFiles.js";
 import { Drafts } from "./core/drafts.js";
-import { GitCodes, GitError, GitModels } from "./core/git.js";
+import { GitCodes, GitError, GitModels, gitUserName } from "./core/git.js";
 import { checkProject, diffMarkdown } from "./core/report.js";
 import { AlreadyExists, ARCH_DIR, DEMO_DIR, initProject, NotFound, Project, version, WORKSPACE_FILE } from "./core/project.js";
 import { readDemoHistory, writeDemoHistory } from "./demo/demoHistory.js";
@@ -20,6 +20,15 @@ import { createApp, LOOPBACK_HOSTS } from "./server/app.js";
 import { CredentialStore } from "./core/credentials.js";
 import { ModelError } from "./core/ops.js";
 import { CREDENTIAL_PROVIDERS } from "./shared/types.js";
+import { writeImportHandoff } from "./bmo/importTasks.js";
+import { readState, snapshotModel } from "./import/analysis.js";
+import { checkImport, missingContainers } from "./import/checks.js";
+import { ImportRejected, importToDraft } from "./import/importer.js";
+import { analysisTable, evidenceSummary, firstOpenLevel, scanProject } from "./import/overview.js";
+import { lowConfidence, readReview } from "./import/review.js";
+import { readEvidence } from "./import/scan.js";
+import { IMPORT_SCHEMA, MAX_FILE_BYTES, parseImportFile } from "./import/schema.js";
+import type { HandoffOffer } from "./shared/types.js";
 import { checkHubFolder, copyDemoHub, createHubApp, HUB_FILE, HubError, initHub } from "./server/hub.js";
 
 /** Give a new demo folder its made-up git history (skipped inside an existing repository, or without git). */
@@ -396,6 +405,158 @@ export function program(): Command {
       if (o.out) fs.writeFileSync(o.out, text, "utf-8");
       else process.stdout.write(text);
       if ((o.check || o.against) && plan.summary.open > 0) process.exit(1);
+    });
+
+  p.command("scan")
+    .description(
+      "Scan the code for what a C4 model needs (dependencies, Dockerfiles, compose, folders, imports). No network and no model. Writes architecture/import/evidence.json and analysis.json. Exit code: 0 OK, 1 problem, 2 no model.",
+    )
+    .argument("[path]", "Project folder containing architecture/.", ".")
+    .option("--code-root <folder>", "Folder holding the source code to scan (default: the project folder).")
+    .option(
+      "--plan",
+      "Also print the readiness analysis as a table: per level the candidates, decided, left and state; the totals; the recommendation and which rules fired; what the scan cannot see.",
+    )
+    .option("--prompt", "Also write the handoff files for one level (architecture/import/handoff/) and print where they are and the line to give your coding agent.")
+    .addOption(new Option("--level <level>", "With --prompt: the level (default: the first of c1 to c3 that is not final).").choices(["c1", "c2", "c3"]))
+    .option("--container <id>", "With --prompt --level c3: the ID of the container whose components are proposed.")
+    .option("--json", "Print the scan summary, the analysis and the handoff as JSON instead of text.")
+    .action((dir: string, o: { codeRoot?: string; plan?: boolean; prompt?: boolean; level?: "c1" | "c2" | "c3"; container?: string; json?: boolean }) => {
+      if ((o.level || o.container) && !o.prompt) {
+        console.error("--level and --container only work with --prompt.");
+        process.exit(1);
+      }
+      const project = openProject(dir, o.codeRoot);
+      const drafts = new Drafts(project);
+      const code = new DiskCode(project.codeRoot);
+      try {
+        const { evidence, analysis } = scanProject(project, drafts, code);
+        const summary = evidenceSummary(evidence);
+        let offer: Omit<HandoffOffer, "prompt"> | null = null;
+        if (o.prompt) {
+          const level = o.level ?? firstOpenLevel(project);
+          if (!level) throw new ModelError("C1 to C3 are all final: there is nothing left to ask BMO about. Reopen a level first.");
+          const { prompt: _prompt, ...rest } = writeImportHandoff(project, drafts, code, { task: "import-level", level, ...(o.container ? { container: o.container } : {}) });
+          offer = rest;
+        }
+        if (o.json) {
+          console.log(JSON.stringify({ evidence: summary, analysis, handoff: offer }, null, 2));
+          return;
+        }
+        const f = summary.files;
+        console.log(
+          `Scanned ${f.total} files (${
+            Object.entries(f.byLanguage)
+              .map(([k, n]) => `${k} ${n}`)
+              .join(", ") || "no source files"
+          }).`,
+        );
+        console.log(`Found: C1 ${summary.facts.c1}, C2 ${summary.facts.c2}, C3 ${summary.facts.c3} facts, ${summary.facts.c4} source files, ${summary.imports} folder imports.`);
+        for (const l of summary.limits) console.log(`! Scan limit: ${l.detail}${l.path ? ` (${l.path})` : ""}`);
+        for (const n of summary.notParsed) console.log(`! Not parsed: ${n.path}: ${n.reason}`);
+        console.log(`Wrote ${path.join(ARCH_DIR, "import", "evidence.json")} and analysis.json.`);
+        if (o.plan) process.stdout.write(`\n${analysisTable(analysis)}`);
+        if (offer) {
+          console.log(`\nWrote the ${offer.task} prompt (${offer.promptVersion}, about ${offer.estTokens} tokens) to ${offer.folder}/:`);
+          for (const name of offer.files) console.log(`  ${name}`);
+          console.log(`\nGive your coding agent this line:\n  ${offer.instruction}`);
+          console.log("Then load result.json with dp serve (Import page), or check it by hand: dp import --check <result.json>.");
+        }
+      } catch (e) {
+        if (e instanceof ModelError) {
+          console.error(e.message);
+          process.exit(1);
+        }
+        throw e;
+      }
+    });
+
+  p.command("import")
+    .description(
+      "Bring an import file (JSON) into the model as a draft. Nothing reaches the main model until its items are accepted and the draft is applied. Exit code: 0 OK, 1 problems, 2 no model.",
+    )
+    .argument("[file]", "The import file (see --schema for its format).")
+    .argument("[path]", "Project folder containing architecture/.", ".")
+    .option("--check", "Only check the file: print errors and warnings, create nothing. Exit code 1 when there are errors.")
+    .option("--title <title>", "The draft's title (default: Import C2, or the level of the file).")
+    .option("--schema", "Print the JSON Schema of the import file and exit.")
+    .option("--code-root <folder>", "Folder holding the source code that the file's code paths point to (default: the project folder).")
+    .action((file: string | undefined, dir: string, o: { check?: boolean; title?: string; schema?: boolean; codeRoot?: string }) => {
+      if (o.schema) {
+        console.log(JSON.stringify(IMPORT_SCHEMA, null, 2));
+        return;
+      }
+      if (!file) {
+        console.error("Give the import file, or --schema to print its format.");
+        process.exit(1);
+      }
+      let text: string;
+      try {
+        if (fs.statSync(file).size > MAX_FILE_BYTES) {
+          console.error(`${file} is over ${MAX_FILE_BYTES} bytes, the most an import file may have.`);
+          process.exit(1);
+        }
+        text = fs.readFileSync(file, "utf-8");
+      } catch (e) {
+        if (e instanceof Error && "code" in e) {
+          console.error(`Cannot read ${file}: ${e.message}`);
+          process.exit(1);
+        }
+        throw e;
+      }
+      const project = openProject(dir, o.codeRoot);
+      const code = new DiskCode(project.codeRoot);
+      const { file: parsed, errors: parseErrors } = parseImportFile(text);
+      const show = (list: { pointer: string; message: string }[], mark: string) => {
+        for (const e of list) console.log(`${mark} ${e.pointer ? `${e.pointer}: ` : ""}${e.message}`);
+      };
+      if (!parsed) {
+        show(parseErrors, "-");
+        process.exit(1);
+      }
+      const evidence = readEvidence(project.root);
+      const existing = snapshotModel(project.workspace)
+        .elements.filter((e) => e.kind === "container")
+        .map((e) => ({ id: e.id, name: e.name, codePaths: e.codePaths }));
+      const extra = evidence ? missingContainers(parsed, evidence, { ignore: readState(project.root).ignore, existing }) : [];
+      if (o.check) {
+        const check = checkImport(parsed, project, code);
+        show(check.errors, "-");
+        show([...check.warnings, ...extra], "!");
+        if (check.errors.length) process.exit(1);
+        console.log(check.warnings.length + extra.length ? `OK (${check.warnings.length + extra.length} warning${check.warnings.length + extra.length === 1 ? "" : "s"})` : "OK");
+        return;
+      }
+      const drafts = new Drafts(project, gitUserName(project.dir));
+      const taken = new Set(drafts.list().map((d) => d.title));
+      const base = o.title ?? `Import ${parsed.level === "all" ? "(all levels)" : parsed.level.toUpperCase()}`;
+      let title = base;
+      for (let n = 2; !o.title && taken.has(title); n++) title = `${base} (${n})`;
+      try {
+        const r = importToDraft(drafts, parsed, { title, code });
+        const rp = r.report;
+        console.log(`Created draft "${title}" (${r.draftId}).`);
+        console.log(
+          `  created ${rp.created.length}, updated ${rp.updated.length}, kept your edit ${rp.kept.filter((k) => k.reason === "your-edit").length}, kept the model's value ${rp.kept.filter((k) => k.reason !== "your-edit").length}, not in this import ${rp.notInImport.length}, unchanged ${rp.unchanged}`,
+        );
+        const review = readReview(project.dir, r.draftId);
+        const low = review ? lowConfidence(review).length : 0;
+        console.log(`  ${low} item${low === 1 ? "" : "s"} need${low === 1 ? "s" : ""} an explicit accept (nothing cites evidence the tool can check).`);
+        show([...r.warnings, ...extra], "!");
+        console.log("Review and accept the items in dp serve (open the draft), then apply it.");
+      } catch (e) {
+        if (e instanceof ImportRejected) {
+          console.log(e.message);
+          show(e.errors, "-");
+          show(e.warnings, "!");
+          process.exit(1);
+        }
+        if (e instanceof ModelError) {
+          console.error(e.message);
+          process.exit(1);
+        }
+        throw e;
+      }
     });
 
   usersCommands(p);

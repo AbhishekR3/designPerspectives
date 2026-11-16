@@ -20,6 +20,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { atomicWrite, isObj, stableJson } from "../core/util.js";
 import { importDir } from "../import/intake.js";
+import type { HandoffManifest } from "../shared/types.js";
 import { BmoError, promptHash, type Backend } from "./backend.js";
 import { HANDOFF_FOLDER, PROMPT_VERSION } from "./prompts.js";
 import { answerSchema, MAX_ANSWER_BYTES, TASK_IDS, type BuiltPrompt, type Task, type TaskId, type TaskOutput } from "./tasks.js";
@@ -29,14 +30,7 @@ export const MANIFEST_FILE = "handoff.json";
 /** Every file name the handoff folder may hold; only these are ever written or removed. */
 export const HANDOFF_FILES = ["prompt.md", MANIFEST_FILE, "schema.json", "evidence-digest.md", "intake.json", "feedback.json", RESULT_FILE] as const;
 
-export interface HandoffManifest {
-  task: TaskId;
-  promptVersion: string;
-  output: TaskOutput;
-  /** sha1 over the system and user text (as `preview`). */
-  hash: string;
-  files: string[];
-}
+export type { HandoffManifest };
 
 export const handoffDir = (projectDir: string): string => path.join(importDir(projectDir), "handoff");
 

@@ -3,6 +3,7 @@
 import type { Hono } from "hono";
 import { isObj } from "../../core/util.js";
 import type { CodeSource } from "../../core/codeFiles.js";
+import type { ApplyResponse } from "../../shared/types.js";
 import { body, HttpError, needStr, objBody, optStr, type Ctx } from "../context.js";
 
 export function registerDrafts(app: Hono, ctx: Ctx): void {
@@ -48,7 +49,8 @@ export function registerDrafts(app: Hono, ctx: Ctx): void {
 
   app.post("/api/drafts/:id/apply", async (c) => {
     const b = await body(c);
-    drafts.apply(c.req.param("id"), { code: codeFlag(isObj(b) ? b.code : undefined) });
-    return ok(c);
+    const outcome = drafts.apply(c.req.param("id"), { code: codeFlag(isObj(b) ? b.code : undefined) });
+    // `kept` and `held`: an import draft with items not accepted stays, with those items (DEC-051).
+    return c.json({ ok: true, ...outcome } satisfies ApplyResponse);
   });
 }

@@ -29,6 +29,7 @@ import { buildIndex, CODE_KEY, getJson, ModelError, slugify } from "../core/ops.
 import type { Kind, Workspace } from "../core/workspace.js";
 import { atomicWrite, isObj, stableJson } from "../core/util.js";
 import { compileGlob, globMatches, LEVELS, type Evidence, type Fact, type Level } from "./scan.js";
+import type { Analysis, AnalysisCandidate, AnalysisRule, LevelAnalysis, LevelState } from "../shared/types.js";
 import { DEPTHS, importDir, type Intake } from "./intake.js";
 
 // ---------------------------------------------------------------- the model snapshot
@@ -163,93 +164,9 @@ export function writeState(projectDir: string, state: ImportState): void {
 
 // ---------------------------------------------------------------- the analysis
 
-export type LevelState = "not started" | "in progress" | "final" | "stopped here";
-
-export interface Candidate {
-  /** `c1:system:Stripe`, `c1:host:api.acme.com`, `c1:webhook:/webhooks/x`, `c2:<slug>`, `c3:<folder>`. */
-  id: string;
-  level: Level;
-  /** For C1: system, host, webhook. For C2 the main fact kind (datastore, queue, compose-service, dockerfile, ...). C3: component-dir. */
-  kind: string;
-  name: string;
-  /** Files (C3: the folder) the evidence comes from. */
-  paths: string[];
-  /** Bytes of those files (C3: of the source files in the folder). */
-  bytes: number;
-  status: "accepted" | "ignored" | "left";
-  /** The model object that decided it. */
-  matchedBy?: string;
-  factIds: string[];
-}
-
-export interface LevelAnalysis {
-  level: Level;
-  state: LevelState;
-  /** False for levels deeper than the intake's depth: not counted in the totals. */
-  inScope: boolean;
-  candidates: number;
-  accepted: number;
-  ignored: number;
-  /** accepted + ignored */
-  decided: number;
-  /** Candidates not decided yet. */
-  undecided: number;
-  /** Model objects of this level with no description. */
-  needDescription: number;
-  /** Relationships of this level with no label or the label "uses". */
-  needLabel: number;
-  /** undecided + needDescription + needLabel. */
-  left: number;
-  /** decided ÷ (decided + left), as a whole percent. */
-  percent: number;
-  /** True when files in languages whose imports are not read hide edges, so the percent is a ceiling (C3). */
-  percentIsCeiling: boolean;
-  lowConfidence: number;
-  /** Review items: left + low-confidence. 0 for C4 (files that map by path are not effort). */
-  effortItems: number;
-  reviewMinutes: number;
-  /** Bytes BMO would read for the level (all its candidates). */
-  bytes: number;
-  tokens: number;
-  passes: number;
-  items: Candidate[];
-  /** C4 only: files not under any element's code path and not ignored (the first 200, sorted), and how many there are. */
-  unmapped?: string[];
-  unmappedTotal?: number;
-}
-
-export interface Rule {
-  rule: string;
-  fired: boolean;
-  value: number;
-  threshold: number;
-}
-
-export interface Analysis {
-  schemaVersion: 1;
-  depth: Intake["depth"];
-  levels: LevelAnalysis[];
-  totals: {
-    /** C1 to C3 within the depth, plus the intake questions. */
-    candidates: number;
-    decided: number;
-    left: number;
-    percent: number;
-    effortItems: number;
-    reviewMinutes: number;
-    tokens: number;
-    passes: number;
-    /** Intake questions the file leaves empty (counted as left); the answered ones count as decided. */
-    intakeUnanswered: string[];
-    /** C4: files outside every component, an upper bound until C3 is final. */
-    unmappedFiles: number;
-  };
-  recommendation: { mode: "step-by-step" | "one-go"; rules: Rule[] };
-  /** What the scan cannot see, in words. */
-  cannotSee: string[];
-  /** Final levels whose earlier levels are not decided. */
-  broken: string[];
-}
+export type { Analysis, LevelAnalysis, LevelState };
+export type Candidate = AnalysisCandidate;
+export type Rule = AnalysisRule;
 
 const slug = (s: string): string => slugify(s);
 const wordIn = (hay: string, needle: string): boolean => !!needle && `-${hay}-`.includes(`-${needle}-`);

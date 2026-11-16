@@ -12,51 +12,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { ModelError } from "../core/ops.js";
 import { atomicWrite, isObj, stableJson, type Obj } from "../core/util.js";
-import type { KnownService } from "./knownServices.js";
+import type { Intake, IntakeDepth, IntakeError, IntakeSettings, KnownService } from "../shared/types.js";
 
-export type Depth = "c1" | "c2" | "c3" | "c4";
+export type { Intake, IntakeError, IntakeSettings };
+export type Depth = IntakeDepth;
 export const DEPTHS: Depth[] = ["c1", "c2", "c3", "c4"];
-
-export interface IntakeSettings {
-  /** Files walked before the scan stops (the rest is recorded in `limits`). */
-  maxFiles: number;
-  /** Bytes of one file that are parsed; larger files are listed in `limits`, not parsed. */
-  maxFileBytes: number;
-  /** Folder depth below the code root. */
-  maxDepth: number;
-  /** Component candidates are folders up to this depth below a container's source root. */
-  componentDepth: number;
-  /** A folder is a component candidate when it holds at least this many source files directly. */
-  componentMinFiles: number;
-  /** Assumed review time per item (a guess, not measured). */
-  secondsPerItem: number;
-  /** The recommendation rules recommend "step by step" above these numbers. */
-  stepByStep: { files: number; containers: number; passes: number };
-  /** Tokens one BMO pass can read (a backend setting). */
-  passBudgetTokens: number;
-}
-
-export interface Intake {
-  schemaVersion: 1;
-  system: { name: string; purpose: string };
-  audience: string;
-  scope: { include: string[]; exclude: string[]; otherRepos: string[] };
-  depth: Depth;
-  ownership: string;
-  runtime: string;
-  glossary: { term: string; means: string }[];
-  /** Globs of files and folders the scan and BMO must not open. */
-  mustNotOpen: string[];
-  /** Extra or overriding known services; looked at before the shipped list. */
-  services: KnownService[];
-  settings: IntakeSettings;
-}
-
-export interface IntakeError {
-  /** A field path such as `settings.maxFiles` or `scope.include[1]`; "" for the file as a whole. */
-  path: string;
-  message: string;
-}
 
 export const DEFAULT_SETTINGS: IntakeSettings = {
   maxFiles: 20000,

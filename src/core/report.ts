@@ -10,6 +10,7 @@ import { Drafts } from "./drafts.js";
 import type { Snapshot } from "./diff.js";
 import { buildIndex, CODE_KEY, getJson, type Index } from "./ops.js";
 import { isHidden } from "./util.js";
+import { unmappedCodeWarnings } from "../import/unmapped.js";
 import type { Project } from "./project.js";
 import type { ChangeSet, ObjectChange } from "../shared/types.js";
 
@@ -19,7 +20,8 @@ export interface CheckResult {
 }
 
 /** Model rule errors in the main model and every draft; warnings for code paths that do not exist or are
- *  hidden, and for decisions about objects no longer in the model. */
+ *  hidden, for decisions about objects no longer in the model, and (once an import was started) for source files under a
+ *  container that no component maps. */
 export function checkProject(main: Project): CheckResult {
   const errors = [...main.loadErrors];
   const warnings: string[] = [];
@@ -54,6 +56,7 @@ export function checkProject(main: Project): CheckResult {
     }
     const i = idx;
     warnings.push(...decisionWarnings(main.decisions, (id) => i.elements.has(id) || i.relationships.has(id)));
+    warnings.push(...unmappedCodeWarnings(main.root, main.workspace));
   }
   return { errors, warnings };
 }

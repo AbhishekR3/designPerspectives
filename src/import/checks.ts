@@ -14,13 +14,14 @@
 
 import { expandPaths, scanImports } from "../core/codeMap.js";
 import { cleanRel, type CodeSource } from "../core/codeFiles.js";
-import { buildIndex, CATALOG_KEY, CHILD_KIND, cleanPaths, CODE_KEY, getJson, getProps, isCleanId, ModelError, technologyCatalog, type Index } from "../core/ops.js";
+import { buildIndex, CATALOG_KEY, CHILD_KIND, cleanPaths, CODE_KEY, getJson, getProps, isCleanId, ModelError, slugify, technologyCatalog, type Index } from "../core/ops.js";
 import type { Sidecar } from "../core/sidecar.js";
 import { isHidden } from "../core/util.js";
 import type { Kind, Workspace } from "../core/workspace.js";
 import { secretLike } from "../shared/mask.js";
 import type { Decision, FieldError, ImportCheck, ImportEvidence, ImportFile, ImportObjectType } from "../shared/types.js";
 import { pointer } from "./schema.js";
+import { compileGlob, globMatches, type Evidence, type Fact } from "./scan.js";
 
 /** The model's kind for each object type of the file. */
 export const KIND_OF: Record<ImportObjectType, Kind> = { person: "person", system: "softwareSystem", container: "container", component: "component" };
@@ -405,4 +406,57 @@ function importEdges(file: ImportFile, idx: Index, code: CodeSource, planned: Pl
     if (!at) continue;
     warn(at, `The code of "${nameOf(a)}" imports the code of "${nameOf(b)}" (${n} import${n === 1 ? "" : "s"}), but there is no relationship from "${nameOf(a)}" to "${nameOf(b)}".`);
   }
+}
+
+// ------------------------------------------------------------------ containers the scan found
+
+/** A container already in the model, as the container check needs it. */
+export interface ExistingContainer {
+  id: string;
+  name: string;
+  codePaths: string[];
+}
+
+const slugKey = (name: string): string => (name === "." ? "root" : slugify(name));
+const folderOf = (rel: string): string => (rel.includes("/") ? rel.slice(0, rel.lastIndexOf("/")) : "");
+const coversPath = (codePath: string, rel: string): boolean => {
+  const c = codePath.replace(/\/+$/, "");
+  return c !== "" && (rel === c || rel.startsWith(`${c}/`));
+};
+const relatedPaths = (a: string, b: string): boolean => coversPath(a, b) || coversPath(b, a);
+
+/**
+ * Warnings for every container the scan found in a Dockerfile or a compose service that this file neither
+ * names (a container with that name, or one whose code paths lead to the file's folder) nor lists in `ignore`
+ * (the file's own, or the project's: `c2:<name>` or a glob of the files). Containers already in the model
+ * count as named. Only a file of level c2 or all is checked: a C1 or C3 file is not expected to list them.
+ * A warning, not an error: the scan can be wrong and the file can be deliberately partial.
+ */
+export function missingContainers(file: ImportFile, evidence: Evidence, opts: { ignore?: string[]; existing?: ExistingContainer[] } = {}): FieldError[] {
+  if (file.level !== "c2" && file.level !== "all") return [];
+  const ignore = [...(opts.ignore ?? []), ...(file.ignore ?? [])];
+  const ids = new Set(ignore);
+  const globs = ignore.filter((g) => !/^c[1-4]:/.test(g)).map((g) => compileGlob(g));
+  const named = [...file.objects.filter((o) => o.type === "container").map((o) => ({ id: o.id, name: o.name, codePaths: o.codePaths ?? [] })), ...(opts.existing ?? [])];
+  const groups = new Map<string, Fact[]>();
+  for (const f of evidence.facts) {
+    if (f.level !== "c2" || (f.kind !== "dockerfile" && f.kind !== "compose-service")) continue;
+    const key = slugKey(f.name);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(f);
+  }
+  const out: FieldError[] = [];
+  for (const [key, facts] of [...groups].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
+    const paths = [...new Set(facts.map((f) => f.path))].sort();
+    if (ids.has(`c2:${key}`) || (paths.length > 0 && paths.every((p) => globs.some((g) => globMatches(g, p))))) continue;
+    const dirs = paths.map(folderOf).filter(Boolean);
+    const base = slugKey(facts[0]!.name.split("/").pop()!);
+    if (named.some((o) => [key, base].includes(slugify(o.id)) || [key, base].includes(slugify(o.name)) || o.codePaths.some((p) => dirs.some((d) => relatedPaths(p, d))))) continue;
+    const first = facts[0]!;
+    out.push({
+      pointer: "/objects",
+      message: `The scan found a container "${first.name}" (${first.kind} in ${paths.join(", ")}) that this file does not list. Add it, or list "c2:${key}" in "ignore" if it is not part of this system.`,
+    });
+  }
+  return out;
 }

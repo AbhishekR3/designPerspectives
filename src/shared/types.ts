@@ -1307,3 +1307,268 @@ export interface ReviewState {
   items: Record<string, ReviewItem>;
   draftFeedback?: string;
 }
+
+// ------------------------------------------------------------------ import: scan, intake, analysis, handoff (DEC-051, Stage B)
+
+/** The C4 levels the scan and the analysis count: c4 is the files. */
+export type ScanLevel = "c1" | "c2" | "c3" | "c4";
+export type IntakeDepth = ScanLevel;
+
+/** A system in the shipped list of known services, or one the intake adds. */
+export interface KnownService {
+  match: { npm?: string[]; pypi?: string[]; go?: string[]; image?: string[]; host?: string[] };
+  /** The external system's name, as it would appear on a diagram. */
+  system: string;
+  /** A short category: payments, identity, email, sms, analytics, search, maps, llm, feature-flags, monitoring, error-tracking, database, cache, queue, object-storage. */
+  category: string;
+  /** The `dp.archType` the object would get (database, cache, queue, storage, cloud, service). */
+  archType?: string;
+}
+
+export interface IntakeSettings {
+  /** Files walked before the scan stops (the rest is recorded in `limits`). */
+  maxFiles: number;
+  /** Bytes of one file that are parsed; larger files are listed in `limits`, not parsed. */
+  maxFileBytes: number;
+  /** Folder depth below the code root. */
+  maxDepth: number;
+  /** Component candidates are folders up to this depth below a container's source root. */
+  componentDepth: number;
+  /** A folder is a component candidate when it holds at least this many source files directly. */
+  componentMinFiles: number;
+  /** Assumed review time per item (a guess, not measured). */
+  secondsPerItem: number;
+  /** The recommendation rules recommend "step by step" above these numbers. */
+  stepByStep: { files: number; containers: number; passes: number };
+  /** Tokens one BMO pass can read (a backend setting). */
+  passBudgetTokens: number;
+}
+
+/** The answers to the questions the code cannot give: `architecture/import/intake.json`. */
+export interface Intake {
+  schemaVersion: 1;
+  system: { name: string; purpose: string };
+  audience: string;
+  scope: { include: string[]; exclude: string[]; otherRepos: string[] };
+  depth: IntakeDepth;
+  ownership: string;
+  runtime: string;
+  glossary: { term: string; means: string }[];
+  /** Globs of files and folders the scan and BMO must not open. */
+  mustNotOpen: string[];
+  /** Extra or overriding known services; looked at before the shipped list. */
+  services: KnownService[];
+  settings: IntakeSettings;
+}
+
+export interface IntakeError {
+  /** A field path such as `settings.maxFiles` or `scope.include[1]`; "" for the file as a whole. */
+  path: string;
+  message: string;
+}
+
+/** One thing the scan found, with the file it comes from. `id` is `kind:path:name`; an import file cites it as `{"kind": "scan", "fact": id}`. */
+export interface ScanFact {
+  id: string;
+  level: ScanLevel;
+  kind: string;
+  name: string;
+  path: string;
+  line?: number;
+  detail?: string;
+  /** The external system a known-services match names (C1 and C2 facts). */
+  system?: string;
+}
+
+/** A scan cap that was hit (never silent). */
+export interface ScanLimit {
+  kind: string;
+  path?: string;
+  detail: string;
+}
+
+/** What the import page needs of `evidence.json` (the facts themselves stay on the server). */
+export interface EvidenceSummary {
+  /** Facts per level. */
+  facts: Record<ScanLevel, number>;
+  files: {
+    total: number;
+    byLanguage: Record<string, number>;
+    /** Source files in languages whose imports are not read, by language. */
+    notAnalysable: Record<string, number>;
+    binary: number;
+    /** Folders and files left out by a rule. */
+    skipped: number;
+  };
+  /** Folder-to-folder import edges found. */
+  imports: number;
+  notParsed: { path: string; reason: string }[];
+  limits: ScanLimit[];
+}
+
+export type LevelState = "not started" | "in progress" | "final" | "stopped here";
+
+export interface AnalysisCandidate {
+  /** `c1:system:Stripe`, `c1:host:api.acme.com`, `c1:webhook:/webhooks/x`, `c2:<slug>`, `c3:<folder>`. */
+  id: string;
+  level: ScanLevel;
+  /** For C1: system, host, webhook. For C2 the main fact kind. C3: component-dir. */
+  kind: string;
+  name: string;
+  /** Files (C3: the folder) the evidence comes from. */
+  paths: string[];
+  /** Bytes of those files (C3: of the source files in the folder). */
+  bytes: number;
+  status: "accepted" | "ignored" | "left";
+  /** The model object that decided it. */
+  matchedBy?: string;
+  factIds: string[];
+}
+
+export interface LevelAnalysis {
+  level: ScanLevel;
+  state: LevelState;
+  /** False for levels deeper than the intake's depth: not counted in the totals. */
+  inScope: boolean;
+  candidates: number;
+  accepted: number;
+  ignored: number;
+  /** accepted + ignored */
+  decided: number;
+  /** Candidates not decided yet. */
+  undecided: number;
+  /** Model objects of this level with no description. */
+  needDescription: number;
+  /** Relationships of this level with no label or the label "uses". */
+  needLabel: number;
+  /** undecided + needDescription + needLabel. */
+  left: number;
+  /** decided / (decided + left), as a whole percent. */
+  percent: number;
+  /** True when files in languages whose imports are not read hide edges, so the percent is a ceiling (C3). */
+  percentIsCeiling: boolean;
+  lowConfidence: number;
+  /** Review items: left + low-confidence. 0 for C4. */
+  effortItems: number;
+  reviewMinutes: number;
+  /** Bytes BMO would read for the level (all its candidates). */
+  bytes: number;
+  tokens: number;
+  passes: number;
+  items: AnalysisCandidate[];
+  /** C4 only: files not under any element's code path and not ignored (the first 200, sorted), and how many there are. */
+  unmapped?: string[];
+  unmappedTotal?: number;
+}
+
+export interface AnalysisRule {
+  rule: string;
+  fired: boolean;
+  value: number;
+  threshold: number;
+}
+
+/** The import readiness analysis (`architecture/import/analysis.json`): what is decided, what is left, what it would cost. */
+export interface Analysis {
+  schemaVersion: 1;
+  depth: IntakeDepth;
+  levels: LevelAnalysis[];
+  totals: {
+    candidates: number;
+    decided: number;
+    left: number;
+    percent: number;
+    effortItems: number;
+    reviewMinutes: number;
+    tokens: number;
+    passes: number;
+    /** Intake questions the file leaves empty (counted as left). */
+    intakeUnanswered: string[];
+    /** C4: files outside every component, an upper bound until C3 is final. */
+    unmappedFiles: number;
+  };
+  recommendation: { mode: "step-by-step" | "one-go"; rules: AnalysisRule[] };
+  /** What the scan cannot see, in words. */
+  cannotSee: string[];
+  /** Final levels whose earlier levels are not decided. */
+  broken: string[];
+}
+
+export type BmoTaskId = "import-level" | "describe-to-model" | "explain" | "decision-from-draft" | "draft-summary" | "challenge" | "suggest-labels";
+export type BmoTaskOutput = "import-file" | "text" | "decision";
+
+/** `architecture/import/handoff/handoff.json`: which task and prompt the handoff folder is for. */
+export interface HandoffManifest {
+  task: BmoTaskId;
+  promptVersion: string;
+  output: BmoTaskOutput;
+  /** sha1 over the system and user text. */
+  hash: string;
+  files: string[];
+}
+
+/** The import handoff just written: the manifest, the prompt text for "Copy prompt", where the files are and the line for the coding agent. */
+export interface HandoffOffer extends HandoffManifest {
+  prompt: string;
+  /** The folder, relative to the project folder. */
+  folder: string;
+  /** The one line to give a coding agent. */
+  instruction: string;
+  estTokens: number;
+}
+
+/** What `GET /api/import` says about an import draft. */
+export interface ImportDraftSummary {
+  draftId: string;
+  title: string;
+  author: string | null;
+  byLevel: Record<ReviewLevel, number>;
+  byDecision: Record<ReviewDecision, number>;
+  /** Pending items whose level is unverified: they need an explicit accept. */
+  lowConfidence: number;
+  total: number;
+}
+
+/** The import page's state (`GET /api/import`; the scan, intake, ignore and level routes answer with it too). evidence and analysis are null before the first scan. */
+export interface ImportOverview {
+  evidence: EvidenceSummary | null;
+  analysis: Analysis | null;
+  intake: Intake;
+  intakeErrors: IntakeError[];
+  state: { ignore: string[]; levels: Record<ScanLevel, boolean> };
+  handoff: HandoffManifest | null;
+  importDrafts: ImportDraftSummary[];
+}
+
+/** `POST /api/import/file` and a handoff result that was accepted: the new draft. */
+export interface ImportDraftResult {
+  draftId: string;
+  report: ImportReport;
+  warnings: FieldError[];
+}
+
+/** `GET /api/import/review` (the draft selected by X-DP-Model). */
+export interface ImportReviewResponse {
+  review: ReviewState;
+  /** Pending items that are unverified, in key order. */
+  lowConfidenceKeys: string[];
+  lowConfidence: number;
+}
+
+/** The answer of an item action: the review afterwards, and for a reject what was reset in the draft. */
+export interface ReviewActionResult {
+  review: ReviewState;
+  reverted: string[];
+  alsoRejected: string[];
+}
+
+export interface AcceptAllResult {
+  review: ReviewState;
+  accepted: string[];
+  skipped: string[];
+}
+
+/** `POST /api/drafts/:id/apply`: `kept` and `held` are set when an import draft stayed with items not accepted. */
+export interface ApplyResponse extends ApplyOutcome {
+  ok: true;
+}

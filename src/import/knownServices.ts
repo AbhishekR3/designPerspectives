@@ -16,17 +16,10 @@
  * An exact match beats a prefix match, then the longer entry wins.
  */
 
-export type ServiceKind = "npm" | "pypi" | "go" | "image" | "host";
+import type { KnownService } from "../shared/types.js";
 
-export interface KnownService {
-  match: { npm?: string[]; pypi?: string[]; go?: string[]; image?: string[]; host?: string[] };
-  /** The external system's name, as it would appear on a diagram. */
-  system: string;
-  /** A short category: payments, identity, email, sms, analytics, search, maps, llm, feature-flags, monitoring, error-tracking, database, cache, queue, object-storage. */
-  category: string;
-  /** The `dp.archType` the object would get (database, cache, queue, storage, cloud, service). */
-  archType?: string;
-}
+export type { KnownService };
+export type ServiceKind = "npm" | "pypi" | "go" | "image" | "host";
 
 type Entry = [system: string, category: string, archType: string | undefined, match: KnownService["match"]];
 

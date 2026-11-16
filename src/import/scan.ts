@@ -24,32 +24,17 @@ import { SKIP_DIRS, scanImports } from "../core/codeMap.js";
 import type { CodeSource } from "../core/codeFiles.js";
 import { atomicWrite, isObj, stableJson } from "../core/util.js";
 import { SECRET_FIELD } from "../shared/mask.js";
+import type { ScanFact, ScanLevel, ScanLimit } from "../shared/types.js";
 import { importDir, type Intake } from "./intake.js";
 import { INFRA_CATEGORIES, matchService, type KnownService } from "./knownServices.js";
 
 const posix = path.posix;
 
-export type Level = "c1" | "c2" | "c3" | "c4";
+export type Level = ScanLevel;
 export const LEVELS: Level[] = ["c1", "c2", "c3", "c4"];
 
-export interface Fact {
-  /** `kind:path:name` */
-  id: string;
-  level: Level;
-  kind: string;
-  name: string;
-  path: string;
-  line?: number;
-  detail?: string;
-  /** The external system a known-services match names (C1 and C2 facts). */
-  system?: string;
-}
-
-export interface Limit {
-  kind: string;
-  path?: string;
-  detail: string;
-}
+export type Fact = ScanFact;
+export type Limit = ScanLimit;
 
 export interface Evidence {
   schemaVersion: 1;
