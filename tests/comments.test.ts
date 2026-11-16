@@ -102,7 +102,22 @@ describe("comment threads", () => {
 
   it("drops invalid entries from a hand-edited file instead of failing", () => {
     const ok1 = { id: "c-1", kind: "comment", target: { type: "element", id: "a" }, author: "A", at: "2026-01-01T00:00:00Z", text: "hi", status: "open" };
-    const text = JSON.stringify({ threads: [ok1, { id: "c-2" }, { ...ok1, kind: "rant", id: "c-3" }, ok1, { ...ok1, id: "c-4", replies: [{ id: "r", text: "" }, { id: "r2", text: "yes", at: "2026-01-02T00:00:00Z" }] }] });
+    const text = JSON.stringify({
+      threads: [
+        ok1,
+        { id: "c-2" },
+        { ...ok1, kind: "rant", id: "c-3" },
+        ok1,
+        {
+          ...ok1,
+          id: "c-4",
+          replies: [
+            { id: "r", text: "" },
+            { id: "r2", text: "yes", at: "2026-01-02T00:00:00Z" },
+          ],
+        },
+      ],
+    });
     const threads = parseComments(text);
     expect(threads.map((t) => t.id)).toEqual(["c-1", "c-4"]);
     expect(threads[1]!.replies).toMatchObject([{ id: "r2", author: "Anonymous" }]);

@@ -6,8 +6,7 @@ import { api, clickEmptyCanvas, expect, openDiagram, test, waitUntil } from "./f
 const KEY = "containers-internet-banking-system";
 const OWN = "web-application--single-page-application";
 
-const pathOf = (page: import("@playwright/test").Page, id: string) =>
-  page.locator(`[data-testid="rf__edge-${id}"] path.react-flow__edge-path`).first().getAttribute("d");
+const pathOf = (page: import("@playwright/test").Page, id: string) => page.locator(`[data-testid="rf__edge-${id}"] path.react-flow__edge-path`).first().getAttribute("d");
 
 test("the diagram's line shape applies to automatic lines and not to a line with its own shape", async ({ page, server }) => {
   await openDiagram(page, KEY);
@@ -54,7 +53,10 @@ test("the diagram's line shape applies to automatic lines and not to a line with
   await expect(page.getByTestId("diagram-line-shape")).toHaveValue("rounded");
   await page.waitForTimeout(400);
   const paths = await Promise.all(automatic.map((e: any) => pathOf(page, e.id)));
-  expect(paths.some((d) => d?.includes("Q")), "some line has rounded corners again").toBe(true);
+  expect(
+    paths.some((d) => d?.includes("Q")),
+    "some line has rounded corners again",
+  ).toBe(true);
 });
 
 test.describe("read-only", () => {

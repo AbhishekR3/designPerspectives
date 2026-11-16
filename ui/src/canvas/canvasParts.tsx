@@ -291,7 +291,7 @@ export function C4Node({ data, selected }: NodeProps<C4NodeType>) {
   const secOpen = workOpen.filter((w) => w.type === "security").length;
   const cls = [
     "c4-node",
-    "nokey", // Shift+click on a box toggles it in the selection instead of starting a selection box
+    "nokey", // Shift+click (or Ctrl/Cmd+click) on a box toggles it in the selection instead of starting a selection box
     `kind-${el.kind}`,
     outline ? "outline" : "card",
     selected ? "selected" : "",

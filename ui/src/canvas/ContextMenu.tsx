@@ -36,7 +36,7 @@ export function tidy(items: (MenuItem | false | "" | null | undefined)[]): MenuI
 }
 
 const MARGIN = 8;
-const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
+export const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
 /** "Mod+D" → "⌘D" on a Mac, "Ctrl+D" elsewhere. */
 export const keys = (s: string) => (isMac ? s.replace(/Mod\+/g, "⌘").replace(/Shift\+/g, "⇧") : s.replace(/Mod\+/g, "Ctrl+"));
 

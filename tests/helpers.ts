@@ -21,9 +21,11 @@ export function tmpDir(): string {
   return d;
 }
 
-export function demoDir(): string {
+/** A copy of the demo project. The shipped sample draft is left out (tests make their own drafts); `withSampleDraft` keeps it. */
+export function demoDir(opts: { withSampleDraft?: boolean } = {}): string {
   const d = tmpDir();
   initProject(d, { demo: true });
+  if (!opts.withSampleDraft) fs.rmSync(path.join(d, "architecture", "drafts"), { recursive: true, force: true });
   return d;
 }
 

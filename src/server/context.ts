@@ -282,6 +282,8 @@ export function createContext(root: string, opts: AppOptions = {}): Ctx {
       // A draft's planned code edits are compared with the code folder as it is now.
       return [drafts.base(draftId(ref)), "Main model when the draft was made", disk];
     }
+    // A draft measured against main as it is now (not as it was when the draft was made).
+    if (against === "main" && ref.startsWith("draft:")) return [project, "Main model as it is now", disk];
     return resolve(against);
   };
 

@@ -19,4 +19,7 @@ export const LINE_SHAPE_NAMES: [LineShape, string][] = [
 export const lineShapeName = (shape: LineShape): string => LINE_SHAPE_NAMES.find(([v]) => v === shape)?.[1] ?? shape;
 
 /** The "Automatic" choice of a line, naming what it follows. */
-export const automaticLabel = (diagramShape: LineShape | null): string => `Automatic (diagram default: ${lineShapeName(diagramShape ?? BUILT_IN_SHAPE).replace(/ \(.*\)$/, "").toLowerCase()})`;
+export const automaticLabel = (diagramShape: LineShape | null): string =>
+  `Automatic (diagram default: ${lineShapeName(diagramShape ?? BUILT_IN_SHAPE)
+    .replace(/ \(.*\)$/, "")
+    .toLowerCase()})`;

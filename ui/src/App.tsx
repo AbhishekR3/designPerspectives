@@ -455,6 +455,7 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
             isDraft={!!draftId}
             showChanges={!!version.compare}
             setShowChanges={(v) => switchVersion(version.model, v ? "base" : null)}
+            onCompareWith={(against) => switchVersion(version.model, against)}
             onApply={() => draftId && setModal({ type: "apply", draftId, title: state.model.title.replace(/^Draft: /, "") })}
             onPlan={() => draftId && setModal({ type: "plan", draftId })}
             onDiscard={() => void discardDraft()}
@@ -771,6 +772,7 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
         <ApplyDialog
           draftId={modal.draftId}
           title={modal.title}
+          branch={state.drafts.find((d) => d.id === modal.draftId)?.branch || undefined}
           onClose={() => setModal(null)}
           onApplied={() => {
             setModal(null);

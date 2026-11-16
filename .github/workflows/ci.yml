@@ -28,6 +28,9 @@ jobs:
         run: npm run typecheck
       - name: Lint
         run: npm run lint
+      - name: Formatting
+        if: matrix.os == 'ubuntu-latest' && matrix.node == '22'
+        run: npm run format:check
       - name: Unit and API tests
         run: npm test
       - name: Build UI
@@ -47,6 +50,11 @@ jobs:
         run: |
           npm run make-demo
           git diff --exit-code demo/
+      - name: Demo model, its sample draft and its code mapping check clean
+        if: matrix.os == 'ubuntu-latest' && matrix.node == '22'
+        run: |
+          npm run dp -- init --demo "$RUNNER_TEMP/demo-check"
+          npm run dp -- check --strict "$RUNNER_TEMP/demo-check"
       - name: Package installs and runs
         if: matrix.os == 'ubuntu-latest' && matrix.node == '22'
         run: |

@@ -124,7 +124,13 @@ function backHeaders(res: http.IncomingMessage, target: URL, self: string): http
   if (typeof out.location === "string" && out.location.startsWith(target.origin)) out.location = self + out.location.slice(target.origin.length);
   const cookies = res.headers["set-cookie"];
   // The proxy speaks plain HTTP on 127.0.0.1: a cookie bound to the app's domain or to HTTPS would be dropped.
-  if (cookies) out["set-cookie"] = cookies.map((c) => c.replace(/;\s*domain=[^;]*/gi, "").replace(/;\s*secure(?=;|$)/gi, "").replace(/samesite=none/gi, "SameSite=Lax"));
+  if (cookies)
+    out["set-cookie"] = cookies.map((c) =>
+      c
+        .replace(/;\s*domain=[^;]*/gi, "")
+        .replace(/;\s*secure(?=;|$)/gi, "")
+        .replace(/samesite=none/gi, "SameSite=Lax"),
+    );
   return out;
 }
 

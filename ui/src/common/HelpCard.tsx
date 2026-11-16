@@ -10,7 +10,7 @@ const SHORTCUTS: [string, string][] = [
   ["F2", "Rename the selected box (a line: its name in the panel)"],
   ["Delete", "Delete the selected box, boxes or line"],
   ["Arrow keys", "Move the selected box or boxes by 10 (Shift: 40)"],
-  ["Shift+click, Shift+drag", "Select several boxes"],
+  [`Shift+click or ${MOD}+click, Shift+drag`, "Select several boxes"],
   [`${MOD}+C, ${MOD}+V, ${MOD}+D`, "Copy, paste, duplicate the selected box"],
   [`${MOD}+Z, ${MOD}+Shift+Z`, "Undo, redo"],
   [`${MOD}+0, ${MOD}+plus, ${MOD}+minus`, "Fit the diagram to the window, zoom in, zoom out"],
@@ -34,11 +34,13 @@ export function HelpCard({ onClose }: { onClose(): void }) {
     <div className="float help-card small" data-testid="help-card" role="region" aria-label="Help">
       <ul className="hints">
         <li>Click a box or line to see and edit it in the panel on the right.</li>
-        <li>Right-click a box, a line or empty space for a menu of what you can do there (open, rename, copy and paste, symbol, line shape, arrows, style, add here, layout, make room, spread out, zoom).</li>
+        <li>
+          Right-click a box, a line or empty space for a menu of what you can do there (open, rename, copy and paste, symbol, line shape, arrows, style, add here, layout, make room, spread out, zoom).
+        </li>
         <li>Double-click a system or container to open the next level.</li>
         <li>Add: drag a database, queue, pipeline, service and more from the Add palette onto the diagram, or click it.</li>
         <li>Drag from a dot on any side of a box to another box to connect them, or to empty space to pick a kind and add a connected box.</li>
-        <li>Shift+click boxes, or Shift+drag over empty canvas, to select several: drag or use the arrow keys to move them together, Delete removes them (one undo step).</li>
+        <li>Shift+click or {MOD}+click boxes, or Shift+drag over empty canvas, to select several: drag or use the arrow keys to move them together, Delete removes them (one undo step).</li>
         <li>
           On a context, container or component diagram a new person or system is connected to the system, or to the box you selected. Right-click a container or component, then Move to…, to put it in
           another parent.
@@ -46,7 +48,10 @@ export function HelpCard({ onClose }: { onClose(): void }) {
         <li>Rename on the canvas: select a box, then click its name (or press F2). The bar above a selected box also changes its symbol, opens it, duplicates or deletes it.</li>
         <li>Select a box to resize it; select a line to drag its ends, bend it, or slide its label along it.</li>
         <li>Double-click a line to open the connector behind it.</li>
-        <li>Comments: right-click a box, a line or empty space and choose Comment…, or use the speech-bubble button in the tools bar for the list of this diagram. Mark a note as a comment, an idea or a question; reply, then resolve it. Every role can do this, a viewer too.</li>
+        <li>
+          Comments: right-click a box, a line or empty space and choose Comment…, or use the speech-bubble button in the tools bar for the list of this diagram. Mark a note as a comment, an idea or a
+          question; reply, then resolve it. Every role can do this, a viewer too.
+        </li>
         <li>Dashed lines are derived from relationships between elements inside the boxes.</li>
         <li>Bottom left: colour boxes by a tag group, technology, characteristic or cost; click a value to focus on or hide those boxes.</li>
       </ul>

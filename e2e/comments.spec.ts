@@ -37,8 +37,16 @@ test.describe("comments", () => {
   test("the diagram's list shows threads about what it shows and jumps to them", async ({ page, server }) => {
     const edge = (await (await fetch(`${server.url}api/diagrams/${KEY}`)).json()).edges.find((e: any) => !e.derived && e.relationshipIds.length === 1);
     const rel = { id: edge.relationshipIds[0] };
-    await fetch(`${server.url}api/comments`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind: "idea", target: { type: "relationship", id: rel.id }, text: "Batch these calls" }) });
-    await fetch(`${server.url}api/comments`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind: "comment", target: { type: "diagram", id: KEY }, text: "Needs a legend" }) });
+    await fetch(`${server.url}api/comments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind: "idea", target: { type: "relationship", id: rel.id }, text: "Batch these calls" }),
+    });
+    await fetch(`${server.url}api/comments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind: "comment", target: { type: "diagram", id: KEY }, text: "Needs a legend" }),
+    });
     await openDiagram(page, KEY);
     await page.getByTestId("comments-open").click();
     const list = page.getByTestId("diagram-comments");

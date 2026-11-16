@@ -28,7 +28,9 @@ describe("parseTraceFile", () => {
     expect(parseTraceFile(lines).map((s) => [s.traceId, s.spanId, s.service, s.name])).toEqual([[T, "00f067aa0ba902b7", "api-application", "GET /x"]]);
     const whole = JSON.stringify([doc("a", [span("00f067aa0ba902b7", null, "one")]), doc("b", [span("00f067aa0ba902b8", "00f067aa0ba902b7", "two")])]);
     expect(parseTraceFile(whole).map((s) => s.service)).toEqual(["a", "b"]);
-    const b64 = parseTraceFile(JSON.stringify(doc("a", [{ ...span("x", null, "b64"), traceId: Buffer.from(T, "hex").toString("base64"), spanId: Buffer.from("00f067aa0ba902b7", "hex").toString("base64") }])));
+    const b64 = parseTraceFile(
+      JSON.stringify(doc("a", [{ ...span("x", null, "b64"), traceId: Buffer.from(T, "hex").toString("base64"), spanId: Buffer.from("00f067aa0ba902b7", "hex").toString("base64") }])),
+    );
     expect([b64[0]!.traceId, b64[0]!.spanId]).toEqual([T, "00f067aa0ba902b7"]);
   });
 });
@@ -68,7 +70,12 @@ describe("observe", () => {
     const tdir = path.join(dir, "traces");
     fs.mkdirSync(tdir);
     // The statement store calling the fraud service: no relationship in the model.
-    fs.writeFileSync(path.join(tdir, "t.jsonl"), JSON.stringify(doc("statement-store", [span("0000000000000001", null, "scan"), span("0000000000000002", "0000000000000001", "call", { kind: 3, attributes: [kv("peer.service", "fraud-svc")] })])) + "\n");
+    fs.writeFileSync(
+      path.join(tdir, "t.jsonl"),
+      JSON.stringify(
+        doc("statement-store", [span("0000000000000001", null, "scan"), span("0000000000000002", "0000000000000001", "call", { kind: 3, attributes: [kv("peer.service", "fraud-svc")] })]),
+      ) + "\n",
+    );
     const o = await ok(c.get(`/api/traces/${T}`));
     expect(o.hops).toEqual([{ from: "statement-store", to: "fraud-detection-system", spanId: "0000000000000002", relationshipId: null }]);
   });

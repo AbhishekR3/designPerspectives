@@ -74,7 +74,8 @@ function anyValue(v: unknown): unknown {
 
 function attrs(list: unknown): Record<string, unknown> {
   const out: Record<string, unknown> = {};
-  if (Array.isArray(list)) for (const kv of list) if (kv && typeof kv === "object" && typeof (kv as { key?: unknown }).key === "string") out[(kv as { key: string }).key] = anyValue((kv as { value?: unknown }).value);
+  if (Array.isArray(list))
+    for (const kv of list) if (kv && typeof kv === "object" && typeof (kv as { key?: unknown }).key === "string") out[(kv as { key: string }).key] = anyValue((kv as { value?: unknown }).value);
   return out;
 }
 
@@ -105,7 +106,12 @@ export function spansOf(doc: unknown): Span[] {
         if (!traceId || !spanId) continue;
         const status = (s.status ?? {}) as { code?: unknown; message?: unknown };
         const failed = status.code === 2 || status.code === "STATUS_CODE_ERROR";
-        const kind = typeof s.kind === "number" ? (KINDS[s.kind] ?? "internal") : String(s.kind ?? "").replace(/^SPAN_KIND_/, "").toLowerCase() || "internal";
+        const kind =
+          typeof s.kind === "number"
+            ? (KINDS[s.kind] ?? "internal")
+            : String(s.kind ?? "")
+                .replace(/^SPAN_KIND_/, "")
+                .toLowerCase() || "internal";
         out.push({
           traceId,
           spanId,

@@ -217,7 +217,10 @@ export function Backtrack({ state, query, onClose, onOpenFile, onReveal }: { sta
                 <ul className="bt-commits">
                   {step.modelChanges.map((m, i) => (
                     <li key={`${m.sha}-${i}`} className={Date.parse(m.date) >= Date.parse(result.since) ? "recent" : ""}>
-                      <span className="muted">{ago(m.date)}</span> {m.what} <span className="muted">· {m.author}: “{m.subject}”</span>
+                      <span className="muted">{ago(m.date)}</span> {m.what}{" "}
+                      <span className="muted">
+                        · {m.author}: “{m.subject}”
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -236,7 +239,10 @@ function Commits({ commits, since }: { commits: CommitInfo[]; since: string }) {
     <ul className="bt-commits">
       {commits.slice(0, 5).map((c) => (
         <li key={c.sha} className={Date.parse(c.date) >= Date.parse(since) ? "recent" : ""}>
-          <span className="muted">{ago(c.date)}</span> {c.subject} <span className="muted">· {c.author} · {c.sha.slice(0, 7)}</span>
+          <span className="muted">{ago(c.date)}</span> {c.subject}{" "}
+          <span className="muted">
+            · {c.author} · {c.sha.slice(0, 7)}
+          </span>
         </li>
       ))}
       {commits.length > 5 && <li className="muted small">… {commits.length - 5} older</li>}
@@ -268,9 +274,7 @@ function FieldHistory({ field, steps, onPick }: { field: string; steps: Backtrac
   }
   return (
     <div className="bt-field" data-testid="backtrack-field">
-      <h4>
-        “{field}” through the steps
-      </h4>
+      <h4>“{field}” through the steps</h4>
       <table className="bt-table">
         <tbody>
           {rows.map(({ s, v, mark }) => (

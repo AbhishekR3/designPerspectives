@@ -39,7 +39,7 @@ test.describe("sign-in is off", () => {
 });
 
 test.describe("with sign-in", () => {
-  test.use({ users: { list: ROLE_USERS } });
+  test.use({ users: { list: [...ROLE_USERS, { name: "hasan", role: "engineer" }] } });
 
   test("the sign-in page, a wrong password, a lockout, the session across a reload, sign out", async ({ page }) => {
     await expect(page.getByTestId("sign-in")).toBeVisible();
@@ -213,12 +213,10 @@ test.describe("with sign-in", () => {
     await node(page, "api-application").click();
     await expect(page.getByTestId("field-name")).toBeDisabled();
     await expect(page.getByTestId("qb-delete")).toHaveCount(0);
-    // Their draft menu: Rename and Edit description for any draft, Discard only for their own.
-    await page.getByTestId(`draft-menu-${byArchitect}`).click();
-    await expect(page.getByTestId("draft-rename")).toBeVisible();
-    await expect(page.getByTestId("draft-edit-description")).toBeVisible();
-    await expect(page.getByTestId("draft-discard")).toHaveCount(0);
-    await page.keyboard.press("Escape");
+    // Someone else's draft: listed with whose it is and a read-only hint, and no menu (rename, description and discard are its author's, or an architect's).
+    await expect(page.getByTestId(`draft-${byArchitect}`)).toBeVisible();
+    await expect(page.getByTestId(`draft-readonly-${byArchitect}`)).toHaveAttribute("title", "architect's draft: read-only for you. Start your own draft, or ask an architect.");
+    await expect(page.getByTestId(`draft-menu-${byArchitect}`)).toHaveCount(0);
     // The main model refuses their changes, with a readable reason.
     const refused = await callAs(server, "engineer", "POST", "/elements", { body: { kind: "container", name: "Nope", parentId: "internet-banking-system" } });
     expect(refused.status).toBe(403);
@@ -262,12 +260,18 @@ test.describe("with sign-in", () => {
     await expect(page.getByTestId("draft-discard")).toBeVisible();
     expect((await callAs(server, "engineer", "POST", `/drafts/${mine}/apply`, {})).status).toBe(403);
 
-    // Not their draft: it can be opened and edited, not applied or discarded.
+    // Not their draft: it can be opened and read, not changed, applied or discarded.
     await page.getByTestId(`draft-${byArchitect}`).click();
     await expect(page.getByTestId("draft-banner")).toContainText("Architect plan");
+    await expect(page.getByTestId("draft-readonly-note")).toHaveText("architect's draft: read-only for you. Start your own draft, or ask an architect.");
     await expect(page.getByTestId("draft-apply-note")).toBeVisible();
     await expect(page.getByTestId("draft-discard")).toHaveCount(0);
+    await expect(page.getByTestId("palette")).toHaveCount(0);
+    await expect(page.getByTestId("undo")).toHaveCount(0);
+    await node(page, "api-application").click();
+    await expect(page.getByTestId("field-name")).toBeDisabled();
     expect((await callAs(server, "engineer", "DELETE", `/drafts/${byArchitect}`)).status).toBe(403);
+    expect((await callAs(server, "engineer", "PATCH", `/drafts/${byArchitect}`, { body: { title: "Mine now" } })).status).toBe(403);
 
     // They can discard their own.
     await page.getByTestId(`draft-${mine}`).click();
@@ -307,6 +311,51 @@ test.describe("with sign-in", () => {
     await waitUntil(async () => (await callAs(server, "architect", "GET", "/state")).json.elements.some((e: any) => e.name === "Proposed cache"));
     expect((await callAs(server, "architect", "GET", "/state")).json.drafts).toEqual([]);
     await expect(page.getByTestId("error")).toHaveCount(0);
+  });
+
+  test("another person's draft is read-only for an engineer, who can still open and read it; an architect can edit it", async ({ page, server }) => {
+    const draft = await newDraftAs(server, "hasan", "Hasan's cache");
+    expect((await callAs(server, "hasan", "POST", "/elements", { draft, body: { kind: "container", name: "Hasan cache", archType: "cache", parentId: "internet-banking-system" } })).status).toBe(200);
+    await signIn(page, "engineer");
+    await openDiagram(page, KEY);
+    const hint = "hasan's draft: read-only for you. Start your own draft, or ask an architect.";
+    await expect(page.getByTestId(`draft-readonly-${draft}`)).toHaveAttribute("title", hint);
+    await expect(page.getByTestId(`draft-menu-${draft}`)).toHaveCount(0);
+
+    // Opened: the changes are there to read, nothing is editable, the plan's branch is locked.
+    await page.getByTestId(`draft-${draft}`).click();
+    await expect(page.getByTestId("draft-banner")).toContainText("Hasan's cache");
+    await expect(page.getByTestId("draft-readonly-note")).toHaveText(hint);
+    await expect(page.getByTestId("change-hasan-cache")).toBeVisible();
+    await expect(node(page, "hasan-cache")).toBeVisible();
+    for (const id of ["palette", "undo", "draft-discard", "draft-apply"]) await expect(page.getByTestId(id), id).toHaveCount(0);
+    await node(page, "hasan-cache").click();
+    await expect(page.getByTestId("field-name")).toBeDisabled();
+    await page.getByTestId("draft-plan").click();
+    await expect(page.getByTestId("plan-branch")).toBeDisabled();
+    await page.keyboard.press("Escape");
+    expect((await callAs(server, "engineer", "POST", "/elements", { draft, body: { kind: "container", name: "Nope", parentId: "internet-banking-system" } })).status).toBe(403);
+    expect((await callAs(server, "engineer", "GET", "/state")).json.drafts.find((d: any) => d.id === draft)).toMatchObject({ canEdit: false, author: "hasan" });
+    await expect(page.getByTestId("error")).toHaveCount(0);
+  });
+
+  test("an architect can edit an engineer's draft: the menu, the palette and the plan branch are there", async ({ page, server }) => {
+    const draft = await newDraftAs(server, "engineer", "Engineer proposal");
+    await signIn(page, "architect");
+    await openDiagram(page, KEY);
+    await expect(page.getByTestId(`draft-readonly-${draft}`)).toHaveCount(0);
+    await page.getByTestId(`draft-menu-${draft}`).click();
+    await expect(page.getByTestId("draft-rename")).toBeVisible();
+    await expect(page.getByTestId("draft-edit-description")).toBeVisible();
+    await expect(page.getByTestId("draft-discard")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await page.getByTestId(`draft-${draft}`).click();
+    await expect(page.getByTestId("draft-readonly-note")).toHaveCount(0);
+    await expect(page.getByTestId("palette")).toBeVisible();
+    await page.getByTestId("draft-plan").click();
+    await expect(page.getByTestId("plan-branch")).toBeEnabled();
+    await page.keyboard.press("Escape");
+    expect((await callAs(server, "architect", "PATCH", `/drafts/${draft}`, { body: { title: "Renamed by an architect" } })).status).toBe(200);
   });
 
   test("a session that ends while the app is open returns to the sign-in page, then to the same diagram", async ({ page, context }) => {

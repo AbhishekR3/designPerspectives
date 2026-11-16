@@ -1,4 +1,4 @@
-/** Stage P2: move a container or component to another parent, and select several boxes (Shift) to move or delete them together. */
+/** Stage P2: move a container or component to another parent, and select several boxes (Shift, or Ctrl/Cmd) to move or delete them together. */
 
 import { api, clickEmptyCanvas, confirmDialog, expect, node, openDiagram, test, waitUntil, type Server } from "./fixtures.js";
 
@@ -170,6 +170,24 @@ test("Shift+click takes a box out again; one box left is a plain selection", asy
   await expect(page.getByTestId("multi-panel")).toHaveCount(0);
   await expect(page.getByTestId("object-panel")).toBeVisible();
   await expect(page.getByTestId("field-name")).toHaveValue("Web Application");
+});
+
+test("Ctrl/Cmd+click adds a box to the selection and takes it out, like Shift+click", async ({ page }) => {
+  await openDiagram(page, "containers-internet-banking-system");
+  await node(page, "web-application").click();
+  await node(page, "mobile-app").click({ modifiers: ["ControlOrMeta"] });
+  await node(page, "database").click({ modifiers: ["ControlOrMeta"] });
+  await expect(page.getByTestId("multi-count")).toHaveText("3 objects selected");
+  await node(page, "database").click({ modifiers: ["ControlOrMeta"] });
+  await expect(page.getByTestId("multi-count")).toHaveText("2 objects selected");
+  await node(page, "mobile-app").click({ modifiers: ["ControlOrMeta"] });
+  await expect(page.getByTestId("multi-panel")).toHaveCount(0);
+  await expect(page.getByTestId("field-name")).toHaveValue("Web Application");
+  // A plain click on another box still replaces the selection.
+  await node(page, "mobile-app").click({ modifiers: ["ControlOrMeta"] });
+  await node(page, "database").click();
+  await expect(page.getByTestId("multi-panel")).toHaveCount(0);
+  await expect(page.getByTestId("field-name")).toHaveValue("Database");
 });
 
 test.describe("read-only", () => {

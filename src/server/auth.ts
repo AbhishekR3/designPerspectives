@@ -163,7 +163,9 @@ const sameName = (a: string | null | undefined, b: string) => typeof a === "stri
  */
 function notOwn(who: Who, author: string | null | undefined): string | null {
   if (who.user && sameName(author, who.user.name)) return null;
-  return author ? `This draft belongs to ${author}. Start your own draft, or ask an architect.` : "This draft has no recorded author, so only an architect can change it. Start your own draft, or ask an architect.";
+  return author
+    ? `This draft belongs to ${author}. Start your own draft, or ask an architect.`
+    : "This draft has no recorded author, so only an architect can change it. Start your own draft, or ask an architect.";
 }
 
 /**

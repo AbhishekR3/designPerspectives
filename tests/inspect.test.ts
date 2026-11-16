@@ -123,7 +123,12 @@ describe("UI proxy", () => {
   async function app(): Promise<string> {
     const s = http.createServer((req, res) => {
       if (req.url === "/") {
-        res.writeHead(200, { "Content-Type": "text/html", "X-Frame-Options": "DENY", "Content-Security-Policy": "frame-ancestors 'none'", "Set-Cookie": "app=1; Domain=localhost; Secure; SameSite=None" });
+        res.writeHead(200, {
+          "Content-Type": "text/html",
+          "X-Frame-Options": "DENY",
+          "Content-Security-Policy": "frame-ancestors 'none'",
+          "Set-Cookie": "app=1; Domain=localhost; Secure; SameSite=None",
+        });
         res.end("<!doctype html><html><head><title>App</title></head><body>hi</body></html>");
       } else if (req.url === "/go") {
         res.writeHead(302, { Location: `http://127.0.0.1:${(s.address() as AddressInfo).port}/` }).end();

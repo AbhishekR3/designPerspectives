@@ -71,8 +71,11 @@ test("plan a change in a draft, apply it, undo it, discard another", async ({ pa
 
   // Main changes meanwhile: the badge appears after a focus event.
   await call(server, "PATCH", "/elements/atm", { body: { description: "Changed in main" } });
-  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
-  await expect(page.getByTestId("draft-banner").getByTestId("draft-behind")).toHaveText("main +1");
+  // The check is skipped while a save (the nudge above) is still under way, so the focus event is sent again until it takes.
+  await expect(async () => {
+    await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+    await expect(page.getByTestId("draft-banner").getByTestId("draft-behind")).toHaveText("main +1", { timeout: 1500 });
+  }).toPass();
   await expect(page.getByTestId("draft-banner").getByTestId("draft-behind")).toHaveAttribute("title", /changed 1 object since this draft started/);
   await expect(page.getByTestId("draft-list").getByTestId("draft-behind")).toHaveText("main +1");
 
@@ -106,6 +109,82 @@ test("plan a change in a draft, apply it, undo it, discard another", async ({ pa
   await expect(page.getByTestId("toast-success")).toContainText('Discarded "Throwaway"');
   await waitUntil(async () => (await api(server, "/state")).drafts.length === 0);
   await expect(page.getByTestId(`draft-${other}`)).toHaveCount(0);
+});
+
+test("a draft is compared with where it started, or with main as it is now; the choice is in the URL", async ({ page, server }) => {
+  const id = await createDraft(server, "Compare me");
+  await call(server, "POST", "/elements", { draft: id, body: { kind: "container", name: "Draft queue", archType: "queue", parentId: "internet-banking-system" } });
+  await openDiagram(page, "containers-internet-banking-system");
+  await expect(page.getByTestId("compare-toggle")).toHaveCount(0); // only for a draft
+  await page.getByTestId(`draft-${id}`).click();
+  await expect(page.getByTestId("draft-banner")).toBeVisible();
+
+  // Where it started (the default): only the draft's own change.
+  await expect(page.getByTestId("compare-base")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByTestId("compare-main")).toHaveAttribute("aria-pressed", "false");
+  await expect(page.getByTestId("change-draft-queue")).toBeVisible();
+  await expect(page.getByTestId("change-atm")).toHaveCount(0);
+
+  // Main changes afterwards: a changed software system, and a new container that the draft does not have.
+  await call(server, "PATCH", "/elements/atm", { body: { description: "Changed in main" } });
+  await call(server, "POST", "/elements", { body: { kind: "container", name: "Main only box", archType: "queue", parentId: "internet-banking-system" } });
+  await page.getByTestId("compare-main").click();
+  await expect(page.getByTestId("compare-main")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByTestId("compare-title")).toHaveText("compared with Main model as it is now");
+  expect(await page.evaluate(() => window.location.hash)).toContain("c=main");
+  await expect(page.getByTestId("change-atm")).toBeVisible();
+  await expect(page.getByTestId("change-draft-queue")).toBeVisible();
+  // What only main has is a ghost box, and says so in its panel.
+  await expect(node(page, "main-only-box")).toHaveClass(/ghost/);
+  await page.getByTestId("change-main-only-box").click(); // the box itself may sit under the floating dock
+  await expect(page.getByTestId("ghost-panel")).toContainText("Removed: it exists in Main model as it is now but not in the version you are looking at.");
+  await page.keyboard.press("Escape"); // back to the change list
+  await page.getByTestId("change-atm").click();
+  await expect(page.getByTestId("change-details")).toContainText("compared with Main model as it is now");
+
+  // Reload keeps the choice; the other choice drops main's changes again.
+  await page.reload();
+  await expect(page.getByTestId("compare-main")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByTestId("change-atm")).toBeVisible();
+  await page.getByTestId("compare-base").click();
+  await expect(page.getByTestId("compare-base")).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByTestId("change-atm")).toHaveCount(0);
+  await expect(page.getByTestId("change-draft-queue")).toBeVisible();
+  await expect(node(page, "main-only-box")).toHaveCount(0);
+  expect(await page.evaluate(() => window.location.hash)).toContain("c=base");
+
+  // Show changes off hides the switch; a git comparison does not use it.
+  await page.getByTestId("show-changes").uncheck();
+  await expect(page.getByTestId("compare-toggle")).toHaveCount(0);
+});
+
+test.describe("the demo's sample draft", () => {
+  test.use({ sampleDraft: true });
+
+  test("is listed on first run and shows its changes in both compare modes", async ({ page, server }) => {
+    const id = "tell-customers-when-a-payment-is-held";
+    await openDiagram(page, "containers-internet-banking-system");
+    await expect(page.getByTestId("draft-list")).toContainText("Demo · 2026-11-09");
+    expect(await call(server, "GET", "/state")).toMatchObject({ drafts: [{ id, author: "Demo" }] });
+    await page.getByTestId(`draft-${id}`).click();
+    await expect(page.getByTestId("draft-banner")).toContainText("Draft: Tell customers when a payment is held");
+    await expect(node(page, "held-payment-notifier")).toHaveAttribute("data-change", "added");
+    await expect(page.getByTestId("change-held-payment-notifier")).toBeVisible();
+    await expect(page.getByTestId("change-payments-service")).toContainText("description");
+    await expect(page.getByTestId("change-list")).toContainText("Decisions");
+    // Main has not moved, so both modes show the same changes.
+    await page.getByTestId("compare-main").click();
+    await expect(page.getByTestId("compare-title")).toHaveText("compared with Main model as it is now");
+    await expect(node(page, "held-payment-notifier")).toHaveAttribute("data-change", "added");
+    await expect(page.getByTestId("change-payments-service")).toBeVisible();
+    // It applies without conflicts.
+    await page.getByTestId("draft-apply").click();
+    await expect(page.getByTestId("apply-confirm")).toBeEnabled();
+    await expect(page.getByTestId("apply-conflicts")).toHaveCount(0);
+    await page.getByTestId("apply-confirm").click();
+    await expect(page.getByTestId("draft-banner")).toHaveCount(0);
+    await expect(node(page, "held-payment-notifier")).toBeVisible();
+  });
 });
 
 test("long titles are cut short and the row menu stays reachable", async ({ page, server }) => {

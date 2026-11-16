@@ -241,6 +241,9 @@ export function initProject(root: string, opts: { demo?: boolean; name?: string 
   if (demo) {
     const decs = path.join(DEMO_DIR, DECISIONS_DIR);
     if (fs.existsSync(decs)) fs.cpSync(decs, path.join(arch, DECISIONS_DIR), { recursive: true });
+    // The sample draft(s): a planned change to read, compare and apply (see scripts/make-demo.ts).
+    const drafts = path.join(DEMO_DIR, "drafts");
+    if (fs.existsSync(drafts)) fs.cpSync(drafts, path.join(arch, "drafts"), { recursive: true });
     copySampleCode(root);
   }
   return arch;

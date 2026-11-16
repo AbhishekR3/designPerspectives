@@ -1,6 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { Project } from "../src/core/project.js";
+import { checkProject } from "../src/core/report.js";
 import { client, demoDir, ok, tmpDir } from "./helpers.js";
 
 const draftDir = (dir: string, id: string) => path.join(dir, "architecture", "drafts", id);
@@ -264,5 +266,36 @@ describe("drafts", () => {
     // Edits in the draft itself do not count.
     await ok(c.at(`draft:${id}`).patch("/api/elements/mobile-app", { description: "Draft only" }));
     expect(await behind()).toBe(n);
+  });
+
+  it("the shipped demo has a sample draft that loads, shows its changes, can be applied and checks clean", async () => {
+    const dir = demoDir({ withSampleDraft: true });
+    const c = client(dir);
+    const st = await ok(c.get("/api/state"));
+    expect(st.drafts).toMatchObject([{ id: "tell-customers-when-a-payment-is-held", author: "Demo", created: "2026-11-09", behind: 0 }]);
+    const d = c.at(`draft:${st.drafts[0].id}`, "base");
+    const changes = await ok(d.get("/api/changes"));
+    expect(changes.elements.map((e: any) => [e.name, e.change]).sort()).toEqual([
+      ["Held Payment Notifier", "added"],
+      ["Payments Service", "changed"],
+    ]);
+    expect(changes.relationships).toMatchObject([{ change: "added" }]);
+    expect(changes.decisions).toMatchObject([{ change: "added" }]);
+    // Against main as it is now: the same, since main has not moved (and it says so in the title).
+    const now = await ok(c.at(`draft:${st.drafts[0].id}`, "main").get("/api/state"));
+    expect(now.compare).toMatchObject({ against: "main", title: "Main model as it is now", summary: changes.summary });
+    expect((await ok(c.get(`/api/drafts/${st.drafts[0].id}/apply-preview`))).conflicts).toEqual([]);
+    const res = checkProject(new Project(dir));
+    expect(res).toEqual({ errors: [], warnings: [] });
+  });
+
+  it("a draft compared with main as it is now shows what main changed after the draft started, as well as the draft's own changes", async () => {
+    const c = client();
+    const { id } = await ok(c.post("/api/drafts", { title: "Compare" }));
+    await ok(c.at(`draft:${id}`).patch("/api/elements/mobile-app", { description: "Draft only" }));
+    await ok(c.patch("/api/elements/database", { description: "Main only" }));
+    const names = async (cmp: string) => (await ok(c.at(`draft:${id}`, cmp).get("/api/changes"))).elements.map((e: any) => e.id).sort();
+    expect(await names("base")).toEqual(["mobile-app"]);
+    expect(await names("main")).toEqual(["database", "mobile-app"]);
   });
 });

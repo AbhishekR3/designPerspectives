@@ -57,7 +57,11 @@ export function StagePanel({ node, ...p }: Common & { node: DiagramNode }) {
         </label>
       </Fields>
       {node.drillKey && <button onClick={() => p.onOpen(node.drillKey!)}>Open what implements this stage</button>}
-      <button onClick={() => p.onBacktrack({ connector: relId, stage: idx + 1 })} data-testid="stage-backtrack" title="Where this stage's data came from, the code behind each step, and what changed recently">
+      <button
+        onClick={() => p.onBacktrack({ connector: relId, stage: idx + 1 })}
+        data-testid="stage-backtrack"
+        title="Where this stage's data came from, the code behind each step, and what changed recently"
+      >
         Backtrack from this stage
       </button>
       <h4>Data leaving this stage</h4>

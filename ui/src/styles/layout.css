@@ -557,6 +557,28 @@ button.link.tree-link .tree-mark {
 .draft-strip .check {
   margin: 0;
 }
+/* The two-way compare switch for a draft ("Since it started" / "Against main now"). */
+.draft-strip .seg {
+  overflow: hidden;
+  border-color: #1e5670;
+}
+.draft-strip .seg button {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+}
+.draft-strip .seg button + button {
+  border-left: 1px solid #1e5670;
+}
+.draft-strip .seg button.active {
+  background: #1e5670;
+  color: #fff;
+}
+.draft-strip .strip-note {
+  white-space: normal;
+  max-width: 34em;
+}
 .change-summary {
   display: inline-flex;
   gap: var(--space-2);

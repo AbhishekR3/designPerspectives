@@ -1,0 +1,6 @@
+{
+  "title": "Tell customers when a payment is held",
+  "description": "A payment held for fraud review leaves the customer wondering. Send them a short message when it is held, and another when it is released or blocked.",
+  "created": "2026-11-09",
+  "author": "Demo"
+}

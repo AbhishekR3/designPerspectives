@@ -116,7 +116,10 @@ export function checkHub(dir: string, raw: unknown, file = path.join(dir, HUB_FI
   }
   // Folders: none may hold the hub folder or another project (code routes of one could then write the
   // other). Compared after following links, so a link cannot hide that one folder holds another.
-  const roots = [...out.projects.map((p) => ({ id: p.id, root: resolveLoose(path.resolve(dir, p.path)) })), ...(out.catalog ? [{ id: CATALOG_ID, root: resolveLoose(path.resolve(dir, out.catalog)) }] : [])];
+  const roots = [
+    ...out.projects.map((p) => ({ id: p.id, root: resolveLoose(path.resolve(dir, p.path)) })),
+    ...(out.catalog ? [{ id: CATALOG_ID, root: resolveLoose(path.resolve(dir, out.catalog)) }] : []),
+  ];
   const hub = resolveLoose(dir);
   for (const a of roots) {
     if (inside(a.root, hub)) throw new HubError(`Project "${a.id}" (${a.root}) holds the hub folder; give it a folder of its own.`);

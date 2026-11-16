@@ -16,6 +16,7 @@ import {
 } from "@xyflow/react";
 import { toPng, toSvg } from "html-to-image";
 import { canvasInsets } from "./insets";
+import { isMac } from "./ContextMenu";
 import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type Ref } from "react";
 import {
   CUSTOM_HEADS,
@@ -136,6 +137,9 @@ const MULTI_KINDS = new Set(["person", "softwareSystem", "container", "component
 const groupedIds = (d: Diagram) => (d.boundary ? d.nodes.filter((n) => n.inScope).map((n) => n.id) : []);
 const BOUNDARY_PAD = 40;
 
+/** Shift, or Ctrl (Cmd on a Mac), is held: a click adds a box to the selection or takes it out. On a Mac Ctrl+click is a right-click, so it is not used there. */
+const addsToSelection = (e: { shiftKey: boolean; ctrlKey: boolean; metaKey: boolean }) => e.shiftKey || (isMac ? e.metaKey : e.ctrlKey);
+
 export function Canvas({
   diagram,
   lens,
@@ -167,11 +171,11 @@ export function Canvas({
   const wrapper = useRef<HTMLDivElement>(null);
   const fitFor = useRef<string | null>(null);
   // Selecting several boxes: the current selection (also right after a change, before the next render),
-  // whether a selection box is being drawn, and whether Shift was down when the pointer went down.
+  // whether a selection box is being drawn, and whether an add-to-selection key was down when the pointer went down.
   const selRef = useRef(selection);
   selRef.current = selection;
   const boxing = useRef(false);
-  const shiftDown = useRef(false);
+  const addDown = useRef(false);
   const multiIds = useMemo(() => (selection?.type === "nodes" ? new Set(selection.ids) : null), [selection]);
   /** Ghosts (boxes of the compared version), stages and files cannot be part of a multi-selection. */
   const multiOk = useCallback(
@@ -557,7 +561,7 @@ export function Canvas({
       // Selecting is ours (see `selection`). Two cases take what React Flow reports: the box being drawn with
       // Shift+drag, and a plain press on a box while several are selected (so the press does not drag them along).
       const picks = changes.filter((c): c is NodeSelectionChange => c.type === "select");
-      if (picks.length && (boxing.current || (selRef.current?.type === "nodes" && !shiftDown.current))) {
+      if (picks.length && (boxing.current || (selRef.current?.type === "nodes" && !addDown.current))) {
         const ids = new Set(selectedNodeIds(selRef.current).filter(multiOk));
         for (const c of picks) {
           if (c.selected && multiOk(c.id)) ids.add(c.id);
@@ -705,7 +709,7 @@ export function Canvas({
   );
 
   return (
-    <div className="canvas" ref={wrapper} data-testid="canvas" onPointerDownCapture={(e) => (shiftDown.current = e.shiftKey)}>
+    <div className="canvas" ref={wrapper} data-testid="canvas" onPointerDownCapture={(e) => (addDown.current = addsToSelection(e))}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -733,8 +737,8 @@ export function Canvas({
         }}
         onNodeClick={(e, n) => {
           const id = n.id.startsWith("boundary:") ? n.id.slice(9) : n.id;
-          if (e.shiftKey && multiOk(id)) {
-            // Shift+click adds the box to the selection, or takes it out.
+          if (addsToSelection(e) && multiOk(id)) {
+            // Shift+click, and Ctrl+click (Cmd+click on a Mac), add the box to the selection, or takes it out.
             const cur = selectedNodeIds(selRef.current).filter(multiOk);
             commitSelection(cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]);
           } else onSelect({ type: "node", id });

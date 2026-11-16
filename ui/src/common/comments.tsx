@@ -214,7 +214,16 @@ function Composer({
       {kinds && (
         <div className="kind-pick" role="radiogroup" aria-label="Kind of note">
           {COMMENT_KINDS.map((k) => (
-            <button key={k} type="button" role="radio" aria-checked={kind === k} className={`ck-btn ck-${k}${kind === k ? " on" : ""}`} title={KIND_HINT[k]} onClick={() => setKind(k)} data-testid={`${testId}-kind-${k}`}>
+            <button
+              key={k}
+              type="button"
+              role="radio"
+              aria-checked={kind === k}
+              className={`ck-btn ck-${k}${kind === k ? " on" : ""}`}
+              title={KIND_HINT[k]}
+              onClick={() => setKind(k)}
+              data-testid={`${testId}-kind-${k}`}
+            >
               {COMMENT_KIND_LABEL[k]}
             </button>
           ))}
@@ -240,7 +249,17 @@ function Composer({
         }}
         data-testid={`${testId}-text`}
       />
-      {askName && <input className="composer-name" value={askName.value} maxLength={80} placeholder="Your name (optional)" aria-label="Your name" onChange={(e) => askName.onChange(e.target.value)} data-testid={`${testId}-name`} />}
+      {askName && (
+        <input
+          className="composer-name"
+          value={askName.value}
+          maxLength={80}
+          placeholder="Your name (optional)"
+          aria-label="Your name"
+          onChange={(e) => askName.onChange(e.target.value)}
+          data-testid={`${testId}-name`}
+        />
+      )}
       <div className="composer-actions">
         <button className="primary small" disabled={!text.trim() || busy} onClick={() => void submit()} data-testid={`${testId}-submit`} title="Ctrl/Cmd+Enter">
           {submitLabel}
@@ -279,15 +298,7 @@ function ThreadView({ t, api: c, about }: { t: CommentThread; api: CommentsApi; 
       </div>
       {about}
       {editing ? (
-        <Composer
-          initial={t.text}
-          submitLabel="Save"
-          kinds={t.kind}
-          autoFocus
-          testId={`edit-${t.id}`}
-          onSubmit={(text, kind) => c.edit(t.id, { text, kind })}
-          onCancel={() => setEditing(false)}
-        />
+        <Composer initial={t.text} submitLabel="Save" kinds={t.kind} autoFocus testId={`edit-${t.id}`} onSubmit={(text, kind) => c.edit(t.id, { text, kind })} onCancel={() => setEditing(false)} />
       ) : (
         <p className="thread-text">{t.text}</p>
       )}
@@ -303,7 +314,9 @@ function ThreadView({ t, api: c, about }: { t: CommentThread; api: CommentsApi; 
                 {mine(r.author) && (
                   <button
                     className="link small reply-del"
-                    onClick={() => void confirmDialog({ title: "Delete this reply?", message: "It is removed for everyone.", confirmLabel: "Delete", danger: true }).then((yes) => yes && c.removeReply(t.id, r.id))}
+                    onClick={() =>
+                      void confirmDialog({ title: "Delete this reply?", message: "It is removed for everyone.", confirmLabel: "Delete", danger: true }).then((yes) => yes && c.removeReply(t.id, r.id))
+                    }
                     aria-label="Delete this reply"
                     data-testid={`reply-delete-${r.id}`}
                   >
@@ -528,7 +541,11 @@ export function DiagramComments({
             </button>
           ))}
         </div>
-        {onThis.length > 0 ? list(onThis, true) : <p className="muted small">{filter === "open" ? "No open comments on the objects in this diagram. Right-click a box or a line and choose Comment…" : "Nothing here with this filter."}</p>}
+        {onThis.length > 0 ? (
+          list(onThis, true)
+        ) : (
+          <p className="muted small">{filter === "open" ? "No open comments on the objects in this diagram. Right-click a box or a line and choose Comment…" : "Nothing here with this filter."}</p>
+        )}
       </section>
       {elsewhere.length > 0 && (
         <section className="discussion" aria-label="Comments elsewhere in the model">

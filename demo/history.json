@@ -1,5 +1,5 @@
 {
- "note": "Made-up history for the demo, written as git commits by dp serve --demo (src/core/demoHistory.ts). true = the file as shipped, null = the file does not exist yet.",
+ "note": "Made-up history for the demo, written as git commits by dp serve --demo (src/demo/demoHistory.ts). true = the file as shipped, null = the file does not exist yet.",
  "commits": [
   {
    "daysAgo": 40,

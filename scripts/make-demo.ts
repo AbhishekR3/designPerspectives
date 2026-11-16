@@ -12,6 +12,7 @@
  */
 
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { syncViews } from "../src/core/diagrams.js";
 import * as flows from "../src/core/flows.js";
@@ -19,7 +20,8 @@ import { stableJson } from "../src/core/util.js";
 import * as ops from "../src/core/ops.js";
 import { emptySidecar, makeLens, sidecarData, type Sidecar } from "../src/core/sidecar.js";
 import { errors } from "../src/core/validate.js";
-import { ARCH_DIR, DEMO_DIR, WORKSPACE_FILE } from "../src/core/project.js";
+import { ARCH_DIR, DEMO_DIR, initProject, Project, WORKSPACE_FILE } from "../src/core/project.js";
+import { DRAFT_FILE, Drafts } from "../src/core/drafts.js";
 import type { DemoHistory } from "../src/demo/demoHistory.js";
 import * as decisions from "../src/core/decisions.js";
 import { writeDemoHub } from "./demo-hub.js";
@@ -1095,7 +1097,7 @@ function history(ws: Workspace): DemoHistory {
   const wsFile = `${ARCH_DIR}/${WORKSPACE_FILE}`;
   const st = (f: string) => `sample_code/statements/${f}`;
   return {
-    note: "Made-up history for the demo, written as git commits by dp serve --demo (src/core/demoHistory.ts). true = the file as shipped, null = the file does not exist yet.",
+    note: "Made-up history for the demo, written as git commits by dp serve --demo (src/demo/demoHistory.ts). true = the file as shipped, null = the file does not exist yet.",
     commits: [
       {
         daysAgo: 40,
@@ -1227,6 +1229,63 @@ export function demoDecisions(): Decision[] {
   return decs;
 }
 
+/** The author and date written into the sample draft, so that regenerating the demo gives the same bytes. */
+const SAMPLE_DRAFT = { title: "Tell customers when a payment is held", author: "Demo", created: "2026-11-09" };
+
+/**
+ * One sample draft (demo/drafts/<id>/), made with the real draft and edit functions on a throw-away copy
+ * of the demo: an added container, a changed element, an added relationship and a proposed decision.
+ * `dp init --demo` copies it, so drafts and the "compare" views have something to show on first run.
+ */
+function writeSampleDraft(): void {
+  // The previous run's draft would be copied into the throw-away project below, and its title would be taken.
+  const out = path.join(DEMO_DIR, "drafts");
+  fs.rmSync(out, { recursive: true, force: true });
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "dp-demo-draft-"));
+  try {
+    initProject(tmp, { demo: true });
+    const project = new Project(tmp);
+    const drafts = new Drafts(project, SAMPLE_DRAFT.author);
+    const id = drafts.create(
+      SAMPLE_DRAFT.title,
+      "A payment held for fraud review leaves the customer wondering. Send them a short message when it is held, and another when it is released or blocked.",
+      SAMPLE_DRAFT.author,
+    );
+    drafts.get(id).edit((ws, sc, decs) => {
+      const notifier = ops.createElement(ws, {
+        kind: "container",
+        name: "Held Payment Notifier",
+        parentId: "internet-banking-system",
+        description: "Tells the customer when a payment is held for fraud review, and when it is released or blocked.",
+        technology: ["TypeScript", "Node.js"],
+      });
+      ops.updateElement(ws, sc, "payments-service", {
+        description: "Validates, fraud-checks and submits customer payments, then publishes the outcome. Tells the Held Payment Notifier when a payment is held, released or blocked.",
+      });
+      ops.createRelationship(ws, { sourceId: "payments-service", destinationId: notifier, description: "Reports held, released and blocked payments to", technology: ["JSON", "HTTPS"], kind: null });
+      decisions.createDecision(decs, {
+        title: "Tell customers by message when a payment is held",
+        kind: "choice",
+        status: "proposed",
+        date: "2026-11-09",
+        deciders: ["Payments team"],
+        affects: [notifier, "payments-service", "notification-service"],
+        context: "A payment held for fraud review stays pending for up to a day. Customers call support to ask where it is.",
+        decision: "The Payments Service reports each hold, release and block to a new Held Payment Notifier, which sends the customer one message through the Notification Service.",
+        alternatives: [{ name: "Show the status in the app only", whyNot: "Customers who do not open the app still call support." }],
+        consequences: "One more container to run. Messages follow each customer's channel preferences.",
+      });
+    });
+    // The draft's own file records today's date; the demo needs a fixed one.
+    const meta = path.join(drafts.dir, id, DRAFT_FILE);
+    const fixed = { ...JSON.parse(fs.readFileSync(meta, "utf-8")), created: SAMPLE_DRAFT.created };
+    fs.writeFileSync(meta, stableJson(fixed), "utf-8");
+    fs.cpSync(path.join(drafts.dir, id), path.join(out, id), { recursive: true });
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+}
+
 function main(): void {
   const [ws, sc] = build();
   fs.mkdirSync(DEMO_DIR, { recursive: true });
@@ -1237,6 +1296,7 @@ function main(): void {
   fs.rmSync(decDir, { recursive: true, force: true });
   fs.mkdirSync(decDir, { recursive: true });
   for (const d of demoDecisions()) fs.writeFileSync(path.join(decDir, d.file), decisions.serializeDecision(d), "utf-8");
+  writeSampleDraft();
   writeDemoHub(path.join(DEMO_DIR, "hub"));
   console.log(`Wrote ${DEMO_DIR}`);
 }

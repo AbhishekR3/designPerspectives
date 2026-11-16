@@ -304,7 +304,9 @@ function ClickDetail({
               </span>
             </div>
             {c.traceId && c.status !== undefined && <ObservedTraceView traceId={c.traceId} uiElementId={elementId} state={state} onReveal={onReveal} />}
-            {r && r.matches.length === 0 && <Unmapped call={r} candidates={result!.candidates.map(rel).filter(Boolean) as Relationship[]} relLabel={relLabel} mutate={mutate} readOnly={state.readOnly} />}
+            {r && r.matches.length === 0 && (
+              <Unmapped call={r} candidates={result!.candidates.map(rel).filter(Boolean) as Relationship[]} relLabel={relLabel} mutate={mutate} readOnly={state.readOnly} />
+            )}
             {r?.matches.map((id) => {
               const m = rel(id);
               return m ? <Matched key={id} rel={m} call={c} result={result!} state={state} relLabel={relLabel} mutate={mutate} /> : null;
@@ -435,7 +437,12 @@ function Unmapped({
             </option>
           ))}
         </select>
-        <button className="primary" disabled={!r} onClick={() => r && void mutate(() => api.updateRelationship(r.id, { endpoints: [...r.endpoints, call.suggested] }))} data-testid="inspector-add-endpoint">
+        <button
+          className="primary"
+          disabled={!r}
+          onClick={() => r && void mutate(() => api.updateRelationship(r.id, { endpoints: [...r.endpoints, call.suggested] }))}
+          data-testid="inspector-add-endpoint"
+        >
           Add <code>{ep}</code>
         </button>
       </div>

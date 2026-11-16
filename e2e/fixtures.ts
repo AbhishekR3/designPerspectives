@@ -45,16 +45,19 @@ export interface UsersOption {
   list: TestUser[];
 }
 
-export const test = base.extend<{ server: Server; project: ProjectKind; readOnly: boolean; users: UsersOption | null }>({
+export const test = base.extend<{ server: Server; project: ProjectKind; readOnly: boolean; users: UsersOption | null; sampleDraft: boolean }>({
   project: ["demo", { option: true }],
+  /** Keep the demo's shipped sample draft (default: left out, so tests start with no drafts). */
+  sampleDraft: [false, { option: true }],
   readOnly: [false, { option: true }],
   /** Turn sign-in on with these users (null: off). Opt in with `test.use({ users: { list: ROLE_USERS } })`
    *  (wrapped, because Playwright reads an array given to `use` as a fixture/options pair). */
   users: [null, { option: true }],
-  server: async ({ project, readOnly, users }, use, testInfo) => {
+  server: async ({ project, readOnly, users, sampleDraft }, use, testInfo) => {
     testInfo.skip(staticDir() === null, "UI not built (run `npm ci && npm run build` in ui/)");
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "dp-e2e-"));
     initProject(root, { demo: project === "demo" });
+    if (!sampleDraft) fs.rmSync(path.join(root, "architecture", "drafts"), { recursive: true, force: true });
     if (users) writeTestUsers(root, users.list);
     const app = createApp(root, { readOnly });
     const srv = await new Promise<ReturnType<typeof serve>>((resolve) => {

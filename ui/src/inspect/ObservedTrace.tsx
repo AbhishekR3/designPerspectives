@@ -49,7 +49,9 @@ export function ObservedTraceView({ traceId, uiElementId, state, onReveal }: { t
   if (!trace)
     return (
       <div className="muted small" data-testid="trace-pending">
-        {missing ? `No trace ${traceId.slice(0, 8)}… in the trace files. The backend may not record traces, or writes them elsewhere (dp serve --traces <folder>).` : "Looking for this call in the trace files…"}
+        {missing
+          ? `No trace ${traceId.slice(0, 8)}… in the trace files. The backend may not record traces, or writes them elsewhere (dp serve --traces <folder>).`
+          : "Looking for this call in the trace files…"}
       </div>
     );
   const depth = new Map<string, number>();

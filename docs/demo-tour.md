@@ -129,6 +129,8 @@ Press **Ctrl/Cmd+K** and type `redis`, `fraud` or `kafka`. Search covers names, 
 
 Real architecture changes are planned before they are built. A draft is a copy of the model you can change freely; the main model stays as it is until you apply the draft.
 
+The demo already has one: under **Drafts**, open *Tell customers when a payment is held*. It adds a container (**Held Payment Notifier**), changes the **Payments Service** description, adds a line between them and proposes a decision. In the draft strip, switch between **Since it started** (only what the draft changes) and **Against main now** (also what main has changed since). Then try the steps below on a draft of your own.
+
 1. In the sidebar, under **Drafts**, click **+ New draft**. Title it *Open banking API* and describe it: *Let licensed third parties read account balances with the customer's consent.*
 2. On the containers diagram, drag a **Service / API** from the palette (left of the canvas) and name it *Open Banking API*. Connect it to **API Application** by dragging from one of its dots onto that box.
 3. Drag from one of Open Banking API's dots to an empty part of the canvas and pick **External system**. Name it *Third-party Provider*. (On a containers diagram, a new person or system always comes with a line, because the diagram only shows outside things that connect to something inside.)

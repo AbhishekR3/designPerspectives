@@ -18,7 +18,10 @@ const MAX_LINKS = 100;
 const PARALLEL = 4;
 const API_HOST = "api.github.com";
 
-export type Fetch = (url: string, init: { headers: Record<string, string>; signal: AbortSignal; redirect?: "error" | "manual" | "follow" }) => Promise<{ ok: boolean; status: number; json(): Promise<unknown> }>;
+export type Fetch = (
+  url: string,
+  init: { headers: Record<string, string>; signal: AbortSignal; redirect?: "error" | "manual" | "follow" },
+) => Promise<{ ok: boolean; status: number; json(): Promise<unknown> }>;
 
 export const isGitHubWork = (url: string | undefined): boolean => !!url && GH.test(url);
 

@@ -23,11 +23,18 @@ export function BehindBadge({ n }: { n: number }) {
   );
 }
 
+/** Why a draft is read-only for the signed-in user, when it belongs to someone else (null when it can be changed, or when nobody can change anything). */
+export function notYoursHint(d: DraftInfo | undefined, canStartDraft: boolean): string | null {
+  if (!d || d.canEdit !== false || !canStartDraft) return null;
+  return `${d.author ? `${d.author}'s draft` : "This draft has no recorded author"}: read-only for you. Start your own draft, or ask an architect.`;
+}
+
 /** One draft in the sidebar: title, author and date, and a "⋯" menu (also on right-click). */
 function DraftRow({
   d,
   active,
   canEditDraft,
+  hint,
   onOpen,
   onRename,
   onEditDescription,
@@ -36,6 +43,7 @@ function DraftRow({
   d: DraftInfo;
   active: boolean;
   canEditDraft: boolean;
+  hint: string | null;
   onOpen(): void;
   onRename(): void;
   onEditDescription(): void;
@@ -56,7 +64,7 @@ function DraftRow({
   const hasMenu = canEditDraft || canDiscard;
   const by = [d.author, d.created].filter(Boolean).join(" · ");
   return (
-    <li className="draft-row" onContextMenu={!hasMenu ? undefined : (e) => (e.preventDefault(), setOpen(true))}>
+    <li className="draft-row" title={hint ?? undefined} onContextMenu={!hasMenu ? undefined : (e) => (e.preventDefault(), setOpen(true))}>
       <button
         className={`link draft-title ${active ? "active" : ""}`}
         onClick={onOpen}
@@ -113,7 +121,12 @@ function DraftRow({
       )}
       <div className="draft-sub muted small">
         {by}
-        {by && d.behind > 0 && " "}
+        {hint && (
+          <span title={hint} data-testid={`draft-readonly-${d.id}`}>
+            {by && " · "}read-only for you
+          </span>
+        )}
+        {(by || hint) && d.behind > 0 && " "}
         <BehindBadge n={d.behind} />
       </div>
     </li>
@@ -163,7 +176,8 @@ export function DraftList({
             key={d.id}
             d={d}
             active={state.model.ref === `draft:${d.id}`}
-            canEditDraft={state.can.createDraft}
+            canEditDraft={d.canEdit ?? state.can.createDraft}
+            hint={notYoursHint(d, state.can.createDraft)}
             onOpen={() => state.model.ref !== `draft:${d.id}` && onSwitch(`draft:${d.id}`)}
             onRename={() => onRename(d)}
             onEditDescription={() => onEditDescription(d)}
@@ -224,12 +238,15 @@ export function VersionStrip({
   onPlan,
   onDiscard,
   onStopCompare,
+  onCompareWith,
   onExit,
 }: {
   state: AppState;
   isDraft: boolean;
   showChanges: boolean;
   setShowChanges(v: boolean): void;
+  /** For a draft: what the changes are measured against, where it started ("base") or the main model as it is now ("main"). */
+  onCompareWith(against: "base" | "main"): void;
   onApply(): void;
   onPlan(): void;
   onDiscard(): void;
@@ -237,7 +254,11 @@ export function VersionStrip({
   onExit(): void;
 }) {
   const s = state.compare?.summary;
-  const comparingOther = state.compare && state.compare.against !== "base";
+  // A draft is compared with its start or with main now (a toggle below); anything else (a git version) shows "compared with" and "Stop comparing".
+  const draftToggle = isDraft && (state.compare?.against === "base" || state.compare?.against === "main");
+  const comparingOther = state.compare && !draftToggle;
+  const draft = isDraft ? state.drafts.find((d) => `draft:${d.id}` === state.model.ref) : undefined;
+  const hint = notYoursHint(draft, state.can.createDraft);
   return (
     <div className="draft-strip" data-testid={isDraft ? "draft-banner" : "version-strip"}>
       <Icon name="layers" size={14} />
@@ -256,6 +277,38 @@ export function VersionStrip({
             <input type="checkbox" checked={showChanges} onChange={(e) => setShowChanges(e.target.checked)} data-testid="show-changes" />
             Show changes
           </label>
+        )}
+        {draftToggle && (
+          <span className="seg" role="group" aria-label="Compare this draft with" data-testid="compare-toggle">
+            {(
+              [
+                ["base", "Since it started", "Compare with the main model as it was when this draft was made: only what this draft changed"],
+                ["main", "Against main now", "Compare with the main model as it is now: also shows what main changed since the draft started"],
+              ] as const
+            ).map(([k, label, tip]) => (
+              <button
+                key={k}
+                type="button"
+                className={`small ${state.compare!.against === k ? "active" : ""}`}
+                aria-pressed={state.compare!.against === k}
+                title={tip}
+                onClick={() => state.compare!.against !== k && onCompareWith(k)}
+                data-testid={`compare-${k}`}
+              >
+                {label}
+              </button>
+            ))}
+          </span>
+        )}
+        {draftToggle && state.compare!.against === "main" && (
+          <span className="muted small truncate" title={`compared with ${state.compare!.title}`} data-testid="compare-title">
+            compared with <strong>{state.compare!.title}</strong>
+          </span>
+        )}
+        {hint && (
+          <span className="muted small strip-note" data-testid="draft-readonly-note">
+            {hint}
+          </span>
         )}
         {s && <SummaryChips s={s} compact />}
         {isDraft && <BehindBadge n={state.drafts.find((d) => `draft:${d.id}` === state.model.ref)?.behind ?? 0} />}

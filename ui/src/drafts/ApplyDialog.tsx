@@ -8,12 +8,13 @@ import { ChangeList } from "./ChangeList";
 import { SummaryChips } from "./DraftList";
 
 /** Confirm applying a draft: what main will get, and conflicts that stop it. */
-export function ApplyDialog({ draftId, title, onClose, onApplied }: { draftId: string; title: string; onClose(): void; onApplied(): void }) {
+export function ApplyDialog({ draftId, title, branch, onClose, onApplied }: { draftId: string; title: string; branch?: string; onClose(): void; onApplied(): void }) {
   const [preview, setPreview] = useState<ApplyPreview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [conflicts, setConflicts] = useState<Conflict[]>([]);
   const [busy, setBusy] = useState(false);
-  const [withCode, setWithCode] = useState(true);
+  // A draft with a branch has its code written there, so the planned edits are not written to the working copy unless asked for.
+  const [withCode, setWithCode] = useState(!branch);
   useEffect(() => {
     // The answers of an earlier choice (conflicts, an error) do not belong to this one.
     setPreview(null);
@@ -55,6 +56,11 @@ export function ApplyDialog({ draftId, title, onClose, onApplied }: { draftId: s
           <input type="checkbox" checked={withCode} onChange={(e) => setWithCode(e.target.checked)} data-testid="apply-with-code" />
           Also write the {preview.code.length} planned code edit{preview.code.length === 1 ? "" : "s"} to the code folder
         </label>
+      )}
+      {branch && preview && preview.code.length > 0 && (
+        <p className="muted small" data-testid="apply-branch-hint">
+          This draft has a branch ({branch}), so the code is expected to come from there.
+        </p>
       )}
       {error && <p className="danger-text">{error}</p>}
       {conflicts.length > 0 && (
@@ -179,7 +185,7 @@ export function PlanDialog({ state, draftId, onClose, onSaved }: { state: AppSta
             onChange={(e) => setBranch(e.target.value)}
             onBlur={() => void saveBranch()}
             onKeyDown={(e) => e.key === "Enter" && void saveBranch()}
-            disabled={!state.can.createDraft}
+            disabled={!(draft?.canEdit ?? state.can.createDraft)}
             data-testid="plan-branch"
           />
         </label>
