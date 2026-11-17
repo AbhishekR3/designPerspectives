@@ -118,7 +118,7 @@ test("menu keys: arrows, Escape; canvas shortcuts stay off while it is open", as
 
   // Keyboard into a submenu and back out: Symbol ▸ (first entry) → Enter.
   await node(page, "api-application").click({ button: "right" });
-  for (let i = 0; i < 6 && !(await page.getByTestId("ctx-symbol").evaluate((b) => b.classList.contains("on"))); i++) await page.keyboard.press("ArrowDown");
+  for (let i = 0; i < 8 && !(await page.getByTestId("ctx-symbol").evaluate((b) => b.classList.contains("on"))); i++) await page.keyboard.press("ArrowDown");
   await page.keyboard.press("ArrowRight");
   await expect(page.getByTestId("ctx-symbol-box")).toBeVisible();
   await page.keyboard.press("ArrowLeft");

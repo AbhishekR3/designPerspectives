@@ -123,6 +123,8 @@ export interface MenuContext {
   canComment: boolean;
   /** Open the box that writes a new note on the diagram at this point (canvas units). */
   placeNote(at: Pt): void;
+  /** Open the checklist with a new item about this object or diagram (absent: the role cannot change the checklist). */
+  addToChecklist?(target: CommentTarget, selectAs: Selection): void;
   /** Open the BMO chat about an element or a relationship. */
   askBmo?(target: { element?: string; relationship?: string }): void;
 }
@@ -162,6 +164,9 @@ export function menuItems(menu: MenuState | null, c: MenuContext): MenuItem[] {
       n.filePath && { label: "Open file", icon: "file", shortcut: "Double-click", testId: "ctx-open-file", onSelect: () => setOpenFile(n.filePath!) },
       { label: canEditEl ? "Edit details…" : "Show details", icon: "panel", testId: "ctx-details", onSelect: () => (select({ type: "node", id: n.id }), setFocusName(canEditEl)) },
       el && !n.ghost && c.canComment && { label: "Comment…", icon: "comment", testId: "ctx-comment", onSelect: () => c.comment({ type: "element", id: n.id }, { type: "node", id: n.id }) },
+      el &&
+        !n.ghost &&
+        c.addToChecklist && { label: "Add to checklist…", icon: "checklist", testId: "ctx-checklist", onSelect: () => c.addToChecklist!({ type: "element", id: n.id }, { type: "node", id: n.id }) },
       el && !n.ghost && c.askBmo && { label: "Ask BMO about this…", testId: "ctx-ask-bmo", onSelect: () => c.askBmo!({ element: n.id }) },
       { sep: true },
       canEditEl && { label: "Rename", icon: "edit", shortcut: "F2", testId: "ctx-rename", onSelect: () => setRenameId(n.id) },
@@ -247,6 +252,7 @@ export function menuItems(menu: MenuState | null, c: MenuContext): MenuItem[] {
         onSelect: () => (select({ type: "edge", id: e.id }), setFocusName(!!relId && canEdit)),
       },
       commentTarget && c.canComment && { label: "Comment…", icon: "comment", testId: "ctx-comment", onSelect: () => c.comment(commentTarget, { type: "edge", id: e.id }) },
+      commentTarget && c.addToChecklist && { label: "Add to checklist…", icon: "checklist", testId: "ctx-checklist", onSelect: () => c.addToChecklist!(commentTarget, { type: "edge", id: e.id }) },
       relId && !e.ghost && c.askBmo && { label: "Ask BMO about this…", testId: "ctx-ask-bmo", onSelect: () => c.askBmo!({ relationship: relId }) },
       { sep: true },
       lineEditable && {
@@ -308,6 +314,7 @@ export function menuItems(menu: MenuState | null, c: MenuContext): MenuItem[] {
     return tidy([
       c.canComment && { label: "Add note here…", icon: "comment", testId: "ctx-add-note", onSelect: () => c.placeNote(at) },
       c.canComment && { label: "Comment on this diagram…", icon: "comment", testId: "ctx-comment", onSelect: () => c.comment({ type: "diagram", id: diagram.key }, null) },
+      c.addToChecklist && { label: "Add to checklist…", icon: "checklist", testId: "ctx-checklist", onSelect: () => c.addToChecklist!({ type: "diagram", id: diagram.key }, null) },
       addable.length > 0 && {
         label: "Add here",
         icon: "plus",

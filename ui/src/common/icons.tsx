@@ -48,6 +48,7 @@ const P: Record<string, string> = {
   warning: "M12 3 2 20h20L12 3Zm0 6v5m0 3v.01",
   bell: "M6 16V11a6 6 0 0 1 12 0v5l2 2H4l2-2Zm4 5a2 2 0 0 0 4 0",
   check: "m5 12 5 5 9-10",
+  checklist: "M4 6l2 2 3-3.5M4 13l2 2 3-3.5M4 20l2 2 3-3.5M12 6h8M12 13h8M12 20h8",
   dots: "M5 12h.01M12 12h.01M19 12h.01",
   chevron: "m6 9 6 6 6-6",
   pin: "M12 21s-6-5.6-6-11a6 6 0 0 1 12 0c0 5.4-6 11-6 11Zm0-9a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z",

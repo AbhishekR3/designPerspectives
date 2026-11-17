@@ -10,6 +10,7 @@ import { BmoSheet } from "../common/BmoSheet";
 import { Icon } from "../common/icons";
 import { errorMessage, notify } from "../common/notify";
 import { useBmoStatus } from "../hooks/useBmo";
+import type { ChecklistApi } from "../hooks/useChecklist";
 import type { Analysis, AppState, ImportDraftResult, ImportOverview, LevelAnalysis, ScanLevel } from "../types";
 import { HandoffPanel, PastePanel, ResultNotice, type HandoffRequest } from "./ImportBringIn";
 import { ImportIntake } from "./ImportIntake";
@@ -25,6 +26,37 @@ interface Props {
   onClose(): void;
   /** Open an import draft (closes the page). */
   onOpenDraft(draftId: string): void;
+  /** The checklist (DEC-084): BMO's questions land on it, and the import list is one of its starters. */
+  checklist: ChecklistApi;
+  /** Close this page and open the checklist card. */
+  onOpenChecklist(): void;
+}
+
+/** A line about the checklist: add the import list when it is not all on it yet, and the way to open it. */
+function ChecklistBlock({ checklist, onOpen }: { checklist: ChecklistApi; onOpen(): void }) {
+  const list = checklist.data?.starters.find((s) => s.id === "import");
+  const summary = checklist.data?.summary;
+  if (!list || !summary) return null;
+  const counted = summary.total - summary.skipped;
+  return (
+    <p className="row wrap small import-checklist" data-testid="import-checklist">
+      {list.added >= list.total && (
+        <span data-testid="import-checklist-progress">
+          Checklist: {summary.done} of {counted} done
+        </span>
+      )}
+      {list.added < list.total && checklist.can && (
+        <button onClick={() => void checklist.addStarter("import")} data-testid="import-add-checklist">
+          Add the import checklist
+        </button>
+      )}
+      {(list.added >= list.total || summary.total > 0) && (
+        <button className="ghost" onClick={onOpen} data-testid="import-open-checklist">
+          Open the checklist
+        </button>
+      )}
+    </p>
+  );
 }
 
 function Section({ id, title, intro, children }: { id: string; title: string; intro?: ReactNode; children: ReactNode }) {
@@ -37,7 +69,7 @@ function Section({ id, title, intro, children }: { id: string; title: string; in
   );
 }
 
-export function ImportPage({ state, refresh, onClose, onOpenDraft }: Props) {
+export function ImportPage({ state, refresh, onClose, onOpenDraft, checklist, onOpenChecklist }: Props) {
   const [overview, setOverview] = useState<ImportOverview | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
@@ -72,6 +104,7 @@ export function ImportPage({ state, refresh, onClose, onOpenDraft }: Props) {
   /** A draft was made: show what happened, and let the sidebar and the overview know. */
   const drafted = (r: ImportDraftResult) => {
     setMade(r);
+    void checklist.reload();
     void refresh().catch(() => undefined);
     void load();
   };
@@ -115,6 +148,7 @@ export function ImportPage({ state, refresh, onClose, onOpenDraft }: Props) {
             Your role cannot scan or import here. You can read what is on this page.
           </p>
         )}
+        {overview && <ChecklistBlock checklist={checklist} onOpen={onOpenChecklist} />}
         {overview && (
           <>
             <Section id="scan" title="What the scan found" intro="The scan reads only files, never BMO. The same code and settings always give the same numbers.">
@@ -140,7 +174,7 @@ export function ImportPage({ state, refresh, onClose, onOpenDraft }: Props) {
 
             <Section id="bring" title="Bring in a level" intro="Pick a level. It becomes a draft you review item by item; nothing reaches the main model until you apply it.">
               <BringIn state={state} bmoUsable={!!bmo?.canRun.ok} example={example} disabled={!canImport} onDraft={drafted} onOpenDraft={onOpenDraft} />
-              {made && <ResultNotice result={made} onOpenDraft={onOpenDraft} />}
+              {made && <ResultNotice result={made} onOpenDraft={onOpenDraft} onOpenChecklist={onOpenChecklist} />}
             </Section>
 
             <Section id="describe" title="From a description" intro="No code to read yet? Describe the system in words (up to 60 KB) and get a draft to review.">

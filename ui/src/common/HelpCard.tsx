@@ -6,6 +6,7 @@ const MOD = mac ? "Cmd" : "Ctrl";
 /** Every keyboard shortcut there is (see useShortcuts.ts), as key and what it does. */
 const SHORTCUTS: [string, string][] = [
   ["?", "Show or hide this help"],
+  ["L", "Show or hide the checklist"],
   [`${MOD}+K`, "Find an object or a diagram"],
   ["F2", "Rename the selected box (a line: its name in the panel)"],
   ["Delete", "Delete the selected box, boxes or line"],
@@ -58,6 +59,10 @@ export function HelpCard({ onClose }: { onClose(): void }) {
         <li>
           Comments: right-click a box, a line or empty space and choose Comment…, or use the speech-bubble button in the tools bar for the list of this diagram. Mark a note as a comment, an idea or a
           question; reply, then resolve it. Every role can do this, a viewer too.
+        </li>
+        <li>
+          Checklist: the Checklist button in the top bar (or L) opens a list of tasks, questions and assumptions. dp ticks the items it can check itself. Right-click a box, a line or empty space and
+          choose Add to checklist… to link an item to it.
         </li>
         <li>Dashed lines are derived from relationships between elements inside the boxes.</li>
         <li>Bottom left: colour boxes by a tag group, technology, characteristic or cost; click a value to focus on or hide those boxes.</li>

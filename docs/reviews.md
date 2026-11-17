@@ -6,6 +6,7 @@ File paths inside older sections are the paths at the time; see DEC-062 for the 
 
 ## Contents
 
+- [The checklist: starting a project, importing a codebase, BMO's questions](#the-checklist-starting-a-project-importing-a-codebase-bmos-questions)
 - [Interaction fixes: the small things that did not work](#interaction-fixes-the-small-things-that-did-not-work)
 - [System Testing mode (replaces the live UI inspector)](#system-testing-mode-replaces-the-live-ui-inspector)
 - [Canvas feedback round: code-level connections, notes, line shaping, BMO chat](#canvas-feedback-round-code-level-connections-notes-line-shaping-bmo-chat)
@@ -31,6 +32,41 @@ File paths inside older sections are the paths at the time; see DEC-062 for the 
 - [Stage A3 review: canvas-first layout, characteristics and cost](#stage-a3-review-canvas-first-layout-characteristics-and-cost)
 - [Stage A2 review: feature round of 14 November](#stage-a2-review-feature-round-of-14-november)
 - [Stage A review — Model and diagrams (Proof of Concept)](#stage-a-review--model-and-diagrams-proof-of-concept)
+
+## The checklist: starting a project, importing a codebase, BMO's questions
+
+Date: 2026-11-16. Branch: `feat/checklist` (from `fix/ui-interactions`). Decision: DEC-084.
+
+The owner asked for a checklist for importing a codebase or starting a project, which can be checked and changed quickly while modelling. A read of the import code found that BMO's `questions` and `assumptions` were parsed and then dropped: no route returned them and no screen showed them.
+
+### What was built
+
+- `architecture/checklist.json`, next to the model like the comments: `src/core/checklist.ts` (store, two starter lists, BMO's questions, answers as typed text), `src/core/checklistRules.ts` (16 rules dp checks itself), `src/server/routes/checklist.ts`, the action `checklist` in `auth.ts` (architects and engineers), `Permissions.checklist`.
+- The importer puts an import file's questions and assumptions on the checklist. `review.ts` finds `user` notes in checklist answers, and `importFeedback` sends the answers to BMO's next turn.
+- UI: `ui/src/common/Checklist.tsx` (the card beside the diagram), `ui/src/hooks/useChecklist.ts`, the top-bar button with the open count, the key L, **Add to checklist…** on the right-click menus, a bell item for open BMO questions, and a block on the Import code page.
+
+### How it was checked
+
+- `tests/unit/checklist.test.ts` (14 tests): changing items, bad input, a stable file, the cap, starter lists, rules against main and a draft, import rules, clear done, roles, BMO's questions from an import, answers that verify a note, and BMO item text that never counts. The whole unit suite passes (1008).
+- `tests/browser/checklist.spec.ts` (5 tests): L, starter list, quick add, tick, edit in place, note, delete, right-click add and the Selection filter, Show on a failing rule then Skip, the import page block, a viewer. The full browser suite passes (232). Two existing specs were adjusted: the menu keyboard test allows one more row, and the focus-reload test ignores `GET /api/checklist` as it does comments.
+
+### Limits
+
+- Not versioned with drafts and no undo for ticks (git is the record).
+- A rule cannot be overridden except by skipping it. On the demo, "containers" fails for the four internal systems that are shown empty on purpose.
+- BMO's questions are matched by exact words, so re-worded repeats are added again.
+- `GET /api/checklist` runs the rules each time, including the model check and a read of the scan. It is reloaded on every model change and on focus, even while the card is closed, because of the badge.
+- The Selection filter matches a selected box or line, not the diagram on screen.
+- Not tested in the browser: the BMO chip and section order, the bell item, and the "BMO asked N questions" notice (they need an import with questions; the unit tests cover the server side).
+
+### Questions for the owner
+
+1. Should viewers be able to answer BMO's questions (today only architects and engineers change the checklist)?
+2. Should confirming an assumption with one click count as evidence for the review, or stay as it is (the words must be typed, as DEC-064 asks)?
+3. Should `dp check` (or a `dp checklist` command) report open checklist items, for CI?
+
+### Owner feedback
+
 
 ## Interaction fixes: the small things that did not work
 

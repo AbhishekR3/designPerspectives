@@ -10,6 +10,8 @@ everywhere.
   then apply it to the main model.
 - **Lenses** show the same model differently for different audiences.
 - **Comments, ideas and questions** on any box, line or diagram, with replies and a resolved state.
+- **A checklist beside the diagram** for starting a project or importing a codebase. Items that dp can
+  check (labels, descriptions, the scan, the import review) tick themselves.
 - **Decision records** explain why the architecture is the way it is: the choice, the alternatives,
   and when another option would win. One Markdown file per decision, reviewed in drafts like the rest.
 - **Your files, on your machine.** The model is two JSON files in your repository (`architecture/`),
@@ -85,6 +87,10 @@ folders and imports. It uses no network and no model. Then:
    accept, reject, verify again, or tell BMO what is wrong.
 5. **Apply.** The accepted items go into the model. The rest stay in the draft; accept them later and
    apply again.
+
+Add the **Importing a codebase** checklist (press **L**, or use the Import code page) to follow these steps.
+The questions and assumptions in an import file go onto the checklist. Your answers count as typed text
+in the review and go to BMO in its next turn.
 
 Nothing imported is labelled in the model: there is no "imported" or "confidence" field. What came from
 the code, and the review, is kept in `architecture/import/`. Commands: `dp scan [PATH]`, `dp import FILE`,
@@ -222,7 +228,7 @@ person can change. The server checks every change, so the browser cannot bypass 
 | Viewer | Reads everything; changes nothing |
 
 Drafts made before sign-in was turned on have no author, so only architects can change them. Every
-role can write comments; a viewer can too. Git versions are read-only for everyone. Sessions end after
+role can write comments; a viewer can too. Architects and engineers change the checklist; a viewer reads it. Git versions are read-only for everyone. Sessions end after
 12 hours without activity and are lost when the server restarts. Five failed sign-ins lock a name for
 30 seconds.
 
@@ -239,6 +245,7 @@ The users file holds password hashes and must not be committed. `.dp/` is added 
 | File | What it holds |
 |---|---|
 | `architecture/workspace.json` | A [Structurizr](https://github.com/structurizr/structurizr) workspace: elements, relationships, views, positions, flows. Readable IDs (`api-application`), stable formatting for `git diff`. |
+| `architecture/checklist.json` | The checklist: tasks, questions and assumptions, with their answers and who ticked them. Created with the first item. Not part of the model. |
 | `architecture/comments.json` | Comments, ideas and questions about elements, relationships and diagrams, with replies and resolved state. Created with the first comment. Not part of the model. |
 | `architecture/designperspectives.json` | Tag groups, lenses, the list of characteristics and cost settings (data Structurizr has no place for). |
 | `architecture/decisions/NNNN-title.md` | One decision record each: a short front matter (`status`, `kind`, `date`, `deciders`, `affects`, `supersedes`, `tags`, `review-by`, `decide-by`, `expires`, `applies-to`), then `# Title` and the sections Context, Decision, Alternatives (`### Option` with "Why not now" and "Would choose if"), Consequences and Revisit triggers (a checklist). Other sections are kept. Part of the model: drafts, diffs and undo include them. |
@@ -420,6 +427,13 @@ hub, and not against a draft.
 - **Comments, ideas and questions**: right-click a box, a line or empty space and choose **Comment…**.
   Threads can be replied to and resolved. Comments are stored separately from the model, in
   `architecture/comments.json`, with no undo step and no place in drafts.
+- **Checklist**: **Checklist** in the top bar, or press **L**. Start from a list (*Starting a project*,
+  *Importing a codebase*) or add your own items. Tick, skip, answer, edit in place, link an item to the
+  selected box or line, and clear done items. Items that dp checks itself (no line says "Uses", every
+  container has a technology, the code is scanned, ...) tick themselves and can show what still fails, for
+  the version on screen. Right-click a box, a line or the canvas and choose **Add to checklist…** to add an
+  item about it. Kept in `architecture/checklist.json`, next to the model and not part of it. Architects and
+  engineers change it; viewers read it.
 - **In CI**: `dp check` fails the build on model problems; `dp diff --base <ref>` writes a Markdown summary
   for a pull request comment. Sample workflows are in [demo/ci-examples/](demo/ci-examples/).
 
@@ -466,7 +480,7 @@ Layout:
 |---|---|
 | `src/shared/types.ts` | API types and constants used by both the server and the UI |
 | `src/core/` | The model: `workspace.ts` file format, `designPerspectivesFile.ts` (designperspectives.json), `modelEdits.ts` all edits and rules, `diagrams.ts` what each level shows, `connectors.ts`, `flows.ts`, `validate.ts`, `project.ts` files and undo, `drafts.ts`, `merge.ts`, `diff.ts`, `codeMap.ts` code mapping, `codeFiles.ts`, `decisions.ts`, `catalog.ts`, `credentials.ts`, `users.ts`, `history.ts`, `git.ts` (read-only) |
-| `src/server/` | `app.ts` the HTTP app (Hono), `routeContext.ts` the shared context, `requestProtection.ts` request checks, `auth.ts` sign-in and roles, `hub.ts` the hub of projects, `interceptProxy.ts` and `testSession.ts` System Testing, `routes/` one module per area (readModel, drafts, model, sidecar, code, decisions, traces, testing, comments, hub, import, bmo, ui) |
+| `src/server/` | `app.ts` the HTTP app (Hono), `routeContext.ts` the shared context, `requestProtection.ts` request checks, `auth.ts` sign-in and roles, `hub.ts` the hub of projects, `interceptProxy.ts` and `testSession.ts` System Testing, `routes/` one module per area (readModel, drafts, model, sidecar, code, decisions, traces, testing, comments, checklist, hub, import, bmo, ui) |
 | `src/import/` | Codebase import (DEC-051): `scan.ts`, `knownServices.ts`, `intake.ts`, `analysis.ts`, `schema.ts`, `checks.ts`, `importer.ts`, `lastImport.ts`, `review.ts`, `importStatus.ts`, `unmappedCode.ts` |
 | `src/assistant/` | BMO, the optional assistant: `tasks.ts`, `prompts.ts`, `runTask.ts`, `backend.ts`, `handoffBackend.ts`, `providerBackend.ts` (Claude API, OpenAI API, Ollama), `settings.ts`, `redact.ts`, `codeExcerpts.ts`, `modelText.ts`, `importTasks.ts`, `fakeBackend.ts` (tests) |
 | `src/cli.ts` | the `dp` command |

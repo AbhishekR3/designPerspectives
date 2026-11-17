@@ -579,7 +579,7 @@ function makeImportDraft(
   plan: Planned,
   file: ImportFile,
   model: string | null,
-): { draftId: string; report: NonNullable<ReturnType<typeof importToDraft>>["report"]; warnings: FieldError[] } {
+): { draftId: string; report: NonNullable<ReturnType<typeof importToDraft>>["report"]; warnings: FieldError[]; checklistAdded: number } {
   const { env } = deps;
   const level = (plan.inputs as { level?: string }).level;
   const base = plan.task.id === "import-level" ? `BMO: import ${(level ?? "").toUpperCase()}` : (IMPORT_TITLE[plan.task.id] ?? "BMO import");
@@ -593,7 +593,7 @@ function makeImportDraft(
     code: env.disk,
     ...(plan.task.id === "describe-to-model" ? { sourceText: (plan.inputs as { text: string }).text } : {}),
   });
-  return { draftId: r.draftId, report: r.report, warnings: r.warnings };
+  return { draftId: r.draftId, report: r.report, warnings: r.warnings, checklistAdded: r.checklistAdded };
 }
 
 /**

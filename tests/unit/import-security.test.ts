@@ -49,7 +49,11 @@ describe("a model cannot mark its own output verified", () => {
     const id = await runTask(c, { task: "import-level", level: "c2" });
     const review = (await ok(c.at(`draft:${id}`).get("/api/import/review"))).review;
     expect(Object.values<any>(review.items).map((i) => i.level)).toEqual(["unverified", "unverified"]);
-    expect(review.items["object:exfil-service"].checks).toContainEqual({ rule: "user-note", ok: false, note: expect.stringMatching(/: not found in the intake, the feedback or the description$/) });
+    expect(review.items["object:exfil-service"].checks).toContainEqual({
+      rule: "user-note",
+      ok: false,
+      note: expect.stringMatching(/: not found in the intake, the feedback, the description or the checklist answers$/),
+    });
     const all = await ok(c.at(`draft:${id}`).post("/api/import/review/accept-all"));
     expect(all.accepted).toEqual([]);
     const applied = await c.post(`/api/drafts/${id}/apply`, {});

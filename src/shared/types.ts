@@ -394,6 +394,8 @@ export interface Permissions {
   import: boolean;
   /** Open intercept points and pause, change or answer live calls in the testing mode (architects and engineers; not on a --read-only server). */
   test: boolean;
+  /** Add, change, tick and delete checklist items (architects and engineers; not on a --read-only server; DEC-084). */
+  checklist: boolean;
 }
 
 // ------------------------------------------------------------------ decision records (DEC-050)
@@ -554,6 +556,99 @@ export interface CommentThread {
 }
 export interface CommentList {
   threads: CommentThread[];
+}
+
+// ------------------------------------------------------------------ the checklist (DEC-084)
+
+/** A thing to do, a question to answer, or an assumption to confirm or correct. */
+export const CHECKLIST_KINDS = ["task", "question", "assumption"] as const;
+export type ChecklistKind = (typeof CHECKLIST_KINDS)[number];
+export const CHECKLIST_KIND_LABEL: Record<ChecklistKind, string> = { task: "Task", question: "Question", assumption: "Assumption" };
+/** `skipped`: does not apply, or nobody knows; it no longer counts as open. */
+export const CHECKLIST_STATUSES = ["open", "done", "skipped"] as const;
+export type ChecklistStatus = (typeof CHECKLIST_STATUSES)[number];
+/** Where an item came from: typed by a person, a starter list, or the questions and assumptions of an import file. */
+export type ChecklistSource = "person" | "starter" | "bmo";
+
+/** What dp can check itself; an item with a rule ticks itself while the rule passes (checklistRules.ts). */
+export const CHECKLIST_RULES = [
+  "people",
+  "containers",
+  "descriptions",
+  "technology",
+  "labels",
+  "code-paths",
+  "decisions",
+  "flows",
+  "model-errors",
+  "intake",
+  "scan",
+  "level-c1",
+  "level-c2",
+  "level-c3",
+  "review",
+  "unmapped",
+] as const;
+export type ChecklistRule = (typeof CHECKLIST_RULES)[number];
+
+/** The result of a rule for the version shown. `ids`: the elements and relationships that fail it (at most 50). */
+export interface ChecklistCheck {
+  passing: boolean;
+  count: number;
+  detail: string;
+  ids: string[];
+}
+
+export interface ChecklistItem {
+  id: string;
+  kind: ChecklistKind;
+  /** The heading it is listed under. */
+  section: string;
+  text: string;
+  /** For an item with a rule, the status shown: done while the rule passes (unless skipped), open while it fails. */
+  status: ChecklistStatus;
+  /** What a person wrote: the answer to a question, a correction of an assumption, a note on a task. */
+  answer?: string;
+  answeredBy?: string;
+  answeredAt?: string;
+  /** What it is about, when it is about one object or diagram. */
+  target?: CommentTarget;
+  rule?: ChecklistRule;
+  source: ChecklistSource;
+  /** Starter items: the key in the starter lists (adding a list again skips the keys already there). */
+  starter?: string;
+  /** BMO items: the import draft whose file asked it. */
+  draft?: string;
+  author: string;
+  at: string;
+  doneBy?: string;
+  doneAt?: string;
+  /** Set by the server for the version shown: the rule's result. */
+  check?: ChecklistCheck;
+  /** Set by the server for the version shown: the target is not in it. */
+  missing?: boolean;
+}
+
+export interface ChecklistStarter {
+  id: string;
+  title: string;
+  description: string;
+  /** How many of its items are already on the checklist. */
+  added: number;
+  total: number;
+}
+
+export interface ChecklistResponse {
+  items: ChecklistItem[];
+  starters: ChecklistStarter[];
+  summary: {
+    open: number;
+    done: number;
+    skipped: number;
+    total: number;
+    /** Open questions and assumptions from BMO. */
+    fromBmo: number;
+  };
 }
 
 export interface AppState {
@@ -1534,6 +1629,8 @@ export interface ImportDraftResult {
   draftId: string;
   report: ImportReport;
   warnings: FieldError[];
+  /** How many of the file's questions and assumptions were added to the checklist (DEC-084). */
+  checklistAdded: number;
 }
 
 /** `GET /api/import/review` (the draft selected by X-DP-Model). */

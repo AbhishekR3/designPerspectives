@@ -79,7 +79,7 @@ export function registerImport(app: Hono, ctx: Ctx): void {
       author: author(c),
       ...(sourceText ? { sourceText } : {}),
     });
-    return { draftId: r.draftId, report: r.report, warnings: [...r.warnings, ...extra] };
+    return { draftId: r.draftId, report: r.report, warnings: [...r.warnings, ...extra], checklistAdded: r.checklistAdded };
   };
 
   // ---------------------------------------------------------------- the page

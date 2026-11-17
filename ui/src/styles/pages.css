@@ -940,6 +940,286 @@
 .bmo-chat-keys {
   margin: 0;
 }
+
+/* The checklist card (DEC-084): it takes the place of the BMO chat (same position and size), and only one is open at a time. */
+.checklist-card .checklist-head {
+  gap: var(--space-3);
+}
+.cl-bar {
+  height: 4px;
+  background: var(--raise);
+  flex: none;
+}
+.cl-bar span {
+  display: block;
+  height: 100%;
+  background: var(--green);
+  transition: width 0.2s;
+}
+.cl-filters {
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4) 0;
+  flex: none;
+}
+.cl-filters button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.cl-list {
+  gap: var(--space-4);
+}
+.cl-starters {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+.cl-starter {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  text-align: left;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--panel);
+  height: auto;
+}
+.cl-starter:hover {
+  border-color: var(--accent);
+}
+.cl-section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-2);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.cl-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.cl-item {
+  border-radius: var(--radius);
+  padding: var(--space-2) var(--space-2);
+}
+.cl-item:hover,
+.cl-item:focus-within {
+  background: var(--raise);
+}
+.cl-main {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+.cl-check {
+  flex: none;
+  margin: 3px 0 0;
+  width: 15px;
+  height: 15px;
+  padding: 0;
+  accent-color: var(--green);
+}
+.cl-mark {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  margin-top: 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  font-size: 10px;
+  line-height: 1;
+  color: var(--muted);
+  cursor: help;
+}
+.cl-mark.pass {
+  background: var(--green);
+  border-color: var(--green);
+  color: var(--bg);
+}
+.cl-mark.fail {
+  border-color: var(--amber);
+  color: var(--amber);
+}
+.cl-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.cl-text {
+  display: block;
+  width: 100%;
+  min-height: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  text-align: left;
+  color: var(--text);
+  font: inherit;
+  overflow-wrap: anywhere;
+  cursor: text;
+}
+.cl-text.plain {
+  cursor: default;
+}
+.cl-item.done .cl-text,
+.cl-item.done .cl-text.plain {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+.cl-item.skipped .cl-text,
+.cl-item.skipped .cl-meta {
+  color: var(--muted);
+}
+.cl-item.skipped {
+  opacity: 0.7;
+}
+.cl-edit {
+  width: 100%;
+  font: inherit;
+}
+.cl-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  align-items: center;
+}
+.cl-meta:empty {
+  display: none;
+}
+.cl-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 0;
+  padding: 0 6px;
+  font-size: 11px;
+  line-height: 17px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  color: var(--muted);
+  background: transparent;
+}
+.cl-chip.question {
+  color: var(--amber);
+  border-color: var(--warn-line);
+}
+.cl-chip.assumption {
+  color: var(--link);
+}
+.cl-chip.bmo {
+  color: var(--accent);
+}
+.cl-chip.missing {
+  font-style: italic;
+}
+button.cl-chip.target {
+  cursor: pointer;
+}
+button.cl-chip.target:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+.cl-detail {
+  margin: 0;
+  color: var(--amber);
+}
+.cl-answer {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+  width: 100%;
+  min-height: 0;
+  padding: var(--space-1) var(--space-3);
+  border: none;
+  border-left: 2px solid var(--line-strong);
+  border-radius: 0;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  color: var(--text);
+  cursor: text;
+}
+.cl-answer.plain {
+  cursor: default;
+}
+.cl-answer-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.cl-menu-wrap {
+  flex: none;
+  display: inline-flex;
+}
+.cl-menu-btn {
+  padding: 0 4px;
+}
+.cl-menu button.danger {
+  color: var(--danger);
+}
+.cl-menu-head {
+  padding: var(--space-2) var(--space-3) 0;
+}
+.cl-menu-input {
+  margin: var(--space-1);
+}
+.cl-compose {
+  flex: none;
+}
+.cl-add {
+  display: flex;
+  gap: var(--space-2);
+}
+.cl-add input {
+  flex: 1;
+  min-width: 0;
+}
+.cl-add select {
+  flex: none;
+}
+.cl-about {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.cl-about input {
+  flex: none;
+  width: auto;
+  padding: 0;
+}
+.cl-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.cl-readonly {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--line);
+}
+.import-checklist {
+  align-items: center;
+}
 .bmo-mentions {
   position: absolute;
   left: 0;
