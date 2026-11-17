@@ -6,6 +6,7 @@ File paths inside older sections are the paths at the time; see DEC-062 for the 
 
 ## Contents
 
+- [System Testing mode (replaces the live UI inspector)](#system-testing-mode-replaces-the-live-ui-inspector)
 - [Canvas feedback round: code-level connections, notes, line shaping, BMO chat](#canvas-feedback-round-code-level-connections-notes-line-shaping-bmo-chat)
 - [Repository clean-up: short root, one demo folder, one tests folder, readable names](#repository-clean-up-short-root-one-demo-folder-one-tests-folder-readable-names)
 - [Release 0.5.0: codebase to model and BMO](#release-050-codebase-to-model-and-bmo)
@@ -29,6 +30,61 @@ File paths inside older sections are the paths at the time; see DEC-062 for the 
 - [Stage A3 review: canvas-first layout, characteristics and cost](#stage-a3-review-canvas-first-layout-characteristics-and-cost)
 - [Stage A2 review: feature round of 14 November](#stage-a2-review-feature-round-of-14-november)
 - [Stage A review — Model and diagrams (Proof of Concept)](#stage-a-review--model-and-diagrams-proof-of-concept)
+
+## System Testing mode (replaces the live UI inspector)
+
+Date: 2026-11-16. Branch: `feat/system-testing-mode`. Decisions: DEC-074 (removal), DEC-075 (the mode), DEC-076 (`dp.run.url`).
+
+### What was built
+
+| Part | What it does now | Where |
+|---|---|---|
+| 1. Removal | The live UI inspector and the demo web app are gone: the framed app, its proxy, the page script, `POST /api/ui-proxy`, `POST /api/inspect`, `--allow-ui-host`, and port 4200. `dp serve --demo` starts nothing extra. | `src/demo/`, `demo/web-app/` (deleted) |
+| 2. Address field | An element has **Address it runs at** (`dp.run.url`, http or https, host and port, no path). `dp.ui.url` is still read. | `modelEdits.ts`, `ElementPanel.tsx`, `src/core/` |
+| 3. Intercept points and run log | **Test** in the toolbar turns the mode on. An intercept point is a port on 127.0.0.1 that forwards to the target; one point covers a caller's calls to one address. Calls are matched to relationships by `dp.endpoints`; the run log keeps the newest 200. | `src/server/interceptProxy.ts`, `src/server/testSession.ts`, `src/core/testing.ts`, `ui/src/testing/RunLog.tsx` |
+| 4. Breakpoints, pause, edit, continue, step, drop | Breakpoints on a line, object, flow step or pipeline stage, with method, path and conditions. A paused request can be changed or dropped; **Continue** (F8) and **Step** (F10) go on. | `testing.ts`, `ui/src/testing/TestingStrip.tsx`, `CallPanel.tsx` |
+| 5. Answering by hand, reply-side pause, resend, watches | A paused call can be answered by hand (status, body, delay). A reply can be paused and changed or dropped. A logged call can be sent again. Watched fields show across calls. | `CallPanel.tsx`, `Watches.tsx`, `messageEdit.ts` |
+| 6. Flows and pipelines with traces | A trace file picked in the mode marks its hops on the lines (watched) and on the boxes (not in the model). The flow player follows the paused call, and each step is marked live, watched or not live. | `ui/src/testing/TraceView.tsx`, `testingDecor.ts`, `src/server/routes/traces.ts`, `FlowPlayer.tsx` |
+
+Routes: `/api/testing*` in `src/server/routes/testing.ts`; `GET /api/traces*` in `src/server/routes/traces.ts`. Session state is in `.dp/testing.json` (mode 0600, outside git).
+
+### How it was checked
+
+- `npm run typecheck`, `npm run lint` and `npm run format:check` pass.
+- Unit tests: 984 passed at this point (`npm test`). New files: `testing-core` (which relationships a point covers, call matching, allowed targets, hiding and restoring values, breakpoints), `intercept-proxy` (real local listeners against a stand-in service: forwarding, the Host check, pass-through cases, pause, edit, drop, answer by hand, reply-side pause, step, automatic release, resend, watches, the saved port), `testing-api` (roles, a read-only server, a browser on another host, a hub, a bad session file), `testing-decor` (marks on the diagram, the step a call belongs to).
+- Browser tests: 193 passed at this point (`npm run test:browser`). `testing-mode.spec.ts` covers entering and leaving, a call in the run log, a breakpoint that pauses a real call which is changed and continued, F8, a call answered by hand, and a read-only server.
+- The built UI, the demo and `tests/TESTS.csv` are up to date (rebuild, `npm run make-demo` and `npm run test:list -- --check` change nothing).
+- By hand, in the built app against a stand-in service: a paused call on the line with its body editable and the card number hidden, F8, the set-up dialog, and the sample trace drawn as watched.
+- After the owner's answers: the mode in a hub (a unit test with two projects and the shared catalog) and the runnable demo system (`demo-system` and `demo-testing` unit tests: every hop is a real call, a paused fraud check answered by hand or changed turns an accepted payment into a held one; one more browser case through the demo payments service). Totals after that: 993 unit tests and 194 browser tests pass.
+- Not covered by a browser test: the flow player following a paused call, **Step into pipeline**, a stage's own intercept point, the trace picker, watched fields in the panel, and the strip when the mode is unavailable (a hub). The server side of each is unit-tested; the screens were only looked at.
+
+### Limits
+
+- Plain HTTP/1.1 only. No HTTPS, HTTP/2 or gRPC intercept points. A caller in a container cannot reach 127.0.0.1 on the host.
+- Bodies over 1 MB, compressed request bodies, event streams and WebSocket upgrades pass through and cannot be paused. `Accept-Encoding` is removed from forwarded requests so replies can be read.
+- A signed request fails once it is edited. A call held longer than the caller's own timeout fails at the caller, and a retrying caller makes a second paused call.
+- A relationship used by two steps of one flow cannot be told apart, so a step breakpoint stops both.
+- Masking is by field name. A secret in a plain-text body, or under a field name that does not look secret, is shown.
+- One session per project is shared by everyone who may test: the first release of a paused call wins.
+- Not against a draft. In a hub each project has its own session; the shared catalog has none.
+- `dp.run.url` is saved in the model, so it goes into git and is the same for everyone. One address per element; a service reached through two addresses cannot be described.
+- dp can now change live requests. An edit, a hand-written reply or a resend has real effects in the target.
+
+### Questions for the owner
+
+1. Should the mode work in a hub?
+2. Is one shared session per project right when several people test at once?
+3. Is a made-up trace enough for the demo, or should the demo get a small runnable system again?
+4. Which comes first next: saved test cases with `dp test`, or HTTPS intercept points?
+
+### Owner feedback
+
+Answered on 2026-11-16:
+
+1. Hub: "Whatever you think is best." Done: each project of a hub has its own session and its own `.dp/testing.json`; the shared catalog has none (DEC-075).
+2. One shared session per project: "Yes."
+3. Demo: "small runnable system as well." Done: DEC-077.
+4. What comes next: "Do whatever you think is best." Chosen: saved test cases with a `dp test` runner come before HTTPS intercept points. Reason (interpretation): test cases give a repeatable check in CI and need no certificates, while HTTPS points need a decision on certificates first. Not built in this round: where a test gets the hidden values of a saved call from is not settled, and that needs the owner.
 
 ## Canvas feedback round: code-level connections, notes, line shaping, BMO chat
 

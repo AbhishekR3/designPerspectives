@@ -39,7 +39,7 @@ const ELEMENT_FIELDS: [string, string][] = [
   ["technologies", "Technology"],
   ["external", "External"],
   ["url", "URL"],
-  ["uiUrl", "Live UI address"],
+  ["runUrl", "Address it runs at"],
   ["otelService", "Service name in traces"],
   ["owner", "Owner"],
   ["archType", "Symbol"],

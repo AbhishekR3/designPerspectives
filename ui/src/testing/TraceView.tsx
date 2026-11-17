@@ -1,30 +1,30 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
-import type { AppState, ObservedSpan, ObservedTrace } from "../types";
+import type { AppState, ObservedSpan, ObservedTrace, TraceList } from "../types";
 
 /** Re-asks for a trace while its spans arrive: exporters write a little after the response. */
 const RETRY_MS = [400, 800, 1500, 3000, 6000];
 
-/**
- * A trace from the trace files laid over the model: the steps the request took between elements
- * (each marked with the relationship it uses, or as not in the model), services no element
- * matches, and the spans themselves.
- */
-export function ObservedTraceView({ traceId, uiElementId, state, onReveal }: { traceId: string; uiElementId: string | null; state: AppState; onReveal(id: string): void }) {
-  const [trace, setTrace] = useState<ObservedTrace | null>(null);
-  const [missing, setMissing] = useState(false);
+export interface TraceData {
+  trace: ObservedTrace | null;
+  /** The trace was not found, even after asking again. */
+  missing: boolean;
+}
 
+/** One trace by its ID, asked again while its spans arrive (null: nothing is asked). */
+export function useObservedTrace(traceId: string | null): TraceData {
+  const [data, setData] = useState<TraceData & { id: string | null }>({ id: null, trace: null, missing: false });
   useEffect(() => {
+    if (!traceId) return;
     let live = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let tries = 0;
     let last = -1;
     const ask = () => {
-      api.trace(traceId, uiElementId).then(
+      api.trace(traceId, null).then(
         (t) => {
           if (!live) return;
-          setTrace(t);
-          setMissing(false);
+          setData({ id: traceId, trace: t, missing: false });
           // Ask again until the span count stops growing.
           if (t.spanCount !== last && tries < RETRY_MS.length) {
             last = t.spanCount;
@@ -34,7 +34,7 @@ export function ObservedTraceView({ traceId, uiElementId, state, onReveal }: { t
         () => {
           if (!live) return;
           if (tries < RETRY_MS.length) timer = setTimeout(ask, RETRY_MS[tries++]);
-          else setMissing(true);
+          else setData({ id: traceId, trace: null, missing: true });
         },
       );
     };
@@ -43,8 +43,36 @@ export function ObservedTraceView({ traceId, uiElementId, state, onReveal }: { t
       live = false;
       clearTimeout(timer);
     };
-  }, [traceId, uiElementId, state]);
+  }, [traceId]);
+  return data.id === traceId ? data : { trace: null, missing: false };
+}
 
+/** The newest traces in the trace files, asked again with `refresh()`. Nothing is asked while `on` is false. */
+export function useRecentTraces(on: boolean) {
+  const [list, setList] = useState<TraceList | null>(null);
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    if (!on) return;
+    let live = true;
+    api.traces(20).then(
+      (l) => live && setList(l),
+      () => undefined,
+    );
+    return () => {
+      live = false;
+    };
+  }, [on, tick]);
+  return { list, refresh: () => setTick((t) => t + 1) };
+}
+
+/**
+ * A trace from the trace files laid over the model: the steps the request took between elements
+ * (each marked with the relationship it uses, or as not in the model), services no element
+ * matches, and the spans themselves. With `data` the trace is already loaded; without it the view asks for it itself.
+ */
+export function TraceView({ traceId, data, state, onReveal }: { traceId: string; data?: TraceData; state: AppState; onReveal(id: string): void }) {
+  const own = useObservedTrace(data ? null : traceId);
+  const { trace, missing } = data ?? own;
   const name = (id: string | null) => (id ? (state.elements.find((e) => e.id === id)?.name ?? id) : "?");
   if (!trace)
     return (
@@ -124,25 +152,15 @@ function SpanRow({ span, depth, total, element }: { span: ObservedSpan; depth: n
 }
 
 /** The newest traces in the trace files; picking one shows it over the model. */
-export function RecentTraces({ state, uiElementId, onReveal }: { state: AppState; uiElementId: string | null; onReveal(id: string): void }) {
-  const [list, setList] = useState<Awaited<ReturnType<typeof api.traces>> | null>(null);
+export function RecentTraces({ state, onReveal }: { state: AppState; onReveal(id: string): void }) {
   const [picked, setPicked] = useState<string | null>(null);
-  const [tick, setTick] = useState(0);
-  useEffect(() => {
-    let live = true;
-    api.traces(20).then(
-      (l) => live && setList(l),
-      () => undefined,
-    );
-    return () => {
-      live = false;
-    };
-  }, [tick]);
+  const [open, setOpen] = useState(false);
+  const { list, refresh } = useRecentTraces(open);
   return (
-    <details className="inspector-bg" data-testid="recent-traces" onToggle={(e) => (e.target as HTMLDetailsElement).open && setTick((t) => t + 1)}>
+    <details className="trace-list" data-testid="recent-traces" onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)}>
       <summary className="muted small">Recent traces{list ? ` (${list.traces.length})` : ""}</summary>
       {list && !list.exists && <div className="muted small">No trace folder at {list.dir}. Point dp at one with dp serve --traces &lt;folder&gt;.</div>}
-      <button className="small" onClick={() => setTick((t) => t + 1)}>
+      <button className="small" onClick={refresh}>
         Refresh
       </button>
       <ul>
@@ -154,7 +172,7 @@ export function RecentTraces({ state, uiElementId, onReveal }: { state: AppState
             <span className="muted">
               {t.service} · {t.durationMs} ms · {new Date(t.start).toLocaleTimeString()}
             </span>
-            {picked === t.traceId && <ObservedTraceView traceId={t.traceId} uiElementId={uiElementId} state={state} onReveal={onReveal} />}
+            {picked === t.traceId && <TraceView traceId={t.traceId} state={state} onReveal={onReveal} />}
           </li>
         ))}
       </ul>

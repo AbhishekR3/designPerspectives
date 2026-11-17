@@ -11,7 +11,8 @@ Everything in this folder is sample material for learning designPerspectives: a 
 | `drafts/` | A sample draft: a planned change to read, compare and apply |
 | `history.json` | The made-up git history a new demo folder starts with (for backtracking) |
 | `sample_code/` | The example source code the model points to (Python and TypeScript; copied to `sample_code/` in your demo folder) |
-| `web-app/` | The small demo bank web app that `dp serve --demo` runs on port 4200 (for the live UI inspector) |
+| `traces/` | One made-up OpenTelemetry trace file (`sample.jsonl`), copied to `traces/` of a demo project, for System Testing mode |
+| `web-app/` | The page of the demo system: a small "Internet banking" page that calls real services, started by `dp serve --demo` |
 | `hub/` | A demo hub: a shared catalog and two projects (`dp init --hub --demo` copies it) |
 | `import-example.json` | An example code import file (`dp import --schema` prints its schema) |
 | `ci-examples/` | Example CI jobs that run `dp check` and `dp diff` on pull requests (GitHub Actions and GitLab CI) |
@@ -32,7 +33,9 @@ mkdir bank-demo && cd bank-demo
 dp serve --demo
 ```
 
-This creates `architecture/` (the model) and `sample_code/` (the code the model points to), then opens the app in your browser at `http://127.0.0.1:8765`. A new demo folder also becomes a git repository with four made-up commits (the last one two days ago), so backtracking (stop 8) has history to show; this is skipped when the folder is already inside a git repository. `dp serve --demo` also runs a small demo bank web app at `http://127.0.0.1:4200` (stop 9), which writes OpenTelemetry traces to `traces/`.
+This creates `architecture/` (the model) and `sample_code/` (the code the model points to), then opens the app in your browser at `http://127.0.0.1:8765`. A new demo folder also becomes a git repository with four made-up commits (the last one two days ago), so backtracking (stop 8) has history to show; this is skipped when the folder is already inside a git repository. A demo folder also gets `traces/` with one made-up OpenTelemetry trace for System Testing mode (stop 9).
+
+`dp serve --demo` also starts the demo system: five small services that really run, on ports 4200 to 4204 on this machine. The page is at `http://127.0.0.1:4200/`. Each service calls the next over real HTTP, so there is something live to pause (stop 9). If one of those ports is in use, dp says so and starts without the demo system; everything else works. It is not started in a hub.
 
 What is in the model:
 
@@ -132,14 +135,21 @@ The statement pipeline has a known issue, listed under its linked work: the prin
 
 Backtrack also works from a flow step (the **Backtrack from this step** button in the flow panel) and from any stage panel.
 
-### 9. Watch the web app
+### 9. See a run on the diagram
 
-On the Internet Banking System containers diagram, click **Single-Page Application** and then **Inspect live UI**. The demo bank web app opens inside dp. Click **Pay now**:
+**A sample trace.** Click **Test** in the toolbar to turn on System Testing mode. In the trace list above the canvas, pick the sample trace (`traces/sample.jsonl`, one made-up request). The lines it used are marked as watched, and the exchange-rate lookup shows as not in the model, because the model does not have that service.
 
-- the side panel shows the call `POST /api/payments`, the relationship it uses, what was sent and returned (the password and IBAN fields are masked), and the documented example;
-- **Observed in traces** shows the path the request really took, read from the trace file the app wrote: controller, session cache, orchestrator, validator, fraud check, mainframe, event publisher. Every step has a relationship in the model.
+**Pause a real call.** This needs the demo system (see "Start the demo").
 
-Now click **Today's rates**. The call matches no endpoint (add it to a relationship with one click), and the trace reaches `fx-rates-provider`, which the model does not have: the panel says the running system differs from the model. **Show statements** shows a closing balance of €1,202.47 while the account says €1,202.48: the issue from stop 8.
+1. Open `http://127.0.0.1:4200/` in a second tab. It is a small banking page with made-up data.
+2. In dp, with **Test** on, open the **Payments Service** diagram. Select the line from the **Fraud Check Client** to the **Fraud Detection System**, and press **Open intercept point**.
+3. Turn on **Breakpoint** for that line.
+4. On the demo page, press **Pay**. The call pauses on the line in dp.
+5. In the paused call, change `amount` to `9000` and press **Continue**. The page shows the payment came back held for review (status 202), where the normal answer is accepted (201).
+
+In the demo the services follow open points by themselves: each one asks dp where to send its call, so opening a point takes effect at once. In your own system you set the calling service's base URL to the port dp shows. The line from the Payment Orchestrator to the Mainframe is a message queue in the model, so it shows as not live: only HTTP calls can be paused.
+
+To try a live pause on a service of your own: set its **Address it runs at**, open an intercept point on one of its lines, and point the calling service's base URL at the port dp shows. Then set a breakpoint and watch the call pause on the diagram (see [System Testing mode](../README.md#system-testing-mode)).
 
 ### 10. Find anything
 

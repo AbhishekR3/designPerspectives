@@ -229,12 +229,31 @@ export class Hub {
   load(id: string, root: string): { app: Hono; ctx: Ctx } {
     const hit = this.apps.get(id);
     if (hit && hit.root === root) return hit;
+    // Its folder changed: the old app's intercept points and paused calls go with it.
+    if (hit) void hit.ctx.testing.close();
     // Each project keeps its own code folder (its own root), traces folder and comments.
     const catalog = id === CATALOG_ID ? () => null : () => this.catalogWorkspace();
-    const built = buildApp(root, { ...this.opts, codeRoot: null, tracesDir: null, usersFile: null, auth: this.auth, hub: true, catalog, projectId: id, credentials: this.credentials });
+    const built = buildApp(root, {
+      ...this.opts,
+      codeRoot: null,
+      tracesDir: null,
+      // Each project has its own testing session (its own `.dp/testing.json`). The catalog describes shared parts, not a running system.
+      testingOff: id === CATALOG_ID ? "The shared catalog has no running system to test. Open a project." : null,
+      usersFile: null,
+      auth: this.auth,
+      hub: true,
+      catalog,
+      projectId: id,
+      credentials: this.credentials,
+    });
     const entry = { root, ...built };
     this.apps.set(id, entry);
     return entry;
+  }
+
+  /** Close every project's testing session: intercept points, paused calls, waiting pages. */
+  async close(): Promise<void> {
+    await Promise.all([...this.apps.values()].map((a) => a.ctx.testing.close()));
   }
 
   /** The catalog's main model (null: no catalog, or it cannot be loaded). */

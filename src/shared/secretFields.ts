@@ -1,7 +1,6 @@
 /**
  * Field names whose values are hidden ("•••") wherever dp shows data observed in a running system:
  * secrets (passwords, tokens, keys, cookies) and personal financial data (card numbers, IBANs).
- * The live UI script (src/server/liveUiInspectScript.ts) carries the same list as text; keep them equal.
  */
 export const SECRET_FIELD = /pass(word|wd)?$|secret|token|authori[sz]ation|cookie|session|api[-_.]?key|ssn|cvv|cvc|card[-_.]?(number|no)|pan$|iban|pin$/i;
 
@@ -82,7 +81,7 @@ const KEY_COMPOUND = /^(api|secret|private|access|signing|encryption|auth|master
  * words `passphrase`, `pwd`, `credential(s)`, `private`, and `<kind>_key` / `<kind>Key` (`PRIVATE_KEY`,
  * `ENCRYPTION_KEY`, `stripeKey`) unless the kind says it is no secret (`PRIMARY_KEY`, `partition_key`). A bare
  * `key`, `KEY_ID` and words that only contain it (`keyboard`, `monkey`) are not. SECRET_FIELD itself is kept as it
- * is: the live-trace masking and the inspect script share it.
+ * is: the trace masking shares it.
  */
 export function isSecretName(name: string): boolean {
   if (SECRET_FIELD.test(name)) return true;

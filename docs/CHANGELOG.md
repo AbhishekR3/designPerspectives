@@ -11,14 +11,21 @@
 - **BMO chat** (DEC-073). **Ask BMO…** opens a chat beside the diagram. Type `[` to refer to an object (`[Internet Banking System]`). Each message shows what will be sent and goes only when you confirm it.
 - **Flow steps show input and output.** The current step shows what the sender sends and what the receiver gets, where the data came from and where it goes next, the files at both ends, endpoints, data read or written, stages, sensitive data and open work. Each step in the list has a one-line summary.
 - **Tooltips.** Hovering a box, a symbol, a badge or an icon button shows what it is.
+- **System Testing mode** (DEC-075). Click **Test** in the toolbar to see live HTTP calls on the diagram and change them before they reach their target. An intercept point is a port on 127.0.0.1 that forwards to the target; a breakpoint on a line, object, flow step or pipeline stage pauses a call, which can be changed, continued, dropped or answered by hand. The run log keeps the newest 200 calls, and a trace file picked in the mode is drawn on the diagram. Only architects and engineers can use it, and it is for local or test targets: plain HTTP/1.1 only, and not against a draft. In a hub each project has its own testing session.
+- **A runnable demo system** (DEC-077). `dp serve --demo` also starts five small services on ports 4200 to 4204 (a banking page, an API, a payments service, a mainframe stand-in and a fraud service). Each calls the next over real HTTP, so System Testing mode has live calls to pause in the demo. The services ask dp where to send each call, so an open intercept point takes effect at once. If a port is in use, dp says so and starts without it. `demo/web-app/` holds the page.
+- **Address it runs at** (DEC-076). An element can carry the address it runs at (`dp.run.url`, http or https, host and port, no path). System Testing forwards to it, and a relationship's target is the address of its destination or of its nearest parent that has one.
 
-### Changed
 - **A diagram's cost is the cost of what it is about** (DEC-068). A container diagram shows the system's own monthly cost (for example $8,690 for Internet Banking System, not the $33K of everything drawn), with costly boxes around it in an "Outside this system" row.
 - **Comment kinds have their own colours:** comment blue, idea green, question amber, on the canvas pins as well.
 - **Near-straight lines are straight** (DEC-071). A jog of a few pixels in a planned line is removed, and a line dragged to within a few pixels (or 2°) of straight snaps straight.
 - **A change by hand moves only what it touches** (DEC-067). Dragging or nudging a box, or adding or removing a line, redraws only the lines at the boxes that changed; every other line and label stays where it was. Every line is planned again only when a diagram opens and when you choose Auto-layout, Make room or Spread out.
 - **Repository layout** (DEC-066). The root holds only `README.md`, `LICENSE`, `package.json`, `package-lock.json` and `.gitignore`; tool settings are in `config/`; the changelog and the one contributing, conduct and security guide are in `docs/`. The demo tour, example CI jobs and the demo credits (formerly `NOTICE`) are in `demo/`. Tests are in `tests/unit/` and `tests/browser/` (`npm run test:browser`, formerly `test:e2e`), and `tests/TESTS.csv` lists every test (`npm run test:list`).
 - **Readable file names.** The built UI is `app.js`, `app.css` and `diagram-layout.js`, revalidated with an ETag instead of cached for a year. Unclear source files are renamed (for example `ops.ts` → `modelEdits.ts`, `src/bmo/` → `src/assistant/`).
+- `dp.ui.url` is now `dp.run.url` (the old key is still read).
+- `--allow-ui-host` is replaced by `--allow-target-host`.
+
+### Removed
+- **The live UI inspector and the old demo web app** (DEC-074). The **Inspect live UI** button, `POST /api/ui-proxy`, `POST /api/inspect`, the flag `--allow-ui-host`, and the old single-process demo web app (which wrote its own traces) are gone. The demo system (DEC-077) replaces the web app, and System Testing mode replaces the inspector.
 
 ## 0.5.0 — 2026-11-16
 

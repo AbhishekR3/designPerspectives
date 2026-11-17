@@ -1,0 +1,327 @@
+/* System testing mode: the strip, the run log, a call, the marks on the diagram, the intercept points dialog, and traces. */
+
+/* Tools bar button and the strip above the canvas. */
+.testing-btn.on {
+  color: var(--accent);
+}
+.testing-strip {
+  background: #132b22;
+  border-bottom-color: #1f6a47;
+  color: #cdeede;
+}
+.testing-strip .strip-title {
+  flex: 0 0 auto;
+}
+.testing-strip .paused-count {
+  color: var(--amber);
+  font-weight: 600;
+}
+.testing-strip button.active {
+  background: #1f6a47;
+  color: #fff;
+}
+.testing-trace-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.testing-trace-pick select {
+  max-width: 13em;
+}
+
+/* The marks on lines and boxes. */
+.bp-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 4px;
+}
+.bp-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 2px solid var(--danger);
+  background: var(--danger);
+  box-sizing: border-box;
+}
+.bp-badge.hollow .bp-dot,
+.bp-badge.off .bp-dot {
+  background: transparent;
+}
+.bp-badge.off .bp-dot {
+  border-color: var(--muted);
+}
+.point-badge.open {
+  color: var(--green);
+  border-color: var(--green);
+}
+.point-badge.saved {
+  color: var(--muted);
+  border-style: dashed;
+}
+.paused-badge {
+  background: var(--amber);
+  color: #1a1203;
+  border-color: var(--amber);
+  font-weight: 600;
+}
+.watched-badge {
+  color: var(--accent);
+  border-color: #1e5670;
+}
+.watched-badge.failed {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+.drift-badge {
+  color: var(--amber);
+  border-color: var(--warn-line);
+  background: var(--warn-bg);
+  white-space: normal;
+}
+.node-testing {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: -11px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  z-index: var(--z-ov-chip);
+  pointer-events: none;
+}
+.node-testing .badge {
+  background: #111316;
+}
+
+/* Flow steps while testing. */
+.live-word {
+  font-size: 11px;
+  border-radius: 999px;
+  padding: 0 6px;
+  border: 1px solid var(--line-strong);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.live-word.live {
+  color: var(--green);
+  border-color: var(--green);
+}
+.live-word.watched {
+  color: var(--accent);
+  border-color: #1e5670;
+}
+.step-testing {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-left: var(--space-3);
+}
+.step-bp {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 5px;
+  min-height: 0;
+  background: transparent;
+  border-color: transparent;
+}
+.step-bp .bp-dot {
+  background: transparent;
+}
+.step-bp.on .bp-dot {
+  background: var(--danger);
+}
+
+/* Right-hand panel: the block above an object, the run log, a call. */
+.testing-block,
+.call-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  border-bottom: 1px solid var(--line);
+}
+.point-controls,
+.bp-controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.point-url {
+  flex: 1;
+  min-width: 0;
+  padding: 2px 6px;
+  background: var(--raise);
+  border-radius: var(--radius-sm);
+}
+.bp-cond input,
+.bp-cond select {
+  min-width: 0;
+  flex: 1;
+}
+.run-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.run-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  text-align: left;
+  font-size: 12px;
+  padding: 3px var(--space-2);
+}
+.run-row.on {
+  border-color: var(--accent);
+}
+.run-row.paused {
+  border-color: var(--amber);
+  background: var(--warn-bg);
+}
+.run-row.failed .run-status {
+  color: var(--danger);
+}
+.run-method {
+  font-weight: 600;
+}
+.run-path {
+  flex: 1 1 8em;
+  min-width: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.run-state.paused {
+  color: var(--amber);
+  font-weight: 600;
+}
+.watch {
+  margin-top: var(--space-2);
+}
+.watch-table td {
+  padding: 0 var(--space-3) 0 0;
+}
+.msg-edit {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.msg-edit .grow {
+  flex: 1;
+  min-width: 0;
+}
+.msg-method {
+  width: 7em;
+  flex: none;
+}
+.msg-edit textarea,
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+.call-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* The intercept points dialog. */
+.setup-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  overflow-x: auto;
+}
+.points-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.points-table th,
+.points-table td {
+  text-align: left;
+  padding: var(--space-2) var(--space-3) var(--space-2) 0;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+.point-state.open {
+  color: var(--green);
+}
+.point-state.error {
+  color: var(--danger);
+}
+.point-state.saved {
+  color: var(--muted);
+}
+
+/* A trace from the trace files over the model (TraceView.tsx). */
+.observed {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: var(--space-2) var(--space-3);
+}
+.observed-hops {
+  margin: 0;
+  padding-left: var(--space-5);
+  font-size: 12px;
+}
+.observed-hops li.drift {
+  color: var(--amber);
+}
+.observed-drift {
+  border: 1px solid var(--warn-line);
+  background: var(--warn-bg);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2);
+}
+.spans {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: var(--space-1);
+}
+.span-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) 4.5em;
+  gap: var(--space-2);
+  align-items: center;
+  font-size: 12px;
+}
+.span-name {
+  display: flex;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.span-bar {
+  position: relative;
+  height: 8px;
+  background: var(--raise);
+  border-radius: 4px;
+}
+.span-bar span {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--accent);
+  border-radius: 4px;
+}
+.span-row.failed .span-bar span {
+  background: var(--danger);
+}
+.span-ms {
+  text-align: right;
+}
+.span-error {
+  grid-column: 1 / -1;
+  color: var(--danger);
+}
+.trace-list ul {
+  margin: var(--space-2) 0 0;
+  padding-left: var(--space-5);
+}

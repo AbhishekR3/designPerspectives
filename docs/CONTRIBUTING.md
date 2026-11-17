@@ -109,7 +109,7 @@ The pull request template lists these items.
 
 ## Where things are
 
-`.claude/CLAUDE.md` has an Architecture section that maps each source folder and file to its job. `docs/README.md` indexes the rest of the documentation, including the decisions, the backlog and the stage reviews in `docs/reviews.md`. `demo/README.md` explains the demo and sample files.
+`.claude/CLAUDE.md` has an Architecture section that maps each source folder and file to its job. `docs/README.md` indexes the rest of the documentation, including the decisions, the future tasks and backlog, and the stage reviews in `docs/reviews.md`. `demo/README.md` explains the demo and sample files.
 
 # Code of conduct
 
@@ -175,7 +175,29 @@ designPerspectives is a local tool. In plain words:
 - In a hub (`dp serve --hub`), no project folder may hold the hub folder or another project, so one project's code routes cannot reach another's model, `hub.json` or the shared catalog. No project folder may be hidden (such as `.dp` or `.git`), as written or through a link, and a project added from the browser must be a folder inside the hub.
 - `hub.json` is trusted. It is checked when the hub loads, but a hand-written entry can still point outside the hub folder. Write only entries you trust.
 - Integration credentials are kept in `.dp/credentials.json` (mode 0600, ignored by git). They are plain text on disk unless `DP_SECRET_KEY` is set, which encrypts them with AES-256-GCM. Their values are never sent to the browser or printed; only architects manage them.
-- The server reaches out to the network only when someone clicks **Refresh status from GitHub**: it calls `api.github.com` for the GitHub links in linked work, with the stored `github` credential if there is one.
+- The server reaches out to the network in three cases only, each started by a person: **Refresh status from GitHub** (it calls `api.github.com` for the GitHub links in linked work, with the stored `github` credential if there is one), a BMO run with the `direct` backend (below), and a call that passes an intercept point in System Testing mode (below).
+
+## System Testing mode
+
+These rules apply when someone turns on **Test** and opens an intercept point (DEC-075).
+
+**What dp listens on.** Each intercept point is one more port on `127.0.0.1`, opened when a person asks for it. A point answers only requests addressed to itself on this machine; a request that reaches it under another host name gets 403.
+
+**Where it forwards.** Only to the address the element runs at in the main model (`dp.run.url`). The address never comes from a request and never from a draft. It must be on this machine, unless its host was named at start with `--allow-target-host`. Link-local and cloud metadata addresses are always refused. dp's own session cookie is never forwarded.
+
+**Who may use it.** Architects and engineers, and only from a browser on the machine that runs `dp serve`. Viewers and `--read-only` servers cannot open a point, see a call or release one. Whoever may change the main model decides where a point forwards, because the address is part of the model.
+
+**dp can change live requests.** A person with the testing right can change a paused request or reply, answer a call themselves, drop it, or send a logged call again. These have real effects in the target system. Use the mode against local and test systems.
+
+**What is kept.** Calls and their bodies are kept in server memory only (the newest 200 calls, 32 MB of bodies) and are gone when dp stops. `.dp/testing.json` (mode 0600, ignored by git) holds port numbers, breakpoints, watched fields and the hold time.
+
+**Hidden values and their limit.** The browser gets values that look secret as `•••`: fields whose names look secret at every depth of a JSON or form body, the query, and the headers `Authorization`, `Cookie`, `Set-Cookie` and `X-Api-Key`. A value left as `•••` in an edit keeps the real value; `•••` anywhere else is refused. Hiding is by field name: a secret inside a plain-text body, or under a name that does not look secret, is shown to everyone with the testing right. **Save as the example** writes the shown text into the model, and so into git.
+
+**A paused call cannot hang a system for ever.** It is released unchanged after 120 seconds (settable from 10 to 600), at most 20 calls are paused at once, and all are released when no testing page is open or dp stops.
+
+**The demo system.** `dp serve --demo` also starts five small services on `127.0.0.1`, ports 4200 to 4204 (DEC-077). They hold made-up data, serve only their own fixed files and call only each other, or an intercept point of the same dp. Without `--demo` nothing of this starts.
+
+**Limits.** A point speaks plain HTTP/1.1. Bodies over 1 MB, compressed request bodies, event streams and WebSocket connections pass through and cannot be paused. dp removes `Accept-Encoding` from the requests it forwards. An allowed host name is not checked again after it is resolved.
 
 ## Code import and BMO
 

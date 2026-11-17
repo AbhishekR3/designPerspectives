@@ -203,7 +203,7 @@ export function EdgePanel({ edgeId, ...p }: Common & { edgeId: string }) {
             onCommit={(v) => save({ endpoints: v })}
             testId="field-rel-endpoints"
           />
-          <p className="muted small">Used by the live UI inspector to match calls. ":name" matches one path segment, a final "*" the rest.</p>
+          <p className="muted small">Used to match a call seen in a running system to this relationship. ":name" matches one path segment, a final "*" the rest.</p>
         </Section>
       )}
       {state.readOnly && r.endpoints.length > 0 && (

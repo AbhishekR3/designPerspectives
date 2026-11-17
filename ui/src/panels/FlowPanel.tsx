@@ -5,6 +5,7 @@ import type { AppState, Flow, FlowStep } from "../types";
 import { confirmDialog } from "../common/dialogs";
 import { SamplePayload } from "../inspect/SamplePayload";
 import { stepInfo, stepSummaryLine, type StepEnd, type StepInfo } from "./flowStepInfo";
+import { LIVENESS_LABEL, type FlowTesting } from "../testing/flowTesting";
 
 export function FlowPanel({
   flow,
@@ -15,6 +16,7 @@ export function FlowPanel({
   setFlowStep,
   onBacktrack,
   onOpenDiagram,
+  testing,
 }: {
   flow: Flow;
   state: AppState;
@@ -25,6 +27,8 @@ export function FlowPanel({
   onBacktrack(q: { flow: string; step: number }): void;
   /** Open a diagram (the code diagram of an end of the step). */
   onOpenDiagram?(key: string): void;
+  /** System testing mode: each step's liveness, its breakpoint, and a way into its pipeline. */
+  testing?: FlowTesting;
 }) {
   const [filter, setFilter] = useState("");
   const [pick, setPick] = useState("");
@@ -90,6 +94,30 @@ export function FlowPanel({
               <button className="link" onClick={() => setFlowStep(i)} title="Show this step">
                 {relLabel(s.relationshipId)}
               </button>
+              {testing && (
+                <span className="step-testing">
+                  <span className={`live-word ${testing.liveness(s)}`} data-testid={`step-live-${i}`}>
+                    {LIVENESS_LABEL[testing.liveness(s)]}
+                  </span>
+                  {s.order && (
+                    <button
+                      className={`step-bp${testing.hasBreakpoint(s) ? " on" : ""}`}
+                      onClick={() => testing.toggleBreakpoint(s)}
+                      aria-pressed={testing.hasBreakpoint(s)}
+                      aria-label={`Breakpoint on step ${i + 1}`}
+                      title="Pause the call of this step"
+                      data-testid={`step-bp-${i}`}
+                    >
+                      <span className="bp-dot" />
+                    </button>
+                  )}
+                  {onOpenDiagram && (state.relationships.find((r) => r.id === s.relationshipId)?.stages.length ?? 0) > 0 && (
+                    <button className="link small" onClick={() => onOpenDiagram(`connector-${s.relationshipId}`)} data-testid={`step-into-${i}`}>
+                      Step into pipeline
+                    </button>
+                  )}
+                </span>
+              )}
               {!state.readOnly && (
                 <span className="step-tools">
                   <button className="icon" disabled={i === 0} onClick={() => move(i, -1)} aria-label="Move up" title="Move up">

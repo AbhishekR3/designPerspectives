@@ -7,7 +7,7 @@ land model and code together. Everything here runs locally; git is the only coll
 
 | Piece | What it is | Where |
 |---|---|---|
-| **Draft** | A copy of the model you edit without touching the main model. Holds the planned model and, optionally, planned code edits. | `architecture/drafts/<id>/` (`workspace.json`, `designperspectives.json`, `base/`, `draft.json`, `code.json` + `code/`) |
+| **Draft** | A copy of the model you edit without touching the main model. Holds the planned model and, optionally, planned code edits. | `architecture/drafts/<id>/` (`workspace.json`, `designperspectives.json`, `decisions/`, `base/`, `draft.json`, `code.json` + `code/`) |
 | **Changes overlay** | Colours what a draft (or a git version) adds, changes and removes, down to code files and imports. | Dock → Changes; the strip above the canvas |
 | **Coding plan** | The work the draft implies, per system and container, with an automatic progress check where the code can show it. | Strip → Coding plan…; `dp plan <draft>` |
 | **Apply** | Merges the draft into the main model (and, if you want, writes its planned code edits). Undo restores the model only. | Strip → Apply… |
@@ -77,6 +77,14 @@ changes (descriptions, tags, cost, ratings, owners) need no code work and are li
 3. In the pull request, `dp diff --base origin/main` (see `demo/ci-examples/`) summarises the model
    and code changes for reviewers; `dp check` fails the build on model problems.
 
+## Import drafts
+
+A draft made by `dp import` or by BMO from a codebase scan (see the README, "Bring in an existing
+codebase") is an ordinary draft with a review next to it (`architecture/import/reviews/`). **Apply**
+applies only the items a person accepted; the rest stay in the draft, which is rebased onto the new
+main, and you can accept more and apply again. A draft whose review file is missing or unreadable is
+not applied until you run "Check again", which makes every item pending.
+
 ## Rules of thumb
 
 - **One draft per change.** Drafts merge object by object; two drafts touching the same object
@@ -90,8 +98,14 @@ changes (descriptions, tags, cost, ratings, owners) need no code work and are li
 
 ## Limits
 
-- The check sees files and imports only (no deeper code scan until Stage B). Calls through HTTP,
+- The check sees files and imports only (Python and JS/TS relative imports). The code import scan
+  (`dp scan`, 0.5.0) reads more, but the coding plan does not use it yet. Calls through HTTP,
   queues or dependency injection are not imports, so such connections are checked by hand.
 - A draft's planned code edits are compared with the code folder as it is now, not as it was when the
   draft started.
 - Undoing an apply restores the model, not the code files it wrote, and not the deleted draft.
+- A draft cannot be rebased onto a newer main by hand: conflicts are reported when you apply, and
+  there is no merge editor. (An import draft that is applied in part is rebased automatically, see
+  "Import drafts" above.)
+
+Work planned to lift these limits is in [future_tasks.md](future_tasks.md).

@@ -157,7 +157,6 @@
               "dp.archType": "web",
               "dp.characteristics": "[{\"name\": \"Scalability\", \"rating\": 5, \"driving\": true, \"note\": \"Static files served from a CDN\"}, {\"name\": \"Deployability\", \"rating\": 4}, {\"name\": \"Testability\", \"rating\": 3}]",
               "dp.cost": "[{\"item\": \"CDN and static hosting\", \"monthly\": 40}]",
-              "dp.ui.url": "http://127.0.0.1:4200/",
               "dp.owner": "Digital Channels team",
               "dp.links": "[{\"label\": \"Repository\", \"url\": \"https://example.com/git/ib-web\"}]",
               "dp.tag.Risk": "Low",
@@ -310,6 +309,7 @@
               "dp.characteristics": "[{\"name\": \"Scalability\", \"rating\": 3, \"driving\": true, \"note\": \"Stateless; scales horizontally behind the load balancer\"}, {\"name\": \"Performance\", \"rating\": 3, \"driving\": true, \"note\": \"Mainframe calls dominate latency\"}, {\"name\": \"Availability\", \"rating\": 4, \"driving\": true}, {\"name\": \"Deployability\", \"rating\": 3, \"note\": \"Single deployment unit\"}, {\"name\": \"Testability\", \"rating\": 4}, {\"name\": \"Security\", \"rating\": 4, \"driving\": true}]",
               "dp.cost": "[{\"item\": \"Kubernetes nodes, 3 x n2-standard-4\", \"monthly\": 1150}, {\"item\": \"Load balancer\", \"monthly\": 60}]",
               "dp.work": "[{\"type\": \"pr\", \"title\": \"Add rate limiting to the accounts API\", \"status\": \"open\", \"url\": \"https://example.com/pulls/42\"}, {\"type\": \"security\", \"title\": \"Upgrade the JSON library (known deserialisation issue)\", \"status\": \"open\", \"severity\": \"high\"}]",
+              "dp.run.url": "http://127.0.0.1:4201/",
               "dp.links": "[{\"label\": \"Runbook\", \"url\": \"https://example.com/runbooks/api-application\"}, {\"label\": \"Dashboard\", \"url\": \"https://example.com/dashboards/api-application\"}, {\"label\": \"Repository\", \"url\": \"https://example.com/git/ib-api\"}]",
               "dp.details": "[{\"title\": \"Service level objectives\", \"columns\": [\"Objective\", \"Target\", \"Window\"], \"rows\": [[\"Availability (non-5xx responses)\", \"99.9%\", \"30 days\"], [\"GET /api/accounts latency, 99th percentile\", \"under 1.5 s\", \"30 days\"]]}]",
               "dp.tag.Risk": "High",
@@ -470,7 +470,8 @@
                     "technology": "XML/HTTPS",
                     "tags": "Relationship",
                     "properties": {
-                      "dp.code.from": "sample_code/api/mainframe_facade.py"
+                      "dp.code.from": "sample_code/api/mainframe_facade.py",
+                      "dp.endpoints": "[{\"method\": \"GET\", \"path\": \"/accounts/:id/balance\"}]"
                     }
                   }
                 ],
@@ -529,6 +530,7 @@
             "description": "Validates, fraud-checks and submits customer payments, then publishes the outcome.",
             "tags": "Element,Container",
             "properties": {
+              "dp.run.url": "http://127.0.0.1:4202/",
               "dp.archType": "service",
               "dp.owner": "Payments team",
               "dp.links": "[{\"label\": \"Runbook\", \"url\": \"https://example.com/runbooks/payments-service\"}, {\"label\": \"Dashboard\", \"url\": \"https://example.com/dashboards/payments-service\"}, {\"label\": \"Repository\", \"url\": \"https://example.com/git/payments-service\"}]",
@@ -666,6 +668,7 @@
                     "technology": "JSON/HTTPS",
                     "tags": "Relationship",
                     "properties": {
+                      "dp.endpoints": "[{\"method\": \"POST\", \"path\": \"/score\"}]",
                       "dp.notes": "If no score arrives within 300 ms the payment is scored 0.5 and continues; this is logged and alerted on when it exceeds 1% of payments.",
                       "dp.work": "[{\"type\": \"backlog\", \"title\": \"Move the fraud score call to mutual TLS\", \"status\": \"open\", \"severity\": \"medium\"}]"
                     }
@@ -1009,6 +1012,7 @@
           "dp.usage": "[{\"users\": \"Back office staff\", \"frequency\": \"continuous\"}]",
           "dp.characteristics": "[{\"name\": \"Scalability\", \"rating\": 1}, {\"name\": \"Deployability\", \"rating\": 1, \"note\": \"Quarterly release window\"}, {\"name\": \"Availability\", \"rating\": 5, \"driving\": true}, {\"name\": \"Evolvability\", \"rating\": 1}]",
           "dp.cost": "[{\"item\": \"Mainframe MIPS share\", \"monthly\": 9500, \"note\": \"Internal chargeback\"}]",
+          "dp.run.url": "http://127.0.0.1:4203/",
           "dp.owner": "Core Banking team",
           "dp.tag.Risk": "High",
           "dp.tag.Lifecycle": "Live",
@@ -1213,6 +1217,7 @@
         "description": "Scores every outgoing payment for fraud risk in real time and queues suspicious ones for review.",
         "tags": "Element,Software System",
         "properties": {
+          "dp.run.url": "http://127.0.0.1:4204/",
           "dp.archType": "service",
           "dp.owner": "Financial Crime team",
           "dp.links": "[{\"label\": \"Review queue\", \"url\": \"https://example.com/fraud/queue\"}]",

@@ -256,6 +256,13 @@ export function initProject(root: string, opts: { demo?: boolean; name?: string 
     const drafts = path.join(DEMO_DIR, "drafts");
     if (fs.existsSync(drafts)) fs.cpSync(drafts, path.join(arch, "drafts"), { recursive: true });
     copySampleCode(root);
+    // One made-up trace, so the testing mode has a run to lay over the model (see scripts/make-demo.ts).
+    const trace = path.join(DEMO_DIR, "traces", "sample.jsonl");
+    const to = path.join(root, "traces", "sample.jsonl");
+    if (fs.existsSync(trace) && !fs.existsSync(to)) {
+      fs.mkdirSync(path.dirname(to), { recursive: true });
+      fs.copyFileSync(trace, to);
+    }
   }
   return arch;
 }

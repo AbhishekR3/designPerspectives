@@ -14,8 +14,6 @@ export interface Common {
   onOpen(key: string): void;
   onReveal(elementId: string): void;
   onOpenFile(path: string): void;
-  /** Open the live UI inspector on an element that has a live UI address. */
-  onInspectUi(elementId: string): void;
   /** Backtrack from a connector stage (0 = the data entering it) or a flow step. */
   onBacktrack(q: BacktrackQuery): void;
   /** Open a decision record on the decisions page. */

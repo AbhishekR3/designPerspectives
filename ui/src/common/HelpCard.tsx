@@ -19,6 +19,13 @@ const SHORTCUTS: [string, string][] = [
   ["Escape", "Close a menu or dialog, or clear the selection"],
 ];
 
+/** Keys of the system testing mode, shown under their own heading. */
+const TESTING_SHORTCUTS: [string, string][] = [
+  ["F8", "Continue the paused call"],
+  ["F10", "Continue it, and pause the next call or reply"],
+  ["F9", "Set or take away a breakpoint on the selected line or box"],
+];
+
 /** The help card: how to work on the canvas and the shortcut list. It scrolls when the window is short, and Escape closes it. */
 export function HelpCard({ onClose }: { onClose(): void }) {
   useEffect(() => {
@@ -68,6 +75,18 @@ export function HelpCard({ onClose }: { onClose(): void }) {
           </div>
         ))}
       </dl>
+      <h4>System testing</h4>
+      <dl className="keys" data-testid="help-testing-shortcuts">
+        {TESTING_SHORTCUTS.map(([k, what]) => (
+          <div key={k} className="key-row">
+            <dt>
+              <kbd>{k}</kbd>
+            </dt>
+            <dd>{what}</dd>
+          </div>
+        ))}
+      </dl>
+      <p className="muted small">These keys work while the Test mode is on.</p>
     </div>
   );
 }

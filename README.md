@@ -48,8 +48,9 @@ dp serve --demo
 ```
 
 This creates the sample model, its sample code and a made-up git history, then opens the app at
-`http://127.0.0.1:8765`. It also starts a demo bank web app at `http://127.0.0.1:4200`, used by the
-live UI step of the tour.
+`http://127.0.0.1:8765`. It also starts a small demo system: five services on ports 4200 to 4204
+that call each other over real HTTP, with a banking page at `http://127.0.0.1:4200/`, so System Testing
+mode has something live to pause (see [the demo tour](demo/README.md)).
 
 The app opens on the **System landscape**: every person and software system, and how they connect.
 Then try three things:
@@ -118,7 +119,7 @@ one, so viewers cannot run them.
 
 | Command | What it does | Main options |
 |---|---|---|
-| `dp serve [PATH]` | Serve the model in the browser. Creates an empty model if the folder has none. | `--demo` sample model, code and history; `--port` (8765); `--host` (127.0.0.1); `--read-only`; `--insecure`; `--users FILE`; `--code-root DIR`; `--hub` serve a hub folder; `--allow-host NAME`; `--allow-ui-host NAME`; `--traces DIR`; `--no-open` |
+| `dp serve [PATH]` | Serve the model in the browser. Creates an empty model if the folder has none. | `--demo` sample model, code and history; `--port` (8765); `--host` (127.0.0.1); `--read-only`; `--insecure`; `--users FILE`; `--code-root DIR`; `--hub` serve a hub folder; `--allow-host NAME`; `--allow-target-host NAME` (System Testing: let intercept points forward to that host); `--traces DIR`; `--no-open` |
 | `dp init [PATH]` | Create the model without starting the server. | `--demo`; `--empty` (default); `--name NAME`; `--hub` create a hub (with `--demo`, the demo hub) |
 | `dp check [PATH]` | Check the model, its drafts and its code mapping. Also `dp validate`. Exit code 0 OK, 1 problems, 2 no model. | `--strict` also fail on warnings; `--code-root DIR`; `--hub` check every project and the catalog |
 | `dp diff [PATH]` | What changed since a git branch, tag or commit. | `--base REF`; `--head REF`; `--format md\|json`; `--out FILE`; `--exit-code`; `--no-code`; `--code-root DIR` |
@@ -254,8 +255,9 @@ designPerspectives data stored inside the workspace as Structurizr element prope
 `dp.notes`, `dp.tradeoffs`, `dp.usage`, `dp.sensitive`, `dp.code.paths`, `dp.characteristics`, `dp.cost`,
 `dp.work`, and on relationships `dp.kind`, `dp.stages` (the steps inside a pipeline or protocol, each with
 optional sample data), `dp.example` and `dp.format` (a sample of the data the relationship carries),
-`dp.endpoints` (HTTP calls it carries, for the live UI inspector), `dp.data.access` (which data at either
-end it reads or writes) and `dp.work`; elements can have `dp.ui.url` (where their UI runs), `dp.data` (the
+`dp.endpoints` (HTTP calls it carries; System Testing matches calls to them), `dp.data.access` (which data at either
+end it reads or writes) and `dp.work`; elements can have `dp.run.url` (the address it runs at; `dp.ui.url`
+is still read if it is the only one), `dp.data` (the
 tables, topics or buckets they hold) and `dp.catalog` (the shared catalog element they are a copy of).
 
 The sidecar also holds per-object `styles` (colours, line style, text size) and per-diagram
@@ -354,17 +356,36 @@ connector and code diagrams).
   keeping its permissions and line endings.
 - In a draft, the same editor saves to the draft (`code/`), not to your code folder.
 
+### System Testing mode
+
+Click **Test** in the toolbar to see live calls on the diagram and change them before they reach their
+target. Model editing is off while the mode is on. Steps:
+
+1. Set **Address it runs at** on the service you test (`dp.run.url`: http or https, host and port, no path).
+2. Select a line to it and open an intercept point. dp listens on a port on 127.0.0.1 and forwards to that address.
+3. Set the calling service's base URL to the port shown. One point covers every line from that caller to that address.
+4. Set a breakpoint on a line, an object, a flow step or a pipeline stage, optionally with a method, path or condition.
+5. When a call pauses, change it, continue it, drop it, or answer it by hand. A paused reply can be changed or dropped.
+
+Keys: F8 continue, F10 step, F9 breakpoint. The run log lists the newest 200 calls, and a logged call can be
+sent again. A call that matches no endpoint is flagged, with an endpoint to add. Pick a trace file in the mode
+to mark its hops as watched on the lines, and hops the model lacks on the boxes. Flows and pipelines follow the
+paused call. Only architects and engineers can use the mode. It is meant for local or test targets.
+
+With `dp serve --demo` the demo system gives you live calls to try this on, and its services follow open points
+by themselves, so there is no base URL to change. In your own system you set it.
+
+Limits: plain HTTP/1.1 only, so no HTTPS, HTTP/2 or gRPC intercept points. A caller in a container cannot reach
+127.0.0.1 on the host. Bodies over 1 MB, compressed requests, event streams and WebSocket upgrades pass through
+and cannot be paused. A signed request fails once it is edited, and a call held past the caller's timeout fails
+at the caller. Masking is by field name only. One session per project is shared by everyone testing. Not in a
+hub, and not against a draft.
+
 ### Live data
 
-- **Live UI inspector**: give a UI element the address it runs at and click **Inspect live UI**. The app
-  opens inside dp; click in it and the side panel lists the HTTP calls each click made, the relationships
-  they match (endpoints such as `POST /api/payments`), the data sent and returned next to the documented
-  example, what those calls lead to in the model, and the flows involved. A call the model does not know
-  can be added as an endpoint in one click. It works in a browser on the machine running `dp serve`; apps
-  on other hosts need `--allow-ui-host <name>`.
 - **Traces**: dp reads OpenTelemetry trace files (OTLP JSON, as the Collector's file exporter writes
-  them, in `PATH/traces` by default). The inspector shows the path a request really took through the
-  model, element by element, marking steps and services the model does not have.
+  them, in `PATH/traces` by default, or `--traces DIR`). Pick one in System Testing mode to see the path a
+  request really took through the model, element by element, marking steps and services the model does not have.
 - **Backtrack**: from any pipeline stage or flow step, go back through the earlier steps: each step's
   sample data, one field's value through every step, the code behind each step with its functions, and
   the git commits that changed that code or that part of the model. Recent changes are marked.
@@ -412,7 +433,7 @@ connector and code diagrams).
   with the error shown.
 - **Read-only**: `dp serve --read-only` gives a viewer role: nothing can be changed.
 
-Plan and limits: [docs/planned-change.md](docs/planned-change.md). Future work: [docs/backlog.md](docs/backlog.md).
+Plan and limits: [docs/planned-change.md](docs/planned-change.md). Future work: [docs/future_tasks.md](docs/future_tasks.md) (the short list) and [docs/backlog.md](docs/backlog.md) (the full list).
 
 ## Develop
 
@@ -445,17 +466,17 @@ Layout:
 |---|---|
 | `src/shared/types.ts` | API types and constants used by both the server and the UI |
 | `src/core/` | The model: `workspace.ts` file format, `designPerspectivesFile.ts` (designperspectives.json), `modelEdits.ts` all edits and rules, `diagrams.ts` what each level shows, `connectors.ts`, `flows.ts`, `validate.ts`, `project.ts` files and undo, `drafts.ts`, `merge.ts`, `diff.ts`, `codeMap.ts` code mapping, `codeFiles.ts`, `decisions.ts`, `catalog.ts`, `credentials.ts`, `users.ts`, `history.ts`, `git.ts` (read-only) |
-| `src/server/` | `app.ts` the HTTP app (Hono), `routeContext.ts` the shared context, `requestProtection.ts` request checks, `auth.ts` sign-in and roles, `hub.ts` the hub of projects, `routes/` one module per area (readModel, drafts, model, sidecar, code, decisions, inspect, comments, hub, import, bmo, ui) |
+| `src/server/` | `app.ts` the HTTP app (Hono), `routeContext.ts` the shared context, `requestProtection.ts` request checks, `auth.ts` sign-in and roles, `hub.ts` the hub of projects, `interceptProxy.ts` and `testSession.ts` System Testing, `routes/` one module per area (readModel, drafts, model, sidecar, code, decisions, traces, testing, comments, hub, import, bmo, ui) |
 | `src/import/` | Codebase import (DEC-051): `scan.ts`, `knownServices.ts`, `intake.ts`, `analysis.ts`, `schema.ts`, `checks.ts`, `importer.ts`, `lastImport.ts`, `review.ts`, `importStatus.ts`, `unmappedCode.ts` |
 | `src/assistant/` | BMO, the optional assistant: `tasks.ts`, `prompts.ts`, `runTask.ts`, `backend.ts`, `handoffBackend.ts`, `providerBackend.ts` (Claude API, OpenAI API, Ollama), `settings.ts`, `redact.ts`, `codeExcerpts.ts`, `modelText.ts`, `importTasks.ts`, `fakeBackend.ts` (tests) |
 | `src/cli.ts` | the `dp` command |
-| `src/demo/` | the demo bank web app and the made-up git history |
-| `ui/src/` | React UI with xyflow and elkjs. Folders: `canvas/` (drawing, line routing, palette, overlay dock), `panels/` (property panels), `pages/` (home, catalog, credentials, history, decisions, sign-in), `drafts/` (draft list, change list, apply dialog), `inspect/` (live UI inspector), `hooks/`, `common/` (shared dialogs and widgets), `styles/`; builds into `static/` |
+| `src/demo/` | the made-up git history of the demo |
+| `ui/src/` | React UI with xyflow and elkjs. Folders: `canvas/` (drawing, line routing, palette, overlay dock), `panels/` (property panels), `pages/` (home, catalog, credentials, history, decisions, sign-in), `drafts/` (draft list, change list, apply dialog), `testing/` (System Testing mode), `inspect/` (backtrack, samples), `hooks/`, `common/` (shared dialogs and widgets), `styles/`; builds into `static/` |
 | `demo/` | everything for learning the tool: the demo model, its sample code, a sample draft, a demo hub, an example import file, example CI jobs and the guided tour ([demo/README.md](demo/README.md)) |
 | `scripts/` | `make-demo.ts` and `make-demo-hub.ts` (regenerate `demo/`), `list-tests.ts` (writes `tests/TESTS.csv`) |
 | `tests/` | `unit/` (Vitest: logic, API, CLI; no browser) and `browser/` (Playwright: the real UI in Chromium); `TESTS.csv` lists every test ([tests/README.md](tests/README.md)) |
 | `config/` | tool settings: TypeScript, ESLint, Prettier, Vitest, Playwright |
-| `docs/` | decisions, backlog, reviews, changelog, contributing guide, notes |
+| `docs/` | decisions, future tasks and backlog, planned-change guide, reviews, changelog, contributing guide, notes |
 
 ## Credits
 

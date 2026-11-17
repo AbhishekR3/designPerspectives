@@ -21,7 +21,7 @@ import { Project, type ModelSource } from "../core/project.js";
 import type { Workspace } from "../core/workspace.js";
 import type { AppState, Decision, DraftInfo, Lens, Permissions, SessionUser, Style } from "../shared/types.js";
 import { Auth, defaultLensFor, permissions, type AuthOptions, type Who } from "./auth.js";
-import { UiProxies } from "./liveUiProxy.js";
+import { TestSession } from "./testSession.js";
 import { TraceStore } from "../core/traces.js";
 import { CommentStore, commentsPath } from "../core/comments.js";
 import path from "node:path";
@@ -80,6 +80,7 @@ export function state(project: Project, readOnly = false, sel?: Selection, draft
     writeCode: legacyEdit && (sel?.ref ?? "main") === "main",
     comment: !readOnly,
     import: !readOnly,
+    test: !readOnly,
   };
   const draftList = drafts?.list() ?? [];
   const ws = src.workspace;
@@ -182,10 +183,12 @@ export interface AppOptions {
   /** Host names (as in the Host header, without the port; IPv6 in brackets) the server answers to.
    *  Default: the loopback names. null turns the check off (a server bound to another interface). */
   allowedHosts?: string[] | null;
-  /** Hosts besides this machine whose live UIs may be opened through the UI proxy (--allow-ui-host). */
-  uiAllowHosts?: string[];
   /** Folder of OpenTelemetry trace files (default `<project>/traces`). */
   tracesDir?: string | null;
+  /** Hosts besides this machine that intercept points of the testing mode may forward to (--allow-target-host). */
+  targetAllowHosts?: string[];
+  /** Set: the testing mode is off for this app, and this says why (a project of a hub). */
+  testingOff?: string | null;
   /** Sign-in shared with other projects (a hub); default: this project's own. */
   auth?: Auth;
   /** This project's ID in a hub: requests act with the user's role in it (DEC-057). */
@@ -224,10 +227,10 @@ export interface Ctx {
   draftId: (ref: string) => string;
   /** Middleware: reads X-DP-Model / X-DP-Compare and runs the rest of the request with that selection. */
   selectVersion: MiddlewareHandler;
-  /** Live UI proxies, one local listener per app origin (liveUiProxy.ts). */
-  uiProxies: UiProxies;
   /** Trace files (traces.ts). */
   traces: TraceStore;
+  /** The system testing session: intercept points, the run log, paused calls (testSession.ts). */
+  testing: TestSession;
   /** Comments, ideas and questions (comments.ts); one store for the project, whatever version a request shows. */
   comments: CommentStore;
   /** The hub's shared catalog model, or null (no hub, no catalog, or this is the catalog). */
@@ -332,7 +335,6 @@ export function createContext(root: string, opts: AppOptions = {}): Ctx {
     };
   };
 
-  const uiProxies = new UiProxies({ allowHosts: opts.uiAllowHosts ?? [] });
   const traces = new TraceStore(opts.tracesDir ? path.resolve(opts.tracesDir) : path.join(project.root, "traces"));
   return {
     readOnly,
@@ -350,8 +352,8 @@ export function createContext(root: string, opts: AppOptions = {}): Ctx {
     edit,
     draftId,
     selectVersion,
-    uiProxies,
     traces,
+    testing: new TestSession({ root: project.root, workspace: () => project.workspace, allowHosts: opts.targetAllowHosts ?? [], unavailable: opts.testingOff ?? null, now: opts.now }),
     comments: new CommentStore(commentsPath(project.root), opts.now),
     catalog: opts.catalog ?? (() => null),
     credentials: opts.credentials ?? new CredentialStore(project.root, opts.secretKey === undefined ? (process.env.DP_SECRET_KEY ?? null) : opts.secretKey),

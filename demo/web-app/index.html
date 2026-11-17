@@ -9,43 +9,27 @@
 <body>
 <header>
   <strong>Big Bank</strong> <span>Internet banking</span>
-  <span class="demo">Demo app for designPerspectives: made-up data</span>
+  <span class="demo">Demo page for designPerspectives. All data is made up.</span>
 </header>
 <main>
-  <section id="signin">
+  <section>
     <h2>Sign in</h2>
-    <form id="signin-form">
-      <label>Customer ID <input name="username" value="alice" autocomplete="username"></label>
-      <label>Password <input name="password" type="password" value="correct horse" autocomplete="current-password"></label>
-      <button type="submit" id="signin-button">Sign in</button>
-      <button type="button" id="forgot">Forgot password</button>
-    </form>
+    <button id="signin">Sign in as alice</button>
+    <p class="hint">Calls the API Application.</p>
   </section>
   <section>
     <h2>Accounts</h2>
     <button id="accounts">Show my accounts</button>
-    <ul id="account-list"></ul>
-    <div id="account"></div>
+    <p class="hint">The API Application asks the Mainframe Banking System for each balance.</p>
   </section>
   <section>
-    <h2>Statements</h2>
-    <button id="statements">Show statements for 0001029</button>
-    <ul id="statement-list"></ul>
+    <h2>Pay</h2>
+    <label>Amount (EUR) <input id="amount" value="125.00"></label>
+    <button id="pay" type="button">Pay</button>
+    <button id="pay-large" type="button">Pay 9000</button>
+    <p class="hint">The Payments Service asks the Fraud Detection System for a score. Payments over 5,000 are held for review.</p>
   </section>
-  <section>
-    <h2>Pay a saved payee</h2>
-    <form id="pay-form">
-      <label>To (IBAN) <input name="toIban" value="DE89370400440532013000"></label>
-      <label>Amount (EUR) <input name="amount" value="125.00"></label>
-      <label>Reference <input name="reference" value="Invoice 2026-118"></label>
-      <button type="submit" id="pay">Pay now</button>
-    </form>
-    <p class="hint">Amounts over 5,000 are held for a fraud review.</p>
-  </section>
-  <section>
-    <h2>Exchange rates</h2>
-    <button id="rates">Today's rates</button>
-  </section>
+  <p id="note" class="note" aria-live="polite">No call yet.</p>
   <pre id="out" aria-live="polite"></pre>
 </main>
 <script src="/app.js"></script>

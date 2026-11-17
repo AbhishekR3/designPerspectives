@@ -16,6 +16,8 @@ export interface HashState {
   project: string | null;
   /** An element to show once the model is loaded (`reveal=`, from links on the home page). */
   reveal: string | null;
+  /** The system testing mode is on (`t=1`). */
+  testing: boolean;
 }
 export function fromHash(): HashState {
   const h = window.location.hash;
@@ -30,6 +32,7 @@ export function fromHash(): HashState {
     page: q.get("p") || bare?.[1] || null,
     project: q.get("pr") || null,
     reveal: q.get("reveal") || null,
+    testing: q.get("t") === "1",
   };
 }
 export function keyFromHash(): string | null {
@@ -38,6 +41,8 @@ export function keyFromHash(): string | null {
 
 /** The page shown over the diagram, as in the hash; hashes written for the diagram keep it. */
 let currentPage: string | null = fromHash().page;
+/** The system testing mode, as in the hash; it stays on while another diagram opens, so every hash the app writes keeps it. */
+let currentTesting: boolean = fromHash().testing;
 /** The hub project the app shows; every hash the app writes keeps it (set by Root before the app mounts). */
 let currentProject: string | null = null;
 export function setHashProject(id: string | null): void {
@@ -62,6 +67,7 @@ export function hashFor(key: string, model: string, compare: string | null, page
   if (model !== "main") q.set("m", model);
   if (compare) q.set("c", compare);
   if (page) q.set("p", page);
+  if (currentTesting) q.set("t", "1");
   const qs = q.toString().replace(/%2F/g, "/");
   return `#/d/${encodeURIComponent(key)}${qs ? `?${qs}` : ""}`;
 }
@@ -94,6 +100,44 @@ export function usePage(keyRef: RefObject<string | null>) {
     [keyRef],
   );
   return { page, setPage };
+}
+
+/**
+ * The system testing mode (`t=1`). Entering it is a new history entry, so Back leaves it. Unlike a page it stays on when
+ * another diagram opens.
+ */
+export function useTestingParam(keyRef: RefObject<string | null>) {
+  const [testing, setTestingState] = useState(currentTesting);
+  useEffect(() => {
+    const onHash = () => {
+      currentTesting = fromHash().testing;
+      setTestingState(currentTesting);
+    };
+    window.addEventListener("hashchange", onHash);
+    window.addEventListener("popstate", onHash);
+    return () => {
+      window.removeEventListener("hashchange", onHash);
+      window.removeEventListener("popstate", onHash);
+    };
+  }, []);
+  const setTesting = useCallback(
+    (on: boolean, opts: { replace?: boolean } = {}) => {
+      if (on === currentTesting) return;
+      // Leaving a mode this app entered itself goes Back, so the history does not grow a copy of the diagram.
+      if (!on && !opts.replace && (window.history.state as { dpTesting?: boolean } | null)?.dpTesting) {
+        window.history.back();
+        return;
+      }
+      currentTesting = on;
+      setTestingState(on);
+      const h = fromHash();
+      const next = hashFor(keyRef.current ?? h.key ?? "landscape", h.model, h.compare, h.page);
+      if (opts.replace || !on) window.history.replaceState(null, "", next);
+      else window.history.pushState({ dpTesting: true }, "", next);
+    },
+    [keyRef],
+  );
+  return { testing, setTesting };
 }
 
 /** The diagram on screen (its key, also in a ref for async code) and opening another one. */

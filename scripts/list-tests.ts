@@ -46,8 +46,7 @@ function areaOf(stem: string): string {
     editing: "Canvas",
     "context-menu": "Canvas",
     features: "Stage A2 features",
-    inspect: "Live UI inspector",
-    inspector: "Live UI inspector",
+    endpoints: "API endpoints",
   };
   if (named[stem]) return named[stem];
   return words(stem);

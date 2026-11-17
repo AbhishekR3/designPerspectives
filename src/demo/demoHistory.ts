@@ -29,8 +29,8 @@ export interface DemoHistory {
   commits: DemoCommit[];
 }
 
-/** Ignored in the demo repository: trace files written by the demo web app. */
-const GITIGNORE = "# Written by the demo web app (dp serve --demo); read by the live UI inspector.\ntraces/\n";
+/** Ignored in the demo repository: trace files of a running system. */
+const GITIGNORE = "# Trace files of a running system (OpenTelemetry, OTLP JSON), laid over the model.\ntraces/\n";
 
 function run(cwd: string, args: string[], env: NodeJS.ProcessEnv = {}): string {
   return execFileSync("git", args, { cwd, encoding: "utf-8", stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, ...env }, timeout: 20_000 });

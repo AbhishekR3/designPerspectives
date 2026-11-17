@@ -106,18 +106,13 @@ export function ObjectPanel({ element, ...p }: Common & { element: ElementSummar
       {element.kind !== "person" && <DataSection key={`data-${JSON.stringify(element.data)}`} element={element} catalog={p.catalog} mutate={p.mutate} />}
       <DecisionSection id={element.id} name={element.name} state={state} mutate={p.mutate} onOpenDecision={p.onOpenDecision} />
       <Discussion target={{ type: "element", id: element.id }} diagramKey={diagram.key} />
-      {element.uiUrl && (
-        <button className="primary" onClick={() => p.onInspectUi(element.id)} data-testid="inspect-ui" title={element.uiUrl}>
-          Inspect live UI
-        </button>
-      )}
       {element.kind !== "person" && !state.readOnly && (
-        <Section title="Live UI and traces" count={(element.uiUrl ? 1 : 0) + (element.otelService ? 1 : 0)} testId="sec-live-ui">
-          <TextField label="Address the UI runs at" value={element.uiUrl} placeholder="http://localhost:3000/" onCommit={(v) => save({ uiUrl: v })} testId="field-ui-url" />
+        <Section title="Running system" count={(element.runUrl ? 1 : 0) + (element.otelService ? 1 : 0)} testId="sec-running">
+          <TextField label="Address it runs at" value={element.runUrl} placeholder="http://localhost:3000/" onCommit={(v) => save({ runUrl: v })} testId="field-run-url" />
           <TextField label="Service name in trace files" value={element.otelService} placeholder={element.id} onCommit={(v) => save({ otelService: v })} testId="field-otel-service" />
           <p className="muted small">
-            Open the running app inside dp, click in it, and see which relationships each click uses. Map calls with endpoints on this element&apos;s relationships. In trace files, spans match this
-            element by the file they ran in (its code paths) or by this service name (default: its ID or name).
+            A local or test address. It is saved with the model. System testing forwards calls for this element here. In trace files, spans match this element by the file they ran in (its code paths)
+            or by this service name (default: its ID or name).
           </p>
         </Section>
       )}

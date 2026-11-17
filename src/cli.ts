@@ -14,9 +14,10 @@ import { GitCodes, GitError, GitModels, gitUserName } from "./core/git.js";
 import { checkProject, diffMarkdown } from "./core/cliReports.js";
 import { AlreadyExists, ARCH_DIR, DEMO_DIR, initProject, NotFound, Project, version, WORKSPACE_FILE } from "./core/project.js";
 import { readDemoHistory, writeDemoHistory } from "./demo/demoHistory.js";
-import { DEMO_APP_PORT, startDemoApp } from "./demo/demoWebApp.js";
+import { DEMO_PORTS, startDemoSystem, type DemoSystem } from "./demo/demoSystem.js";
 import { addUser, setRole, ensureGitignored, initUsers, needUsers, readUsers, removeUser, setPassword, usersPath, UsersError, type NewPassword } from "./core/users.js";
-import { createApp, LOOPBACK_HOSTS } from "./server/app.js";
+import { buildApp, LOOPBACK_HOSTS } from "./server/app.js";
+import type { TestSession } from "./server/testSession.js";
 import { CredentialStore } from "./core/credentials.js";
 import { ModelError } from "./core/modelEdits.js";
 import { CREDENTIAL_PROVIDERS } from "./shared/types.js";
@@ -136,10 +137,18 @@ export function program(): Command {
       (v: string, all: string[]) => [...all, v],
       [] as string[],
     )
-    .option("--allow-ui-host <name>", "Let the live UI inspector open apps on this host (default: this machine only). Repeat for more.", (v: string, all: string[]) => [...all, v], [] as string[])
-    .option("--traces <folder>", "Folder of OpenTelemetry trace files (OTLP JSON) for the live UI inspector (default: <path>/traces).")
+    .option(
+      "--allow-target-host <name>",
+      "System testing: let intercept points forward to this host (default: this machine only). Repeat for more.",
+      (v: string, all: string[]) => [...all, v],
+      [] as string[],
+    )
+    .option("--traces <folder>", "Folder of OpenTelemetry trace files (OTLP JSON) to lay over the model (default: <path>/traces).")
     .option("--no-open", "Do not open the browser.")
-    .option("--demo", "If the folder has no model, create the sample model (with its sample code and a made-up git history); also run the demo bank web app on 127.0.0.1:4200.")
+    .option(
+      "--demo",
+      "If the folder has no model, create the sample model (with its sample code and a made-up git history). Also starts the demo system: five small services on ports 4200 to 4204 (not with --hub).",
+    )
     .option("--read-only", "Viewer role: browse only; every change is refused.")
     .option("--code-root <folder>", "Folder holding the source code that components point to (default: the project folder).")
     .option("--users <file>", "Users file for sign-in (default: <path>/.dp/users.json; sign-in is off without it).")
@@ -152,7 +161,7 @@ export function program(): Command {
           port: number;
           host: string;
           allowHost: string[];
-          allowUiHost: string[];
+          allowTargetHost: string[];
           traces?: string;
           open: boolean;
           demo?: boolean;
@@ -190,18 +199,30 @@ export function program(): Command {
         }
         const loopback = allowedHostsFor(o.host);
         const allowedHosts = loopback && [...loopback, ...o.allowHost.map((h) => h.trim().toLowerCase())];
-        let app: ReturnType<typeof createApp>;
+        let app: ReturnType<typeof buildApp>["app"];
+        // Lets paused calls and waiting testing pages go, so Ctrl+C is not held up by them.
+        let closeTesting: () => Promise<void> = async () => undefined;
+        let testing: TestSession | null = null;
         try {
           const opts = {
             codeRoot: o.codeRoot ?? null,
             readOnly: Boolean(o.readOnly),
             allowedHosts,
             usersFile: o.users ?? null,
-            uiAllowHosts: o.allowUiHost.map((h) => h.trim().toLowerCase()),
             tracesDir: o.traces ?? null,
+            targetAllowHosts: o.allowTargetHost.map((h) => h.trim().toLowerCase()),
           };
           if (o.hub && (o.codeRoot || o.traces)) console.error("In a hub, each project's code and traces folders are its own folder: --code-root and --traces are ignored.");
-          app = o.hub ? createHubApp(dir, opts).app : createApp(dir, opts);
+          if (o.hub) {
+            const built = createHubApp(dir, opts);
+            app = built.app;
+            closeTesting = () => built.hub.close();
+          } else {
+            const built = buildApp(dir, opts);
+            app = built.app;
+            closeTesting = () => built.ctx.testing.close();
+            testing = built.ctx.testing;
+          }
         } catch (e) {
           if (e instanceof HubError) {
             console.error(`Cannot start: ${e.message}`);
@@ -229,23 +250,27 @@ export function program(): Command {
           console.log(`designPerspectives: ${url}  (Ctrl+C to stop)`);
           if (o.open) setTimeout(() => openBrowser(url), 500);
         });
-        if (o.demo && !o.hub) {
-          // The demo bank web app, for the live UI inspector (the demo model points at this address).
-          startDemoApp({ root: dir, webDir: path.join(DEMO_DIR, "web-app"), tracesDir: o.traces })
-            .then((d) => console.log(`Demo web app: ${d.url}  (open it from the Single-Page Application: Inspect live UI; traces go to ${d.tracesFile})`))
-            .catch((e: NodeJS.ErrnoException) =>
-              console.error(
-                e.code === "EADDRINUSE"
-                  ? `The demo web app could not start: port ${DEMO_APP_PORT} is in use. The rest of dp works; the live UI inspector needs the app.`
-                  : `The demo web app could not start: ${e.message}`,
-              ),
-            );
-        }
         server.on("error", (e: NodeJS.ErrnoException) => {
           console.error(e.code === "EADDRINUSE" ? `Port ${o.port} is already in use. Try --port <another>.` : e.message);
           process.exit(1);
         });
-        const stop = () => server.close(() => process.exit(0));
+        let demoSystem: DemoSystem | null = null;
+        if (o.demo && !o.hub && testing) {
+          const session: TestSession = testing;
+          startDemoSystem({ webDir: path.join(DEMO_DIR, "web-app"), route: (caller, target) => session.pointUrl(caller, target) }).then(
+            (d) => {
+              demoSystem = d;
+              console.log(`Demo system: ${d.urls.web}/  (five small services on ports ${DEMO_PORTS.web} to ${DEMO_PORTS.fraud})`);
+            },
+            (e: NodeJS.ErrnoException) =>
+              console.error(
+                e.code === "EADDRINUSE"
+                  ? `The demo system could not start: a port from ${DEMO_PORTS.web} to ${DEMO_PORTS.fraud} is in use. The rest of dp works.`
+                  : `The demo system could not start: ${e.message}. The rest of dp works.`,
+              ),
+          );
+        }
+        const stop = () => void (demoSystem?.close() ?? Promise.resolve()).then(() => closeTesting()).finally(() => server.close(() => process.exit(0)));
         process.on("SIGINT", stop);
         process.on("SIGTERM", stop);
       },

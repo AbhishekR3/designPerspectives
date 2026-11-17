@@ -454,9 +454,7 @@ export function build(): [Workspace, Sidecar] {
   R(sms, customer, "Sends text messages to", "SMS");
   // Container level
   const spaPay = R(spa, payCtl, "Makes API calls to", "JSON/HTTPS");
-  // HTTP calls each relationship carries, so the live UI inspector can match calls seen in the app.
-  // The demo web app (`dp serve --demo` runs it here) can be opened in the live UI inspector.
-  U(spa, { uiUrl: "http://127.0.0.1:4200/" });
+  // HTTP calls each relationship carries, so a call seen in a running system can be matched to it.
   ops.updateRelationship(ws, spaSignin, { endpoints: ["POST /api/session", "DELETE /api/session"] });
   ops.updateRelationship(ws, spaAccounts, { endpoints: ["GET /api/accounts", "GET /api/accounts/:id", "GET /api/accounts/:id/statements"] });
   ops.updateRelationship(ws, spaReset, { endpoints: ["POST /api/password-resets"] });
@@ -474,6 +472,13 @@ export function build(): [Workspace, Sidecar] {
   const valMain = R(validator, mainframe, "Checks the available balance with", "MQ");
   const orchFraud = R(orchestrator, fraudClient, "Checks fraud risk using");
   const fraudScore = R(fraudClient, fraud, "Requests a risk score from", "JSON/HTTPS");
+  // Where the services run and the calls they take: `dp serve --demo` starts them on these ports (src/demo/demoSystem.ts).
+  U(api, { runUrl: "http://127.0.0.1:4201" });
+  U(payments, { runUrl: "http://127.0.0.1:4202" });
+  U(mainframe, { runUrl: "http://127.0.0.1:4203" });
+  U(fraud, { runUrl: "http://127.0.0.1:4204" });
+  ops.updateRelationship(ws, facadeMain, { endpoints: ["GET /accounts/:id/balance"] });
+  ops.updateRelationship(ws, fraudScore, { endpoints: ["POST /score"] });
   const orchMain = R(orchestrator, mainframe, "Submits approved payments to", "MQ");
   const orchPub = R(orchestrator, publisher, "Records the outcome with");
   const pubEvents = R(publisher, paymentEvents, "Publishes payment outcomes to", "Kafka, JSON", "async-message");
@@ -1292,6 +1297,47 @@ function writeSampleDraft(): void {
   }
 }
 
+/**
+ * One made-up trace of "Make a payment" (OpenTelemetry, OTLP JSON lines), so the testing mode has a run to lay
+ * over the demo model without a running system. Fixed IDs and times: the file is the same on every run. One hop
+ * (the exchange-rate lookup) is deliberately not in the model.
+ */
+function demoTrace(): string {
+  const traceId = "5b8aa5a2d2c872e8321cf37308d69df2";
+  const t0 = 1793523600000n * 1000000n; // 2026-11-01T09:00:00Z
+  const kv = (key: string, v: string) => ({ key, value: { stringValue: v } });
+  let n = 0;
+  const span = (name: string, parent: string | null, startMs: number, ms: number, kind: number, attrs: Record<string, string>, error?: string) => {
+    const spanId = (++n).toString(16).padStart(16, "0");
+    return {
+      traceId,
+      spanId,
+      ...(parent ? { parentSpanId: parent } : {}),
+      name,
+      kind,
+      startTimeUnixNano: String(t0 + BigInt(startMs) * 1000000n),
+      endTimeUnixNano: String(t0 + BigInt(startMs + ms) * 1000000n),
+      attributes: Object.entries(attrs).map(([k, v]) => kv(k, v)),
+      ...(error ? { status: { code: 2, message: error } } : {}),
+    };
+  };
+  const SERVER = 2;
+  const CLIENT = 3;
+  const PRODUCER = 4;
+  const INTERNAL = 1;
+  const root = span("POST /api/payments", null, 0, 184, SERVER, { "http.request.method": "POST", "url.path": "/api/payments", "code.filepath": "sample_code/payments/controller.ts" });
+  const orch = span("orchestrate payment", root.spanId, 4, 176, INTERNAL, { "code.filepath": "sample_code/payments/orchestrator.ts" });
+  const spans = [
+    root,
+    orch,
+    span("validate payment", orch.spanId, 6, 12, INTERNAL, { "code.filepath": "sample_code/payments/validator.ts" }),
+    span("look up exchange rate", orch.spanId, 20, 31, CLIENT, { "code.filepath": "sample_code/payments/orchestrator.ts", "peer.service": "fx-rates-provider" }),
+    span("score payment", orch.spanId, 53, 64, CLIENT, { "code.filepath": "sample_code/payments/fraud-client.ts", "peer.service": "fraud-detection-system" }),
+    span("publish payment event", orch.spanId, 120, 9, PRODUCER, { "code.filepath": "sample_code/payments/publisher.ts", "peer.service": "payment-events" }),
+  ];
+  return JSON.stringify({ resourceSpans: [{ resource: { attributes: [kv("service.name", "payments-service")] }, scopeSpans: [{ spans }] }] }) + "\n";
+}
+
 function main(): void {
   const [ws, sc] = build();
   // Files are written atomically (never half-written), as tests may copy demo/ while this runs.
@@ -1300,6 +1346,7 @@ function main(): void {
   atomicWrite(path.join(DEMO_DIR, "history.json"), JSON.stringify(history(ws), null, 1) + "\n");
   writeTree(path.join(DEMO_DIR, decisions.DECISIONS_DIR), new Map(demoDecisions().map((d) => [d.file, decisions.serializeDecision(d)])));
   writeSampleDraft();
+  writeTree(path.join(DEMO_DIR, "traces"), new Map([["sample.jsonl", demoTrace()]]));
   writeDemoHub(path.join(DEMO_DIR, "hub"));
   console.log(`Wrote ${DEMO_DIR}`);
 }

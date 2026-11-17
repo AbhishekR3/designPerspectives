@@ -17,10 +17,11 @@ import { registerDrafts } from "./routes/drafts.js";
 import { registerCredentials, registerHub, type HubCtx } from "./routes/hub.js";
 import { registerBmo } from "./routes/bmo.js";
 import { registerImport } from "./routes/import.js";
-import { registerInspect } from "./routes/inspect.js";
 import { registerCatalog, registerFlows, registerModel, registerWork } from "./routes/model.js";
 import { registerBacktrack, registerHistory, registerRead } from "./routes/readModel.js";
 import { registerSidecar } from "./routes/sidecar.js";
+import { registerTesting } from "./routes/testing.js";
+import { registerTraces } from "./routes/traces.js";
 import { registerUi } from "./routes/ui.js";
 
 export { codePair, HttpError, state, type Access, type AppOptions, type Selection } from "./routeContext.js";
@@ -85,7 +86,8 @@ export function buildApp(root: string, opts: AppOptions & { hub?: boolean } = {}
   registerFlows(app, ctx);
   registerWork(app, ctx);
   registerDecisions(app, ctx);
-  registerInspect(app, ctx);
+  registerTraces(app, ctx);
+  registerTesting(app, ctx);
   registerBacktrack(app, ctx);
   registerComments(app, ctx);
 

@@ -1,11 +1,9 @@
-/** OpenTelemetry trace files: parsing, matching spans to the model, the routes, and the demo web app that writes them. */
+/** OpenTelemetry trace files: parsing, matching spans to the model, and the routes. */
 
 import fs from "node:fs";
 import path from "node:path";
-import { afterEach, describe, expect, test } from "vitest";
+import { describe, expect, test } from "vitest";
 import { observe, parseTraceFile, TraceStore } from "../../src/core/traces.js";
-import { startDemoApp, type DemoApp } from "../../src/demo/demoWebApp.js";
-import { DEMO_DIR } from "../../src/core/project.js";
 import { client, demoDir, demoWs, ok, tmpDir } from "./helpers.js";
 
 const T = "4bf92f3577b34da6a3ce929d0e0e4736";
@@ -68,7 +66,7 @@ describe("observe", () => {
     const c = client(dir);
     await ok(c.patch("/api/elements/fraud-detection-system", { otelService: "fraud-svc" }));
     const tdir = path.join(dir, "traces");
-    fs.mkdirSync(tdir);
+    fs.mkdirSync(tdir, { recursive: true });
     // The statement store calling the fraud service: no relationship in the model.
     fs.writeFileSync(
       path.join(tdir, "t.jsonl"),
@@ -84,9 +82,10 @@ describe("observe", () => {
 describe("TraceStore and routes", () => {
   test("lists the newest traces, re-reads changed files, answers 404 and 422", async () => {
     const dir = demoDir();
+    const tdir = path.join(dir, "traces");
+    fs.rmSync(tdir, { recursive: true }); // the demo's sample trace
     const c = client(dir);
     expect((await ok(c.get("/api/traces"))).exists).toBe(false);
-    const tdir = path.join(dir, "traces");
     fs.mkdirSync(tdir);
     const file = path.join(tdir, "a.jsonl");
     fs.writeFileSync(file, JSON.stringify(doc("api-application", [span("0000000000000001", null, "GET /api/accounts")])) + "\n");
@@ -109,38 +108,15 @@ describe("TraceStore and routes", () => {
   });
 });
 
-describe("demo web app", () => {
-  let app: DemoApp | null = null;
-  afterEach(async () => {
-    await app?.close();
-    app = null;
-  });
-
-  test("serves the page and the API, and writes a trace per call under the browser's trace ID", async () => {
-    const dir = demoDir();
-    app = await startDemoApp({ root: dir, webDir: path.join(DEMO_DIR, "web-app"), port: 0 });
-    const page = await fetch(app.url);
-    expect(await page.text()).toContain("Internet banking");
-    const tp = (n: number) => ({ traceparent: `00-${String(n).repeat(32).slice(0, 32)}-00f067aa0ba902b7-01`, "Content-Type": "application/json" });
-    const pay = await fetch(app.url + "api/payments", { method: "POST", headers: tp(1), body: JSON.stringify({ amount: "125.00" }) });
-    expect([pay.status, (await pay.json()).status]).toEqual([201, "accepted"]);
-    const held = await fetch(app.url + "api/payments", { method: "POST", headers: tp(2), body: JSON.stringify({ amount: "9000" }) });
-    expect((await held.json()).status).toBe("held-for-review");
-    const bad = await fetch(app.url + "api/payments", { method: "POST", headers: tp(3), body: JSON.stringify({ amount: "x" }) });
-    expect(bad.status).toBe(422);
-    await fetch(app.url + "api/exchange-rates/2026-11-15", { headers: tp(4) });
-    expect((await fetch(app.url + "api/nothing")).status).toBe(404);
-
-    const c = client(dir);
-    const payment = await ok(c.get(`/api/traces/${"1".repeat(32)}?ui=single-page-application`));
-    expect(payment.name).toBe("POST /api/payments");
-    expect(payment.hops.every((h: any) => h.relationshipId)).toBe(true);
-    expect(payment.elements).toEqual(expect.arrayContaining(["payments-controller", "payment-orchestrator", "fraud-detection-system", "mainframe-banking-system", "payment-events"]));
-    // A held payment stops after the fraud score: no mainframe submission.
-    expect((await ok(c.get(`/api/traces/${"2".repeat(32)}`))).elements).not.toContain("mainframe-banking-system");
-    const failed = await ok(c.get(`/api/traces/${"3".repeat(32)}`));
-    expect(failed.error).toBe(true);
-    expect(failed.spans.find((s: any) => s.error).name).toBe("validate payment");
-    expect((await ok(c.get(`/api/traces/${"4".repeat(32)}`))).unmapped).toEqual(["fx-rates-provider"]);
+describe("the demo", () => {
+  test("ships one made-up trace: every hop but the exchange-rate lookup is in the model", async () => {
+    const c = client(demoDir());
+    const list = await ok(c.get("/api/traces"));
+    expect(list.traces.map((t: any) => t.name)).toEqual(["POST /api/payments"]);
+    const t = await ok(c.get(`/api/traces/${list.traces[0].traceId}`));
+    expect(t.elements).toEqual(expect.arrayContaining(["payments-controller", "payment-orchestrator", "fraud-detection-system", "payment-events"]));
+    expect(t.unmapped).toEqual(["fx-rates-provider"]);
+    expect(t.hops.filter((h: any) => h.relationshipId).length).toBeGreaterThanOrEqual(3);
+    expect(t.error).toBe(false);
   });
 });

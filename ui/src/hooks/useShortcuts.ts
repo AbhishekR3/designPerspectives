@@ -1,4 +1,4 @@
-import { useEffect, type Dispatch, type RefObject, type SetStateAction } from "react";
+import { useEffect, useRef, type Dispatch, type RefObject, type SetStateAction } from "react";
 import type { CanvasHandle, ContextTarget } from "../canvas/Canvas";
 import type { NodeActions } from "../canvas/BoxesAndLines";
 import { selectedNodeIds, type AppState, type Diagram, type Pt, type Selection } from "../types";
@@ -13,6 +13,7 @@ import { diagramEditable, relationshipToDelete } from "../contextMenus";
  * - Delete/Backspace removes the selection, one box, several boxes or a line (only where the right-click menu offers Delete);
  * - Ctrl/Cmd+K opens the search box; ? toggles the help card;
  * - Shift+F10 and the ContextMenu key open the right-click menu for the selected box or line, or for the canvas.
+ * - system testing mode only: F8 continues the paused call, F10 continues and pauses the next one, F9 sets or takes away a breakpoint on the selected line or box.
  * None of them act while a dialog is open or while typing (`isTyping`).
  */
 export function useShortcuts(p: {
@@ -31,8 +32,12 @@ export function useShortcuts(p: {
   toggleHelp(): void;
   canvasRef: RefObject<CanvasHandle | null>;
   openMenu(target: ContextTarget, at: Pt, keyboard?: boolean): void;
+  /** The system testing mode's keys (absent or `on` false: not registered). */
+  testing?: { on: boolean; continueCall(): void; step(): void; toggleBreakpoint(): void };
 }) {
   const { state, diagram, selection, setSelection, setFocusName, setRenameId, setSearchOpen, doHistory, clipboard, pasteFrom, deleteRelationship, nodeActions, toggleHelp, canvasRef, openMenu } = p;
+  const testingRef = useRef(p.testing);
+  testingRef.current = p.testing;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -132,7 +137,7 @@ export function useShortcuts(p: {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!(e.key === "ContextMenu" || (e.key === "F10" && e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey))) return;
-      if (dialogOpen() || isTyping(e.target) || !diagram) return;
+      if (dialogOpen() || isTyping(e.target) || !diagram || testingRef.current?.on) return;
       const spot = canvasRef.current?.menuSpot(selection);
       if (!spot) return;
       e.preventDefault();
@@ -142,4 +147,24 @@ export function useShortcuts(p: {
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- canvasRef is a ref and openMenu is stable (useCallback with no dependencies)
   }, [selection, diagram]);
+
+  // System testing mode: F8 continue, F10 step, F9 breakpoint. No modifier keys (Shift+F10 opens the menu).
+  const testingOn = !!p.testing?.on;
+  useEffect(() => {
+    if (!testingOn) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
+      if (e.key !== "F8" && e.key !== "F9" && e.key !== "F10") return;
+      // A checkbox or a button that has the focus is not text being typed: the keys still work there.
+      const plain = e.target instanceof HTMLInputElement && ["checkbox", "radio", "button"].includes(e.target.type);
+      if (dialogOpen() || (isTyping(e.target) && !plain)) return;
+      e.preventDefault();
+      const t = testingRef.current;
+      if (e.key === "F8") t?.continueCall();
+      else if (e.key === "F10") t?.step();
+      else t?.toggleBreakpoint();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [testingOn]);
 }

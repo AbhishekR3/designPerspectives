@@ -38,6 +38,8 @@ import {
 import { Shape, shapeInset } from "./typeSymbols";
 import { KIND_LABEL, type DiagramNode, type EdgeLayout, type Pt, type Section, type Style } from "../types";
 import { pinKind, pinSummary, type CommentCount } from "../common/comments";
+import { EdgeTestingBadges, NodeTestingBadges } from "../testing/TestingBadges";
+import type { EdgeMark, NodeMark } from "../testing/testingDecor";
 
 // Accent colour per C4 kind (icon colour on the dark cards).
 export const KIND_COLOR: Record<string, string> = {
@@ -169,6 +171,8 @@ export type C4NodeData = {
   costLabel: string | null;
   /** Comment threads about this box (null: none, or the box is not an element). */
   comments: CommentCount | null;
+  /** System testing mode: the breakpoint, point and trace marks of this box. */
+  testing?: NodeMark | null;
   onComments(id: string): void;
   actions: NodeActions | null;
   archTypes: { id: string; label: string }[];
@@ -383,6 +387,7 @@ export function C4Node({ data, selected }: NodeProps<C4NodeType>) {
           <Icon name="comment" size={11} /> {data.comments.open}
         </button>
       )}
+      {data.testing && <NodeTestingBadges id={el.id} mark={data.testing} />}
       {overlay && (
         <div className={`ov-chip${overlay.color ? "" : " none"}`} data-testid={`badge-${el.id}`} title={`${overlay.group}: ${overlay.value ?? "no value"}`}>
           {overlay.color && <span className="dot" style={{ background: overlay.color }} />}
@@ -661,6 +666,8 @@ export type C4EdgeData = {
   openWork: number;
   /** Open comment threads about the relationship, and whether one is a question. */
   comments: CommentCount | null;
+  /** System testing mode: the marks of this line. */
+  testing?: EdgeMark | null;
   hasDetail: boolean;
   editable: boolean;
   /** Only in the compared version (drawn faded, dotted). */
@@ -1116,8 +1123,9 @@ export function C4Edge({ id, source, target, data, selected, markerEnd, markerSt
               <Icon name="code" size={10} /> {techs}
             </div>
           )}
-          {(data.kind || data.sensitivityLevel || data.hasNotes || data.stageCount > 0 || data.openWork > 0 || (data.comments?.open ?? 0) > 0) && (
+          {(data.kind || data.sensitivityLevel || data.hasNotes || data.stageCount > 0 || data.openWork > 0 || (data.comments?.open ?? 0) > 0 || data.testing) && (
             <div className="edge-badges">
+              {data.testing && <EdgeTestingBadges id={data.testId} mark={data.testing} />}
               {data.kind && <span className="badge subtle">{data.kind.replace(/-/g, " ")}</span>}
               {data.stageCount > 0 && <span className="badge subtle">{data.stageCount} stages</span>}
               {data.sensitivityLevel && <span className={`badge sens-${data.sensitivityLevel}`}>Sensitive: {data.sensitivityLevel}</span>}

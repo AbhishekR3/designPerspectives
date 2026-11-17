@@ -1,8 +1,8 @@
 # Future plans and backlog
 
-Last updated: 2026-11-16. Current version: 0.4.0 (see `CHANGELOG.md`). Latest review: `reviews.md`.
+Last updated: 2026-11-16. Current version: 0.5.0 (see `CHANGELOG.md`, which also lists unreleased changes). Latest review: `reviews.md`.
 
-This file collects work that is not built yet. Nothing here is scheduled or rejected; items are revisited after feedback on the current stage.
+This file collects work that is not built yet, with sources and reasoning. For the short list in order (what to build soon, and what needs more thought), see [future_tasks.md](future_tasks.md). Nothing here is scheduled or rejected; items are revisited after feedback on the current stage.
 
 Source markers: **[Owner]** stated by the project owner (date given) · **[Review]** raised in a file under `docs/reviews/` · **[Notes]** from `docs/notes/` (the two book notes; the `→ designPerspectives` lines there are interpretation, not the authors') · **[Proposal]** an interpretation or recommendation, not sourced · **[Training]** from model training data, not re-verified.
 
@@ -21,17 +21,17 @@ Source markers: **[Owner]** stated by the project owner (date given) · **[Revie
 
 ## 2. Planned stages (from the PoC plan)
 
-Stage A (model, diagrams, overlays, flows, lenses, demo) is built and extended in 0.2/0.3. Check the repo before relying on the status of B–D; the last review that states it is `reviews.md`.
+Stage A (model, diagrams, overlays, flows, lenses, demo), Stage B (codebase to model), Stage C (planned change) and Stage D (BMO) are built, the last two with the 0.5.0 release. Deployment, the small batch and the static export are not.
 
 | Stage | Content | Status |
 |---|---|---|
-| B — Python codebase to model (deterministic) | `dp scan <path>` proposes containers (from `pyproject.toml`, `requirements*.txt`, Dockerfiles, docker-compose), components (Python packages) and connections (imports); proposals are accepted, edited or rejected one by one; accepted objects keep their source paths and a re-scan never changes them (new code appears as "unmapped") | **Built in 0.5.0** (DEC-051, DEC-064, DEC-065): codebase to model with an import file and drafts [Owner, 2026-11-16, DEC-063]. Not built: the MCP backend, Structurizr DSL input, YAML, scan languages beyond Python, JS and TS, drift detection and re-scan, multi-pass summarising for very large repositories, a per-level URL on the Import page. Moved to the Future stage earlier [Owner, 2026-11-14, DEC-026]. `src/core/codeMap.ts` already maps components to files and scans Python/JS/TS imports. Design notes: section 4, "Stage B, codebase to model" [Owner, 2026-11-15] |
+| B — Python codebase to model (deterministic) | `dp scan <path>` proposes containers (from `pyproject.toml`, `requirements*.txt`, Dockerfiles, docker-compose), components (Python packages) and connections (imports); proposals are accepted, edited or rejected one by one; accepted objects keep their source paths and a re-scan never changes them (new code appears as "unmapped") | **Built in 0.5.0** (DEC-051, DEC-064, DEC-065): codebase to model with an import file and drafts [Owner, 2026-11-16, DEC-063]. Not built: the MCP backend, Structurizr DSL input, YAML, scan languages beyond Python, JS and TS, drift detection and re-scan, multi-pass summarising for very large repositories, a per-level URL on the Import page. Moved to the Future stage earlier [Owner, 2026-11-14, DEC-026]. The scan lives in `src/import/scan.ts`; `src/core/codeMap.ts` maps components to files and scans Python/JS/TS imports. Design notes: section 4, "Stage B, codebase to model" [Owner, 2026-11-15] |
 | C — Planned change | C1 drafts: a separately edited copy of the workspace with a diff overlay (added / changed / removed) and apply or discard. C2 branch compare: scan two git refs and show the same overlay | Built: C1 drafts (DEC-016/017), C2 compare of the stored models at git refs (DEC-018), C3 `dp check` / `dp diff`; C4 planned code changes and the coding plan (`dp plan`). See `reviews.md` and `planned-change.md` |
 | D — LLM assist (optional, off by default; done by BMO, the project's agent, on any backend LLM; see section 4, "Stage B") | D-1 describe scan results; D-2 draft a model from a written description (planning a codebase); D-3 explain a diagram or object in the wording of the active lens | **Built in 0.5.0** (DEC-051, DEC-065): BMO with a handoff backend, and direct calls to the Claude API, the OpenAI API and Ollama [Owner, 2026-11-16, DEC-063]. The MCP backend is not built |
 | Deployment (next) | Deployment diagrams on the native Structurizr deployment model: nested deployment nodes, infrastructure nodes and container instances, one environment per diagram; diagrams computed from container relationships; per-node diff/merge units; `dp check` rules [Owner, 2026-11-14, DEC-019, DEC-022]. Later on this track: system instances, deployment groups, side-by-side environment diff, cost per environment | Next stage; plan first |
 | Small batch (after Deployment) | Technology shown on connections (toggle); owner inherited from the parent; descriptions on tag groups and values; keyboard shortcuts menu; "appears in diagrams" list per object; CSV export (A8+) [Proposal, DEC-028] | Planned after Deployment |
 | Static export (after the small batch) | `dp export html`: the built UI plus a snapshot of the model, opened without a server; can be published from CI [Owner, 2026-11-14, DEC-024; order DEC-028] | Planned |
-| Future stage | Parked work that needs more review and planning before it is scoped: **Stage B** (reverse engineering a C4 model from an existing codebase, DEC-026); the MCP server that reads the model and proposes edits as drafts, diagram write tools and agent task packages (DEC-020) [Owner, 2026-11-14] | Not scoped |
+| Future stage | Parked work that needs more review and planning before it is scoped: the MCP server that reads the model and proposes edits as drafts, diagram write tools and agent task packages (DEC-020) [Owner, 2026-11-14]. (Stage B was parked here by DEC-026 and has since been built.) | Not scoped |
 
 Rules for Stage D [Notes]: the LLM gets the model as structured text, not images; output is always a proposal or draft that a person accepts; it never writes the model directly. The useful LLM role is outlining and challenging trade-offs, drafting ADR text and generating options, not making the decision.
 
@@ -42,17 +42,17 @@ Principle [Proposal]: because the tool is local, single-user and has no cloud ac
 | ID | Item | How | Size [Proposal] |
 |---|---|---|---|
 | A8+ | CSV export of model objects | name, type, technology, owner, tags; created/updated timestamps would need tracking in the sidecar or come from git, so start without them | Small |
-| B4 | CODEOWNERS → owner proposals | Read `CODEOWNERS` (used by GitHub, GitLab and Bitbucket [Training]); propose the `owner` property for mapped objects | Small |
+| B4 | CODEOWNERS → owner proposals | Read `CODEOWNERS` (used by GitHub, GitLab and Bitbucket [Training]); propose the `owner` property for mapped objects. The 0.5.0 scan already reads `CODEOWNERS` as evidence (`src/import/scan.ts`); proposing owners from it is not done | Small |
 | B5 | SARIF import → findings overlay | `dp import sarif <file>`; SARIF 2.1.0 is an OASIS standard written by Semgrep, CodeQL, Trivy and others [Training]; findings mapped to objects by file path; counts by severity as a "Security findings" overlay | Small–medium |
 | B6 | Coverage overlay | Cobertura XML (e.g. from coverage.py [Training]) → % per object in High/Medium/Low bands | Small |
-| C3 | `dp check` and `dp diff` | Built (see `reviews.md`). "Unmapped code" (code no object points to) waits for Stage B; `dp check` warns about mapped paths that do not exist instead | Medium |
+| C3 | `dp check` and `dp diff` | Built (see `reviews.md`). `dp check` warns about mapped paths that do not exist, and, once a scan exists, about code that no component maps (`src/import/unmappedCode.ts`, 0.5.0) | Medium |
 
 Answered [Owner, 2026-11-16, DEC-063]: integrations stay in the backlog; any tracker, with GitHub first; GitHub CI first, GitLab CI as a later sample.
 
 ## 4. Backlog
 
 ### Stage B, codebase to model: LLM-assisted import (Future stage, DEC-026) [Owner, 2026-11-15; the design is [Proposal]]
-Built in 0.5.0 (DEC-051, DEC-064, DEC-065); the text below is the design as decided, kept for reference. Differences: JSON only; thresholds remain guesses.
+Built in 0.5.0 (DEC-051, DEC-064, DEC-065); the text below is the design as decided, kept for reference, so it still says "Future stage", `intake.yaml` and "YAML or JSON". What was built differs in these ways: JSON only (the intake is `architecture/import/intake.json`, the import file is JSON); the handoff files (`prompt.md`, `handoff.json`, `result.json`) are in `architecture/import/handoff/`; the review, ignore list and level state are `reviews/`, `ignore.json` and `levels.json` in `architecture/import/`; the thresholds remain guesses. See `README.md` ("Bring in an existing codebase") for how it works now.
 
 Added to the deterministic `dp scan` idea in section 2. The owner's inputs: an import-file approach where a file generated from a script or an LLM is uploaded to build the model, and a public "codebase brain dump" prompt (https://gist.github.com/cmer/2a9b78d2145204eedf1029e9305e3e50). High level only; nothing is scoped. The owner answered the open questions on 2026-11-15; the answers are recorded in DEC-051 and marked **Decided** below.
 
@@ -188,7 +188,7 @@ The accept decision and any typed text stay in the import folder; nothing about 
 ### Planned change (after Stage C) [Review, stage-c]
 - Rebase a draft onto the current main model (today conflicts are only reported at apply time), and a merge editor for conflicts.
 - Undoing an apply could restore the draft too.
-- Compare scan results (Stage B, now in the Future stage) with the model, using the same diff.
+- Compare scan results (Stage B, built in 0.5.0) with the model, using the same diff.
 - Done: a sample draft in the demo model; comparing a draft with main as it is now (DEC-063).
 
 ### Model and diagrams
@@ -248,16 +248,19 @@ The accept decision and any typed text stay in the import folder; nothing about 
 - Run the sample CI jobs in a real repository. The jobs in `demo/ci-examples/` have not been run [Review, prod-p6].
 - Done: Prettier is enforced in CI (0.4.0).
 
-### Sample data and the live UI inspector (after DEC-043, DEC-044) [Review, live-data]
+### Sample data, traces and System Testing (after DEC-043, DEC-046, DEC-075) [Review, live-data]
 - Import a sample from a file in the code folder (a JSON fixture, a CSV row, a recorded message) instead of pasting it; show its schema (field names and types) when the sample is JSON.
 - Compare nested JSON fields, not only top-level ones, when marking what a stage changed.
-- Capture more than fetch and XMLHttpRequest in the inspector: WebSocket messages, server-sent events, `sendBeacon`.
 - Traces from a collector over the network (OTLP over HTTP) instead of files, and traces in the backtrack view (what a real run of a step did).
 - Field lineage across renamed fields (`amountMinor` → `amount`): today only same-named fields are followed, with a list of related names.
 - Read trace files written by other exporters (Jaeger, Zipkin JSON).
 - Suggest endpoints from the code (route definitions in the API's mapped files) so the model lists them before anyone clicks.
 - A secret-name list the project can edit, and masking by the model's sensitive items, in addition to the built-in field names.
-- Highlight the touched elements on the diagram while the inspector is open, instead of a chip list.
+- **Next** (owner left the order to us, 2026-11-16): saved test cases with expected results, and a `dp test` runner for CI (a logged call is the shape such a case would save). Open: where a test gets the hidden values of a saved call from (a test cannot replay "•••"), and whether test cases are part of the model and its drafts or a file beside it.
+- After that: HTTPS, HTTP/2 and gRPC intercept points (HTTPS needs a decision on certificates first).
+- A per-person address override outside git, so developers can run a service on different local ports (today `dp.run.url` is shared by everyone).
+- System Testing against a draft. Demo services that write trace files, so a demo run is also drawn as a trace.
+- Pausing message queues and other non-HTTP pipeline stages.
 
 ### Permissions and scale
 - Permissions beyond lenses: decision-rights matrix per role, signed approvals, encrypted files; approval rules (cost threshold, cross-team, security) [Notes].

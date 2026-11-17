@@ -1,5 +1,5 @@
 import { ReactFlowProvider } from "@xyflow/react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useElementSize, useInsetVars } from "./canvas/coveredEdges";
 import { PALETTE_KEY, storage } from "./preferences";
 import { draftActions, diagramActions, useElementActions } from "./selectionActions";
@@ -27,7 +27,6 @@ import { UserChip } from "./common/UserChip";
 import type { LineShape } from "./canvas/lineShapes";
 import { canSpread, diagramEditable, menuItems, spreadLabels, useContextMenu } from "./contextMenus";
 import { canMove, MoveDialog } from "./common/MoveDialog";
-import { LiveUiInspector } from "./inspect/LiveUiInspector";
 import { Backtrack } from "./inspect/Backtrack";
 import type { BacktrackQuery } from "./api";
 import { EmptyStart, emptyHint } from "./common/EmptyState";
@@ -44,7 +43,8 @@ import { useClipboard } from "./hooks/useClipboard";
 import { useFlowAutoplay, useFlowPlayer } from "./hooks/useFlowPlayer";
 import { inLens, useLens, useLensState } from "./hooks/useLens";
 import { useModel } from "./hooks/useModel";
-import { useHashSync, useNavigation, usePage, useReveal } from "./hooks/useNavigation";
+import { useHashSync, useNavigation, usePage, useReveal, useTestingParam } from "./hooks/useNavigation";
+import { useTesting } from "./hooks/useTesting";
 import { decisionFlags, DecisionsPage } from "./pages/DecisionsPage";
 import { useCatalog } from "./hooks/useCatalog";
 import type { HubInfo } from "./types";
@@ -53,6 +53,17 @@ import { useSelection } from "./hooks/useSelection";
 import { useShortcuts } from "./hooks/useShortcuts";
 import { confirmDialog, DialogHost, promptDialog } from "./common/dialogs";
 import { notify, Toasts } from "./common/notify";
+import { CallPanel } from "./testing/CallPanel";
+import type { FlowTesting } from "./testing/flowTesting";
+import { continueCall, pausedTarget } from "./testing/pausedCall";
+import { RunLog } from "./testing/RunLog";
+import { SetupHelper } from "./testing/SetupHelper";
+import { stepForCall, stepLiveness, testingDecor } from "./testing/testingDecor";
+import { TestingBlock } from "./testing/TestingBlock";
+import { TestingStrip } from "./testing/TestingStrip";
+import { TraceView, useObservedTrace, useRecentTraces } from "./testing/TraceView";
+import { Watches } from "./testing/Watches";
+import { targetsOf, toggleBreakpoints } from "./testing/breakpoints";
 
 type ModalState =
   | { type: "tag"; group: TagGroup | null }
@@ -114,7 +125,6 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
   const chatLog = useBmoChatLog();
   const [modal, setModal] = useState<ModalState>(null);
   const [openFile, setOpenFile] = useState<string | null>(null);
-  const [inspectId, setInspectId] = useState<string | null>(null);
   const [backtrackQ, setBacktrackQ] = useState<BacktrackQuery | null>(null);
   // The "Move to…" dialog (the element being moved), and the move just done, waiting for the model to reload so the element can be shown.
   const [moveId, setMoveId] = useState<string | null>(null);
@@ -153,6 +163,43 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
   useHashSync({ key, keyRef, setKey, versionRef, loadDiagram, switchVersion, setSelection, setMenu, setFlowStep, setPlaying });
   const flow = useFlowAutoplay(diagram, player);
   const reveal = useReveal(state, diagram, setKey, setSelection);
+
+  // System testing mode (`t=1`): only on the main model without a comparison; the model cannot be edited while it is on.
+  const { testing: testingParam, setTesting } = useTestingParam(keyRef);
+  const canTestHere = version.model === "main" && !version.compare;
+  const testingOn = testingParam && canTestHere;
+  useEffect(() => {
+    if (testingParam && !canTestHere) setTesting(false, { replace: true });
+  }, [testingParam, canTestHere, setTesting]);
+  const tx = useTesting(testingOn, !!state?.can.test);
+  const [traceId, setTraceId] = useState<string | null>(null);
+  const traceData = useObservedTrace(testingOn ? traceId : null);
+  const recentTraces = useRecentTraces(testingOn);
+  const [pointsOpen, setPointsOpen] = useState(false);
+  useEffect(() => {
+    if (!testingOn) {
+      setTraceId(null);
+      setPointsOpen(false);
+    }
+  }, [testingOn]);
+  // While testing, everything that edits the model is off: the screen sees the model as read-only.
+  const viewState = useMemo(() => (testingOn && state ? { ...state, readOnly: true } : state), [testingOn, state]);
+  const decor = useMemo(() => (testingOn && state && diagram ? testingDecor(diagram, state, tx.state, traceData.trace) : null), [testingOn, state, diagram, tx.state, traceData.trace]);
+  // The flow follows the call that gets paused: its step is shown, as if the flow were played to there. No autoplay in this mode.
+  const heldSeen = useRef<string[]>([]);
+  useEffect(() => {
+    const keys = (tx.state?.held ?? []).map((id) => `${id}:${tx.state?.calls.find((c) => c.id === id)?.state}`);
+    const fresh = keys.filter((k) => !heldSeen.current.includes(k));
+    heldSeen.current = keys;
+    if (!testingOn || !flow || !tx.state || fresh.length === 0) return;
+    const call = tx.state.calls.find((c) => c.id === fresh[0].split(":")[0]);
+    const at = call ? stepForCall(flow, call, flowStep) : null;
+    if (at !== null) setFlowStep(at);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only a new paused call moves the flow
+  }, [tx.state]);
+  useEffect(() => {
+    if (testingOn && playing) setPlaying(false);
+  }, [testingOn, playing, setPlaying]);
   // A link from the home page or the catalog page names an element to show (`reveal=`): once, when the model is in.
   const revealed = useRef(false);
   useEffect(() => {
@@ -227,7 +274,7 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
     }
   }, [movedTo, state, reveal]);
   useShortcuts({
-    state,
+    state: viewState,
     diagram,
     selection,
     setSelection,
@@ -242,6 +289,20 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
     toggleHelp: () => setHelpOpen((o) => !o),
     canvasRef,
     openMenu,
+    testing: {
+      on: testingOn,
+      continueCall: () => {
+        const c = pausedTarget(tx.state, tx.selectedCall);
+        if (c) void continueCall(c, tx.actions);
+      },
+      step: () => {
+        const c = pausedTarget(tx.state, tx.selectedCall);
+        if (c) void continueCall(c, tx.actions, true);
+      },
+      toggleBreakpoint: () => {
+        if (tx.state && state) void toggleBreakpoints(tx.state, targetsOf(selection, diagram, state), tx.actions);
+      },
+    },
   });
 
   if (!state || !lens) {
@@ -289,7 +350,22 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
       : state.me?.role === "engineer" && state.model.ref === "main"
         ? "Your role cannot change code files on the main model: read-only. Open a draft to plan code edits."
         : "Your role cannot change code files here: read-only.";
-  const canDeleteHere = !!nodeActions && diagramEditable(state, diagram);
+  const canEditHere = diagramEditable(state, diagram) && !testingOn;
+  const canDeleteHere = !!nodeActions && canEditHere;
+  /** The panels see a read-only model while testing. */
+  const panelState = viewState!;
+  const canTest = state.can.test;
+  const testingUsable = testingOn && canTest && !tx.denied && !!tx.state?.available;
+  const callSel = testingUsable ? tx.state!.calls.find((c) => c.id === tx.selectedCall) : undefined;
+  /** What the testing mode adds to the steps of the flow on screen. */
+  const flowTesting: FlowTesting | undefined =
+    testingUsable && flow
+      ? {
+          liveness: (step) => stepLiveness(state, tx.state, traceData.trace, step),
+          hasBreakpoint: (step) => tx.state!.breakpoints.some((b) => b.on.type === "step" && b.on.flow === flow.key && b.on.order === step.order),
+          toggleBreakpoint: (step) => step.order && void toggleBreakpoints(tx.state!, [{ type: "step", flow: flow.key, order: step.order }], tx.actions),
+        }
+      : undefined;
   /** Open the BMO chat with "[Name]" of an element or relationship in its input (remembered by ID). */
   const askAbout = (t: { element?: string; relationship?: string }) => {
     const id = t.element ?? t.relationship;
@@ -342,7 +418,7 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
   const showGhost = !!(selectedNode?.ghost || selectedEdge?.ghost || (selection && diagram?.compare?.removed));
   const selectedElement = selection?.type === "node" ? state.elements.find((e) => e.id === selection.id) : undefined;
   const panelProps = {
-    state,
+    state: panelState,
     diagram: diagram!,
     lens,
     mutate,
@@ -350,7 +426,6 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
     onOpen: open,
     onReveal: reveal,
     onOpenFile: setOpenFile,
-    onInspectUi: setInspectId,
     onBacktrack: setBacktrackQ,
     onOpenDecision: (id: string) => openDecision(id),
     onExplain: (t: { element?: string; relationship?: string }, name: string) =>
@@ -403,7 +478,7 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
           <span className="divider" />
         </>
       )}
-      {diagramEditable(state, diagram) && (
+      {canEditHere && (
         <>
           <button className="ghost icon" onClick={() => doHistory("undo")} disabled={!state.canUndo} title="Undo (Ctrl/Cmd+Z)" aria-label="Undo" data-testid="undo">
             <Icon name="undo" />
@@ -416,7 +491,7 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
           </button>
         </>
       )}
-      {canSpread(state, diagram) && (
+      {canSpread(state, diagram) && !testingOn && (
         <>
           <button
             className="ghost icon"
@@ -453,6 +528,16 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
           {comments.openTotal > 0 && <span className="comments-count">{comments.openTotal > 99 ? "99+" : comments.openTotal}</span>}
         </button>
       )}
+      <button
+        className={`ghost testing-btn${testingOn ? " on" : ""}`}
+        onClick={() => setTesting(!testingOn)}
+        disabled={!canTestHere && !testingOn}
+        aria-pressed={testingOn}
+        title={canTestHere ? "System testing: watch real calls between services and pause them at a breakpoint" : "System testing works on the main model, without a comparison"}
+        data-testid="testing-toggle"
+      >
+        Test
+      </button>
       <span className="export-wrap" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setBmoMenuOpen(false)}>
         <button
           className={`ghost bmo-btn${bmoMenuOpen ? " on" : ""}`}
@@ -626,6 +711,21 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
             onExit={() => switchVersion("main", null)}
           />
         )}
+        {testingOn && (
+          <TestingStrip
+            testing={tx.state}
+            denied={tx.denied}
+            canTest={canTest}
+            selectedCall={tx.selectedCall}
+            actions={tx.actions}
+            traces={recentTraces.list}
+            traceId={traceId}
+            onPickTrace={setTraceId}
+            onRefreshTraces={recentTraces.refresh}
+            onOpenPoints={() => setPointsOpen(true)}
+            onExit={() => setTesting(false)}
+          />
+        )}
         <div className={`canvas-wrap${loading ? " loading-diagram" : ""}`} ref={setWrapEl} data-cw={cw} aria-busy={loading || undefined} data-testid="canvas-wrap">
           {loading && <div className="load-bar" role="progressbar" aria-label="Loading" data-testid="loading-bar" />}
           {diagram && (
@@ -634,7 +734,7 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
                 diagram={diagram}
                 lens={lens}
                 decorate={decorate}
-                actions={nodeActions}
+                actions={testingOn ? null : nodeActions}
                 archTypes={state.enums.archTypes}
                 renameId={renameId}
                 onRenameStarted={clearRename}
@@ -643,17 +743,21 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
                 flowStep={flowStep}
                 showChanges={activeOverlay?.kind === "changes"}
                 selection={selection}
-                onSelect={select}
+                onSelect={(sel) => {
+                  if (testingOn) tx.setSelectedCall(null);
+                  select(sel);
+                }}
                 onDrill={open}
                 onConnect={connect}
                 onPositions={savePositions}
-                onLayout={(patch, auto) => key && !state.readOnly && mutate(() => api.layout(key, patch, auto))}
+                onLayout={(patch, auto) => key && !state.readOnly && !testingOn && mutate(() => api.layout(key, patch, auto))}
                 onOpenFile={setOpenFile}
-                onContextMenu={openMenu}
+                onContextMenu={testingOn ? () => undefined : openMenu}
                 handleRef={canvasRef}
                 commentCounts={comments.counts}
+                testing={decor}
                 onComments={(t) => showComments(t, { type: "node", id: t.id }, false)}
-                readOnly={state.readOnly}
+                readOnly={state.readOnly || testingOn}
                 version={`${version.model}|${version.compare ?? ""}`}
               >
                 <CanvasNotes
@@ -769,7 +873,18 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
             <div className="topbar-sub">
               <div className="topbar-left">
                 {diagram && !inLens(lens, diagram.level) && <div className="float note small">This level is not in the {lens.name} lens.</div>}
-                <FlowCard state={state} diagram={diagram} flow={flow} flowStep={flowStep} setFlowStep={setFlowStep} playing={playing} setPlaying={setPlaying} onOpen={open} onNewFlow={newFlow} />
+                <FlowCard
+                  state={panelState}
+                  diagram={diagram}
+                  flow={flow}
+                  flowStep={flowStep}
+                  setFlowStep={setFlowStep}
+                  playing={playing}
+                  setPlaying={setPlaying}
+                  onOpen={open}
+                  onNewFlow={newFlow}
+                  testing={flowTesting}
+                />
               </div>
               {tools}
             </div>
@@ -778,7 +893,7 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
           {chatOpen && <BmoChat state={state} diagram={diagram} lens={lens} log={chatLog} seed={chatSeed} onReveal={revealRef} onClose={() => setChatOpen(false)} />}
 
           <div className="left-stack">
-            {diagram && !state.readOnly && !diagram.compare?.removed && diagram.level !== "flow" && diagram.level !== "code" && (
+            {diagram && !state.readOnly && !testingOn && !diagram.compare?.removed && diagram.level !== "flow" && diagram.level !== "code" && (
               <Palette diagram={diagram} open={paletteOpen} onToggle={togglePalette} onAdd={(it) => addItem(it)} />
             )}
             {diagram && diagram.level !== "code" && diagram.level !== "connector" && (
@@ -802,7 +917,7 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
           {decisionsOpen && <DecisionsPage state={state} selected={decisionId} onSelect={(id) => openDecision(id)} onClose={() => setPage(null)} onReveal={revealFromPage} mutate={mutate} />}
           {diagram && diagram.nodes.length === 0 && (
             <div className="free-area">
-              {diagram.level === "landscape" && !state.readOnly && !diagram.compare?.removed ? (
+              {diagram.level === "landscape" && !state.readOnly && !testingOn && !diagram.compare?.removed ? (
                 <EmptyStart
                   onAdd={(testId) => {
                     const item = paletteItems(diagram).find((it) => it.testId === testId);
@@ -848,14 +963,55 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
           </button>
         </div>
         <CommentsContext.Provider value={comments}>
-          <ReadOnlyContext.Provider value={state.readOnly}>
+          <ReadOnlyContext.Provider value={state.readOnly || testingOn}>
+            {testingUsable && tx.state && callSel && (
+              <CallPanel
+                key={callSel.id}
+                state={state}
+                call={callSel}
+                detail={tx.detail?.id === callSel.id ? tx.detail : null}
+                actions={tx.actions}
+                mutate={mutate}
+                onReveal={revealRef}
+                onShowTrace={setTraceId}
+                onClose={() => tx.setSelectedCall(null)}
+              />
+            )}
+            {testingUsable && tx.state && !callSel && diagram && !showGhost && selection && selection.type !== "nodes" && (
+              <TestingBlock state={state} diagram={diagram} selection={selection} testing={tx.state} actions={tx.actions} mutate={mutate} />
+            )}
+            {testingUsable && tx.state && !selection && (
+              <div className="panel-body" data-testid="testing-panel">
+                {!callSel && (
+                  <>
+                    <RunLog
+                      state={state}
+                      testing={tx.state}
+                      selectedCall={tx.selectedCall}
+                      actions={tx.actions}
+                      onSelect={(c) => {
+                        tx.setSelectedCall(c.id);
+                        revealRef(c.relationshipId);
+                      }}
+                    />
+                    <Watches testing={tx.state} actions={tx.actions} />
+                  </>
+                )}
+                {traceId && <TraceView traceId={traceId} data={traceData} state={state} onReveal={reveal} />}
+              </div>
+            )}
+            {testingOn && !testingUsable && !selection && traceId && (
+              <div className="panel-body">
+                <TraceView traceId={traceId} data={traceData} state={state} onReveal={reveal} />
+              </div>
+            )}
             {showGhost && <GhostPanel node={selectedNode} edge={selectedEdge} change={selectedChange} against={againstLabel} />}
             {multiIds && diagram && (
               <MultiPanel
                 state={state}
                 lens={lens}
                 ids={multiIds}
-                canEdit={diagramEditable(state, diagram)}
+                canEdit={canEditHere}
                 mutate={mutate}
                 canDelete={canDeleteHere}
                 onDelete={() => nodeActions?.removeMany(multiIds.filter((id) => state.elements.some((x) => x.id === id) && !diagram.nodes.find((n) => n.id === id)?.ghost))}
@@ -872,11 +1028,21 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
             {!showGhost && !selectedElement && selectedNode?.kind === "file" && diagram && <FilePanel key={selectedNode.id} node={selectedNode} {...panelProps} />}
             {!showGhost && selection?.type === "edge" && diagram && <EdgePanel key={selection.id} edgeId={selection.id} {...panelProps} />}
             {!selection && flow && (
-              <FlowPanel flow={flow} state={state} mutate={mutate} onDeleted={() => open("landscape")} flowStep={flowStep} setFlowStep={setFlowStep} onBacktrack={setBacktrackQ} onOpenDiagram={open} />
+              <FlowPanel
+                flow={flow}
+                state={panelState}
+                mutate={mutate}
+                onDeleted={() => open("landscape")}
+                flowStep={flowStep}
+                setFlowStep={setFlowStep}
+                onBacktrack={setBacktrackQ}
+                onOpenDiagram={open}
+                testing={flowTesting}
+              />
             )}
             {!selection && diagram?.level === "connector" && <ConnectorPanel {...panelProps} />}
             {!selection && diagram?.level === "code" && <CodeDiagramPanel {...panelProps} />}
-            {!selection && diagram && !flow && diagram.level !== "connector" && diagram.level !== "code" && (
+            {!selection && diagram && !flow && !testingOn && diagram.level !== "connector" && diagram.level !== "code" && (
               <div className="panel-body">
                 <div className="panel-kind">
                   {diagram.c4 && `${diagram.c4} · `}
@@ -901,7 +1067,7 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
                     </>
                   )}
                 </dl>
-                {diagramEditable(state, diagram) && (
+                {canEditHere && (
                   <label className="field inline">
                     <span>Line shape</span>
                     <select
@@ -952,6 +1118,7 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
           }}
         />
       )}
+      {testingUsable && pointsOpen && tx.state && <SetupHelper state={state} testing={tx.state} actions={tx.actions} onReveal={revealRef} onClose={() => setPointsOpen(false)} />}
       {backtrackQ && <Backtrack state={state} query={backtrackQ} onClose={() => setBacktrackQ(null)} onOpenFile={setOpenFile} onReveal={reveal} />}
       {openFile && <FileEditor path={openFile} onClose={() => setOpenFile(null)} inDraft={!!draftId} onChanged={() => void refresh().catch(() => undefined)} readOnlyNote={codeNote} />}
       {modal?.type === "plan" && <PlanDialog state={state} draftId={modal.draftId} onClose={() => setModal(null)} onSaved={() => void refresh().catch(() => undefined)} />}
@@ -1007,7 +1174,6 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
       {modal?.type === "lens" && (
         <LensEditor lens={modal.lens} tagGroups={state.tagGroups} characteristics={state.characteristics} onClose={() => setModal(null)} mutate={mutate} onSaved={(id) => chooseLensAfterSave(id)} />
       )}
-      {inspectId && <LiveUiInspector state={state} elementId={inspectId} mutate={mutate} onClose={() => setInspectId(null)} onReveal={reveal} onOpen={open} />}
       {bmoSheet && (
         <BmoSheet
           title={bmoSheet.title}

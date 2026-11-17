@@ -85,9 +85,9 @@ export function Backtrack({ state, query, onClose, onOpenFile, onReveal }: { sta
   const name = (id: string | null) => (id ? (state.elements.find((e) => e.id === id)?.name ?? id) : null);
 
   return (
-    <div className="inspector backtrack" role="dialog" aria-modal="true" aria-label="Backtrack" data-testid="backtrack">
-      <div className="inspector-head">
-        <div className="inspector-title">
+    <div className="overlay-page backtrack" role="dialog" aria-modal="true" aria-label="Backtrack" data-testid="backtrack">
+      <div className="overlay-page-head">
+        <div className="overlay-page-title">
           <span className="panel-kind">Backtrack</span> <strong className="truncate">{result?.title ?? "…"}</strong>
         </div>
         <div className="row">
@@ -106,7 +106,7 @@ export function Backtrack({ state, query, onClose, onOpenFile, onReveal }: { sta
           </button>
         </div>
       </div>
-      {error && <div className="empty-note inspector-error">{error}</div>}
+      {error && <div className="empty-note overlay-page-error">{error}</div>}
       {result && (
         <div className="backtrack-body">
           <div className="backtrack-steps panel-body" data-testid="backtrack-steps">

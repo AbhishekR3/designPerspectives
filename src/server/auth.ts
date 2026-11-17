@@ -22,6 +22,7 @@
  *                                                              may run BMO at all is the settings' `allowedRoles` (assistant/settings.ts `canRun`), and a task
  *                                                              that makes a draft or changes one needs that draft right as well: the route asks `decide()`
  *                                                              again with "draft.create" or "edit" (routes/bmo.ts)
+ *   testing         yes         yes                    no      open intercept points; pause, change, answer or resend live calls (DEC-075); any version
  *   (unlisted)      yes         no                     no      deny by default
  *
  * An engineer's own drafts are those whose author is their user name (set by the server at creation);
@@ -63,7 +64,7 @@ const OPEN_PATHS = new Set(["/api/login", "/api/logout", "/api/me", "/api/health
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
 /** "admin": hub and server settings (adding a project, credentials); architects only. */
-export type Action = "open" | "comment" | "edit" | "code" | "draft.create" | "draft.edit" | "draft.discard" | "draft.apply" | "import" | "import.final" | "bmo.run" | "admin";
+export type Action = "open" | "comment" | "edit" | "code" | "draft.create" | "draft.edit" | "draft.discard" | "draft.apply" | "import" | "import.final" | "bmo.run" | "testing" | "admin";
 
 /**
  * What every non-GET API route does, by "METHOD path" as registered ("ALL" for app.all). A route
@@ -128,15 +129,23 @@ export const ROUTE_RULES: Record<string, Action> = {
   "POST /api/code/file": "code",
   "DELETE /api/code/file": "code",
   "POST /api/code/revert": "code",
-  // routes/inspect.ts: the live UI inspector reads the model and opens a local proxy; it changes nothing
-  "POST /api/ui-proxy": "open",
   // routes/comments.ts: a conversation about the model, kept in its own file, not part of it (DEC-049)
   "POST /api/comments": "comment",
   "POST /api/comments/:id/replies": "comment",
   "PATCH /api/comments/:id": "comment",
   "DELETE /api/comments/:id": "comment",
   "DELETE /api/comments/:id/replies/:rid": "comment",
-  "POST /api/inspect": "open",
+  // routes/testing.ts: intercept points and live calls (DEC-075); the model is not changed
+  "POST /api/testing/points": "testing",
+  "DELETE /api/testing/points/:id": "testing",
+  "PUT /api/testing/breakpoints": "testing",
+  "PUT /api/testing/watches": "testing",
+  "PUT /api/testing/options": "testing",
+  "POST /api/testing/step": "testing",
+  "POST /api/testing/calls/:id/release": "testing",
+  "POST /api/testing/release-all": "testing",
+  "POST /api/testing/calls/:id/resend": "testing",
+  "DELETE /api/testing/calls": "testing",
   // routes/import.ts: scan, intake, import file, handoff (import); review acts on the selected draft (edit); ignore list and levels (import.final)
   "POST /api/import/scan": "import",
   "PUT /api/import/intake": "import",
@@ -226,6 +235,8 @@ export function decide(action: Action | undefined, who: Who, ref: string, author
       return `Engineers can discard only drafts they started. ${author ? `This draft was started by ${author}.` : "This draft has no author."} Ask an architect to discard it.`;
     case "draft.apply":
       return "Only an architect can apply a draft. You can keep working on it; ask an architect to apply it.";
+    case "testing":
+      return null; // pausing and changing live calls changes no model, so the version does not matter
     case "import":
       return null; // an import makes a new draft of the engineer's own; nothing reaches main unreviewed
     case "import.final":
@@ -246,6 +257,7 @@ export function permissions(who: Who, ref: string, openDraftAuthor: string | nul
     writeCode: ref === "main" && yes("code"),
     comment: yes("comment"),
     import: yes("import"),
+    test: yes("testing"),
   };
 }
 

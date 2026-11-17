@@ -408,8 +408,8 @@ kbd {
   }
 }
 
-/* Live UI inspector: the running app in a frame, and what each click did. */
-.inspector {
+/* A page over the whole window with its own heading row (Backtrack.tsx). */
+.overlay-page {
   position: fixed;
   inset: 0;
   z-index: var(--z-modal);
@@ -417,7 +417,7 @@ kbd {
   display: flex;
   flex-direction: column;
 }
-.inspector-head {
+.overlay-page-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -427,98 +427,18 @@ kbd {
   border-bottom: 1px solid var(--line);
   background: var(--panel);
 }
-.inspector-title {
+.overlay-page-title {
   display: flex;
   align-items: baseline;
   gap: var(--space-3);
   min-width: 0;
   flex: 1;
 }
-.inspector-body {
-  flex: 1;
-  min-height: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) min(480px, 42vw);
-}
-.inspector-frame {
-  position: relative;
-  min-width: 0;
-  background: #fff;
-}
-.inspector-frame iframe {
-  border: 0;
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-.inspector-error {
+.overlay-page-error {
   margin: var(--space-5);
 }
-.inspector-side {
-  overflow-y: auto;
-  border-left: 1px solid var(--line);
-  background: var(--panel);
-}
-/* The side scrolls as a whole: its parts keep their height (the click list scrolls on its own and would otherwise shrink to nothing). */
-.inspector-side > * {
-  flex-shrink: 0;
-}
-.inspector-clicks {
-  list-style: none;
-  padding: 0;
-  margin: 0 0 var(--space-3);
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  max-height: 180px;
-  overflow-y: auto;
-}
-.inspector-clicks button {
-  width: 100%;
-  display: flex;
-  justify-content: space-between;
-  gap: var(--space-3);
-  text-align: left;
-}
-.inspector-clicks button.on {
-  border-color: var(--accent);
-}
-.inspector-detail,
-.inspector-match,
-.inspector-chain {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-.inspector-call {
-  border-top: 1px solid var(--line);
-  padding-top: var(--space-3);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-.inspector-touches {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-1);
-}
-.inspector-step {
-  border-left: 2px solid var(--line-strong);
-  padding-left: var(--space-3);
-}
-.inspector .danger {
+.overlay-page .danger {
   color: var(--danger);
-}
-@media (max-width: 900px) {
-  .inspector-body {
-    grid-template-columns: 1fr;
-    grid-template-rows: minmax(240px, 1fr) minmax(0, 1fr);
-  }
-  .inspector-side {
-    border-left: 0;
-    border-top: 1px solid var(--line);
-  }
 }
 
 /* Backtrack: the steps back from one stage or flow step, and the selected step's data, code and history. */
@@ -654,69 +574,4 @@ kbd {
     border-right: 0;
     border-bottom: 1px solid var(--line);
   }
-}
-
-/* A trace from the trace files over the model (ObservedTrace.tsx). */
-.observed {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: var(--space-2) var(--space-3);
-}
-.observed-hops {
-  margin: 0;
-  padding-left: var(--space-5);
-  font-size: 12px;
-}
-.observed-hops li.drift {
-  color: var(--amber);
-}
-.observed-drift {
-  border: 1px solid var(--warn-line);
-  background: var(--warn-bg);
-  border-radius: var(--radius-sm);
-  padding: var(--space-1) var(--space-2);
-}
-.spans {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin-top: var(--space-1);
-}
-.span-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) 4.5em;
-  gap: var(--space-2);
-  align-items: center;
-  font-size: 12px;
-}
-.span-name {
-  display: flex;
-  gap: var(--space-1);
-  min-width: 0;
-}
-.span-bar {
-  position: relative;
-  height: 8px;
-  background: var(--raise);
-  border-radius: 4px;
-}
-.span-bar span {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  background: var(--accent);
-  border-radius: 4px;
-}
-.span-row.failed .span-bar span {
-  background: var(--danger);
-}
-.span-ms {
-  text-align: right;
-}
-.span-error {
-  grid-column: 1 / -1;
-  color: var(--danger);
 }

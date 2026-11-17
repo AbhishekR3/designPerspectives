@@ -8,6 +8,7 @@ import "./styles/overlays.css";
 import "./styles/canvas.css";
 import "./styles/panels.css";
 import "./styles/dialogs.css";
+import "./styles/testing.css";
 import "./styles/pages.css";
 import "./styles/home.css";
 import { AuthGate } from "./pages/SignIn";

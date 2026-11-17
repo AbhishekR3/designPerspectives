@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Icon, iconFor } from "../common/icons";
 import type { AppState, Diagram, Flow } from "../types";
 import { baseName, stepInfo } from "../panels/flowStepInfo";
+import { LIVENESS_LABEL, type FlowTesting } from "../testing/flowTesting";
 
 /** Flows menu and, while a flow is open, the step card: Introduction, the steps, Conclusion. */
 export function FlowCard({
@@ -14,6 +15,7 @@ export function FlowCard({
   setPlaying,
   onOpen,
   onNewFlow,
+  testing,
 }: {
   state: AppState;
   diagram: Diagram | null;
@@ -24,6 +26,8 @@ export function FlowCard({
   setPlaying(v: boolean): void;
   onOpen(key: string): void;
   onNewFlow(): void;
+  /** System testing mode: shows each step's liveness and a way into its pipeline. */
+  testing?: FlowTesting;
 }) {
   const [open, setOpen] = useState(false);
   const [details, setDetails] = useState(true);
@@ -75,8 +79,8 @@ export function FlowCard({
               if (!playing && (flowStep === null || flowStep >= n - 1)) setFlowStep(null);
               setPlaying(!playing);
             }}
-            disabled={!n}
-            title={playing ? "Pause" : "Play the flow"}
+            disabled={!n || !!testing}
+            title={testing ? "A flow does not play by itself while testing: it follows the calls that are paused" : playing ? "Pause" : "Play the flow"}
             aria-label={playing ? "Pause" : "Play the flow"}
             data-testid="play"
           >
@@ -169,6 +173,11 @@ export function FlowCard({
                 </div>
                 <div className="row between">
                   <span className="pill msg">{step.response ? "← Response" : "→ Message"}</span>
+                  {testing && (
+                    <span className={`live-word ${testing.liveness(step)}`} data-testid="player-live">
+                      {LIVENESS_LABEL[testing.liveness(step)]}
+                    </span>
+                  )}
                   <button className="ghost small" onClick={() => setDetails(!details)}>
                     Details <Icon name="chevron" size={11} className={details ? "flip" : ""} />
                   </button>
@@ -188,6 +197,11 @@ export function FlowCard({
                     )}
                     {!edge && <span className="muted">This step's relationship is not drawn on this diagram.</span>}
                   </div>
+                )}
+                {testing && (state.relationships.find((r) => r.id === step.relationshipId)?.stages.length ?? 0) > 0 && (
+                  <button className="small" onClick={() => onOpen(`connector-${step.relationshipId}`)} data-testid="player-into-pipeline">
+                    Step into pipeline
+                  </button>
                 )}
                 {details && (outLine || inLine) && (
                   <div className="flow-io small" data-testid="player-io">

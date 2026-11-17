@@ -39,8 +39,9 @@
  *                    a stage's example is the data leaving that stage
  *   dp.example       sample of the data on the relationship      relationships (text, max EXAMPLE_MAX chars)
  *   dp.format        what that data is (JSON, CSV row, ...)       relationships
- *   dp.endpoints     JSON [{"method","path"}]                  relationships; HTTP calls it carries (live UI inspector)
- *   dp.ui.url        where the UI runs (http/https)               elements; opened by the live UI inspector
+ *   dp.endpoints     JSON [{"method","path"}]                  relationships; HTTP calls it carries
+ *   dp.run.url       address it runs at (http/https, no path)     elements; where an intercept point of the testing mode
+ *                    forwards to. Read from the older dp.ui.url when absent; a write removes the older key
  *   dp.otel.service  service.name in trace files                  elements; when it differs from the ID and name
  *   dp.catalog       ID of the shared catalog element this copies   elements (hub, DEC-055); its name, description
  *                    and technology come from the catalog and are refused here
@@ -76,6 +77,8 @@ export const FORMAT_KEY = "dp.format";
 export const EXAMPLE_MAX = 8000;
 
 export const ENDPOINTS_KEY = "dp.endpoints";
+export const RUN_URL_KEY = "dp.run.url";
+/** The older key for the same address (the live UI address); read when RUN_URL_KEY is absent. */
 export const UI_URL_KEY = "dp.ui.url";
 export const OTEL_SERVICE_KEY = "dp.otel.service";
 export const CATALOG_KEY = "dp.catalog";
@@ -111,19 +114,26 @@ export function cleanEndpoints(items: unknown): Endpoint[] {
   return out;
 }
 
-/** The URL a live UI runs at: http or https only. */
-export function cleanUiUrl(value: unknown): string {
+/** The address something runs at: http or https, a host and a port only (a local or test address; it is committed with the model). */
+export function cleanRunUrl(value: unknown): string {
   const text = str(value).trim();
   if (!text) return "";
   let u: URL;
   try {
     u = new URL(text);
   } catch {
-    throw new ModelError(`"${text}" is not a URL. Use the address the UI runs at, e.g. http://localhost:3000/.`);
+    throw new ModelError(`"${text}" is not a URL. Use the address it runs at, e.g. http://localhost:3000/.`);
   }
-  if (u.protocol !== "http:" && u.protocol !== "https:") throw new ModelError("The live UI address must start with http:// or https://.");
-  if (u.username || u.password) throw new ModelError("The live UI address must not contain a user name or password.");
+  if (u.protocol !== "http:" && u.protocol !== "https:") throw new ModelError("The address must start with http:// or https://.");
+  if (u.username || u.password) throw new ModelError("The address must not contain a user name or password.");
+  if (u.pathname !== "/" || u.search || u.hash) throw new ModelError("The address is a host and a port only, e.g. http://localhost:3000/. Paths belong in the API endpoints of a relationship.");
   return u.href;
+}
+
+/** The address an element runs at (`dp.run.url`, or the older `dp.ui.url`), or "". */
+export function runUrlOf(el: HasProps | undefined | null): string {
+  const props = el?.properties ?? {};
+  return props[RUN_URL_KEY] ?? props[UI_URL_KEY] ?? "";
 }
 
 /** A sample payload: blank lines at the ends dropped, refused when longer than EXAMPLE_MAX. */
@@ -720,7 +730,7 @@ export function elementSummary(idx: Index, elementId: string): ElementSummary {
     external: idx.isExternal(el.id),
     location: el.location ?? null,
     childCount: idx.childrenOf(el.id).length,
-    uiUrl: props[UI_URL_KEY] ?? "",
+    runUrl: props[RUN_URL_KEY] ?? props[UI_URL_KEY] ?? "",
     otelService: props[OTEL_SERVICE_KEY] ?? "",
     catalogId: props[CATALOG_KEY] ?? "",
     data: getJson<DataAsset>(el, DATA_KEY),
@@ -920,7 +930,10 @@ export function updateElement(ws: Workspace, sidecar: Sidecar, elementId: string
     el.technology = joinTech(patch.technology);
   }
   if ("url" in patch) el.url = str(patch.url) || null;
-  if ("uiUrl" in patch) setProp(el, UI_URL_KEY, cleanUiUrl(patch.uiUrl) || null);
+  if ("runUrl" in patch) {
+    setProp(el, RUN_URL_KEY, cleanRunUrl(patch.runUrl) || null);
+    setProp(el, UI_URL_KEY, null);
+  }
   if ("otelService" in patch) setProp(el, OTEL_SERVICE_KEY, str(patch.otelService).trim().slice(0, 200) || null);
   if ("owner" in patch) setProp(el, OWNER_KEY, str(patch.owner).trim() || null);
   if ("links" in patch) {

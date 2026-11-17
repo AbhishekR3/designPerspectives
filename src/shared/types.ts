@@ -164,8 +164,8 @@ export interface ElementSummary {
   external: boolean;
   location?: string | null;
   childCount: number;
-  /** Where this UI runs (http/https), for the live UI inspector; "" when not set. */
-  uiUrl: string;
+  /** The address this runs at (http/https, host and port; `dp.run.url`), where an intercept point of the testing mode forwards to; "" when not set. */
+  runUrl: string;
   /** The service.name this element has in trace files, when it differs from its ID and name; "" when not set. */
   otelService: string;
   /** The shared catalog element this is a linked copy of (`dp.catalog`), or "". */
@@ -306,7 +306,7 @@ export interface Relationship {
   /** Sample of the data that travels along this relationship (for a connector with stages: the data entering the first stage). */
   example: string;
   format: string;
-  /** HTTP calls that travel along this relationship, so the live UI inspector can match them. */
+  /** HTTP calls that travel along this relationship, so a call seen in a running system can be matched to it. */
   endpoints: Endpoint[];
   /** Data of the element at either end that this relationship reads or writes. */
   dataAccess: DataAccess[];
@@ -316,47 +316,6 @@ export interface Relationship {
 export interface Endpoint {
   method: string;
   path: string;
-}
-
-/** One HTTP call seen in a live UI (POST /api/inspect). */
-export interface ObservedCall {
-  method: string;
-  url: string;
-}
-
-/** What one observed call means in the model. */
-export interface InspectedCall {
-  method: string;
-  url: string;
-  /** The URL's path (no query), as matched. */
-  path: string;
-  /** Relationships from the UI element (or its children) with an endpoint that matches. */
-  matches: string[];
-  /** A pattern for this call, to add as an endpoint when it matches nothing. */
-  suggested: Endpoint;
-}
-
-/** A relationship reached from a matched call, following the model's outgoing relationships. */
-export interface InspectHop {
-  relationshipId: string;
-  /** 0 for a relationship the call matched, 1 for the next one, and so on. */
-  depth: number;
-  /** The relationship this one continues (null at depth 0). */
-  via: string | null;
-}
-
-export interface InspectResult {
-  calls: InspectedCall[];
-  /** Every relationship reached, in walk order (breadth first, each once). */
-  hops: InspectHop[];
-  /** Elements the calls reach, in walk order (not the UI element itself). */
-  elements: string[];
-  /** Flows that contain a matched relationship. */
-  flows: { key: string; title: string }[];
-  /** Relationships from the UI element or its children: where an unmatched call's endpoint can be added. */
-  candidates: string[];
-  /** True when the walk stopped at the depth limit with relationships left. */
-  truncated: boolean;
 }
 
 export interface DiagramInfo {
@@ -433,6 +392,8 @@ export interface Permissions {
   comment: boolean;
   /** Scan the code and bring an import file in as a new draft (architects and engineers; DEC-051). */
   import: boolean;
+  /** Open intercept points and pause, change or answer live calls in the testing mode (architects and engineers; not on a --read-only server). */
+  test: boolean;
 }
 
 // ------------------------------------------------------------------ decision records (DEC-050)
@@ -1735,3 +1696,137 @@ export interface BmoRunFailure {
   pasteBack: string;
   warnings?: FieldError[];
 }
+
+// ------------------------------------------------------------------ system testing mode (DEC-075)
+
+/**
+ * A local port of dp that a calling service is pointed at instead of the real target. Calls that arrive are
+ * forwarded to `target`, and can be paused, changed or answered on the way. It covers every relationship from
+ * the calling service to the same target address (`members`): a caller has one base URL per target.
+ */
+export interface InterceptPoint {
+  id: string;
+  /** The relationship it was opened from; a call that matches no endpoint is put down to this one. */
+  relationshipId: string;
+  /** Set when the point stands in front of one stage of the relationship's pipeline. */
+  stageId?: string;
+  members: string[];
+  callerId: string;
+  /** The element whose address the point forwards to. */
+  targetElementId: string;
+  target: string;
+  port: number | null;
+  /** The base URL to put in the caller's settings (null while the point is not open). */
+  url: string | null;
+  /** "saved": its port is remembered, but nothing listens until someone starts it. */
+  state: "open" | "saved" | "error";
+  error?: string;
+}
+
+export interface BreakpointCondition {
+  /** `body.<dotted path>`, `header.<name>`, `query.<name>`, `status`, `method` or `path`. */
+  field: string;
+  op: "=" | "!=" | "contains" | ">" | "<" | "exists";
+  value: string;
+}
+
+export type BreakpointTarget = { type: "relationship" | "element"; id: string } | { type: "step"; flow: string; order: string } | { type: "stage"; relationshipId: string; stageId: string };
+
+export interface Breakpoint {
+  id: string;
+  on: BreakpointTarget;
+  /** Pause the request on its way out, the reply on its way back, or both. A step breakpoint follows its step instead. */
+  phase: "request" | "response" | "both";
+  method?: string;
+  path?: string;
+  conditions: BreakpointCondition[];
+  enabled: boolean;
+}
+
+/** A request or a reply as shown in the browser: secret-looking values are "•••" (`masked` lists where). */
+export interface CallMessage {
+  method?: string;
+  /** Path and query of a request. */
+  path?: string;
+  status?: number;
+  headers: [string, string][];
+  /** The text of the body; null when it is binary, absent, or no longer kept. */
+  body: string | null;
+  bodyKind: "json" | "form" | "text" | "binary" | "none" | "dropped";
+  bytes: number;
+  masked: string[];
+}
+
+export type TestCallState = "held-request" | "forwarded" | "held-response" | "done" | "dropped" | "replied" | "passed" | "failed";
+
+/** One call that came through an intercept point (a row of the run log). */
+export interface TestCall {
+  id: string;
+  seq: number;
+  pointId: string;
+  relationshipId: string;
+  stageId?: string;
+  method: string;
+  path: string;
+  /** The endpoint of the relationship the call matched; null when the model has none for it. */
+  endpoint: Endpoint | null;
+  /** For a call that matched nothing: an endpoint to add to the relationship. */
+  suggested: Endpoint | null;
+  state: TestCallState;
+  /** Why it was not paused, how it was released, or what went wrong. */
+  note?: string;
+  start: number;
+  durationMs: number | null;
+  status: number | null;
+  traceId: string | null;
+  /** The call this one repeats (Resend). */
+  resentFrom?: string;
+  edited: boolean;
+  /** Who released it. */
+  by?: string;
+  /** When a held call is released by itself (milliseconds since 1970). */
+  heldUntil?: number;
+  breakpointId?: string;
+}
+
+export interface TestCallDetail extends TestCall {
+  request: CallMessage;
+  response: CallMessage | null;
+}
+
+export interface Watch {
+  id: string;
+  /** As in a breakpoint condition: `body.<path>`, `header.<name>`, `query.<name>`, `status`. */
+  field: string;
+}
+
+export interface TestingOptions {
+  /** A held call is released unchanged after this many seconds. */
+  holdSeconds: number;
+}
+
+export interface TestingState {
+  available: boolean;
+  /** Why the mode is not available here. */
+  reason?: string;
+  version: number;
+  points: InterceptPoint[];
+  breakpoints: Breakpoint[];
+  watches: Watch[];
+  /** The run log, oldest first. */
+  calls: TestCall[];
+  /** IDs of the calls that are paused, oldest first. */
+  held: string[];
+  /** True while the next call that arrives will be paused. */
+  stepping: boolean;
+  options: TestingOptions;
+  /** Per watch ID: the value in each call that has one (request first, then the reply). */
+  watchValues: Record<string, { callId: string; value: string }[]>;
+}
+
+/** What a person does with a paused call. */
+export type ReleaseAction =
+  | { do: "continue"; request?: Partial<CallMessage>; pauseOnReply?: boolean; step?: boolean }
+  | { do: "drop" }
+  | { do: "reply"; status: number; headers?: [string, string][]; body?: string; delayMs?: number }
+  | { do: "continue-response"; response?: Partial<CallMessage>; step?: boolean };

@@ -39,6 +39,8 @@ import { edgeCommentTarget, type CommentCount } from "../common/comments";
 import { CHANGE_COLORS } from "../colourOverlays";
 import { DRAG_TYPE, type PaletteItem } from "./Palette";
 import { estimateLabelSize } from "./labelSize";
+import { edgeBadgeTexts } from "../testing/TestingBadges";
+import type { TestingDecor } from "../testing/testingDecor";
 import { crowdedPairs, movePoints, selectionInput, spreadLayout, spreadSelected } from "./makeRoom";
 import { carryLines, layoutLines, reusable, updateLines, type LineInput, type LinePrevious } from "./lineLayout";
 import type { Box } from "./routing";
@@ -110,6 +112,8 @@ interface Props {
   handleRef: Ref<CanvasHandle>;
   /** Open comment threads per element and per relationship (badges), and a click on one. */
   commentCounts: { element: Record<string, CommentCount>; relationship: Record<string, CommentCount> };
+  /** System testing mode: what is drawn on lines and boxes (points, breakpoints, paused calls, trace hops); null or absent when the mode is off. */
+  testing?: TestingDecor | null;
   onComments(target: CommentTarget): void;
   /** The model shown cannot be changed by this person: no dragging, resizing, connecting or dropping, and nothing is saved. */
   readOnly: boolean;
@@ -168,6 +172,7 @@ export function Canvas({
   onContextMenu,
   handleRef,
   commentCounts,
+  testing,
   onComments,
   readOnly,
   version,
@@ -394,6 +399,7 @@ export function Canvas({
         focused: dec.focused,
         costLabel: dec.costLabel,
         comments: n.ghost ? null : (commentCounts.element[n.id] ?? null),
+        testing: testing?.nodes[n.id] ?? null,
         onComments: (id) => onComments({ type: "element", id }),
         actions,
         archTypes,
@@ -436,6 +442,7 @@ export function Canvas({
     onResize,
     onResizeEnd,
     commentCounts,
+    testing,
     onComments,
   ]);
 
@@ -506,6 +513,7 @@ export function Canvas({
         e.hasNotes && "Notes",
         (e.openWork ?? 0) > 0 && `${e.openWork} open`,
         c && c.open > 0 && `${c.open}`,
+        ...(testing?.edges[e.id] ? edgeBadgeTexts(testing.edges[e.id]) : []),
       ].filter((b): b is string => !!b);
       return estimateLabelSize({ text: labelOf(e), technologies: e.technologies, badges, fontSize: e.style.fontSize ? e.style.fontSize - 2 : undefined });
     };
@@ -519,7 +527,7 @@ export function Canvas({
     // or removed) only the lines it touches are planned again, and every other line stays exactly as it was (updateLines).
     // While boxes are dragged, only the lines at the dragged boxes are routed again (see lineLayout.ts), and the edge
     // objects of the lines that did not change are reused as they are.
-    const edgeDeps = [diagram, diagramEdges, decorate, flow, flowStep, step, stepRel, selection, editable, onLayout, onSelect, openEdge, showChanges, onContextMenu, commentCounts, dragEpoch];
+    const edgeDeps = [diagram, diagramEdges, decorate, flow, flowStep, step, stepRel, selection, editable, onLayout, onSelect, openEdge, showChanges, onContextMenu, commentCounts, dragEpoch, testing];
     const cached = lineCache.current?.version === version ? lineCache.current : null;
     const sizeOfLabel = (id: string) => labelSizeOf(byId.get(id)!);
     const reuse =
@@ -565,14 +573,16 @@ export function Canvas({
         if (old && (routedBefore ? routes[e.id] === routedBefore : !routes[e.id])) return old;
       }
       const offset = offsetOf(e);
-      const current = stepRel === e.id;
+      // A call paused on this line looks like the current flow step (and a paused reply runs backwards); a line a trace passed is drawn like a step already played.
+      const mark = testing?.edges[e.id] ?? null;
+      const current = stepRel === e.id || !!mark?.paused;
       const label = labelOf(e);
       const color = current ? FLOW_CURRENT : edgeColor(e);
       const head = e.style.arrowHead ?? "filled";
       const arrow: Edge["markerEnd"] = (CUSTOM_HEADS as readonly string[]).includes(head)
         ? `dp-head-${head}`
         : { type: head === "open" ? MarkerType.Arrow : MarkerType.ArrowClosed, color, width: 18, height: 18 };
-      const reverse = current && step?.response;
+      const reverse = (stepRel === e.id && step?.response) || mark?.paused === "response";
       const mode = e.style.arrow ?? "end";
       const data: C4EdgeData = {
         label,
@@ -584,7 +594,8 @@ export function Canvas({
         route: routes[e.id],
         obstacles,
         labelT: labelTs[e.id],
-        highlight: current ? "current" : pastSteps.has(e.id) ? "past" : null,
+        highlight: current ? "current" : pastSteps.has(e.id) || mark?.watched ? "past" : null,
+        testing: mark,
         response: !!reverse,
         dimmed: (!!step && !current && !pastSteps.has(e.id)) || unfocused.has(e.source) || unfocused.has(e.target),
         testId: e.id,
@@ -618,7 +629,27 @@ export function Canvas({
     });
     if (!layout.partial) lineCache.current = { deps: edgeDeps, version, prev: { boxes, lines: routed, layout }, edges: new Map(built.map((e) => [e.id, e])) };
     return built;
-  }, [diagram, diagramEdges, nodes, decorate, flow, flowStep, step, stepRel, selection, editable, onLayout, onSelect, openEdge, showChanges, onContextMenu, commentCounts, dragEpoch, version]);
+  }, [
+    diagram,
+    diagramEdges,
+    nodes,
+    decorate,
+    flow,
+    flowStep,
+    step,
+    stepRel,
+    selection,
+    editable,
+    onLayout,
+    onSelect,
+    openEdge,
+    showChanges,
+    onContextMenu,
+    commentCounts,
+    dragEpoch,
+    version,
+    testing,
+  ]);
 
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => {
