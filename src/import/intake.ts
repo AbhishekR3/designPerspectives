@@ -51,7 +51,7 @@ export function importDir(projectDir: string): string {
 }
 
 /** What `architecture/import/.gitignore` lists: the handoff folder and the typed description hold excerpts of the code and of what a person wrote, which should not be committed by accident. The import files and reviews stay committable (they are the record of a review; `checkImport` keeps secrets out of them). */
-export const IMPORT_GITIGNORE = ["handoff/", "handoff-description.txt"];
+export const IMPORT_GITIGNORE = ["handoff/", "handoff-description.txt", "files/*.source.txt"];
 
 /** Make sure `<importDir>/.gitignore` lists `IMPORT_GITIGNORE` (created on the first write; lines a person added are kept). */
 export function ensureImportGitignore(dir: string): void {
@@ -301,9 +301,11 @@ export function readIntake(projectDir: string): { intake: Intake; errors: Intake
 
 /**
  * What `next` loosens compared with `old`: entries of `mustNotOpen` and `scope.exclude` that are no longer there
- * (a changed entry counts as removed: it may open more), and the caps that grew (the files the scan walks, the
- * bytes it parses, the folder depth, the tokens one pass reads). Adding to the lists and lowering caps is
- * tightening, which anyone who may edit the intake can do. Returns plain sentences; empty: nothing is loosened.
+ * (a changed entry counts as removed: it may open more), a `scope.include` that reads more (emptied, or an entry
+ * added or changed while the list had entries), and the caps that grew (the files the scan walks, the bytes it
+ * parses, the folder depth, the tokens one pass reads). Adding to the closed lists, removing some include entries
+ * while one stays, and lowering caps is tightening, which anyone who may edit the intake can do. Returns plain
+ * sentences; empty: nothing is loosened.
  */
 export function intakeLoosened(old: Intake, next: Intake): string[] {
   const out: string[] = [];
@@ -313,6 +315,14 @@ export function intakeLoosened(old: Intake, next: Intake): string[] {
   ] as const) {
     const gone = a.filter((g) => !b.includes(g));
     if (gone.length) out.push(`${gone.length === 1 ? "an entry" : `${gone.length} entries`} of ${what} would be removed or changed (${gone.map((g) => `"${g}"`).join(", ")})`);
+  }
+  // scope.include: an empty list means the whole code root. With entries, only what they match is read, so
+  // removing some (while one stays) reads less, and emptying the list or adding or changing an entry reads more.
+  const [inA, inB] = [old.scope.include, next.scope.include];
+  if (inA.length && !inB.length) out.push("scope.include would be emptied, so the whole code root would be read");
+  else if (inA.length) {
+    const added = inB.filter((g) => !inA.includes(g));
+    if (added.length) out.push(`scope.include would read more (${added.map((g) => `"${g}"`).join(", ")} added or changed)`);
   }
   const caps: [string, number, number][] = [
     ["the number of files scanned", old.settings.maxFiles, next.settings.maxFiles],

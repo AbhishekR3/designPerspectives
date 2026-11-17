@@ -553,7 +553,10 @@ export async function runTask<I>(task: Task<I>, inputs: I, ctx: TaskContext, bac
     throw new BmoError("refused", "The prompt is not the one that was shown (the model, the code or the inputs changed since the preview). Look at the preview again and confirm it.");
   }
   if (ctx.maxInputTokens !== undefined && p.estTokens > ctx.maxInputTokens) {
-    throw new BmoError("too-large", `The prompt is about ${p.estTokens} tokens; this backend takes at most ${ctx.maxInputTokens}. Lower the digest budget or split the work.`);
+    throw new BmoError(
+      "too-large",
+      `The prompt is about ${p.estTokens} tokens; a run takes at most ${ctx.maxInputTokens} (the budget in the BMO settings plus room for the fixed text and the model). Ask an architect to raise the budget, or ask about a smaller part of the model.`,
+    );
   }
   let res;
   try {

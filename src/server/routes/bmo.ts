@@ -174,8 +174,8 @@ export function registerBmo(app: Hono, ctx: Ctx): void {
     const g = gate(c, s, problem);
     if (!g.ok) throw new HttpError(g.status, g.reason);
     needRights(c, selectors);
-    // A prompt over this size is refused as too large (the digest is cut at the budget; the rest is the fixed text and the model).
-    const plan = planTask(env(), selectors, Math.ceil(s.passBudgetTokens * 1.5));
+    // The budget caps the digest; a prompt over runTokenLimit(budget) is refused as too large (settings.ts).
+    const plan = planTask(env(), selectors, s.passBudgetTokens);
     return { selectors, s, plan };
   };
 

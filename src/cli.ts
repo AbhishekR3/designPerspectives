@@ -753,7 +753,7 @@ function bmoCommands(p: Command): void {
             ...(o.relationship ? { relationship: o.relationship } : {}),
             ...(task === "explain" ? { lens: o.lens ?? "architect" } : o.lens ? { lens: o.lens } : {}),
           });
-          const plan = planTask(env, selectors, Math.ceil(settings.passBudgetTokens * 1.5));
+          const plan = planTask(env, selectors, settings.passBudgetTokens);
           const dest = destinationOf(settings, null);
           const pv = previewOf(plan, settings, dest);
           err(`BMO task ${pv.task} (prompt ${pv.promptVersion}) would be sent to ${dest.provider} ${dest.model ?? ""} at ${dest.host}.`);

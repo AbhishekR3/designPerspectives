@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import { BmoError, type Backend } from "../src/bmo/backend.js";
 import { fakeBackend, type FakeAnswer } from "../src/bmo/fake.js";
 import { runsDir } from "../src/bmo/direct.js";
+import { RUN_HEADROOM_TOKENS, runTokenLimit } from "../src/bmo/settings.js";
 import type { Fetch } from "../src/core/workStatus.js";
 import { decide, ROUTE_RULES, type Who } from "../src/server/auth.js";
 import { copyDemoHub, createHubApp } from "../src/server/hub.js";
@@ -417,19 +418,48 @@ describe("what was shown is what is sent", () => {
     expect(backend.calls[0]!.signal).toBeInstanceOf(AbortSignal);
   });
 
-  it("a prompt over the size limit is refused as too large", async () => {
-    const { c } = app();
+  it("the size limit is the budget plus room for the fixed text and the model; a larger prompt is refused as too large", async () => {
+    expect(runTokenLimit(100_000)).toBe(150_000);
+    expect(runTokenLimit(1000)).toBe(1000 + RUN_HEADROOM_TOKENS);
+    const { dir, c } = app();
+    // A small budget still leaves room for the demo's fixed text and model.
     await ok(c.put("/api/bmo/settings", { passBudgetTokens: 1000 }));
+    const small = await ok(c.post("/api/bmo/preview", BODY["describe-to-model"]!));
+    expect(small.maxInputTokens).toBe(1000 + RUN_HEADROOM_TOKENS);
+    expect(small.estTokens).toBeLessThan(small.maxInputTokens);
+    // A model too large for the limit: the run is refused, nothing is sent.
+    const f = path.join(dir, "architecture", "workspace.json");
+    const ws = JSON.parse(fs.readFileSync(f, "utf-8"));
+    const sys = ws.model.softwareSystems.find((s: any) => s.containers?.length);
+    for (let i = 0; i < 400; i++) sys.containers.push({ id: `svc-${i}`, name: `Service ${i}`, description: `Part ${i} of the business. `.repeat(20), tags: "Element,Container" });
+    fs.writeFileSync(f, JSON.stringify(ws));
     const body = BODY["describe-to-model"]!;
     const pv = await ok(c.post("/api/bmo/preview", body));
-    expect(pv.maxInputTokens).toBe(1500);
-    expect(pv.estTokens).toBeGreaterThan(1500);
+    expect(pv.estTokens).toBeGreaterThan(pv.maxInputTokens);
     const r = await c.post("/api/bmo/run", { ...body, hash: pv.hash });
     expect(r.status).toBe(413);
-    expect(r.json().detail).toMatch(/tokens/);
+    expect(r.json().detail).toMatch(/tokens.*budget in the BMO settings/);
     // The description itself has a limit too.
     const big = await c.post("/api/bmo/preview", { task: "describe-to-model", text: "x".repeat(70 * 1024) });
     expect(big.status).toBe(413);
+  });
+
+  it("the code digest is cut at the lower of the intake's budget and the settings' budget", async () => {
+    const { dir, c } = app();
+    // More code than 1000 tokens: six services with a Dockerfile each.
+    for (let i = 0; i < 6; i++) {
+      const d = path.join(dir, "sample_code", `svc${i}`);
+      fs.mkdirSync(d, { recursive: true });
+      fs.writeFileSync(path.join(d, "Dockerfile"), Array.from({ length: 40 }, (_, k) => `RUN echo "step ${k} of service ${i}"`).join("\n") + "\n");
+    }
+    await ok(c.post("/api/import/scan"));
+    const full = await ok(c.post("/api/bmo/preview", BODY["import-level"]!));
+    expect(full.user).not.toMatch(/did not fit in the budget/);
+    await ok(c.put("/api/bmo/settings", { passBudgetTokens: 1000 }));
+    const cut = await ok(c.post("/api/bmo/preview", BODY["import-level"]!));
+    expect(cut.user).toMatch(/did not fit in the budget of 1000 tokens/);
+    expect(cut.files.length).toBeLessThan(full.files.length);
+    expect(cut.estTokens).toBeLessThan(full.estTokens);
   });
 });
 

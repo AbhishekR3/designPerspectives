@@ -30,7 +30,7 @@ File paths inside older sections are the paths at the time; see DEC-062 for the 
 
 ## Release 0.5.0: codebase to model and BMO
 
-Date: 2026-11-16. Branch: `feat/import-and-bmo`, from `release/0.4`. Decisions: [DEC-051](decisions.md#dec-051--stage-b-import-bmo-a-purpose-built-import-file-one-c4-level-at-a-time-no-inferred-labels) (the import design, now built), [DEC-064](decisions.md#dec-064--what-an-import-file-cannot-vouch-for-itself-and-what-the-import-and-bmo-code-will-not-read-or-keep) (security rules; a proposal until the owner confirms it), and [DEC-065](decisions.md#dec-065--bmo-where-it-runs-who-may-run-it-and-how-an-import-draft-is-applied) (where BMO runs, who may run it, partial apply).
+Date: 2026-11-16. Branch: `feat/import-and-bmo`, from `release/0.4`. Decisions: [DEC-051](decisions.md#dec-051--stage-b-import-bmo-a-purpose-built-import-file-one-c4-level-at-a-time-no-inferred-labels) (the import design, now built), [DEC-064](decisions.md#dec-064--what-an-import-file-cannot-vouch-for-itself-and-what-the-import-and-bmo-code-will-not-read-or-keep) (security rules; confirmed by the owner), and [DEC-065](decisions.md#dec-065--bmo-where-it-runs-who-may-run-it-and-how-an-import-draft-is-applied) (where BMO runs, who may run it, partial apply).
 
 ### What was built
 
@@ -47,9 +47,9 @@ Date: 2026-11-16. Branch: `feat/import-and-bmo`, from `release/0.4`. Decisions: 
 
 ### How it was checked
 
-- 852 unit and API tests in 43 files pass. Typecheck, lint and Prettier pass (all three re-run for this docs pass).
-- 181 browser tests in 26 files: counted with `playwright test --list`, not run in this pass.
-- `npm run make-demo` leaves `demo/` unchanged. Checked at the release; not run again in this pass.
+- 854 unit and API tests in 43 files pass. Typecheck, lint and Prettier pass.
+- 181 browser tests in 26 files pass.
+- `npm run make-demo` leaves `demo/` unchanged. A clean UI build reproduces `static/` byte for byte.
 - BMO was tested with the fake backend, and with a local stub server per provider for the request shape, the pinned host, the refused redirect, the timeout and the gates. No test used a real provider.
 - Redaction is tested with planted secrets and injection strings.
 - Two security reviews with probes. Their findings are fixed (DEC-064).
@@ -59,10 +59,10 @@ Date: 2026-11-16. Branch: `feat/import-and-bmo`, from `release/0.4`. Decisions: 
 - No run against any real provider has been made. The owner's first run with a key will be the first real one.
 - Default model ids (`claude-opus-5-5` for the Claude API, `gpt-6-astra` for the OpenAI API, in `src/bmo/settings.ts`) have no source note. In `src/bmo/direct.ts` the request shapes are marked verified on 2026-11-16, except two details marked not verified (`store: false`, and Ollama's `done_reason` at `num_predict`). Check the model ids before the first real run.
 - Redaction does not catch a secret written as a plain word, outside a key and value form. Use the must-not-open list for such files.
-- The typed description of a describe-to-model draft is kept in `architecture/import/files/<draft>.source.txt`. The import `.gitignore` does not list it, although DEC-064 says it does. Decide whether to add it to the ignore list, or to change DEC-064.
 - The import-edge check reads at most 60 files per component (`MAX_FILES` in `src/core/codeMap.ts`).
 - The demo scan finds 4 C1 candidates and 5 C2 candidates, and no component candidates (C3: 0). Measured on a scratch copy of the demo.
-- The thresholds (300 files, 5 containers, 2 passes) and the 20-second review estimate are guesses.
+- The thresholds (300 files, 5 containers, 2 passes) and the 20-second review estimate are guesses. The run size limit (budget plus half of it, at least 32,000 tokens) is measured on the demo and a synthetic model of 300 more containers, not on a real large codebase.
+- At widths under about 1,100 pixels the details panel, where the review is, starts folded and must be opened, as for every other panel.
 - A layout-only change in an import draft (a moved box, a line shape) is not a review item. It goes with an accepted item and cannot be accepted on its own.
 - Not built: the MCP backend, Structurizr DSL input, YAML.
 
@@ -75,7 +75,19 @@ Date: 2026-11-16. Branch: `feat/import-and-bmo`, from `release/0.4`. Decisions: 
 
 ### Owner feedback
 
-<!-- Please add feedback here. -->
+Answered 2026-11-16:
+
+1. **DEC-064:** confirmed. "It's okay for some additional review time as long as the UI looks proper."
+2. **Viewers and BMO text tasks:** "Yes viewers can run BMO text tasks as well, but the admin/system architect can restrict that." This is how it already works: the *Who may run BMO* boxes in the BMO settings, per project in a hub.
+3. **1.5 × the budget:** "do what you think is best."
+4. **`scope.include` removal:** "do what you think is best."
+
+What was done:
+
+- DEC-064 is accepted. The review UI was checked with screenshots (desktop width; the import page, the review, the BMO sheet and the settings). Two gaps were fixed. First, a person's note that did not count is now quoted, with the reason (not found, too short, empty). Second, an item that is not verified now says what the reviewer can do. The Credentials page no longer says that nothing uses a credential, and the budget field says when a run is refused.
+- The typed description (`files/*.source.txt`) is now git-ignored, as DEC-064 says.
+- Run size (our call): the limit is the budget plus half of it, and at least 32,000 tokens, in one helper (`runTokenLimit`). The default stays 150,000. A small budget no longer refuses every run: outside the digest, a prompt is 3,000–10,000 tokens on the demo and 21,000–30,000 with 300 more containers. The code digest is cut at the lower of the intake's and the settings' budgets, so a run is not refused only because the intake's budget is higher.
+- `scope.include` (our call): only a change that makes it read more is architect-only. That is emptying the list, or adding or changing an entry while it has entries. Removing some entries while one stays reads less, so anyone who may edit the intake can do it. Making every removal architect-only would have blocked a change that only tightens.
 
 ## Release 0.4.0: one branch, answers applied, files regrouped, security fixes
 

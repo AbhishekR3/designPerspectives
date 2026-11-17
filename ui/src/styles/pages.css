@@ -682,6 +682,13 @@
 .review-checks li.bad .icon-svg {
   color: var(--amber);
 }
+.review-checks li {
+  overflow-wrap: anywhere;
+}
+.review-next-step {
+  margin: 0;
+  line-height: 1.4;
+}
 .review-level.verified {
   color: #86efac;
 }

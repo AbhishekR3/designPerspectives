@@ -90,6 +90,17 @@ export const DEFAULT_SETTINGS: BmoSettings = Object.freeze({
 
 export const defaultSettings = (): BmoSettings => ({ ...DEFAULT_SETTINGS, allowedRoles: [...ROLES] });
 
+/**
+ * Room in a prompt for what is not the code digest: the fixed system text, the task's instructions and the model
+ * as text. Measured on 2026-11-16 (estimated tokens, outside the digest): 3k–10k for the demo, 21k–30k with 300
+ * more containers and 600 relationships. Half the budget is used when that is more, so the default budget keeps
+ * its old limit (1.5 × 100k).
+ */
+export const RUN_HEADROOM_TOKENS = 32_000;
+
+/** The size (estimated tokens) over which a run is refused as too large: the digest budget plus room for the rest. */
+export const runTokenLimit = (passBudgetTokens: number): number => passBudgetTokens + Math.max(Math.ceil(passBudgetTokens / 2), RUN_HEADROOM_TOKENS);
+
 const KEYS = new Set([
   "enabled",
   "backend",

@@ -151,11 +151,20 @@ describe("reviewLevel", () => {
 
   it("a user note counts only when it is found in text a person typed: not a model's own words, not a short one", () => {
     const user = (note: string) => level({ evidence: [{ kind: "user", note }] });
-    for (const note of ["the user said so", "We run it", "invented by the model", "", "   "]) {
-      const r = user(note);
+    for (const [note, why] of [
+      ["the user said so", '"the user said so": not found in the intake, the feedback or the description'],
+      ["We run it", '"We run it": too short to check (a note needs at least 12 characters)'],
+      ["invented by the model", '"invented by the model": not found in the intake, the feedback or the description'],
+      ["", "the note is empty"],
+      ["   ", "the note is empty"],
+    ]) {
+      const r = user(note!);
       expect(r.level, note).toBe("unverified");
-      expect(r.checks, note).toContainEqual({ rule: "user-note", ok: false, note: "not found in the intake, the feedback or the description" });
+      expect(r.checks, note).toContainEqual({ rule: "user-note", ok: false, note: why });
     }
+    // A long note is quoted cut short.
+    const long = user(`${"word ".repeat(40)}end`).checks[0]!.note!;
+    expect(long).toMatch(/^"(word ){23}wo\.\.\.": not found/);
     // Found, but under 12 characters once spaces are squashed: not enough to count.
     expect(level({ evidence: [{ kind: "user", note: "finance." }] }, ev, ["It is owned by finance."]).level).toBe("unverified");
     expect(level({ evidence: [{ kind: "user", note: "owned by finance" }] }, ev, ["It is owned by finance."]).level).toBe("verified");

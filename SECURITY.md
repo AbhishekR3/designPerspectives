@@ -62,8 +62,7 @@ add the path to the must-not-open list.
 **Where things are stored.**
 - `architecture/import/` holds the review data: evidence, analysis, intake, the ledger, the review state of
   each import draft and the files behind it. It is meant to be committed, except what `architecture/import/.gitignore`
-  lists: `handoff/` and `handoff-description.txt`. The text typed for a description draft is kept as
-  `architecture/import/files/<draft>.source.txt`, which that `.gitignore` does not list. Check it before you commit.
+  lists: `handoff/`, `handoff-description.txt` and `files/*.source.txt` (the text typed for a description draft).
 - `.dp/bmo.json` (the settings) and `.dp/bmo/runs/` (the run log, which holds code excerpts from direct runs)
   are in `.dp/`, which is not committed. The settings file is mode 0600 and changed by architects only.
 

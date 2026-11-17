@@ -103,8 +103,11 @@ function taskContext(project: Project, code: CodeSource): TaskContext {
   return { model: { workspace: project.workspace, sidecar: project.sidecar, decisions: project.decisions }, code, variant: "handoff" };
 }
 
-/** The inputs of the requested task, from the project as it is now. A ModelError says what is missing (a scan, a container). */
-export function buildInputs(project: Project, drafts: Drafts, code: CodeSource, req: HandoffRequest): ImportLevelInput | DescribeInput | SuggestLabelsInput {
+/**
+ * The inputs of the requested task, from the project as it is now. A ModelError says what is missing (a scan, a container).
+ * `maxDigestTokens`: a direct run's budget from the BMO settings; the digest is cut at the lower of it and the intake's budget.
+ */
+export function buildInputs(project: Project, drafts: Drafts, code: CodeSource, req: HandoffRequest, opts: { maxDigestTokens?: number } = {}): ImportLevelInput | DescribeInput | SuggestLabelsInput {
   project.reloadIfChanged();
   const ws = project.workspace;
   const summary = (root?: string) => modelText(ws, project.sidecar, root ? { root } : {});
@@ -126,7 +129,8 @@ export function buildInputs(project: Project, drafts: Drafts, code: CodeSource, 
     }
     container = { id: req.container, name: idx.el(req.container).name, codePaths: getJson<string>(idx.el(req.container), CODE_KEY).map(String) };
   }
-  const digest = buildDigest(evidence, code, intake, { level, budgetTokens: intake.settings.passBudgetTokens, ignore: state.ignore, ...(container ? { container } : {}) });
+  const budgetTokens = Math.min(intake.settings.passBudgetTokens, opts.maxDigestTokens ?? Infinity);
+  const digest = buildDigest(evidence, code, intake, { level, budgetTokens, ignore: state.ignore, ...(container ? { container } : {}) });
   return {
     level,
     digest,

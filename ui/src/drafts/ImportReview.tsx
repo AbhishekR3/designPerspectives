@@ -41,6 +41,16 @@ const counts = (review: ReviewState) => {
   };
 };
 
+/** What a reviewer can do about an item that is not verified, from the checks that failed (DEC-064: the tool, not the file, decides). */
+function nextStep(item: ReviewItem): string | null {
+  if (item.level === "verified") return null;
+  const failed = new Set(item.checks.filter((c) => !c.ok).map((c) => c.rule));
+  if (failed.has("user-note"))
+    return "A person's note counts only when its exact words are in what someone typed: the intake answers, feedback saved for this draft, or the description. Accept it yourself if you know it is right.";
+  if (failed.has("no-evidence")) return "Nothing in the code or in what a person typed backs this. Accept it if you know it is right; otherwise reject it, or tell BMO what is wrong.";
+  return "The checks above did not verify it. Accept it if you know it is right; otherwise reject it, or tell BMO what is wrong.";
+}
+
 function CheckLine({ c }: { c: ReviewCheck }) {
   return (
     <li className={c.ok ? "ok" : "bad"} data-testid={`review-check-${c.rule}`}>
@@ -224,6 +234,11 @@ export function ImportReview({ draftId, canEdit, version, onPick, onChanged }: P
               <CheckLine key={i} c={ck} />
             ))}
           </ul>
+          {canEdit && nextStep(item) && (
+            <p className="muted small review-next-step" data-testid="review-next-step">
+              {nextStep(item)}
+            </p>
+          )}
           {canEdit && (
             <>
               <div className="row wrap">

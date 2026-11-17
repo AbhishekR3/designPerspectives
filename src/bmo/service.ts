@@ -30,7 +30,7 @@ import { asBmoError, BmoError, type Backend } from "./backend.js";
 import { buildInputs, parseHandoffRequest } from "./importTasks.js";
 import { logRun } from "./direct.js";
 import { diagramText, objectText } from "./modelText.js";
-import { estimateCost, effectiveModel, destination as settingsBase, type BmoSettings } from "./settings.js";
+import { estimateCost, effectiveModel, runTokenLimit, destination as settingsBase, type BmoSettings } from "./settings.js";
 import { getTask, pasteBackText, preview, runTask, TASK_IDS, TASKS, type ChallengeInput, type DraftChangesInput, type ExplainInput, type Task, type TaskContext, type TaskId } from "./tasks.js";
 
 // ------------------------------------------------------------------ selectors
@@ -208,11 +208,13 @@ function draftChanges(env: BmoEnv, id: string): DraftChangesInput {
 
 /**
  * The task and its inputs, assembled from the selectors and the model: the one place that decides what a prompt
- * is made of. Throws ModelError / NotFound for a missing or wrong selector. `maxInputTokens`: the size over which a run is refused.
+ * is made of. Throws ModelError / NotFound for a missing or wrong selector. `passBudgetTokens`: the settings' budget,
+ * which caps the code digest and sets the size over which a run is refused (`runTokenLimit`).
  */
-export function planTask(env: BmoEnv, sel: Selectors, maxInputTokens?: number): Planned {
+export function planTask(env: BmoEnv, sel: Selectors, passBudgetTokens?: number): Planned {
   const task = getTask(sel.task) as Task<unknown>;
   const effect = EFFECT[sel.task];
+  const maxInputTokens = passBudgetTokens === undefined ? undefined : runTokenLimit(passBudgetTokens);
   const withMax = (c: TaskContext): TaskContext => (maxInputTokens === undefined ? c : { ...c, maxInputTokens });
   const mainContext = (): TaskContext => withMax({ model: { workspace: env.project.workspace, sidecar: env.project.sidecar, decisions: env.project.decisions }, code: env.disk, variant: "direct" });
   const viewContext = (): TaskContext =>
@@ -227,7 +229,7 @@ export function planTask(env: BmoEnv, sel: Selectors, maxInputTokens?: number): 
         ...(sel.container ? { container: sel.container } : {}),
         ...(sel.text !== undefined ? { text: sel.text } : {}),
       });
-      return { task, inputs: buildInputs(env.project, env.drafts, env.disk, req), context: mainContext(), effect };
+      return { task, inputs: buildInputs(env.project, env.drafts, env.disk, req, passBudgetTokens === undefined ? {} : { maxDigestTokens: passBudgetTokens }), context: mainContext(), effect };
     }
     case "explain": {
       const given = [sel.diagram, sel.element, sel.relationship].filter((x) => x !== undefined).length;

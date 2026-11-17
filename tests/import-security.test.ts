@@ -49,7 +49,7 @@ describe("a model cannot mark its own output verified", () => {
     const id = await runTask(c, { task: "import-level", level: "c2" });
     const review = (await ok(c.at(`draft:${id}`).get("/api/import/review"))).review;
     expect(Object.values<any>(review.items).map((i) => i.level)).toEqual(["unverified", "unverified"]);
-    expect(review.items["object:exfil-service"].checks).toContainEqual({ rule: "user-note", ok: false, note: "not found in the intake, the feedback or the description" });
+    expect(review.items["object:exfil-service"].checks).toContainEqual({ rule: "user-note", ok: false, note: expect.stringMatching(/: not found in the intake, the feedback or the description$/) });
     const all = await ok(c.at(`draft:${id}`).post("/api/import/review/accept-all"));
     expect(all.accepted).toEqual([]);
     const applied = await c.post(`/api/drafts/${id}/apply`, {});
@@ -97,6 +97,8 @@ describe("a model cannot mark its own output verified", () => {
     // Next to the import file, written by the server; the import file itself does not hold it.
     expect(fs.readFileSync(path.join(importDir(dir), "files", `${id}.source.txt`), "utf-8")).toBe(description);
     expect(fs.readFileSync(path.join(importDir(dir), "files", `${id}.json`), "utf-8")).not.toContain("Customers pay");
+    // What a person typed is git-ignored (DEC-064); the import file is not.
+    expect(fs.readFileSync(path.join(importDir(dir), ".gitignore"), "utf-8").split("\n")).toContain("files/*.source.txt");
     // Discarding the draft removes it.
     await ok(c.delete(`/api/drafts/${id}`));
     expect(fs.existsSync(path.join(importDir(dir), "files", `${id}.source.txt`))).toBe(false);
@@ -332,6 +334,7 @@ describe("an import file holds no secrets, and the handoff folder is not committ
     const made = await ok(c.post("/api/import/file", { text: JSON.stringify(sampleImport()) }));
     expect(git("check-ignore", `architecture/import/files/${made.draftId}.json`).status).toBe(1);
     expect(git("check-ignore", `architecture/import/reviews/${made.draftId}.json`).status).toBe(1);
+    expect(git("check-ignore", `architecture/import/files/${made.draftId}.source.txt`).status).toBe(0);
     // A line a person added is kept, and the file is not written twice.
     fs.appendFileSync(path.join(importDir(dir), ".gitignore"), "notes/\n");
     await ok(c.post("/api/import/handoff", { task: "import-level", level: "c1" }));
@@ -548,6 +551,36 @@ describe("the intake's limits", () => {
     expect((await put(arch, intakeOf({ mustNotOpen: ["secrets/**"], scope: { include: [], exclude: [], otherRepos: [] }, settings: { maxFiles: 9000, maxFileBytes: 900000 } }))).status).toBe(200);
     // A viewer cannot write the intake at all.
     expect((await put(await c.as("viewer"), intakeOf())).status).toBe(403);
+  });
+
+  it("scope.include: an engineer may make it read less, only an architect may make it read more", async () => {
+    const dir = demoDir();
+    const c = client(dir, { users: true });
+    const arch = await c.as("architect");
+    const eng = await c.as("engineer");
+    const withInclude = (include: string[]) => intakeOf({ scope: { include, exclude: ["vendor"], otherRepos: [] } });
+    await ok(arch.put("/api/import/intake", withInclude(["src", "lib", "tools"])));
+    const put = (i: string[]) => eng.put("/api/import/intake", withInclude(i));
+
+    // Reads less: some entries removed while one stays.
+    expect((await put(["src", "lib"])).status).toBe(200);
+    expect((await put(["src"])).status).toBe(200);
+    // Reads more: emptied (the whole code root), an entry added, an entry changed.
+    for (const [what, include] of [
+      ["emptied", []],
+      ["added", ["src", "lib"]],
+      ["changed", ["sr*"]],
+    ] as const) {
+      const r = await put([...include]);
+      expect(r.status, what).toBe(403);
+      expect(r.json().detail, what).toMatch(/scope\.include/);
+    }
+    expect(JSON.parse(fs.readFileSync(path.join(importDir(dir), "intake.json"), "utf-8")).scope.include).toEqual(["src"]);
+    // From an empty list (everything), any first entry reads less.
+    await ok(arch.put("/api/import/intake", withInclude([])));
+    expect((await put(["src", "lib"])).status).toBe(200);
+    // An architect may widen it.
+    expect((await arch.put("/api/import/intake", withInclude([]))).status).toBe(200);
   });
 
   it("without sign-in the intake is as open as every other setting", async () => {

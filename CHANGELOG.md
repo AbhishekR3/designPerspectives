@@ -9,7 +9,7 @@
 - Intake: the answers the code cannot give (the system, its users, what to leave out, the scan limits), kept in `architecture/import/intake.json`.
 - Import file (JSON, schema v1) with a JSON Schema (`dp import --schema`), errors that name their field, and checks against the model and the code (`dp import --check`). `dp import FILE` makes a draft. Nothing reaches the main model until its items are accepted and the draft is applied.
 - Re-import keeps hand edits. The importer records what it wrote in `architecture/import/ledger.json`, so a field a person changed is kept and reported.
-- Review level computed by the tool: each item is verified, partly verified or unverified. Accept each item or all verified items; reject, verify again or give a note for BMO.
+- Review level computed by the tool: each item is verified, partly verified or unverified. Accept each item or all verified items; reject, verify again or give a note for BMO. An item that is not verified says why (a person's note is quoted with the reason it did not count) and what the reviewer can do.
 - Import page (**Import code** in the navigation bar): scan, readiness table, intake, bring in one level (own coding agent, pasted file), from a description, better labels, and the import drafts.
 - The demo gains manifests (a Dockerfile, `requirements.txt`, `package.json`, a compose file and a sample environment file) and an example import file, `demo/import-example.json`.
 - **BMO**, the optional assistant (DEC-051, DEC-065). Off by default. Seven tasks: import a level, a model from a description, explain a diagram, element or relationship, challenge a diagram, propose a decision in a draft, summarise a draft, suggest labels.
@@ -21,6 +21,7 @@
 
 ### Changed
 - `dp check` warns about code that no component maps, once a scan exists.
+- A BMO run is refused when its prompt is larger than the budget in the BMO settings plus room for the fixed text and the model: half the budget, and at least 32,000 tokens. The code digest of a run is cut at the lower of the intake's budget and the settings' budget.
 - Applying an import draft applies the accepted items only; the rest stay in the draft. `POST /api/drafts/:id/apply` answers `{ok, kept, held}`: `kept` says the draft stays, `held` counts the items left in it.
 
 ### Security
@@ -28,7 +29,8 @@
 - Links are followed before the rules are checked: a symlink is resolved, and then the must-not-open, deny-list and hidden-path rules apply to where it points.
 - One secret detection runs before anything is sent or saved. The list of secret names is wider. An import file or a decision that holds a secret is refused. The detection has a stated limit (see SECURITY.md).
 - Fail closed: an import draft whose review file is missing or unreadable is not applied, and with no accepted item nothing is applied. A code edit cannot be written under `architecture/` or `.dp/`.
-- Only an architect can remove or narrow a must-not-open or scope exclusion, or raise a size cap.
+- Only an architect can remove or narrow a must-not-open or scope exclusion, make `scope.include` read more (empty it, or add or change an entry), or raise a size cap.
+- `architecture/import/.gitignore` lists the handoff folder and the description a person typed (`files/*.source.txt`).
 - A BMO run is confirmed for its destination as well as its prompt: the provider, host and model are part of the hash. The Ollama endpoint refuses link-local and cloud-metadata addresses. Replies are read with a size cap, and a reply in the wrong shape is not repeated.
 - The secret scan of PEM blocks and the glob matcher are linear in the length of the text; they no longer backtrack.
 

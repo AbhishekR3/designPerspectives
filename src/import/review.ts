@@ -125,7 +125,14 @@ const slug = (s: string) =>
 
 /** A `user` note counts only when it is at least this long (after squashing) and found in text a person typed. */
 export const MIN_USER_NOTE = 12;
-const NOT_TYPED = "not found in the intake, the feedback or the description";
+/** Why a `user` note did not verify, quoting the note (cut at 120 characters) so the reviewer sees which words were looked for. */
+function noteNotTyped(note: string): string {
+  const s = squash(note);
+  if (!s) return "the note is empty";
+  const q = `"${note.trim().length > 120 ? `${note.trim().slice(0, 117)}...` : note.trim()}"`;
+  if (s.length < MIN_USER_NOTE) return `${q}: too short to check (a note needs at least ${MIN_USER_NOTE} characters)`;
+  return `${q}: not found in the intake, the feedback or the description`;
+}
 
 /** Whether a scan fact is about the item: its name or system is the item's name or ID (compared as slugs), or its path is a code path of the item or under one. */
 function factRelates(f: Fact, item: ReviewSubject): boolean {
@@ -190,7 +197,7 @@ export function reviewLevel(item: ReviewSubject, evidence: Evidence | null, code
       if (needle.length >= MIN_USER_NOTE && haystack.some((t) => t.includes(needle))) {
         check({ rule: "user-note", ok: true, note: e.note });
         verified = true;
-      } else check({ rule: "user-note", ok: false, note: NOT_TYPED });
+      } else check({ rule: "user-note", ok: false, note: noteNotTyped(e.note) });
     } else if (e.kind === "scan") {
       if (!facts) {
         check({ rule: "scan-fact", ok: false, note: `"${e.fact}": there are no scan results (evidence.json) to check it against; run the scan.` });

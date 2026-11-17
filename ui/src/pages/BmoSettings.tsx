@@ -266,7 +266,9 @@ export function BmoSettings({ credentials }: { credentials: CredentialInfo[] }) 
         <label className="field">
           <span>Most BMO reads in one pass (tokens)</span>
           <input type="number" min={1000} max={2000000} step={1000} value={form.passBudgetTokens} onChange={(e) => set("passBudgetTokens", Number(e.target.value))} data-testid="bmo-budget" />
-          <span className="muted small">1,000 to 2,000,000. Files that do not fit are listed as left out.</span>
+          <span className="muted small">
+            1,000 to 2,000,000. Files that do not fit are listed as left out. A run larger than this plus room for the model (half of it, at least 32,000) is refused.
+          </span>
           <Err field="passBudgetTokens" />
         </label>
         <div className="field">

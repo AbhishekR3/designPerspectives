@@ -80,7 +80,7 @@ export function CredentialsPage({ hub }: { hub: HubInfo }) {
       {adding && <CredentialForm onCancel={() => setAdding(false)} onSave={(b) => act(() => api.addCredential(b), `Added ${b.name}.`).then((ok) => ok && setAdding(false))} />}
 
       {list.credentials.length === 0 ? (
-        <p className="muted">No credentials yet. Nothing in designPerspectives uses one so far; they are kept here for the integrations that will.</p>
+        <p className="muted">No credentials yet. BMO's direct backend uses one (Claude API, OpenAI API or Ollama); the other integrations will.</p>
       ) : (
         <div className="table-wrap">
           <table className="home-table" data-testid="credentials-table">
