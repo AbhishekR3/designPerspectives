@@ -702,3 +702,15 @@ Entry format: **ID — title** · date · status · who decided · what was deci
 - Amends DEC-074: the demo has something running again. The removed single-process demo web app, whose services were made up, does not come back.
 - Why: without a running system the mode's main feature, pausing and changing a live call, could not be tried in the demo.
 - Trade-off: the demo services follow open points by themselves, which a real system does not: there a person sets the caller's base URL to the port shown, and the tour says so. The services write no trace files, so a demo run is not drawn as a trace. Five fixed ports can clash with something else on the machine; dp then says so and runs without the demo system. The hop from the payment orchestrator to the mainframe is a message queue in the model and stays not live. More demo code to keep working. Facts: what starts and on which ports. Interpretation: that following points automatically is the right ease for a demo.
+
+## DEC-078 — Only a missing diagram opens the landscape
+- Date: 2026-11-16 · Status: Accepted · Decided by: [Proposal], in the interaction fixes the owner asked for [2026-11-16]
+- Decision: when a diagram cannot be loaded, only the answer "not found" (404) means the diagram is gone. The landscape then takes its place, also in the browser history (the entry is replaced, not added), and a short notice says so. Any other failure (the server, the network) shows an error and leaves the view as it is.
+- Why: every failure used to open the landscape without a word, and as a new history entry, so Back returned to the missing diagram and was sent forward again each time.
+- Trade-off: the Back list no longer holds the address of a deleted diagram, so it cannot be reached again by Back after an undo brings it back; the sidebar still opens it. After a failure that is not "not found" the diagram on screen can be the one opened before, under the new address, until the next load works.
+
+## DEC-079 — "Needs a look" is one rule, and a proposed decision is part of it
+- Date: 2026-11-16 · Status: Accepted · Decided by: Owner approved the plan [2026-11-16]; the rule itself is a [Proposal]
+- Decision: a decision needs a look when `decisionFlags` reports anything for it: a review or a deadline that has come, a trigger that is met, a record that cannot be read, or the status "proposed". `decisionNeedsLook` in `src/shared/decisionAlerts.ts` is the one place for it; the top bar badge, the filter on the Decisions page and the list on its first screen all use it.
+- Why: the three places counted differently (the filter counted proposed decisions, the badge and the list did not), so the same page could say "2" and show none.
+- Trade-off: the top bar badge now also counts proposed decisions, so it is rarely empty in a project that discusses decisions; it says less about urgency than before. The home page's "needs a look" list is built by the server from the warning flags only and was not changed, so it can show fewer decisions than the badge.

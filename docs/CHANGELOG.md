@@ -24,6 +24,22 @@
 - `dp.ui.url` is now `dp.run.url` (the old key is still read).
 - `--allow-ui-host` is replaced by `--allow-target-host`.
 
+### Fixed
+Small interactions that did not work as expected (DEC-078, DEC-079). Each has a browser test.
+- **Panel text fields.** Escape drops what was typed (it used to save it). Enter saves once (it used to send the change twice, which also wasted an undo step). A name the model refuses (empty, or already used) goes back to the name the box has.
+- **Messages are always on top.** A success or error message used to be hidden under the Decisions and Import pages and under the Backtrack screen.
+- **Hub home page.** A project that was added in another tab, by a colleague or from the command line now opens from its card: the page asks the server about a project it has not heard of, and the rail refreshes when the window gets the focus. A link to a project that does not exist says so. The card shows its contents once, the header says "1 project", and "and a shared catalog" shows only when there is one. A refresh that fails keeps the page that is loaded; a first load that fails has a **Retry** button (home, catalog, credentials).
+- **A diagram that is gone.** Only a missing diagram (404) opens the landscape, with a notice, and Back no longer lands on the missing diagram again and again. Any other failure shows an error and stays.
+- **Selection.** After an undo, a redo or a change made elsewhere, a box that no longer exists is not left selected with an empty panel.
+- **Keys.** Escape, fit and zoom work for a viewer and on a read-only server. Ctrl/Cmd+C copies marked text when a box is selected. F2 on a line and **Edit details…** focus the field every time. Escape and a click outside close the download and BMO menus. Enter adds a connection from the element panel and confirms the Move dialog's filter.
+- **Lists in the panel.** The remove button takes away a new, still empty row. A note typed for a rating is kept when a star is clicked next. A details table no longer loses what is being typed when an earlier save comes back.
+- **Overlay dock.** A second click on a value chip closes its menu, Escape closes it, and the Changes panel closes when the comparison stops.
+- **Copies.** A box copied on one diagram and pasted on another is shown where the copy is. The panel's **Duplicate** selects the copy, like Ctrl/Cmd+D.
+- **Pages over the diagram.** Picking the diagram that is already open (sidebar, breadcrumb, search) closes the Decisions or Import page.
+- **Decisions.** The top bar, the filter and the list count "needs a look" by one rule, proposed decisions included (DEC-079). Leaving the editor with changes that are not saved asks first. While System Testing is on, the Decisions and Import pages, the sidebar and the dock are read-only like the rest.
+- **Import and BMO.** The review of one import draft no longer shows the items of the draft opened before. A flow or a decision in the review opens that flow or decision. A run refused because BMO is off or a setting is wrong says that, not "the model changed". The prompt for your own coding agent goes when the level changes, and **Create draft** empties the box so a second click cannot make the same draft again.
+- **Other.** Deleting a lens that is not in use keeps the lens in use. Clearing a draft's branch resets what the coding plan is checked against. A step added to a flow clears the pick. Credential forms cannot be sent twice. The rail shows "viewer" on a read-only hub. The tab title names the diagram and the project. A broken `%` in the address no longer stops the app. Counts read "1 step", "1 day ago", "1 level".
+
 ### Removed
 - **The live UI inspector and the old demo web app** (DEC-074). The **Inspect live UI** button, `POST /api/ui-proxy`, `POST /api/inspect`, the flag `--allow-ui-host`, and the old single-process demo web app (which wrote its own traces) are gone. The demo system (DEC-077) replaces the web app, and System Testing mode replaces the inspector.
 

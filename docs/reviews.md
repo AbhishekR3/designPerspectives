@@ -6,6 +6,7 @@ File paths inside older sections are the paths at the time; see DEC-062 for the 
 
 ## Contents
 
+- [Interaction fixes: the small things that did not work](#interaction-fixes-the-small-things-that-did-not-work)
 - [System Testing mode (replaces the live UI inspector)](#system-testing-mode-replaces-the-live-ui-inspector)
 - [Canvas feedback round: code-level connections, notes, line shaping, BMO chat](#canvas-feedback-round-code-level-connections-notes-line-shaping-bmo-chat)
 - [Repository clean-up: short root, one demo folder, one tests folder, readable names](#repository-clean-up-short-root-one-demo-folder-one-tests-folder-readable-names)
@@ -30,6 +31,46 @@ File paths inside older sections are the paths at the time; see DEC-062 for the 
 - [Stage A3 review: canvas-first layout, characteristics and cost](#stage-a3-review-canvas-first-layout-characteristics-and-cost)
 - [Stage A2 review: feature round of 14 November](#stage-a2-review-feature-round-of-14-november)
 - [Stage A review — Model and diagrams (Proof of Concept)](#stage-a-review--model-and-diagrams-proof-of-concept)
+
+## Interaction fixes: the small things that did not work
+
+Date: 2026-11-16. Branch: `fix/ui-interactions` (from `feat/system-testing-mode`). Decisions: DEC-078, DEC-079.
+
+The owner reported two problems on the hub home page (the rail said "0 projects" while the page said "1 projects"; a click on the project card did not open it) and asked for a recheck of how the parts of the UI work together.
+
+### What was built
+
+- A read through the hub pages, the diagram screen, drafts, decisions, import and BMO, and every client call against its route. The API contract was sound: every call has a route, and bodies and answers agree. The problems were in client state and event handling.
+- The fixes are listed in the changelog under **Fixed**. The causes that produced several symptoms each:
+  - Panel text fields saved on the blur that Enter and Escape cause (`ui/src/panels/formParts.tsx`).
+  - Messages were drawn inside the top bar, under any page over the diagram (now a layer of their own, `--z-toast`).
+  - The router changed the address while rendering and checked a project against a list loaded once (`ui/src/Router.tsx`).
+  - The selection was never checked against the model after a reload (`ui/src/App.tsx`).
+- New shared pieces: `ui/src/common/plural.ts`, `ui/src/common/useDismiss.ts`, `decisionNeedsLook` in `src/shared/decisionAlerts.ts`, `readOnly` in the `/api/hub` answer, `stale: true` in the 409 answer of an out-of-date BMO preview.
+
+### How it was checked
+
+- 29 new browser tests (24 in `tests/browser/interactions.spec.ts`, five in `hub.spec.ts`) and three unit test additions. Each browser test was run against the UI as built before the fixes and against the new build: 27 fail before and pass after.
+- Two pass on the old build too, so they guard behaviour and do not prove a bug: removing a tag in the decision editor (the reported save-and-close did not happen) and a decision link on the home page (it opened the decision already). The test of the owner's own flow in a new hub fails on the old build only for the "1 projects" wording.
+- All 223 browser tests and 994 unit tests pass; typecheck, lint and format are clean; `npm run make-demo` changes nothing.
+
+### Limits
+
+- **The owner's "0 projects" was not reproduced.** In a new hub, New project, then Home shows one project in the rail and on the page, on the old build as well. What is confirmed and fixed is the mechanism: the rail's list was loaded once, so a project that arrived any other way (another tab or window, a colleague, the command line, a create that failed in the browser but worked on the server) left the rail behind, and the card of such a project did nothing. How the screenshot came about is not known.
+- Two fixes from the plan were taken back because existing tests showed the old behaviour is intended: **Suggest labels** and **Ask BMO** stay clickable for someone who cannot import (they are told why), and Back onto a draft that is gone still shows an error.
+- Fixed without a test of their own: the details table that lost typing (timing), the Changes panel closing when a comparison stops, the cleared plan branch, the prompt that goes when the level changes, the emptied paste box, flow and decision items in the import review, the review not carrying over between drafts, credential forms sent twice, the role chip on a read-only hub, Enter in the Move dialog, and the wording of counts.
+- Not changed, in `future_tasks.md`: New project takes over a folder that already holds a model; a slow double-click on a selected box's name starts a rename; arrow keys in the Move dialog's list; on a single-project server the home pages fail when the open draft was deleted elsewhere (the hub and home calls no longer depend on the open draft, the other pages still do).
+- A copy that is undone before it was shown stays "waiting to be shown"; a redo then shows it.
+
+### Questions for the owner
+
+1. How was EPCAT made when the rail showed "0 projects": one window or two, and did the New project dialog show an error?
+2. New project on a folder that already holds a model takes that model over without a word. Keep it (it is a way to add an existing folder), or say so in the dialog?
+3. The top bar badge now counts proposed decisions (DEC-079). Keep it, or should the badge stay for warnings only and the filter follow it?
+
+### Owner feedback
+
+(none yet)
 
 ## System Testing mode (replaces the live UI inspector)
 

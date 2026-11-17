@@ -60,6 +60,16 @@ Built in 0.5.0: `dp scan`, `dp import`, the import file (JSON, schema v1), revie
 | **Add a pipeline as a connector from the palette** by picking two ends | | [Review, release-0.2] | Small |
 | **Per-diagram hiding of elements** | Today a diagram shows everything at its level. | [Review, stage-a] | Medium |
 
+### 1.4a Left from the interaction fixes (2026-11-16)
+
+| Task | What it covers | Source | Size |
+|---|---|---|---|
+| **New project on a folder that has a model** | The model in the folder is taken over without a word (`src/server/hub.ts`, `addProject`). Decide: keep it as the way to add an existing folder and say so in the dialog, or refuse. | [Review] | Small |
+| **Slow double-click on a selected box's name** | A second click after about 350 ms starts a rename where a double-click to open was meant. Not reproduced in a test (timing). | [Review] | Small |
+| **Arrow keys in the Move dialog** | The list has `role="option"` rows but no arrow-key movement; Enter in the filter works. | [Review] | Small |
+| **Hub pages while a deleted draft is open (single project)** | Catalog, history and credentials calls still carry the open draft's version; if that draft was deleted elsewhere they fail. Home and the project list no longer do. | [Review] | Small |
+| **Home page "needs a look" and proposed decisions** | The server's list uses warning flags only; the top bar badge counts proposed decisions too (DEC-079). Align them once the owner has answered. | [Review] | Small |
+
 ### 1.5 Checks that only the owner can run
 
 These are not code work; they are steps the release notes say were not run.
