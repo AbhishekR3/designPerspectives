@@ -152,9 +152,9 @@ describe("reviewLevel", () => {
   it("a user note counts only when it is found in text a person typed: not a model's own words, not a short one", () => {
     const user = (note: string) => level({ evidence: [{ kind: "user", note }] });
     for (const [note, why] of [
-      ["the user said so", '"the user said so": not found in the intake, the feedback or the description'],
+      ["the user said so", '"the user said so": not found in the intake, the feedback, the description or the checklist answers'],
       ["We run it", '"We run it": too short to check (a note needs at least 12 characters)'],
-      ["invented by the model", '"invented by the model": not found in the intake, the feedback or the description'],
+      ["invented by the model", '"invented by the model": not found in the intake, the feedback, the description or the checklist answers'],
       ["", "the note is empty"],
       ["   ", "the note is empty"],
     ]) {

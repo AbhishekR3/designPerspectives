@@ -11,7 +11,7 @@ import { diagramEditable, relationshipToDelete } from "../contextMenus";
  * - editor-style keys: Ctrl/Cmd+C/V/D copy, paste, duplicate; Ctrl/Cmd+0/=/+/- fit and zoom;
  *   Escape clears the selection; arrows nudge the selected box; F2 renames;
  * - Delete/Backspace removes the selection, one box, several boxes or a line (only where the right-click menu offers Delete);
- * - Ctrl/Cmd+K opens the search box; ? toggles the help card;
+ * - Ctrl/Cmd+K opens the search box; ? toggles the help card; plain L toggles the checklist card;
  * - Shift+F10 and the ContextMenu key open the right-click menu for the selected box or line, or for the canvas.
  * - system testing mode only: F8 continues the paused call, F10 continues and pauses the next one, F9 sets or takes away a breakpoint on the selected line or box.
  * None of them act while a dialog is open or while typing (`isTyping`).
@@ -30,6 +30,8 @@ export function useShortcuts(p: {
   deleteRelationship(relId: string): void;
   nodeActions: NodeActions | null;
   toggleHelp(): void;
+  /** Plain L toggles the checklist card (absent: no key). */
+  toggleChecklist?(): void;
   canvasRef: RefObject<CanvasHandle | null>;
   openMenu(target: ContextTarget, at: Pt, keyboard?: boolean): void;
   /** The system testing mode's keys (absent or `on` false: not registered). */
@@ -37,6 +39,8 @@ export function useShortcuts(p: {
 }) {
   const { state, diagram, selection, setSelection, setFocusName, setRenameId, setSearchOpen, doHistory, clipboard, pasteFrom, deleteRelationship, nodeActions, toggleHelp, canvasRef, openMenu } = p;
   const testingRef = useRef(p.testing);
+  const toggleChecklistRef = useRef(p.toggleChecklist);
+  toggleChecklistRef.current = p.toggleChecklist;
   testingRef.current = p.testing;
 
   useEffect(() => {
@@ -137,6 +141,9 @@ export function useShortcuts(p: {
       } else if (e.key === "?" && !e.metaKey && !e.ctrlKey && !e.altKey) {
         e.preventDefault();
         toggleHelp();
+      } else if ((e.key === "l" || e.key === "L") && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey && toggleChecklistRef.current) {
+        e.preventDefault();
+        toggleChecklistRef.current();
       }
     };
     window.addEventListener("keydown", onKey);

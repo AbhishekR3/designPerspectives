@@ -97,7 +97,7 @@ None of these has an agreed scope. Each line says what is open.
 
 ### 2.2 Checks and lints computed from the model [Notes]
 
-- A C4 diagram checklist as automated checks: title, legend, element name, type, technology and description, labelled directional relationships, no "uses", no mixed levels, unexplained acronyms. (`dp check` covers model problems and missing code paths; it does not cover this.)
+- A C4 diagram checklist as automated checks: title, legend, element name, type, technology and description, labelled directional relationships, no "uses", no mixed levels, unexplained acronyms. (`dp check` covers model problems and missing code paths. The checklist, DEC-083, checks descriptions, technology and lines with no label or "Uses" as items that tick themselves; the rest is not covered.)
 - Container views that mention deployment terms; container without technology; edge without protocol; UI → database edge; a technology that combines runtimes that cannot share a process.
 - Distributed-design warnings: many services on one database, many tiny services with high fan-out, cross-service transactions, business logic on a gateway.
 - Brownfield metrics: afferent and efferent coupling, instability, abstractness, distance from the main sequence, cycles, cyclomatic complexity, coverage per component.
@@ -110,7 +110,7 @@ Open: which rules are right for most teams, which are warnings and which errors,
 - Decision cards with weighted trade-off tables, ADR sections from the book, "deferred until a trigger" (decision records, DEC-050, already cover the kinds and triggers).
 - Style and pattern catalogs; trade-off calculators (availability nines → downtime, payload and coupling estimates).
 - Risk: an impact × likelihood matrix, an assessment grid, a risk-storming session mode with hidden scores.
-- A final checklist before hand-off, and an optional learning mode.
+- A final checklist before hand-off, and an optional learning mode. (The checklist, DEC-083, has two starter lists; a hand-off list would be a third, with its own rules.)
 
 Open: whether this belongs in the tool at all, or in a guide; how much process to impose on teams that already have one.
 

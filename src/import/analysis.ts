@@ -201,6 +201,11 @@ const INTAKE_QUESTIONS: [string, (i: Intake) => string][] = [
   ["runtime", (i) => i.runtime],
 ];
 
+/** The intake questions with no answer yet (by field name). */
+export function intakeUnanswered(intake: Intake): string[] {
+  return INTAKE_QUESTIONS.filter(([, get]) => get(intake) === "").map(([name]) => name);
+}
+
 export function analyse(evidence: Evidence, model: ModelSnapshot, intake: Intake, state: AnalyseState): Analysis {
   const st = intake.settings;
   const ignoreIds = new Set(state.ignore);
@@ -396,7 +401,7 @@ export function analyse(evidence: Evidence, model: ModelSnapshot, intake: Intake
 
   // ---- totals
   const counted = levels.filter((l) => l.inScope && l.level !== "c4");
-  const unanswered = INTAKE_QUESTIONS.filter(([, get]) => get(intake) === "").map(([name]) => name);
+  const unanswered = intakeUnanswered(intake);
   const answered = INTAKE_QUESTIONS.length - unanswered.length;
   const sum = (f: (l: LevelAnalysis) => number) => counted.reduce((n, l) => n + f(l), 0);
   const decidedTotal = sum((l) => l.decided) + answered;

@@ -23,6 +23,7 @@ import type { AppState, Decision, DraftInfo, Lens, Permissions, SessionUser, Sty
 import { Auth, defaultLensFor, permissions, type AuthOptions, type Who } from "./auth.js";
 import { TestSession } from "./testSession.js";
 import { TraceStore } from "../core/traces.js";
+import { ChecklistStore, checklistPath } from "../core/checklist.js";
 import { CommentStore, commentsPath } from "../core/comments.js";
 import path from "node:path";
 
@@ -81,6 +82,7 @@ export function state(project: Project, readOnly = false, sel?: Selection, draft
     comment: !readOnly,
     import: !readOnly,
     test: !readOnly,
+    checklist: !readOnly,
   };
   const draftList = drafts?.list() ?? [];
   const ws = src.workspace;
@@ -233,6 +235,8 @@ export interface Ctx {
   testing: TestSession;
   /** Comments, ideas and questions (comments.ts); one store for the project, whatever version a request shows. */
   comments: CommentStore;
+  /** The checklist (checklist.ts, DEC-083); one list for the project, whatever version a request shows. */
+  checklist: ChecklistStore;
   /** The hub's shared catalog model, or null (no hub, no catalog, or this is the catalog). */
   catalog: () => Workspace | null;
   /** Integration credentials (DEC-056): the hub's, or the project's own. */
@@ -355,6 +359,7 @@ export function createContext(root: string, opts: AppOptions = {}): Ctx {
     traces,
     testing: new TestSession({ root: project.root, workspace: () => project.workspace, allowHosts: opts.targetAllowHosts ?? [], unavailable: opts.testingOff ?? null, now: opts.now }),
     comments: new CommentStore(commentsPath(project.root), opts.now),
+    checklist: new ChecklistStore(checklistPath(project.root), opts.now),
     catalog: opts.catalog ?? (() => null),
     credentials: opts.credentials ?? new CredentialStore(project.root, opts.secretKey === undefined ? (process.env.DP_SECRET_KEY ?? null) : opts.secretKey),
     fetch: opts.fetch ?? ((url, init) => fetch(url, init)),

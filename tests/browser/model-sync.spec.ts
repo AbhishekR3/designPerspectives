@@ -196,7 +196,7 @@ test("a change made elsewhere shows when the window gets focus, and nothing relo
   // Nothing changed: one state request, no diagram reload.
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
   await page.waitForTimeout(600);
-  expect(requests.filter((r) => r !== "GET /api/comments")).toEqual(["GET /api/state"]);
+  expect(requests.filter((r) => r !== "GET /api/comments" && r !== "GET /api/checklist")).toEqual(["GET /api/state"]);
 
   // Changed through another client: not shown until the window gets focus.
   await send(server, "PATCH", "/elements/atm", { name: "Cash Machine" });

@@ -16,7 +16,9 @@ import { useBmoChatLog, type BmoRequest } from "./hooks/useBmo";
 import { ImportPage } from "./pages/ImportPage";
 import { Canvas, type CanvasHandle } from "./canvas/Canvas";
 import { CanvasNotes } from "./canvas/CanvasNotes";
-import { CommentsContext, DiagramComments, useComments } from "./common/comments";
+import { CommentsContext, DiagramComments, edgeCommentTarget, useComments } from "./common/comments";
+import { ChecklistCard } from "./common/Checklist";
+import { useChecklist } from "./hooks/useChecklist";
 import { ContextMenu, type MenuItem } from "./canvas/ContextMenu";
 import { Dock } from "./canvas/OverlayDock";
 import { CharacteristicsEditor, CostSettingsEditor, LensEditor, TagGroupEditor } from "./panels/SettingsDialogs";
@@ -265,6 +267,18 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
   const clip = useClipboard({ keyRef, mutate, onPasted: setPasted });
   const { pasteFrom } = clip;
   const comments = useComments(state);
+  // The checklist card and the BMO chat take the same place: opening one closes the other.
+  const checklist = useChecklist(state);
+  const [checklistOpen, setChecklistOpen] = useState(false);
+  const openChecklist = () => {
+    setChatOpen(false);
+    setPage(null, { replace: true });
+    setChecklistOpen(true);
+  };
+  const openChat = () => {
+    setChecklistOpen(false);
+    setChatOpen(true);
+  };
   /** Show an object's discussion: select it and open the details panel (with `compose`, a new comment box too). */
   const showComments = (target: CommentTarget, selectAs: Selection, compose: boolean) => {
     setFocusName(false);
@@ -335,6 +349,7 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
     deleteRelationship,
     nodeActions,
     toggleHelp: () => setHelpOpen((o) => !o),
+    toggleChecklist: () => (checklistOpen ? setChecklistOpen(false) : openChecklist()),
     canvasRef,
     openMenu,
     testing: {
@@ -419,7 +434,7 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
     const id = t.element ?? t.relationship;
     const target = id ? mentionTargets(state.elements, state.relationships).find((x) => x.id === id) : undefined;
     if (target) setChatSeed((s) => ({ text: `[${target.name}] `, picks: [{ token: target.name, id: target.id }], n: (s?.n ?? 0) + 1 }));
-    setChatOpen(true);
+    openChat();
   };
   /** Show an object the chat refers to: an element (on its diagram), or a relationship (its line here, else its source). */
   const revealRef = (id: string) => {
@@ -455,6 +470,15 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
         canvasRef,
         comment: (target, selectAs) => showComments(target, selectAs, true),
         canComment: comments.can,
+        ...(checklist.can
+          ? {
+              addToChecklist: (target: CommentTarget, selectAs: Selection) => {
+                select(selectAs);
+                checklist.askFor(target);
+                openChecklist();
+              },
+            }
+          : {}),
         placeNote: (at) => key && setNoteDraft({ key, at }),
         askBmo: askAbout,
       })
@@ -465,6 +489,8 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
   const selectedChange = selection && selection.type !== "nodes" ? changeOf(selection.id) : undefined;
   const showGhost = !!(selectedNode?.ghost || selectedEdge?.ghost || (selection && diagram?.compare?.removed));
   const selectedElement = selection?.type === "node" ? state.elements.find((e) => e.id === selection.id) : undefined;
+  /** What the checklist treats as "the selection": the selected box (an element) or line (its relationship). */
+  const checklistSelected: CommentTarget | null = selectedElement ? { type: "element", id: selectedElement.id } : selectedEdge ? edgeCommentTarget(selectedEdge) : null;
   const panelProps = {
     state: panelState,
     diagram: diagram!,
@@ -524,6 +550,7 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
     />
   ) : null;
   const decisionsToLook = state.decisions.filter(needsLook).length;
+  const bmoWaiting = checklist.data?.summary.fromBmo ?? 0;
   // What holds now, for the bell: a model that did not load cleanly, drafts behind the main model, decisions that wait.
   const standing: StandingItem[] = [
     ...state.loadErrors.map((text, i) => ({ id: `load-${i}`, tone: "warn" as const, text })),
@@ -537,6 +564,9 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
       })),
     ...(decisionsToLook
       ? [{ id: "decisions", tone: "info" as const, text: `${plural(decisionsToLook, "decision")} ${decisionsToLook === 1 ? "needs" : "need"} a look.`, onOpen: () => openDecision(null) }]
+      : []),
+    ...(bmoWaiting
+      ? [{ id: "checklist-bmo", tone: "info" as const, text: `${plural(bmoWaiting, "question")} from BMO ${bmoWaiting === 1 ? "waits" : "wait"} for an answer.`, onOpen: openChecklist }]
       : []),
   ];
   const multiIds = selection?.type === "nodes" ? selection.ids : null;
@@ -650,7 +680,7 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
               data-testid="bmo-ask"
               onClick={() => {
                 setBmoMenuOpen(false);
-                setChatOpen(true);
+                openChat();
               }}
             >
               Ask BMO…
@@ -891,6 +921,17 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
                       <Icon name="code" size={14} /> <span className="diagrams-label">Import code</span>
                     </button>
                   )}
+                  <button
+                    className={`ghost diagrams-btn decisions-btn checklist-btn${checklistOpen ? " on" : ""}`}
+                    onClick={() => (checklistOpen ? setChecklistOpen(false) : openChecklist())}
+                    title={`Checklist (L): ${checklist.open} open`}
+                    aria-label="Checklist"
+                    aria-pressed={checklistOpen}
+                    data-testid="checklist-open"
+                  >
+                    <Icon name="checklist" size={14} /> <span className="diagrams-label">Checklist</span>
+                    {checklist.open > 0 && <span className="comments-count">{checklist.open > 99 ? "99+" : checklist.open}</span>}
+                  </button>
                   <span className="divider" />
                 </div>
                 <nav className="breadcrumb" data-testid="breadcrumb" aria-label="Breadcrumb">
@@ -957,6 +998,7 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
             </div>
           </div>
           {helpOpen && <HelpCard onClose={() => setHelpOpen(false)} />}
+          {checklistOpen && <ChecklistCard state={state} api={checklist} selected={checklistSelected} onReveal={revealRef} onOpenDiagram={open} onClose={() => setChecklistOpen(false)} />}
           {chatOpen && <BmoChat state={state} diagram={diagram} lens={lens} log={chatLog} seed={chatSeed} onReveal={revealRef} onClose={() => setChatOpen(false)} />}
 
           <div className="left-stack">
@@ -991,7 +1033,9 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
             </Toasts>
           </div>
 
-          {importOpen && <ImportPage state={panelState} refresh={refresh} onClose={() => setPage(null)} onOpenDraft={(id) => void openImportDraft(id)} />}
+          {importOpen && (
+            <ImportPage state={panelState} refresh={refresh} onClose={() => setPage(null)} onOpenDraft={(id) => void openImportDraft(id)} checklist={checklist} onOpenChecklist={openChecklist} />
+          )}
           {decisionsOpen && <DecisionsPage state={panelState} selected={decisionId} onSelect={(id) => openDecision(id)} onClose={() => setPage(null)} onReveal={revealFromPage} mutate={mutate} />}
           {diagram && diagram.nodes.length === 0 && (
             <div className="free-area">

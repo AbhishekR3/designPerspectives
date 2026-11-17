@@ -7,7 +7,8 @@
  * systems, containers, components), then by ID; then relationships, flows and decisions in file order. A
  * `via` relationship becomes two (source→via with `description`, via→target with `viaDescription`).
  *
- * Never written to the model: `evidence`, `confidence`, `source`, `ignore`, `questions`, `assumptions`.
+ * Never written to the model: `evidence`, `confidence`, `source`, `ignore`, `questions`, `assumptions`. The questions and
+ * assumptions become open items on the checklist (checklist.ts, DEC-083), so a person sees them and their answers reach the next turn.
  * Code paths are, through `updateElement` / `updateRelationship` (so `cleanPaths` applies).
  *
  * Re-import (an ID, or a relationship's source, target and description, already in the model): each field
@@ -25,6 +26,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { checklistPath, ChecklistStore } from "../core/checklist.js";
 import { DiskCode, type CodeSource } from "../core/codeFiles.js";
 import { createDecision, today } from "../core/decisions.js";
 import type { Drafts } from "../core/drafts.js";
@@ -73,6 +75,8 @@ export interface ImportResult {
   report: ImportReport;
   /** What the checks could not settle (shown in review). */
   warnings: FieldError[];
+  /** How many of the file's questions and assumptions were added to the checklist (the others were there already). */
+  checklistAdded: number;
 }
 
 const RANK: Record<Kind, number> = { person: 0, softwareSystem: 1, container: 2, component: 3 };
@@ -344,7 +348,13 @@ export function importToDraft(drafts: Drafts, file: ImportFile, opts: ImportOpti
     const { report, written, origins } = drafts.get(id).edit((ws, sc, decs) => applyImport(ws, sc, decs, file, ledger, { date }));
     writePending(main.dir, id, written);
     createReview(drafts, id, file, origins, { code: opts.code, evidence: opts.evidence, ...(opts.sourceText ? { sourceText: opts.sourceText } : {}) });
-    return { draftId: id, report, warnings: check.warnings };
+    let checklistAdded = 0;
+    try {
+      checklistAdded = new ChecklistStore(checklistPath(main.root)).addFromImport(id, file.questions ?? [], file.assumptions ?? []);
+    } catch {
+      // The draft is made; a checklist that cannot be written must not undo it (the questions stay in files/<id>.json).
+    }
+    return { draftId: id, report, warnings: check.warnings, checklistAdded };
   } catch (e) {
     drafts.remove(id);
     throw e;

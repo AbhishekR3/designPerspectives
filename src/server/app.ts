@@ -11,6 +11,7 @@ import { createContext, HttpError, type AppOptions, type Ctx } from "./routeCont
 import { authorize } from "./auth.js";
 import { installProtection } from "./requestProtection.js";
 import { registerCode } from "./routes/code.js";
+import { registerChecklist } from "./routes/checklist.js";
 import { registerComments } from "./routes/comments.js";
 import { registerDecisions } from "./routes/decisions.js";
 import { registerDrafts } from "./routes/drafts.js";
@@ -90,6 +91,7 @@ export function buildApp(root: string, opts: AppOptions & { hub?: boolean } = {}
   registerTesting(app, ctx);
   registerBacktrack(app, ctx);
   registerComments(app, ctx);
+  registerChecklist(app, ctx);
 
   app.all("/api/*", (c) => c.json({ detail: "Not Found" }, 404));
 

@@ -39,6 +39,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { typedAnswers } from "../core/checklist.js";
 import { expandPaths, scanImports } from "../core/codeMap.js";
 import { cleanRel, sha1, type CodeSource } from "../core/codeFiles.js";
 import { registerDraftHooks, type DraftHooks, type Drafts } from "../core/drafts.js";
@@ -131,7 +132,7 @@ function noteNotTyped(note: string): string {
   if (!s) return "the note is empty";
   const q = `"${note.trim().length > 120 ? `${note.trim().slice(0, 117)}...` : note.trim()}"`;
   if (s.length < MIN_USER_NOTE) return `${q}: too short to check (a note needs at least ${MIN_USER_NOTE} characters)`;
-  return `${q}: not found in the intake, the feedback or the description`;
+  return `${q}: not found in the intake, the feedback, the description or the checklist answers`;
 }
 
 /** Whether a scan fact is about the item: its name or system is the item's name or ID (compared as slugs), or its path is a code path of the item or under one. */
@@ -492,8 +493,8 @@ function stringsIn(v: unknown, out: string[] = []): string[] {
 
 /**
  * The text a `user` note can be found in: what a person typed and the server holds, never what the import file
- * says about itself: the intake's values, the description of a describe-to-model draft (`files/<id>.source.txt`)
- * and the draft-wide feedback. The feedback of one item is added when that item is checked.
+ * says about itself: the intake's values, the description of a describe-to-model draft (`files/<id>.source.txt`),
+ * the draft-wide feedback, and the answers and items people wrote on the checklist (never a BMO item's own text). The feedback of one item is added when that item is checked.
  */
 function typedTexts(modelDir: string, draftId: string, state: ReviewState): string[] {
   const out: string[] = [];
@@ -508,6 +509,8 @@ function typedTexts(modelDir: string, draftId: string, state: ReviewState): stri
     // Not a description draft.
   }
   if (state.draftFeedback) out.push(state.draftFeedback);
+  // What people wrote on the checklist: answers, corrections, notes, and the items they typed (DEC-083).
+  out.push(...typedAnswers(path.dirname(modelDir)));
   return out;
 }
 

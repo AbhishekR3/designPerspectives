@@ -65,7 +65,7 @@ export function ProblemsView({ problems, testId }: { problems: Problems; testId:
 const count = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 /** What an import did, and the way into the draft. */
-export function ResultNotice({ result, onOpenDraft }: { result: ImportDraftResult; onOpenDraft(id: string): void }) {
+export function ResultNotice({ result, onOpenDraft, onOpenChecklist }: { result: ImportDraftResult; onOpenDraft(id: string): void; onOpenChecklist?(): void }) {
   const r: ImportReport = result.report;
   const list = (title: string, names: string[], id: string) =>
     names.length > 0 && (
@@ -115,6 +115,16 @@ export function ResultNotice({ result, onOpenDraft }: { result: ImportDraftResul
           <summary>Warnings ({result.warnings.length})</summary>
           <FieldList items={result.warnings} tone="warning" testId="import-result-warnings" />
         </details>
+      )}
+      {result.checklistAdded > 0 && (
+        <p className="small" data-testid="import-checklist-added">
+          BMO asked {count(result.checklistAdded, "question or assumption", "questions or assumptions")}: they are on the checklist.{" "}
+          {onOpenChecklist && (
+            <button className="ghost small" onClick={onOpenChecklist} data-testid="import-open-checklist-result">
+              Open the checklist
+            </button>
+          )}
+        </p>
       )}
       <button className="primary" onClick={() => onOpenDraft(result.draftId)} data-testid="import-open-draft">
         Open the draft

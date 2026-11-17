@@ -10,6 +10,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { answerNotes } from "../core/checklist.js";
 import type { CodeSource } from "../core/codeFiles.js";
 import type { Drafts } from "../core/drafts.js";
 import { buildIndex, CODE_KEY, getJson, ModelError } from "../core/modelEdits.js";
@@ -78,7 +79,7 @@ export function parseHandoffRequest(b: unknown): HandoffRequest {
   return req;
 }
 
-/** Typed feedback on the import drafts' review items and drafts, for the next turn. */
+/** Typed feedback on the import drafts' review items and drafts, then the answers on the checklist (DEC-083), for the next turn. */
 export function importFeedback(drafts: Drafts): FeedbackNote[] {
   const out: FeedbackNote[] = [];
   for (const d of drafts.list()) {
@@ -96,6 +97,8 @@ export function importFeedback(drafts: Drafts): FeedbackNote[] {
       out.push({ id, text: item.feedback });
     }
   }
+  // Kept outside any draft, so an answer outlives the draft whose file asked the question.
+  out.push(...answerNotes(drafts.main.root));
   return out;
 }
 
