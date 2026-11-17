@@ -1,7 +1,7 @@
 /**
  * Live UI inspector: what HTTP calls seen in a running UI mean in the model.
  *
- * A relationship lists the HTTP calls it carries as endpoints (`dp.endpoints`, see ops.ts). A call
+ * A relationship lists the HTTP calls it carries as endpoints (`dp.endpoints`, see modelEdits.ts). A call
  * seen in the UI matches a relationship that starts at the UI element (or one of its children) and
  * has a matching endpoint. From each matched relationship the walk follows the model's outgoing
  * relationships, breadth first, so the panel can show what the call reaches next. Each element is
@@ -14,7 +14,7 @@
  * else must be equal. A pattern that is a full URL is compared with the call's origin and path.
  */
 
-import { buildIndex, ENDPOINTS_KEY, getJson, type Index } from "./ops.js";
+import { buildIndex, ENDPOINTS_KEY, getJson, type Index } from "./modelEdits.js";
 import { listFlows } from "./flows.js";
 import type { Workspace } from "./workspace.js";
 import type { Endpoint, InspectedCall, InspectHop, InspectResult, ObservedCall } from "../shared/types.js";

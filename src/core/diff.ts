@@ -13,9 +13,9 @@ import { expandPaths, scanImports, type CodeInput } from "./codeMap.js";
 import { sha1, type CodeSource } from "./codeFiles.js";
 import { diagram as staticDiagram, drawnInMap, homeKey, keyFor } from "./diagrams.js";
 import { flowDiagram, listFlows } from "./flows.js";
-import { buildIndex, CODE_KEY, elementSummary, getJson, relationshipSummary, type Index } from "./ops.js";
-import type { Sidecar } from "./sidecar.js";
-import { canon, flatten, isLayoutUnit, sameUnit, unitLabel, type Unit, type Units } from "./units.js";
+import { buildIndex, CODE_KEY, elementSummary, getJson, relationshipSummary, type Index } from "./modelEdits.js";
+import type { Sidecar } from "./designPerspectivesFile.js";
+import { canon, flatten, isLayoutUnit, sameUnit, unitLabel, type Unit, type Units } from "./modelUnits.js";
 import type { Workspace } from "./workspace.js";
 import type { ChangeSet, CodeChange, Decision, Diagram, DiagramEdge, FieldChange, Flow, ObjectChange } from "../shared/types.js";
 

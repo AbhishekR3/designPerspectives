@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { LEFT_KEY, LEFT_OPEN_KEY, RIGHT_KEY, RIGHT_OPEN_KEY, storage } from "../storage";
+import { LEFT_KEY, LEFT_OPEN_KEY, RIGHT_KEY, RIGHT_OPEN_KEY, storage } from "../preferences";
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 

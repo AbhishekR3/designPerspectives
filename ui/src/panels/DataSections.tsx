@@ -7,10 +7,10 @@
 
 import { useState } from "react";
 import { api } from "../api";
-import { Section } from "./fields";
+import { Section } from "./formParts";
 import { Icon } from "../common/icons";
 import { DATA_KINDS, type AppState, type CatalogEntry, type DataAccess, type DataAsset, type DataKind, type ElementSummary, type Relationship } from "../types";
-import type { Common } from "./common";
+import type { Common } from "./panelProps";
 
 /** The element's data: the catalog element's (shared, read-only here) and its own. */
 export function assetsOf(el: ElementSummary | undefined, catalog: CatalogEntry[] | null): { shared: DataAsset[]; own: DataAsset[] } {

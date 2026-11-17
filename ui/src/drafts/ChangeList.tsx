@@ -1,5 +1,5 @@
 /** The list of changes against the compared version, their field details, and the read-only panel of a removed object. */
-import { CHANGE_COLORS, CHANGE_LABEL } from "../overlays";
+import { CHANGE_COLORS, CHANGE_LABEL } from "../colourOverlays";
 import { KIND_LABEL, DECISION_KIND_INFO, type DecisionKind, type ChangeSet, type DiagramEdge, type DiagramNode, type FieldChange, type ObjectChange } from "../types";
 
 const TYPE_LABEL: Record<string, string> = { elements: "Elements", relationships: "Relationships", flows: "Flows", decisions: "Decisions", settings: "Settings" };

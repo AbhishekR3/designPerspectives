@@ -1,5 +1,5 @@
 /**
- * Three-way merge of model units (see `units.ts`), used to apply a draft to the main model.
+ * Three-way merge of model units (see `modelUnits.ts`), used to apply a draft to the main model.
  *
  * `base` is the main model as it was when the draft was made, `ours` is main now, `theirs` is the
  * draft. Per unit: if only one side changed it, that side wins; if both made the same change, it
@@ -20,7 +20,7 @@
  */
 
 import { parseKey } from "./diagrams.js";
-import { isLayoutUnit, sameUnit, unitLabel, type Unit, type Units } from "./units.js";
+import { isLayoutUnit, sameUnit, unitLabel, type Unit, type Units } from "./modelUnits.js";
 import type { Conflict } from "../shared/types.js";
 
 export interface MergeNames {

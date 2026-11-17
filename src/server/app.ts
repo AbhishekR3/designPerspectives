@@ -5,11 +5,11 @@ import { HTTPException } from "hono/http-exception";
 import { ApplyConflict } from "../core/drafts.js";
 import { GitError } from "../core/git.js";
 import * as diagrams from "../core/diagrams.js";
-import { ModelError } from "../core/ops.js";
+import { ModelError } from "../core/modelEdits.js";
 import { NotFound } from "../core/project.js";
-import { createContext, HttpError, type AppOptions, type Ctx } from "./context.js";
+import { createContext, HttpError, type AppOptions, type Ctx } from "./routeContext.js";
 import { authorize } from "./auth.js";
-import { installProtection } from "./protect.js";
+import { installProtection } from "./requestProtection.js";
 import { registerCode } from "./routes/code.js";
 import { registerComments } from "./routes/comments.js";
 import { registerDecisions } from "./routes/decisions.js";
@@ -19,13 +19,13 @@ import { registerBmo } from "./routes/bmo.js";
 import { registerImport } from "./routes/import.js";
 import { registerInspect } from "./routes/inspect.js";
 import { registerCatalog, registerFlows, registerModel, registerWork } from "./routes/model.js";
-import { registerBacktrack, registerHistory, registerRead } from "./routes/read.js";
+import { registerBacktrack, registerHistory, registerRead } from "./routes/readModel.js";
 import { registerSidecar } from "./routes/sidecar.js";
 import { registerUi } from "./routes/ui.js";
 
-export { codePair, HttpError, state, type Access, type AppOptions, type Selection } from "./context.js";
+export { codePair, HttpError, state, type Access, type AppOptions, type Selection } from "./routeContext.js";
 export { ROUTE_RULES } from "./auth.js";
-export { LOOPBACK_HOSTS, MAX_BODY_BYTES } from "./protect.js";
+export { LOOPBACK_HOSTS, MAX_BODY_BYTES } from "./requestProtection.js";
 
 export function createApp(root: string, opts: AppOptions = {}): Hono {
   return buildApp(root, opts).app;

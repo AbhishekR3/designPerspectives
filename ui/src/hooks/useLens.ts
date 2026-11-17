@@ -1,8 +1,8 @@
 import { useCallback, useMemo, useState } from "react";
 import type { NodeDecor } from "../canvas/Canvas";
-import { decodeSpec, formatMoney, matchesFilter, overlayOf, specExists, specLabel, techColors, type Filter, type OverlaySpec } from "../overlays";
+import { decodeSpec, formatMoney, matchesFilter, overlayOf, specExists, specLabel, techColors, type Filter, type OverlaySpec } from "../colourOverlays";
 import { run } from "../common/notify";
-import { lensKey, LENS_KEY, storage } from "../storage";
+import { lensKey, LENS_KEY, storage } from "../preferences";
 import type { AppState, Diagram, DiagramLevel, DiagramNode, Lens, Level } from "../types";
 
 export const inLens = (lens: Lens, level: DiagramLevel) => level === "flow" || level === "connector" || lens.visibleLevels.includes(level as Level);

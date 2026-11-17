@@ -31,14 +31,14 @@
  * never rewritten. Decisions are written only when they change, so a hand-formatted file keeps its
  * formatting until it is edited here.
  *
- * Decisions are part of the model: they are units (`units.ts`), so drafts, diffs, the three-way
+ * Decisions are part of the model: they are units (`modelUnits.ts`), so drafts, diffs, the three-way
  * merge and git versions include them (DEC-050).
  */
 
 import fs from "node:fs";
 import path from "node:path";
 import { atomicWrite, isObj, type Obj } from "./util.js";
-import { ModelError, slugify } from "./ops.js";
+import { ModelError, slugify } from "./modelEdits.js";
 import {
   DECISION_KINDS,
   DECISION_STATUSES,

@@ -1,7 +1,7 @@
 /** The form for one decision record: fields change with the kind (DEC-050). Saves the whole record at once. */
 
 import { useState } from "react";
-import { TagInput } from "../panels/fields";
+import { TagInput } from "../panels/formParts";
 import { Icon } from "../common/icons";
 import { objectName } from "./DecisionsPage";
 import {

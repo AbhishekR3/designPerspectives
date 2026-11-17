@@ -11,7 +11,7 @@
  * Code paths are, through `updateElement` / `updateRelationship` (so `cleanPaths` applies).
  *
  * Re-import (an ID, or a relationship's source, target and description, already in the model): each field
- * is a three-way with base = the ledger (ledger.ts), ours = the model, theirs = the file. Equal: nothing to
+ * is a three-way with base = the ledger (lastImport.ts), ours = the model, theirs = the file. Equal: nothing to
  * do. Ours differs from base: a person edited it; kept. No ledger value: only an empty field is filled.
  * Otherwise the file's value is written. Flows and decisions whose title is already there are kept as they
  * are. Nothing is ever deleted: objects an earlier import wrote that this file leaves out are listed.
@@ -29,13 +29,13 @@ import { DiskCode, type CodeSource } from "../core/codeFiles.js";
 import { createDecision, today } from "../core/decisions.js";
 import type { Drafts } from "../core/drafts.js";
 import { createFlow, listFlows, updateFlow } from "../core/flows.js";
-import { buildIndex, CATALOG_KEY, cleanPaths, createElement, createRelationship, getProps, ModelError, splitTech, updateElement, updateRelationship, type Index } from "../core/ops.js";
+import { buildIndex, CATALOG_KEY, cleanPaths, createElement, createRelationship, getProps, ModelError, splitTech, updateElement, updateRelationship, type Index } from "../core/modelEdits.js";
 import { WORKSPACE_FILE } from "../core/project.js";
-import type { Sidecar } from "../core/sidecar.js";
+import type { Sidecar } from "../core/designPerspectivesFile.js";
 import type { Kind, Workspace } from "../core/workspace.js";
 import type { Decision, FieldError, ImportFile, ImportKept, ImportKeptReason, ImportLevel, ImportObject, ImportReport, ImportReportItem } from "../shared/types.js";
 import { checkImport, KIND_OF, planRelationships, relIdentity, resolveRelRef, techNormaliser, type PlannedRel } from "./checks.js";
-import { elementFields, emptyLedger, fieldOf, isEmptyValue, relationshipFields, sameValue, settleLedger, writePending, type Ledger, type LedgerEntry, type LedgerValue } from "./ledger.js";
+import { elementFields, emptyLedger, fieldOf, isEmptyValue, relationshipFields, sameValue, settleLedger, writePending, type Ledger, type LedgerEntry, type LedgerValue } from "./lastImport.js";
 import { pointer } from "./schema.js";
 import { createReview, decisionSlug, itemKey, type ImportOrigin } from "./review.js";
 import type { Evidence } from "./scan.js";
@@ -330,7 +330,7 @@ function notInImport(idx: Index, file: ImportFile, ledger: Ledger, written: Ledg
 /**
  * Check `file` and bring it in as a new draft of `drafts.main`. Throws ImportRejected (a ModelError) when
  * the checks find errors, or when an operation refuses a value; the draft is then not kept. The ledger
- * is settled first (ledger.ts) and a pending ledger is written for the new draft.
+ * is settled first (lastImport.ts) and a pending ledger is written for the new draft.
  */
 export function importToDraft(drafts: Drafts, file: ImportFile, opts: ImportOptions): ImportResult {
   const main = drafts.main;

@@ -4,11 +4,11 @@ import type { Hono } from "hono";
 import * as diagrams from "../../core/diagrams.js";
 import * as flows from "../../core/flows.js";
 import { isObj, str, type Obj } from "../../core/util.js";
-import { applyStates, fetchStates, gitHubLinks } from "../../core/workStatus.js";
-import * as ops from "../../core/ops.js";
-import { ModelError } from "../../core/ops.js";
+import { applyStates, fetchStates, gitHubLinks } from "../../core/githubWorkStatus.js";
+import * as ops from "../../core/modelEdits.js";
+import { ModelError } from "../../core/modelEdits.js";
 import type { WorkRefresh } from "../../shared/types.js";
-import { body, HttpError, needStr, objBody, optStr, point, type Ctx } from "../context.js";
+import { body, HttpError, needStr, objBody, optStr, point, type Ctx } from "../routeContext.js";
 
 export function registerModel(app: Hono, ctx: Ctx): void {
   const { edit, ok } = ctx;

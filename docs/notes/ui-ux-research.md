@@ -20,7 +20,7 @@ Owner goals for this work (from the request):
 - **Right panel**: it can be **minimised** by the user. See F1/F6.
 - **Box cards**: the owner delegated the design to the assistant ("do what you think is best"). See §3.4.
 
-Constraints to respect: dark theme only (DEC-013); diagram content is computed from the model (DEC-010); all edits go through `src/core/ops.ts`; per-object data goes in `dp.*` properties; the built UI in `static/` must be rebuilt and committed; competitors are not named in repository files, commits or PRs (DEC-029).
+Constraints to respect: dark theme only (DEC-013); diagram content is computed from the model (DEC-010); all edits go through `src/core/modelEdits.ts`; per-object data goes in `dp.*` properties; the built UI in `static/` must be rebuilt and committed; competitors are not named in repository files, commits or PRs (DEC-029).
 
 ---
 
@@ -172,7 +172,7 @@ Keep it subtle: hues appear in icon tiles, strips, dots and badges (small areas)
 
 [Proposal] How to use them:
 - **Do not fetch at runtime** (the app is local and offline). Add a script, `scripts/fetch-logos.ts`, that copies the chosen SVGs from the pinned packages (devDependencies) into `ui/src/logos/` and writes a generated `logos.ts` map: `{ id, aliases: ["Node.js", "NodeJS", "node"], svg, color, source, licence }`. Commit the generated files, like `static/`. Only bundle icons we map, not whole packages.
-- **Matching**: technology names are free-text tags (`ops.ts`: technology is a tag list). Match case-insensitively on normalised names plus an alias list ("Spring MVC", "Spring Bean", "Spring Boot" → spring; "Oracle Database Schema" → oracle; "JSON/HTTPS" → no logo). No match falls back to a coloured letter tile (first letter, hashed hue).
+- **Matching**: technology names are free-text tags (`modelEdits.ts`: technology is a tag list). Match case-insensitively on normalised names plus an alias list ("Spring MVC", "Spring Bean", "Spring Boot" → spring; "Oracle Database Schema" → oracle; "JSON/HTTPS" → no logo). No match falls back to a coloured letter tile (first letter, hashed hue).
 - **Which logo a box shows**: the first technology that has a logo, in tag order. The user can pin a different one, or a custom icon, through the existing style (`styles` in the sidecar). Show the logo in the card's top-left, replacing the generic symbol icon. Keep the C4 symbol shape (cylinder, queue, person, …).
 - **Dark theme**: render single-colour Simple Icons in their brand hex. When the hex is too dark on `#1d2025` (contrast below 3:1; measured: Apache Kafka `#231F20` 1.0:1, Django `#092E20` 1.1:1, Express `#0A0A0A` 1.2:1, Rust `#000000` 1.3:1; fine: Go 6.2:1, Flask 6.1:1, Snowflake 6.9:1, Kotlin 3.5:1), render white at 90% instead. Devicon multi-colour SVGs render as they are.
 - **Where logos appear**: box cards, technology chips (panel and Dock legend), technology picker suggestions, search results and edge labels (protocol logos when known, e.g. Kafka).
@@ -270,7 +270,7 @@ Every scanned fact carries **confidence**: `exact` (a resolved import plus a cal
 
 ## 6. Prioritised backlog for the UI session [Proposal]
 
-Ordered by impact on goals 1–2 vs effort. Each item should be checked in the running app (`npm run dp -- serve`, `ui: npm run dev`) and covered by e2e where it changes behaviour. Record the owner answers and the decisions marked "needs a DEC" in `docs/decisions.md` first.
+Ordered by impact on goals 1–2 vs effort. Each item should be checked in the running app (`npm run dp -- serve`, `ui: npm run dev`) and covered by browser tests where it changes behaviour. Record the owner answers and the decisions marked "needs a DEC" in `docs/decisions.md` first.
 
 1. **Selection focus** (F4): dim non-neighbours and colour in/out edges, plus the moving glow. Highest value for "quickly understand".
 2. **Canvas space** (F1, F3, F14): **minimisable right panel** (rail + drawer, remembered); the Add palette collapses to a "+" rail; the sidebar is collapsible.

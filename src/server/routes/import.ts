@@ -1,7 +1,7 @@
 /**
  * Import routes (DEC-051): scan the code, the intake, check and bring in an import file as a draft, the BMO
  * handoff, the per-item review of an import draft, the ignore list and finalizing a level. The logic lives in
- * `src/import` and `src/bmo`; these routes parse the request, pick the role-checked action (auth.ts) and answer.
+ * `src/import` and `src/assistant`; these routes parse the request, pick the role-checked action (auth.ts) and answer.
  * The state is kept under `<project>/architecture/import/`.
  *
  * The review routes work on the draft the request selects (`X-DP-Model: draft:<id>`), so an engineer can
@@ -13,21 +13,21 @@ import fs from "node:fs";
 import path from "node:path";
 import type { Context, Hono } from "hono";
 import { gitUserName } from "../../core/git.js";
-import { parseHandoffRequest, readHandoffDescription, writeImportHandoff, checkHandoffResult } from "../../bmo/importTasks.js";
-import { pasteBackText } from "../../bmo/tasks.js";
+import { parseHandoffRequest, readHandoffDescription, writeImportHandoff, checkHandoffResult } from "../../assistant/importTasks.js";
+import { pasteBackText } from "../../assistant/tasks.js";
 import { LEVELS, readEvidence, type Level } from "../../import/scan.js";
 import { checkImport, missingContainers } from "../../import/checks.js";
 import { ImportRejected, importToDraft } from "../../import/importer.js";
 import { intakeLoosened, parseIntake, readIntake, writeIntake } from "../../import/intake.js";
-import { changeIgnore, buildOverview, FinalizeRefused, lowConfidenceByLevel, scanProject, setLevelFinal } from "../../import/overview.js";
+import { changeIgnore, buildOverview, FinalizeRefused, lowConfidenceByLevel, scanProject, setLevelFinal } from "../../import/importStatus.js";
 import { parseImportFile } from "../../import/schema.js";
 import { acceptAll, isImportDraft, lowConfidence, readReview, setDecision, setFeedback, verifyAgain } from "../../import/review.js";
 import { snapshotModel } from "../../import/analysis.js";
-import { ModelError } from "../../core/ops.js";
+import { ModelError } from "../../core/modelEdits.js";
 import { DEMO_DIR } from "../../core/project.js";
 import type { AcceptAllResult, FieldError, ImportDraftResult, ImportExample, ImportFile, ImportReviewResponse, ReviewActionResult, ReviewDecision } from "../../shared/types.js";
 import { decide } from "../auth.js";
-import { body, HttpError, needStr, objBody, optStr, type Ctx } from "../context.js";
+import { body, HttpError, needStr, objBody, optStr, type Ctx } from "../routeContext.js";
 
 const ITEM_ACTIONS = ["verify", "accept", "reject", "pending", "feedback"] as const;
 const DECISION_OF: Record<string, ReviewDecision> = { accept: "accepted", reject: "rejected", pending: "pending" };

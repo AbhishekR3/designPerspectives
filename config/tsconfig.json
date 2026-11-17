@@ -1,0 +1,5 @@
+// `npm run typecheck`: the server and CLI, the tests, the scripts and these config files in one check.
+{
+  "extends": "./tsconfig.base.json",
+  "include": ["../src", "../tests", "../scripts", "*.ts"]
+}

@@ -19,8 +19,8 @@ everywhere.
 
 ![A draft compared with the main model: one container added, one changed](docs/images/draft-changes.png)
 
-Version **0.5.0**. Changes per version: [CHANGELOG.md](CHANGELOG.md). How to contribute:
-[CONTRIBUTING.md](CONTRIBUTING.md). How to report a security problem: [SECURITY.md](SECURITY.md).
+Version **0.5.0**. Changes per version: [docs/CHANGELOG.md](docs/CHANGELOG.md). How to contribute, the code of conduct
+and how to report a security problem: [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md).
 
 ## Install
 
@@ -61,7 +61,7 @@ Then try three things:
    switch between **Since it started** and **Against main now**.
 3. **Search.** Press **Ctrl/Cmd+K** and type `fraud`, `redis` or `kafka`.
 
-[docs/demo-tour.md](docs/demo-tour.md) is a guided tour of the demo, about 30 minutes, with a stop for
+[demo/README.md](demo/README.md) is a guided tour of the demo, about 30 minutes, with a stop for
 each feature.
 
 To start your own model, run `dp serve` in your project folder. It starts empty and shows a
@@ -185,7 +185,7 @@ A **hub** serves several projects from one folder:
 Each project is an ordinary project folder, inside the hub folder. Architects can add one from the
 home page (blank or the demo), and it is created as a folder inside the hub. A `hub.json` you write by
 hand is trusted: its paths are checked when the hub loads, but only write entries for folders you
-trust (see [SECURITY.md](SECURITY.md)).
+trust (see the [security model](docs/CONTRIBUTING.md#security-model)).
 
 `catalog/` holds the elements several projects share (people, systems, databases). A project keeps a
 **linked copy** of each one it uses: its name, description and technology come from the catalog and
@@ -400,7 +400,7 @@ connector and code diagrams).
   Threads can be replied to and resolved. Comments are stored separately from the model, in
   `architecture/comments.json`, with no undo step and no place in drafts.
 - **In CI**: `dp check` fails the build on model problems; `dp diff --base <ref>` writes a Markdown summary
-  for a pull request comment. Sample workflows are in [docs/examples/ci/](docs/examples/ci/).
+  for a pull request comment. Sample workflows are in [demo/ci-examples/](demo/ci-examples/).
 
 ### Using the app
 
@@ -424,34 +424,40 @@ npm ci                          # server, CLI and test tools (also builds dist/)
 npm run typecheck
 npm run lint
 npm run format:check            # Prettier (npm run format writes)
-npm test                        # unit and API tests (vitest)
+npm test                        # unit, API and CLI tests (vitest, tests/unit/)
 npm run dp -- serve             # run the CLI from source (tsx), e.g. `npm run dp -- check`
 
 cd ui && npm ci && npm run dev  # UI dev server on :5173, proxies /api to dp serve on :8765
 npm run build                   # (in ui/) writes the UI into static/ (committed)
 
 npx playwright install chromium # or set DP_E2E_CHROME to a Chrome/Chromium binary
-npm run test:e2e                # browser tests (need the built UI)
+npm run test:browser            # browser tests (Playwright, tests/browser/; need the built UI)
+npm run test:list               # regenerate tests/TESTS.csv, the list of every test
 npm run make-demo               # regenerate the bundled demo model (demo/)
 ```
 
 Contributor steps, the Git process and the rules that surprise people are in
-[CONTRIBUTING.md](CONTRIBUTING.md).
+[docs/CONTRIBUTING.md](docs/CONTRIBUTING.md). Tool settings (TypeScript, ESLint, Prettier, Vitest, Playwright) are in `config/`.
 
 Layout:
 
 | Path | What it holds |
 |---|---|
 | `src/shared/types.ts` | API types and constants used by both the server and the UI |
-| `src/core/` | The model: `workspace.ts` file format, `sidecar.ts`, `ops.ts` all edits and rules, `diagrams.ts` what each level shows, `connectors.ts`, `flows.ts`, `validate.ts`, `project.ts` files and undo, `drafts.ts`, `merge.ts`, `diff.ts`, `codeMap.ts` code mapping, `codeFiles.ts`, `decisions.ts`, `catalog.ts`, `credentials.ts`, `users.ts`, `history.ts`, `git.ts` (read-only) |
-| `src/server/` | `app.ts` the HTTP app (Hono), `context.ts` the shared context, `protect.ts` request checks, `auth.ts` sign-in and roles, `hub.ts` the hub of projects, `routes/` one module per area (read, drafts, model, sidecar, code, decisions, inspect, comments, hub, import, bmo, ui) |
-| `src/import/` | Codebase import (DEC-051): `scan.ts`, `knownServices.ts`, `intake.ts`, `analysis.ts`, `schema.ts`, `checks.ts`, `importer.ts`, `ledger.ts`, `review.ts`, `overview.ts`, `unmapped.ts` |
-| `src/bmo/` | BMO, the optional assistant: `tasks.ts`, `prompts.ts`, `service.ts`, `backend.ts`, `handoff.ts`, `direct.ts` (Claude API, OpenAI API, Ollama), `settings.ts`, `redact.ts`, `digest.ts`, `modelText.ts`, `importTasks.ts`, `fake.ts` (tests) |
+| `src/core/` | The model: `workspace.ts` file format, `designPerspectivesFile.ts` (designperspectives.json), `modelEdits.ts` all edits and rules, `diagrams.ts` what each level shows, `connectors.ts`, `flows.ts`, `validate.ts`, `project.ts` files and undo, `drafts.ts`, `merge.ts`, `diff.ts`, `codeMap.ts` code mapping, `codeFiles.ts`, `decisions.ts`, `catalog.ts`, `credentials.ts`, `users.ts`, `history.ts`, `git.ts` (read-only) |
+| `src/server/` | `app.ts` the HTTP app (Hono), `routeContext.ts` the shared context, `requestProtection.ts` request checks, `auth.ts` sign-in and roles, `hub.ts` the hub of projects, `routes/` one module per area (readModel, drafts, model, sidecar, code, decisions, inspect, comments, hub, import, bmo, ui) |
+| `src/import/` | Codebase import (DEC-051): `scan.ts`, `knownServices.ts`, `intake.ts`, `analysis.ts`, `schema.ts`, `checks.ts`, `importer.ts`, `lastImport.ts`, `review.ts`, `importStatus.ts`, `unmappedCode.ts` |
+| `src/assistant/` | BMO, the optional assistant: `tasks.ts`, `prompts.ts`, `runTask.ts`, `backend.ts`, `handoffBackend.ts`, `providerBackend.ts` (Claude API, OpenAI API, Ollama), `settings.ts`, `redact.ts`, `codeExcerpts.ts`, `modelText.ts`, `importTasks.ts`, `fakeBackend.ts` (tests) |
 | `src/cli.ts` | the `dp` command |
 | `src/demo/` | the demo bank web app and the made-up git history |
-| `ui/src/` | React UI with xyflow and elkjs. Folders: `canvas/` (drawing, line routing, palette, dock), `panels/` (property panels), `pages/` (home, catalog, credentials, history, decisions, sign-in), `drafts/` (draft list, change list, apply dialog), `inspect/` (live UI inspector), `hooks/`, `common/` (shared dialogs and widgets), `styles/`; builds into `static/` |
-| `demo/` | the bundled demo model, its sample code, drafts and hub |
-| `scripts/` | `make-demo.ts` (regenerates `demo/`) and `demo-hub.ts` |
-| `tests/`, `e2e/` | vitest and Playwright tests |
+| `ui/src/` | React UI with xyflow and elkjs. Folders: `canvas/` (drawing, line routing, palette, overlay dock), `panels/` (property panels), `pages/` (home, catalog, credentials, history, decisions, sign-in), `drafts/` (draft list, change list, apply dialog), `inspect/` (live UI inspector), `hooks/`, `common/` (shared dialogs and widgets), `styles/`; builds into `static/` |
+| `demo/` | everything for learning the tool: the demo model, its sample code, a sample draft, a demo hub, an example import file, example CI jobs and the guided tour ([demo/README.md](demo/README.md)) |
+| `scripts/` | `make-demo.ts` and `make-demo-hub.ts` (regenerate `demo/`), `list-tests.ts` (writes `tests/TESTS.csv`) |
+| `tests/` | `unit/` (Vitest: logic, API, CLI; no browser) and `browser/` (Playwright: the real UI in Chromium); `TESTS.csv` lists every test ([tests/README.md](tests/README.md)) |
+| `config/` | tool settings: TypeScript, ESLint, Prettier, Vitest, Playwright |
+| `docs/` | decisions, backlog, reviews, changelog, contributing guide, notes |
 
-See `NOTICE` for the demo model's source.
+## Credits
+
+The demo model starts from the Internet Banking System ("Big Bank plc") example of the C4 model by Simon
+Brown (Apache License 2.0); see [demo/README.md](demo/README.md#credits) for the full attribution.

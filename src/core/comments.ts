@@ -14,7 +14,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { COMMENT_KINDS, type CommentKind, type CommentReply, type CommentTarget, type CommentThread } from "../shared/types.js";
 import { atomicWrite, isObj, stableJson, type Obj } from "./util.js";
-import { ModelError } from "./ops.js";
+import { ModelError } from "./modelEdits.js";
 import { NotFound } from "./project.js";
 
 export const COMMENTS_FILE = "comments.json";

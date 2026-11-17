@@ -17,7 +17,7 @@
  * characters and evidence text of at most 300.
  */
 
-import { ARCH_TYPES, CONNECTOR_KINDS } from "../core/ops.js";
+import { ARCH_TYPES, CONNECTOR_KINDS } from "../core/modelEdits.js";
 import { IMPORT_CONFIDENCE, IMPORT_LEVELS, IMPORT_OBJECT_TYPES, IMPORT_SOURCES, type FieldError, type ImportFile } from "../shared/types.js";
 
 export const IMPORT_SCHEMA_VERSION = 1;

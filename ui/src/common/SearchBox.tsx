@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useModalBehavior } from "../panels/fields";
+import { useModalBehavior } from "../panels/formParts";
 import { Icon, iconFor } from "./icons";
 import { KIND_LABEL, LEVEL_LABEL, type AppState } from "../types";
 

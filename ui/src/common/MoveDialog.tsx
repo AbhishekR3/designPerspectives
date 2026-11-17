@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Modal } from "../panels/fields";
+import { Modal } from "../panels/formParts";
 import { errorMessage } from "./notify";
 import { KIND_LABEL, type AppState, type ElementSummary } from "../types";
 

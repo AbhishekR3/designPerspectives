@@ -25,7 +25,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { buildIndex, CODE_KEY, getJson, ModelError, slugify } from "../core/ops.js";
+import { buildIndex, CODE_KEY, getJson, ModelError, slugify } from "../core/modelEdits.js";
 import type { Kind, Workspace } from "../core/workspace.js";
 import { atomicWrite, isObj, stableJson } from "../core/util.js";
 import { compileGlob, globMatches, LEVELS, type Evidence, type Fact, type Level } from "./scan.js";

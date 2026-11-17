@@ -4,10 +4,10 @@ import type { Hono } from "hono";
 import { inspectCalls } from "../../core/uiInspector.js";
 import { observe } from "../../core/traces.js";
 import { isObj } from "../../core/util.js";
-import { buildIndex, UI_URL_KEY } from "../../core/ops.js";
+import { buildIndex, UI_URL_KEY } from "../../core/modelEdits.js";
 import type { ObservedCall } from "../../shared/types.js";
-import { HttpError, needStr, objBody, type Ctx } from "../context.js";
-import { isLoopback } from "../uiProxy.js";
+import { HttpError, needStr, objBody, type Ctx } from "../routeContext.js";
+import { isLoopback } from "../liveUiProxy.js";
 
 export function registerInspect(app: Hono, ctx: Ctx): void {
   const { sel, uiProxies, traces, project } = ctx;

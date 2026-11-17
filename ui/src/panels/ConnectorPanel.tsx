@@ -1,8 +1,8 @@
 import { api } from "../api";
-import { CodePaths } from "./CodeParts";
-import { Fields, Section, TagInput } from "./fields";
-import type { Common } from "./common";
-import { ExampleFields } from "./valueEditors";
+import { CodePaths } from "./CodePickers";
+import { Fields, Section, TagInput } from "./formParts";
+import type { Common } from "./panelProps";
+import { ExampleFields } from "./listEditors";
 import { promptDialog } from "../common/dialogs";
 import { PipelineData } from "../inspect/SamplePayload";
 

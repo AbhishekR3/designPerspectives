@@ -1,9 +1,9 @@
 import { useEffect, type Dispatch, type RefObject, type SetStateAction } from "react";
 import type { CanvasHandle, ContextTarget } from "../canvas/Canvas";
-import type { NodeActions } from "../canvas/canvasParts";
+import type { NodeActions } from "../canvas/BoxesAndLines";
 import { selectedNodeIds, type AppState, type Diagram, type Pt, type Selection } from "../types";
-import { dialogOpen, isTyping } from "../panels/fields";
-import { diagramEditable, relationshipToDelete } from "../menus";
+import { dialogOpen, isTyping } from "../panels/formParts";
+import { diagramEditable, relationshipToDelete } from "../contextMenus";
 
 /**
  * The global keyboard shortcuts, as window listeners (registered in this order):

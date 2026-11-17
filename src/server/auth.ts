@@ -19,7 +19,7 @@
  *   import          yes         yes                    no      scan the code, intake, check an import file, make an import draft (DEC-051)
  *   import.final    yes         no                     no      finalize or reopen an import level, the import ignore list
  *   bmo.run         yes         yes                    yes     preview and run a BMO task (DEC-051); also on a read-only server. Whether the role
- *                                                              may run BMO at all is the settings' `allowedRoles` (bmo/settings.ts `canRun`), and a task
+ *                                                              may run BMO at all is the settings' `allowedRoles` (assistant/settings.ts `canRun`), and a task
  *                                                              that makes a draft or changes one needs that draft right as well: the route asks `decide()`
  *                                                              again with "draft.create" or "edit" (routes/bmo.ts)
  *   (unlisted)      yes         no                     no      deny by default
@@ -39,7 +39,7 @@ import { isHidden } from "../core/codeFiles.js";
 import { isObj, realLoose } from "../core/util.js";
 import { dummyHash, MAX_PASSWORD, NO_ACCESS, readUsers, roleIn, usersPath, UsersError, verifyPassword, type ProjectRole, type UserEntry } from "../core/users.js";
 import type { MeResponse, Permissions, Role, SessionUser } from "../shared/types.js";
-import type { Ctx } from "./context.js";
+import type { Ctx } from "./routeContext.js";
 
 /** Cookie name stem; the name used is `dp_session_<port>`, see sessionCookie(). */
 export const SESSION_COOKIE = "dp_session";
@@ -119,7 +119,7 @@ export const ROUTE_RULES: Record<string, Action> = {
   "PUT /api/decisions/:id": "edit",
   "PATCH /api/decisions/:id/status": "edit",
   "DELETE /api/decisions/:id": "edit",
-  // routes/read.ts (undo/redo of the selected version)
+  // routes/readModel.ts (undo/redo of the selected version)
   "POST /api/undo": "edit",
   "POST /api/redo": "edit",
   // routes/code.ts (main: the code folder itself; a draft: its planned edits)

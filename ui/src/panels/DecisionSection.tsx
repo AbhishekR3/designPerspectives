@@ -1,9 +1,9 @@
 import { api } from "../api";
 import { promptDialog } from "../common/dialogs";
-import { Section } from "./fields";
+import { Section } from "./formParts";
 import { StatusBadge } from "../pages/DecisionsPage";
 import { DECISION_KIND_INFO } from "../types";
-import type { Common } from "./common";
+import type { Common } from "./panelProps";
 
 /** The decisions about an element or relationship, and a button to record a new one (DEC-050). */
 export function DecisionSection({ id, name, state, mutate, onOpenDecision }: Pick<Common, "state" | "mutate" | "onOpenDecision"> & { id: string; name: string }) {

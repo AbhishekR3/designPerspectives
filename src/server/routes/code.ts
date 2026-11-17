@@ -5,8 +5,8 @@ import * as codemod from "../../core/codeMap.js";
 import path from "node:path";
 import { checkSize, codeRel, inProtectedFolder, PROTECTED_MESSAGE } from "../../core/codeFiles.js";
 import { str } from "../../core/util.js";
-import { addCodePath, codePathCovered, ModelError } from "../../core/ops.js";
-import { HttpError, num, objBody, type Ctx } from "../context.js";
+import { addCodePath, codePathCovered, ModelError } from "../../core/modelEdits.js";
+import { HttpError, num, objBody, type Ctx } from "../routeContext.js";
 
 export function registerCode(app: Hono, ctx: Ctx): void {
   const { project, drafts, disk, ok, sel, draftId, writable } = ctx;

@@ -1,0 +1,12 @@
+// The server and CLI. `npm run build` compiles this folder into dist/.
+{
+  "extends": "../config/tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": "../dist",
+    "rootDir": ".",
+    "declaration": false,
+    "sourceMap": true
+  },
+  "include": ["."]
+}

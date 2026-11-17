@@ -1,0 +1,21 @@
+// Shared TypeScript settings. Each code folder (src, tests, scripts) has a small tsconfig.json that extends this
+// one, so editors find the right settings for every file; config/tsconfig.json checks everything at once
+// (npm run typecheck). The UI has its own settings in ui/tsconfig.json.
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "forceConsistentCasingInFileNames": true,
+    "types": ["node"],
+    "noEmit": true
+  }
+}

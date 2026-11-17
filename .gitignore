@@ -5,14 +5,9 @@ test-results/
 playwright-report/
 *.tsbuildinfo
 .DS_Store
-# left over from the Python version (0.2)
-.venv/
-__pycache__/
-*.pyc
-.pytest_cache/
-*.egg-info/
-Books/
-competitor_features.md
+
+# Your own files that never go in git: reference books, notes, scratch models
+/local/
 
 # local `dp serve --demo` output in the repo root (the bundled demo lives in demo/)
 /architecture/

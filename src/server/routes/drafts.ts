@@ -4,7 +4,7 @@ import type { Hono } from "hono";
 import { isObj } from "../../core/util.js";
 import type { CodeSource } from "../../core/codeFiles.js";
 import type { ApplyResponse } from "../../shared/types.js";
-import { body, HttpError, needStr, objBody, optStr, type Ctx } from "../context.js";
+import { body, HttpError, needStr, objBody, optStr, type Ctx } from "../routeContext.js";
 
 export function registerDrafts(app: Hono, ctx: Ctx): void {
   const { drafts, disk, gitCodes, ok } = ctx;

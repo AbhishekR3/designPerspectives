@@ -4,15 +4,15 @@
 import type { Context, Hono } from "hono";
 import { CredentialStore } from "../../core/credentials.js";
 import { catalogEntries, sharedUsage } from "../../core/catalog.js";
-import { homeSummary, type HomeProject } from "../../core/home.js";
+import { homeSummary, type HomeProject } from "../../core/homeSummary.js";
 import { history, uncommitted } from "../../core/history.js";
 import type { GitModels } from "../../core/git.js";
 import type { Project } from "../../core/project.js";
 import type { CatalogUpdate, HistoryList, HomeSummary, HubInfo, AttentionItem, SharedUsage } from "../../shared/types.js";
 import { decide, type Who } from "../auth.js";
 import type { Auth } from "../auth.js";
-import type { Ctx } from "../context.js";
-import { HttpError, objBody } from "../context.js";
+import type { Ctx } from "../routeContext.js";
+import { HttpError, objBody } from "../routeContext.js";
 
 /** One project of the hub; `ctx()` builds it on first use and throws when its model cannot be loaded. */
 export interface HubEntry {

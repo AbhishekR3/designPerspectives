@@ -11,7 +11,7 @@
 - [ ] `npm run lint`
 - [ ] `npm run typecheck`
 - [ ] `npm test` (unit and API tests)
-- [ ] `npm run test:e2e` (browser tests)
+- [ ] `npm run test:browser` (browser tests)
 - [ ] UI rebuilt with `cd ui && npm run build`, and the changed `static/` files committed (if the UI changed)
 - [ ] `npm run make-demo` run, and `demo/` committed (if model code changed)
 

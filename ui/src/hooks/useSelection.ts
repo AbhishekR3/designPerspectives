@@ -4,7 +4,7 @@ import type { Selection } from "../types";
 /**
  * The selected box(es) or line, whether the panel should focus its name field, and the box being renamed on the canvas.
  * `fresh` holds the boxes added in this session that have not been renamed yet: their first rename also
- * gives them a readable ID (see `renameElement` in actions.ts).
+ * gives them a readable ID (see `renameElement` in selectionActions.ts).
  */
 export function useSelection() {
   const [selection, setSelection] = useState<Selection>(null);

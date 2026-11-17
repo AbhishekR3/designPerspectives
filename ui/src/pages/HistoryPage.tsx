@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "../api";
 import { errorMessage } from "../common/notify";
-import { CHANGE_COLORS } from "../overlays";
+import { CHANGE_COLORS } from "../colourOverlays";
 import type { ChangeSummary, HistoryList, HubInfo } from "../types";
 import { projectLink } from "../hooks/useNavigation";
 import { ago } from "./HomePage";

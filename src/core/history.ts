@@ -6,7 +6,7 @@
 
 import { diffModels, type Snapshot } from "./diff.js";
 import { logFor, parentOf, type GitModels } from "./git.js";
-import { emptySidecar } from "./sidecar.js";
+import { emptySidecar } from "./designPerspectivesFile.js";
 import type { Project } from "./project.js";
 import { emptyWorkspace } from "./workspace.js";
 import type { ChangeSummary, HistoryChange, HistoryEntry, HistoryItem } from "../shared/types.js";

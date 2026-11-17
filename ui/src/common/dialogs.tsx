@@ -1,5 +1,5 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { Modal } from "../panels/fields";
+import { Modal } from "../panels/formParts";
 
 /**
  * The app's own confirm and prompt dialogs, in place of the browser's window.confirm / window.prompt.

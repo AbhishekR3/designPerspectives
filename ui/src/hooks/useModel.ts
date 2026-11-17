@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type RefObject, type SetStateAction } from "react";
 import { api, ApiError, onForbidden, setContext } from "../api";
-import { dialogOpen, isTyping } from "../panels/fields";
+import { dialogOpen, isTyping } from "../panels/formParts";
 import { inLens, lensOverlay, pickLens, savedLens } from "./useLens";
-import { lensKey, storage } from "../storage";
+import { lensKey, storage } from "../preferences";
 import { errorMessage, useErrorSlot, type ErrorAction } from "../common/notify";
 import { fromHash, hashFor } from "./useNavigation";
-import type { Filter, OverlaySpec } from "../overlays";
+import type { Filter, OverlaySpec } from "../colourOverlays";
 import type { AppState, ChangeSet, Diagram, Selection } from "../types";
 
 type Version = { model: string; compare: string | null };

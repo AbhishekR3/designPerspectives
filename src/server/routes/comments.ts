@@ -3,11 +3,11 @@
 import type { Context, Hono } from "hono";
 import { cleanAuthor, cleanText } from "../../core/comments.js";
 import * as diagrams from "../../core/diagrams.js";
-import { ModelError } from "../../core/ops.js";
+import { ModelError } from "../../core/modelEdits.js";
 import { gitUserName } from "../../core/git.js";
 import type { CommentList, CommentThread } from "../../shared/types.js";
-import { buildIndex } from "../../core/ops.js";
-import { HttpError, objBody, optStr, type Ctx } from "../context.js";
+import { buildIndex } from "../../core/modelEdits.js";
+import { HttpError, objBody, optStr, type Ctx } from "../routeContext.js";
 
 export function registerComments(app: Hono, ctx: Ctx): void {
   const { comments, ok, sel, who } = ctx;

@@ -13,7 +13,7 @@
  * the model. Without a repository the step still lists its data, files and functions.
  */
 
-import { CODE_KEY, elementSummary, getJson, relationshipSummary, STAGES_KEY, ModelError, buildIndex, type Index } from "./ops.js";
+import { CODE_KEY, elementSummary, getJson, relationshipSummary, STAGES_KEY, ModelError, buildIndex, type Index } from "./modelEdits.js";
 import { listFlows } from "./flows.js";
 import { expandPaths, findFunctions } from "./codeMap.js";
 import type { CodeSource } from "./codeFiles.js";

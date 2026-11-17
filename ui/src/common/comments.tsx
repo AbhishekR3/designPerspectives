@@ -9,10 +9,10 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { api } from "../api";
 import { confirmDialog } from "./dialogs";
-import { dialogOpen, isTyping } from "../panels/fields";
+import { dialogOpen, isTyping } from "../panels/formParts";
 import { Icon } from "./icons";
 import { run } from "./notify";
-import { AUTHOR_KEY, storage } from "../storage";
+import { AUTHOR_KEY, storage } from "../preferences";
 import { COMMENT_KIND_LABEL, COMMENT_KINDS, type AppState, type CommentKind, type CommentTarget, type CommentThread, type Diagram, type Selection } from "../types";
 
 export interface CommentCount {

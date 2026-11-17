@@ -18,7 +18,7 @@ import path from "node:path";
 import { blankNode } from "./connectors.js";
 import { scopeName, titleOf, type DiagramRef, type RawDiagram, type RawEdge, type RawNode } from "./diagrams.js";
 import { checkSize, cleanRel, codeRel, DiskCode, MAX_BYTES, safePath, sha1, type CodeSource } from "./codeFiles.js";
-import { CODE_KEY, getJson, ModelError, normpath, type Index } from "./ops.js";
+import { CODE_KEY, getJson, ModelError, normpath, type Index } from "./modelEdits.js";
 
 export { MAX_BYTES, safePath };
 

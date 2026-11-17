@@ -30,17 +30,17 @@ import { prune, syncViews } from "./diagrams.js";
 import { writeCodeFile } from "./codeMap.js";
 import { CodePlan, DiskCode, inProtectedFolder, OverlayCode, PROTECTED_MESSAGE, safePath, sha1, type PlannedFile } from "./codeFiles.js";
 import { diffModels, type Snapshot } from "./diff.js";
-import { buildPlanItems, codingPlan } from "./plan.js";
+import { buildPlanItems, codingPlan } from "./codingPlan.js";
 import type { CodeSource } from "./codeFiles.js";
 import { DECISIONS_DIR, renumberAdded, writeDecisions } from "./decisions.js";
 import { syncFlows } from "./flows.js";
 import { isObj, stableJson } from "./util.js";
 import { changedKeys, merge3, revertClosure, revertUnits, type ClosureOptions } from "./merge.js";
-import { dropPending, dropReview, foldApplied, reviewPath } from "../import/ledger.js";
-import { ModelError, slugify, unique } from "./ops.js";
+import { dropPending, dropReview, foldApplied, reviewPath } from "../import/lastImport.js";
+import { ModelError, slugify, unique } from "./modelEdits.js";
 import { FileSnapshot, NotFound, Project, SIDECAR_FILE, WORKSPACE_FILE, atomicWrite } from "./project.js";
-import { flatten, isLayoutUnit, sameUnit, unflatten, unitLabel, UnitError, type Units } from "./units.js";
-import type { Sidecar } from "./sidecar.js";
+import { flatten, isLayoutUnit, sameUnit, unflatten, unitLabel, UnitError, type Units } from "./modelUnits.js";
+import type { Sidecar } from "./designPerspectivesFile.js";
 import type { Workspace } from "./workspace.js";
 import { addedErrors, errors } from "./validate.js";
 import type { ApplyHeld, ApplyOutcome, ApplyPreview, CodingPlan, Conflict, Decision, DraftInfo } from "../shared/types.js";
@@ -260,7 +260,7 @@ export class Drafts {
   }
 
   /**
-   * Reset units of the draft (`units.ts` keys) to the draft's base, with what depends on them
+   * Reset units of the draft (`modelUnits.ts` keys) to the draft's base, with what depends on them
    * (`revertClosure`): rejecting an element also takes out its new children, the relationships that touch
    * it and its positions, styles and layout entries. Flow steps over a relationship that goes are dropped
    * (`syncFlows`), and decisions stop naming objects that go, unless `opts` reverts those too. One undo
@@ -368,7 +368,7 @@ export class Drafts {
       throw e;
     }
     try {
-      // An import draft: what it wrote and main now holds becomes the import ledger's base (import/ledger.ts);
+      // An import draft: what it wrote and main now holds becomes the import ledger's base (import/lastImport.ts);
       // a partial apply keeps the entries of the held items pending.
       foldApplied(this.main.dir, this.main.workspace, id, { keepPending: !!rebased });
     } catch (e) {

@@ -8,6 +8,14 @@ export default defineConfig({
     outDir: "../static",
     emptyOutDir: true,
     chunkSizeWarningLimit: 2000,
+    // Readable, fixed file names (no content hash): the server makes the browser revalidate them (ETag).
+    rollupOptions: {
+      output: {
+        entryFileNames: "assets/app.js",
+        chunkFileNames: (chunk) => (chunk.name.startsWith("elk") ? "assets/diagram-layout.js" : "assets/[name].js"),
+        assetFileNames: (asset) => (asset.names.some((n) => n.endsWith(".css")) ? "assets/app[extname]" : "assets/[name][extname]"),
+      },
+    },
   },
   server: {
     // The UI imports the API types from ../src/shared.

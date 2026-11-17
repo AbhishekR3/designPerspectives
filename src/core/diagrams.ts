@@ -25,8 +25,8 @@
 import { codeDiagram, type CodeInput } from "./codeMap.js";
 import { connectorDiagram } from "./connectors.js";
 import { roundHalfEven } from "./util.js";
-import { buildIndex, CODE_KEY, elementSummary, getJson, idStillValid, moveElement, relationshipSummary, STAGES_KEY, type Index } from "./ops.js";
-import { edgeLayoutData, isLineShape, styleData, type Sidecar } from "./sidecar.js";
+import { buildIndex, CODE_KEY, elementSummary, getJson, idStillValid, moveElement, relationshipSummary, STAGES_KEY, type Index } from "./modelEdits.js";
+import { edgeLayoutData, isLineShape, styleData, type Sidecar } from "./designPerspectivesFile.js";
 import { allViews, VIEW_LISTS, type View, type ViewList, type Workspace } from "./workspace.js";
 import type { Crumb, Diagram, DiagramEdge, DiagramInfo, DiagramNode, DrillTarget, Pt, Style } from "../shared/types.js";
 

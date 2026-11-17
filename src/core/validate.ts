@@ -7,8 +7,8 @@
  */
 
 import { decisionErrors } from "./decisions.js";
-import { buildIndex, getProps, ModelError, TAG_PREFIX, type Index } from "./ops.js";
-import { BUILTIN_LENSES, LEVELS, type Sidecar } from "./sidecar.js";
+import { buildIndex, getProps, ModelError, TAG_PREFIX, type Index } from "./modelEdits.js";
+import { BUILTIN_LENSES, LEVELS, type Sidecar } from "./designPerspectivesFile.js";
 import { allViews, VIEW_LISTS, type Workspace } from "./workspace.js";
 import type { Decision } from "../shared/types.js";
 

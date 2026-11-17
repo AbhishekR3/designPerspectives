@@ -10,7 +10,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { ModelError } from "../core/ops.js";
+import { ModelError } from "../core/modelEdits.js";
 import { atomicWrite, isObj, stableJson, type Obj } from "../core/util.js";
 import type { Intake, IntakeDepth, IntakeError, IntakeSettings, KnownService } from "../shared/types.js";
 

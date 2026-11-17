@@ -3,11 +3,11 @@
 import type { Hono } from "hono";
 import * as diagrams from "../../core/diagrams.js";
 import { isObj, type Obj } from "../../core/util.js";
-import * as ops from "../../core/ops.js";
-import { buildIndex, ModelError, slugify, unique } from "../../core/ops.js";
-import { BUILTIN_LENSES, edgeLayoutData, emptyLayout, isLineShape, LINE_SHAPES, makeLens, SECTIONS } from "../../core/sidecar.js";
+import * as ops from "../../core/modelEdits.js";
+import { buildIndex, ModelError, slugify, unique } from "../../core/modelEdits.js";
+import { BUILTIN_LENSES, edgeLayoutData, emptyLayout, isLineShape, LINE_SHAPES, makeLens, SECTIONS } from "../../core/designPerspectivesFile.js";
 import type { CharacteristicDef, CostBand, CostSettings, EdgeLayout, Lens, Level, Section } from "../../shared/types.js";
-import { body, HttpError, needStr, num, objBody, optStr, point, strList, type Ctx } from "../context.js";
+import { body, HttpError, needStr, num, objBody, optStr, point, strList, type Ctx } from "../routeContext.js";
 
 const ROUTINGS: readonly string[] = LINE_SHAPES;
 

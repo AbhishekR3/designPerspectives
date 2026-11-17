@@ -74,7 +74,7 @@ changes (descriptions, tags, cost, ratings, owners) need no code work and are li
      and nothing is applied.
 2. Commit `architecture/` with the code. Applying removes the draft folder, so the commit shows the
    draft disappearing and the model changing.
-3. In the pull request, `dp diff --base origin/main` (see `docs/examples/ci/`) summarises the model
+3. In the pull request, `dp diff --base origin/main` (see `demo/ci-examples/`) summarises the model
    and code changes for reviewers; `dp check` fails the build on model problems.
 
 ## Rules of thumb

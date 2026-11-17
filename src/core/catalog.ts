@@ -7,7 +7,7 @@
  * uses what": linked copies that drifted, tables used or written by several projects, unknown data.
  */
 
-import { buildIndex, CATALOG_KEY, catalogSource, DATA_KEY, ACCESS_KEY, getJson, getProps, ModelError, splitTech, syncFromCatalog, type Index } from "./ops.js";
+import { buildIndex, CATALOG_KEY, catalogSource, DATA_KEY, ACCESS_KEY, getJson, getProps, ModelError, splitTech, syncFromCatalog, type Index } from "./modelEdits.js";
 import type { Workspace } from "./workspace.js";
 import type { AssetUse, CatalogEntry, DataAccess, DataAsset, SharedUsage } from "../shared/types.js";
 

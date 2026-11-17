@@ -42,9 +42,9 @@ import path from "node:path";
 import { expandPaths, scanImports } from "../core/codeMap.js";
 import { cleanRel, sha1, type CodeSource } from "../core/codeFiles.js";
 import { registerDraftHooks, type DraftHooks, type Drafts } from "../core/drafts.js";
-import { buildIndex, CODE_KEY, getJson, ModelError } from "../core/ops.js";
+import { buildIndex, CODE_KEY, getJson, ModelError } from "../core/modelEdits.js";
 import { NotFound } from "../core/project.js";
-import { flatten, sameUnit, type Units } from "../core/units.js";
+import { flatten, sameUnit, type Units } from "../core/modelUnits.js";
 import { atomicWrite, isHidden, isObj, stableJson } from "../core/util.js";
 import { listFlows } from "../core/flows.js";
 import {
@@ -62,7 +62,7 @@ import {
   type ReviewState,
 } from "../shared/types.js";
 import { ensureImportGitignore } from "./intake.js";
-import { importDir, importFilePath, pendingPath, reviewPath, sourceTextPath } from "./ledger.js";
+import { importDir, importFilePath, pendingPath, reviewPath, sourceTextPath } from "./lastImport.js";
 import { readEvidence, type Evidence, type Fact } from "./scan.js";
 
 export const REVIEW_SCHEMA_VERSION = 1;
@@ -322,7 +322,7 @@ function decisionFiles(slug: string, v: { decisions: Decision[]; baseDecisions: 
   return (added.length ? added : all).map((d) => d.file);
 }
 
-/** The draft's unit keys (`units.ts`) that carry an item. */
+/** The draft's unit keys (`modelUnits.ts`) that carry an item. */
 export function itemUnits(key: string, v: { decisions: Decision[]; baseDecisions: Decision[] }): string[] {
   const { kind, id } = splitKey(key);
   switch (kind) {

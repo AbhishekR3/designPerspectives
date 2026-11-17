@@ -23,7 +23,7 @@ import path from "node:path";
 import { SKIP_DIRS, scanImports } from "../core/codeMap.js";
 import type { CodeSource } from "../core/codeFiles.js";
 import { atomicWrite, isObj, stableJson } from "../core/util.js";
-import { SECRET_FIELD } from "../shared/mask.js";
+import { SECRET_FIELD } from "../shared/secretFields.js";
 import type { ScanFact, ScanLevel, ScanLimit } from "../shared/types.js";
 import { importDir, type Intake } from "./intake.js";
 import { INFRA_CATEGORIES, matchService, type KnownService } from "./knownServices.js";

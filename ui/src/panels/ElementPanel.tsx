@@ -3,15 +3,14 @@ import { api } from "../api";
 import { Discussion } from "../common/comments";
 import { DecisionSection } from "./DecisionSection";
 import { CatalogSection, DataSection } from "./DataSections";
-import { CodePaths, NewPlannedFile, OpenCodeDiagram } from "./CodeParts";
-import { Fields, Section, TagInput, TextField } from "./fields";
-import { formatMoney, openWork } from "../overlays";
-import { ShapeIcon } from "../canvas/shapes";
+import { CodePaths, NewPlannedFile, OpenCodeDiagram } from "./CodePickers";
+import { Fields, Section, TagInput, TextField } from "./formParts";
+import { formatMoney, openWork } from "../colourOverlays";
+import { ShapeIcon } from "../canvas/typeSymbols";
 import { StylePanel } from "./StylePanel";
 import { KIND_LABEL, type ElementSummary } from "../types";
-import type { Common } from "./common";
-import { NotesEditor, DetailsEditor, TradeoffsEditor, UsageEditor, SensitiveEditor, ConnectionList } from "./sectionEditors";
-import { CharacteristicsEditor, CostEditor, WorkEditor, WorkRefreshButton } from "./valueEditors";
+import type { Common } from "./panelProps";
+import { NotesEditor, DetailsEditor, TradeoffsEditor, UsageEditor, SensitiveEditor, ConnectionList, CharacteristicsEditor, CostEditor, WorkEditor, WorkRefreshButton } from "./listEditors";
 import { confirmDeleteElement } from "../common/dialogs";
 
 export function ObjectPanel({ element, ...p }: Common & { element: ElementSummary }) {

@@ -21,16 +21,16 @@
 
 import path from "node:path";
 import type { Context, Hono } from "hono";
-import { asBmoError, BmoError, type Backend } from "../../bmo/backend.js";
-import { directBackend, type DirectFetch } from "../../bmo/direct.js";
-import { BmoInvalid, destinationOf, EFFECT, parseSelectors, planTask, previewOf, runBmo, StalePreview, taskList, type BmoEnv, type Planned, type Selectors } from "../../bmo/service.js";
-import { allowedRolesFor, canRun, defaultSettings, parseSettings, publicStatus, readSettings, writeSettings, type BmoSettings } from "../../bmo/settings.js";
-import { ModelError } from "../../core/ops.js";
+import { asBmoError, BmoError, type Backend } from "../../assistant/backend.js";
+import { directBackend, type DirectFetch } from "../../assistant/providerBackend.js";
+import { BmoInvalid, destinationOf, EFFECT, parseSelectors, planTask, previewOf, runBmo, StalePreview, taskList, type BmoEnv, type Planned, type Selectors } from "../../assistant/runTask.js";
+import { allowedRolesFor, canRun, defaultSettings, parseSettings, publicStatus, readSettings, writeSettings, type BmoSettings } from "../../assistant/settings.js";
+import { ModelError } from "../../core/modelEdits.js";
 import type { BmoPreview, BmoRunFailure, BmoRunResult, BmoSettingsData, BmoStatus } from "../../shared/types.js";
 import type { CredentialStore } from "../../core/credentials.js";
 import { decide } from "../auth.js";
 import { whoOf, type HubCtx } from "./hub.js";
-import { HttpError, objBody, type Ctx } from "../context.js";
+import { HttpError, objBody, type Ctx } from "../routeContext.js";
 
 /** Where the plain-language refusals of a draft task point: the handoff, which needs no model call. */
 const HANDOFF_HINT = "BMO can still write the prompt for you to run in your own coding agent (the Import page, or dp scan --prompt); the result comes back through the import file.";
@@ -181,7 +181,7 @@ export function registerBmo(app: Hono, ctx: Ctx): void {
 
   const backendFor = (s: BmoSettings): Backend => {
     if (ctx.bmoBackend) return ctx.bmoBackend;
-    // The server's own fetch (tests stub it); the key goes only to the settings' host (direct.ts).
+    // The server's own fetch (tests stub it); the key goes only to the settings' host (providerBackend.ts).
     const doFetch: DirectFetch = async (url, init) => {
       const r = await ctx.fetch(url, init);
       const headers = (r as { headers?: { get(name: string): string | null } }).headers;

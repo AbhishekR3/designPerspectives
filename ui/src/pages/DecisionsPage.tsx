@@ -10,7 +10,7 @@ import { confirmDialog } from "../common/dialogs";
 import { Icon } from "../common/icons";
 import { errorMessage, notify } from "../common/notify";
 import { DecisionEditor } from "./DecisionEditor";
-import { decisionFlags as sharedFlags, isoDay } from "../../../src/shared/decisionFlags";
+import { decisionFlags as sharedFlags, isoDay } from "../../../src/shared/decisionAlerts";
 import { DECISION_KIND_INFO, DECISION_KINDS, DECISION_STATUS_LABEL, DECISION_STATUSES, type AppState, type Decision, type DecisionKind, type DecisionStatus, type DecisionSummary } from "../types";
 
 export const today = (): string => isoDay();

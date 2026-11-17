@@ -5,7 +5,7 @@
  */
 
 import { useEffect, useRef, type ReactNode } from "react";
-import { Modal } from "../panels/fields";
+import { Modal } from "../panels/formParts";
 import { useBmoRun, useBmoStatus, type BmoRequest } from "../hooks/useBmo";
 import type { BmoPreview, BmoRunResult, BmoStatus } from "../types";
 import { CopyButton } from "./CopyButton";

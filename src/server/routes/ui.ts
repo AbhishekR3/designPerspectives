@@ -17,14 +17,17 @@ export function registerUi(app: Hono): void {
       }
       const f = path.resolve(ui, rel);
       const insideUi = f.startsWith(path.resolve(ui) + path.sep);
-      if (rel && insideUi && fs.existsSync(f) && fs.statSync(f).isFile()) {
-        const headers: Record<string, string> = { "Content-Type": contentType(f) };
-        // Asset names contain a content hash, so they can be cached for good.
-        if (rel.startsWith("assets/")) headers["Cache-Control"] = "public, max-age=31536000, immutable";
+      const stat = rel && insideUi && fs.existsSync(f) ? fs.statSync(f) : null;
+      if (stat?.isFile()) {
+        // Asset names are fixed (app.js, app.css, diagram-layout.js), so the browser must check each time
+        // whether its copy is current: the ETag changes whenever the file does, and an unchanged file
+        // answers 304 with no body.
+        const etag = `"${stat.size.toString(36)}-${Math.trunc(stat.mtimeMs).toString(36)}"`;
+        const headers: Record<string, string> = { "Content-Type": contentType(f), "Cache-Control": "no-cache", ETag: etag };
+        if (c.req.header("If-None-Match") === etag) return c.body(null, 304, headers);
         return c.body(fs.readFileSync(f), 200, headers);
       }
-      // The page must not be cached: after an upgrade it names new asset files, and a cached
-      // copy would keep loading the old UI.
+      // The page must not be cached either: a cached copy would keep loading the old UI after an upgrade.
       return c.body(fs.readFileSync(path.join(ui, "index.html")), 200, {
         "Content-Type": "text/html; charset=utf-8",
         "Cache-Control": "no-cache",

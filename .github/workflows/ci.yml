@@ -33,6 +33,9 @@ jobs:
         run: npm run format:check
       - name: Unit and API tests
         run: npm test
+      - name: Test list (tests/TESTS.csv) is up to date
+        if: matrix.os == 'ubuntu-latest' && matrix.node == '22'
+        run: npm run test:list -- --check
       - name: Build UI
         working-directory: ui
         run: |
@@ -44,7 +47,7 @@ jobs:
       - name: Browser tests
         run: |
           npx playwright install --with-deps chromium
-          npm run test:e2e
+          npm run test:browser
       - name: Demo model is up to date
         if: matrix.os == 'ubuntu-latest' && matrix.node == '22'
         run: |

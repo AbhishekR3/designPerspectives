@@ -14,12 +14,12 @@
 
 import { expandPaths, scanImports } from "../core/codeMap.js";
 import { cleanRel, type CodeSource } from "../core/codeFiles.js";
-import { buildIndex, CATALOG_KEY, CHILD_KIND, cleanPaths, CODE_KEY, getJson, getProps, isCleanId, ModelError, slugify, technologyCatalog, type Index } from "../core/ops.js";
-import type { Sidecar } from "../core/sidecar.js";
+import { buildIndex, CATALOG_KEY, CHILD_KIND, cleanPaths, CODE_KEY, getJson, getProps, isCleanId, ModelError, slugify, technologyCatalog, type Index } from "../core/modelEdits.js";
+import type { Sidecar } from "../core/designPerspectivesFile.js";
 import { isHidden } from "../core/util.js";
 import type { Kind, Workspace } from "../core/workspace.js";
 import type { Decision, FieldError, ImportCheck, ImportEvidence, ImportFile, ImportObjectType } from "../shared/types.js";
-import { secretIn } from "../bmo/redact.js";
+import { secretIn } from "../assistant/redact.js";
 import { pointer } from "./schema.js";
 import { compileGlob, globMatches, type Evidence, type Fact } from "./scan.js";
 

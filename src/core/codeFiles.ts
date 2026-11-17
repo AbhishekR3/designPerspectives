@@ -13,7 +13,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { atomicWrite, isHidden, isObj, realLoose, stableJson } from "./util.js";
-import { ModelError, normpath } from "./ops.js";
+import { ModelError, normpath } from "./modelEdits.js";
 
 export const MAX_BYTES = 1_000_000;
 
@@ -54,7 +54,7 @@ export const HIDDEN_MESSAGE = "Hidden files and folders (names starting with a d
 export const OUTSIDE_MESSAGE = "That path is outside the code folder.";
 export const TOO_LARGE_MESSAGE = "The file is too large to save here (over 1 MB).";
 
-// The hidden-path rule lives in util.ts so the model rules (ops.ts) share it without an import cycle.
+// The hidden-path rule lives in util.ts so the model rules (modelEdits.ts) share it without an import cycle.
 export { isHidden };
 
 /** A clean relative path that stays inside the code root and is not hidden; ModelError otherwise. */

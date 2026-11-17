@@ -1,6 +1,6 @@
 # Future plans and backlog
 
-Last updated: 2026-11-16. Current version: 0.4.0 (see `../CHANGELOG.md`). Latest review: `reviews.md`.
+Last updated: 2026-11-16. Current version: 0.4.0 (see `CHANGELOG.md`). Latest review: `reviews.md`.
 
 This file collects work that is not built yet. Nothing here is scheduled or rejected; items are revisited after feedback on the current stage.
 
@@ -93,7 +93,7 @@ Added to the deterministic `dp scan` idea in section 2. The owner's inputs: an i
 Why not "offload to Structurizr": the dependable part of Structurizr is its **workspace format**, and dp already stores the model in it. The import file is only a transport that ends in a draft; once accepted, the objects are ordinary workspace elements. DSL stays useful as an input for repositories that already have `.dsl` files (they are also evidence for the agent). Route [Proposal, not verified]: Structurizr's own CLI can export a DSL file to workspace JSON [Training], and dp can read a workspace file into a draft; a built-in DSL parser stays in the backlog under "Model and diagrams".
 
 **Stability and accuracy rules** [Owner, 2026-11-15]: things should be as deterministic as possible.
-- Same import file, same model: ids come from the slug rules in `ops.ts`, order is fixed, nothing is random or time-based, no network.
+- Same import file, same model: ids come from the slug rules in `modelEdits.ts`, order is fixed, nothing is random or time-based, no network.
 - The importer rejects what it can prove wrong (error) and lists what it cannot check (warning); it does not guess or repair.
 - **No "inferred", "imported" or "confidence" label is stored in the model.** Accepted objects are indistinguishable from objects made by hand. Evidence, review level and the person's accept decisions live in the import folder (`architecture/import/`, and git history) and are used only while reviewing the draft. The one thing that is kept in the model is evidence that is a real file path: it becomes the code mapping, which the tool can verify.
 - Tests use hand-written import files, including a round trip (file → draft → apply → workspace reads back unchanged) and one fixture per error.
@@ -245,7 +245,7 @@ The accept decision and any typed text stay in the import folder; nothing about 
 - Light theme. The app is dark only today [Review, prod-p5].
 - Windows under 760 px wide. Below that the app shows the canvas with both panels collapsed; nothing more is promised [Review, prod-p5].
 - Automated accessibility audit. Labels, focus and keyboard reach were checked by hand and only partly by tests [Review, prod-p5].
-- Run the sample CI jobs in a real repository. The jobs in `docs/examples/ci/` have not been run [Review, prod-p6].
+- Run the sample CI jobs in a real repository. The jobs in `demo/ci-examples/` have not been run [Review, prod-p6].
 - Done: Prettier is enforced in CI (0.4.0).
 
 ### Sample data and the live UI inspector (after DEC-043, DEC-044) [Review, live-data]

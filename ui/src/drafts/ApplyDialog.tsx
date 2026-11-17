@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../api";
 import { errorMessage } from "../common/notify";
-import { Modal } from "../panels/fields";
+import { Modal } from "../panels/formParts";
 import { BmoSheet } from "../common/BmoSheet";
 import type { AppState, ApplyPreview, ApplyResponse, CodingPlan, Conflict, ReviewState } from "../types";
 import { ChangeList } from "./ChangeList";

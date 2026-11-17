@@ -2,7 +2,7 @@
 
 import type { Hono } from "hono";
 import * as decisions from "../../core/decisions.js";
-import { HttpError, objBody, type Ctx } from "../context.js";
+import { HttpError, objBody, type Ctx } from "../routeContext.js";
 
 export function registerDecisions(app: Hono, ctx: Ctx): void {
   const { edit, ok, sel } = ctx;

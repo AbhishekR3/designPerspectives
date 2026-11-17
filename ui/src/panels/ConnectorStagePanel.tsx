@@ -1,0 +1,98 @@
+import { api } from "../api";
+import { Fields, Section, TagInput, TextField } from "./formParts";
+import { StylePanel } from "./StylePanel";
+import { KIND_LABEL, type DiagramNode, type Stage } from "../types";
+import type { Common } from "./panelProps";
+import { ExampleFields } from "./listEditors";
+import { SamplePayload } from "../inspect/SamplePayload";
+
+export function StagePanel({ node, ...p }: Common & { node: DiagramNode }) {
+  const { state, mutate, diagram } = p;
+  const relId = diagram.scope!;
+  const rel = state.relationships.find((r) => r.id === relId);
+  if (!rel) return null;
+  const stages = rel.stages;
+  const idx = stages.findIndex((s) => s.id === node.stageId);
+  const st = stages[idx];
+  if (!st) return null;
+  const saveStages = (next: Stage[]) => mutate(() => api.updateRelationship(relId, { stages: next }));
+  const patch = (changes: Partial<Stage>) => saveStages(stages.map((s, i) => (i === idx ? { ...s, ...changes } : s)));
+  const move = (d: number) => {
+    const next = [...stages];
+    [next[idx], next[idx + d]] = [next[idx + d], next[idx]];
+    saveStages(next);
+  };
+  // The sample this stage receives: the last earlier stage with one, else what enters the connector.
+  const previousSample = [...stages.slice(0, idx)].reverse().find((s) => s.example)?.example ?? (rel.example || undefined);
+  const components = state.elements.filter((e) => e.kind === "component" || e.kind === "container");
+  return (
+    <div className="panel-body" data-testid="stage-panel">
+      <div className="panel-kind">
+        Stage {idx + 1} of {stages.length}
+      </div>
+      <Fields loose>
+        <TextField label="Name" value={st.name} onCommit={(v) => patch({ name: v })} testId="stage-name" />
+        <TextField label="Description" value={st.description ?? ""} multiline onCommit={(v) => patch({ description: v })} />
+        <TagInput label="Technology" value={st.technologies ?? []} suggestions={state.technologies} onChange={(v) => patch({ technologies: v })} testId="stage-tech" />
+        <label className="field">
+          <span>Symbol</span>
+          <select value={st.archType ?? "pipeline"} onChange={(e) => patch({ archType: e.target.value })}>
+            {state.enums.archTypes.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="field">
+          <span>Implemented by (opens when double-clicked)</span>
+          <select value={st.elementId ?? ""} onChange={(e) => patch({ elementId: e.target.value || undefined })} data-testid="stage-element">
+            <option value="">— none —</option>
+            {components.map((e) => (
+              <option key={e.id} value={e.id}>
+                {e.name} ({KIND_LABEL[e.kind]})
+              </option>
+            ))}
+          </select>
+        </label>
+      </Fields>
+      {node.drillKey && <button onClick={() => p.onOpen(node.drillKey!)}>Open what implements this stage</button>}
+      <button
+        onClick={() => p.onBacktrack({ connector: relId, stage: idx + 1 })}
+        data-testid="stage-backtrack"
+        title="Where this stage's data came from, the code behind each step, and what changed recently"
+      >
+        Backtrack from this stage
+      </button>
+      <h4>Data leaving this stage</h4>
+      {st.example ? (
+        <SamplePayload text={st.example} previous={previousSample} testId="stage-sample" />
+      ) : (
+        <div className="empty-note">No sample yet.{!state.readOnly && " Add what this stage produces below."}</div>
+      )}
+      {!state.readOnly && (
+        <Section title="Edit example data" count={st.example ? 1 : 0} testId="sec-stage-example">
+          <ExampleFields example={st.example ?? ""} format={st.format ?? ""} onSave={(v) => patch(v)} testId="stage-example" label="Example data leaving this stage" />
+        </Section>
+      )}
+      {!state.readOnly && (
+        <>
+          <Section title="Appearance" testId="sec-style">
+            <StylePanel target={node.id} style={node.style} edge={false} mutate={mutate} />
+          </Section>
+          <div className="panel-actions">
+            <button disabled={idx === 0} onClick={() => move(-1)}>
+              Move earlier
+            </button>
+            <button disabled={idx === stages.length - 1} onClick={() => move(1)}>
+              Move later
+            </button>
+            <button className="danger" onClick={() => saveStages(stages.filter((_, i) => i !== idx)).then((ok) => ok && p.onSelect(null))}>
+              Delete stage
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}

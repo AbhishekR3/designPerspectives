@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
-import { Root } from "../Root";
+import { Root } from "../Router";
 import { api, onSessionEnded, SESSION_ENDED } from "../api";
 import { errorMessage, notify } from "../common/notify";
 

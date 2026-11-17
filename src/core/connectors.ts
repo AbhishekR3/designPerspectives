@@ -11,7 +11,7 @@
  */
 
 import { drillKey, homeKey, keyFor, scopeName, titleOf, type DiagramRef, type RawDiagram, type RawEdge, type RawNode } from "./diagrams.js";
-import { ARCH_KEY, CODE_KEY, elementSummary, getJson, getProps, relationshipSummary, splitTech, type Index } from "./ops.js";
+import { ARCH_KEY, CODE_KEY, elementSummary, getJson, getProps, relationshipSummary, splitTech, type Index } from "./modelEdits.js";
 import type { DiagramNode } from "../shared/types.js";
 
 export function stageNodeId(relId: string, stageId: string): string {

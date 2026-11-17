@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { api } from "../api";
-import { Fields, TextField } from "./fields";
+import { Fields, TextField } from "./formParts";
 import type { AppState, Flow, FlowStep } from "../types";
 import { confirmDialog } from "../common/dialogs";
 import { SamplePayload } from "../inspect/SamplePayload";

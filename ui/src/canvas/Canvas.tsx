@@ -15,7 +15,7 @@ import {
   type NodeSelectionChange,
 } from "@xyflow/react";
 import { toPng, toSvg } from "html-to-image";
-import { canvasInsets } from "./insets";
+import { canvasInsets } from "./coveredEdges";
 import { isMac } from "./ContextMenu";
 import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type Ref } from "react";
 import {
@@ -32,13 +32,13 @@ import {
   type NodeActions,
   type OverlayInfo,
   type Rect4,
-} from "./canvasParts";
+} from "./BoxesAndLines";
 import { errorMessage, notify, run } from "../common/notify";
 import { edgeCommentTarget, type CommentCount } from "../common/comments";
-import { CHANGE_COLORS } from "../overlays";
+import { CHANGE_COLORS } from "../colourOverlays";
 import { DRAG_TYPE, type PaletteItem } from "./Palette";
 import { estimateLabelSize } from "./labelSize";
-import { crowdedPairs, selectionInput, spreadLayout, spreadSelected } from "./spread";
+import { crowdedPairs, selectionInput, spreadLayout, spreadSelected } from "./makeRoom";
 import { layoutLines, type LineInput, type LinePrevious } from "./lineLayout";
 import type { Box } from "./routing";
 import { NODE_H, NODE_W, autoLayout, defaultSize, findFreeSpot, placeMissing, type Rect, type Size } from "./layout";

@@ -6,10 +6,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "../api";
 import { StatusBadge } from "./DecisionsPage";
-import { Modal } from "../panels/fields";
+import { Modal } from "../panels/formParts";
 import { Icon } from "../common/icons";
 import { errorMessage, notify } from "../common/notify";
-import { HOME_VIEW_KEY, storage } from "../storage";
+import { HOME_VIEW_KEY, storage } from "../preferences";
 import { DECISION_KIND_INFO, type AttentionItem, type HomeSummary, type HubInfo, type ProjectCard, type Thumb } from "../types";
 import { projectLink } from "../hooks/useNavigation";
 

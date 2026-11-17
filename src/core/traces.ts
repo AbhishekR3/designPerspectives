@@ -23,9 +23,9 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { buildIndex, CODE_KEY, getJson, OTEL_SERVICE_KEY, slugify, type Index } from "./ops.js";
+import { buildIndex, CODE_KEY, getJson, OTEL_SERVICE_KEY, slugify, type Index } from "./modelEdits.js";
 import type { Workspace } from "./workspace.js";
-import { MASK, SECRET_FIELD } from "../shared/mask.js";
+import { MASK, SECRET_FIELD } from "../shared/secretFields.js";
 import type { ObservedHop, ObservedSpan, ObservedTrace, TraceList, TraceSummary } from "../shared/types.js";
 
 export const MAX_FILE_BYTES = 20 * 1024 * 1024;

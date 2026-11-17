@@ -4,7 +4,7 @@ import { PipelineData, SamplePayload } from "./SamplePayload";
 import { ObservedTraceView, RecentTraces } from "./ObservedTrace";
 import type { AppState, InspectResult, Relationship } from "../types";
 
-/** A click reported by the script the UI proxy adds to the app (src/server/inspectScript.ts). */
+/** A click reported by the script the UI proxy adds to the app (src/server/liveUiInspectScript.ts). */
 interface Click {
   id: string;
   selector: string;

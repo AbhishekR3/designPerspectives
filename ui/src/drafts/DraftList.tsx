@@ -2,9 +2,9 @@
 import { useEffect, useRef, useState } from "react";
 import { promptDialog } from "../common/dialogs";
 import { errorMessage } from "../common/notify";
-import { Modal } from "../panels/fields";
+import { Modal } from "../panels/formParts";
 import { Icon } from "../common/icons";
-import { CHANGE_COLORS, CHANGE_LABEL } from "../overlays";
+import { CHANGE_COLORS, CHANGE_LABEL } from "../colourOverlays";
 import type { AppState, DraftInfo } from "../types";
 
 const OTHER_REF = "__other";
