@@ -7,9 +7,14 @@
  * and the lane separation and label placement are skipped. The full pipeline runs once more when the drag ends,
  * so the final picture is the same as without dragging.
  *
+ * `updateLines` is what runs after a change by hand (a box moved or nudged, a line added, removed or changed): it plans
+ * only the lines that changed or touch a box that moved, and every other line keeps its ends, route and label exactly.
+ * Only opening a diagram (or another version of the model) and the layout actions a person asks for (Auto-layout,
+ * Make room, Spread out) plan every line together with `layoutLines`.
+ *
  * No React or DOM imports. It imports routing.ts with a ".js" suffix because the root tests (NodeNext) load it too; Vite maps it to the .ts file.
  */
-import { defaultLabelT, orthoRoute, placeLabels, planPorts, separateRoutes, type Box, type LabelItem, type Port, type PortPair, type Pt, type RouteEdge } from "./routing.js";
+import { defaultLabelT, labelBox, orthoRoute, placeLabels, planPorts, pointAtT, separateRoutes, type Box, type LabelItem, type Port, type PortPair, type Pt, type RouteEdge } from "./routing.js";
 
 export interface LineInput extends RouteEdge {
   /** Label position set by hand (fraction along the line). */
@@ -38,26 +43,25 @@ const sameBox = (a: Box | undefined, b: Box | undefined) => !!a && !!b && a.x ==
 const samePt = (a: Pt | undefined, b: Pt | undefined) => (!a && !b) || (!!a && !!b && a.x === b.x && a.y === b.y);
 const samePort = (a: Port, b: Port) => a.x === b.x && a.y === b.y && a.side === b.side;
 
-function sameLines(a: LineInput[], b: LineInput[]): boolean {
+function sameLine(e: LineInput, o: LineInput | undefined): boolean {
   return (
-    a.length === b.length &&
-    a.every((e, i) => {
-      const o = b[i]!;
-      return (
-        e.id === o.id &&
-        e.source === o.source &&
-        e.target === o.target &&
-        e.fixedT === o.fixedT &&
-        samePt(e.sourceAnchor, o.sourceAnchor) &&
-        samePt(e.targetAnchor, o.targetAnchor) &&
-        samePt(e.control, o.control)
-      );
-    })
+    !!o &&
+    e.id === o.id &&
+    e.source === o.source &&
+    e.target === o.target &&
+    e.fixedT === o.fixedT &&
+    samePt(e.sourceAnchor, o.sourceAnchor) &&
+    samePt(e.targetAnchor, o.targetAnchor) &&
+    samePt(e.control, o.control)
   );
 }
 
+function sameLines(a: LineInput[], b: LineInput[]): boolean {
+  return a.length === b.length && a.every((e, i) => sameLine(e, b[i]));
+}
+
 /** Whether `prev` can be reused with only the lines at the dragged boxes routed again: same lines, same boxes except the dragged ones. */
-function reusable(prev: LinePrevious, boxes: Record<string, Box>, lines: LineInput[], dragged: ReadonlySet<string>): boolean {
+export function reusable(prev: LinePrevious, boxes: Record<string, Box>, lines: LineInput[], dragged: ReadonlySet<string>): boolean {
   if (dragged.size === 0 || prev.layout.partial || !sameLines(prev.lines, lines)) return false;
   const ids = Object.keys(boxes);
   if (ids.length !== Object.keys(prev.boxes).length) return false;
@@ -120,4 +124,62 @@ export function layoutLines(
     items.map((it) => ({ id: it.id, pts: it.pts })),
   );
   return { ports, routes, labelTs, items: items.map((it) => ({ id: it.id, pts: it.pts, size: it.size })), partial: false };
+}
+
+/**
+ * After a change by hand: plan only what changed and keep everything else where it was (see the top of this file).
+ * A line is planned again when it is new or changed, when either of its boxes moved or changed size, or when its label
+ * changed size. Its new ends come from planning every line, so they keep to the sides they should; its route is kept clear
+ * of the boxes, and its label is placed clear of the boxes, the lines and the labels that stay. Lines that do not change
+ * keep the exact ends, route and label they had in `prev`. The result is complete (not partial), so it can be the next `prev`.
+ */
+export function updateLines(prev: LinePrevious, boxes: Record<string, Box>, lines: LineInput[], labelSize: (id: string) => { w: number; h: number }): LineLayout {
+  const old = prev.layout;
+  const moved = new Set(Object.keys(boxes).filter((id) => !sameBox(prev.boxes[id], boxes[id])));
+  const before = new Map(prev.lines.map((e) => [e.id, e]));
+  const oldSize = new Map(old.items.map((it) => [it.id, it.size]));
+  const sizes = new Map(lines.map((e) => [e.id, labelSize(e.id)]));
+  const keeps = (e: LineInput) => {
+    const s = oldSize.get(e.id);
+    const n = sizes.get(e.id)!;
+    return sameLine(e, before.get(e.id)) && !moved.has(e.source) && !moved.has(e.target) && !!old.ports[e.id] && !!old.routes[e.id] && !!s && s.w === n.w && s.h === n.h;
+  };
+  const kept = lines.filter(keeps);
+  const redo = lines.filter((e) => !keeps(e));
+  if (!redo.length && kept.length === prev.lines.length) return old;
+
+  const planned = redo.length ? planPorts(boxes, lines, { avoidBoxes: true }) : {};
+  const obstacles = Object.values(boxes);
+  const ports: Record<string, PortPair> = {};
+  const routes: Record<string, Pt[]> = {};
+  const labelTs: Record<string, number> = {};
+  for (const e of kept) {
+    ports[e.id] = old.ports[e.id]!;
+    routes[e.id] = old.routes[e.id]!;
+    const t = old.labelTs[e.id];
+    if (t !== undefined) labelTs[e.id] = t;
+  }
+  const lanes: Record<string, Pt[]> = {};
+  for (const e of redo) {
+    const pp = planned[e.id];
+    if (!pp) continue;
+    ports[e.id] = pp;
+    routes[e.id] = orthoRoute(pp.source, pp.target, boxes[e.source]!, boxes[e.target]!, e.control, obstacles);
+    if (!e.control) lanes[e.id] = routes[e.id]!;
+  }
+  // The new lines are spread into lanes among themselves; the lines that stay are not moved to make room.
+  Object.assign(routes, separateRoutes(lanes, obstacles));
+  // Labels that stay are obstacles for the new ones, like the boxes.
+  const keptLabels = kept.flatMap((e) => (labelTs[e.id] === undefined ? [] : [labelBox(pointAtT(routes[e.id]!, labelTs[e.id]!), sizes.get(e.id)!)]));
+  const fresh: LabelItem[] = redo.filter((e) => routes[e.id]).map((e) => ({ id: e.id, pts: routes[e.id]!, size: sizes.get(e.id)!, fixedT: e.fixedT }));
+  Object.assign(
+    labelTs,
+    placeLabels(
+      fresh,
+      [...obstacles, ...keptLabels],
+      lines.filter((e) => routes[e.id]).map((e) => ({ id: e.id, pts: routes[e.id]! })),
+    ),
+  );
+  const items = lines.filter((e) => routes[e.id]).map((e) => ({ id: e.id, pts: routes[e.id]!, size: sizes.get(e.id)! }));
+  return { ports, routes, labelTs, items, partial: false };
 }

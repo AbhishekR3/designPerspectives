@@ -1,5 +1,5 @@
 /** Automatic lines are rounded right angles, and the ends of lines that meet one box are spread apart. */
-import { api, expect, openDiagram, test } from "./fixtures.js";
+import { api, expect, openDiagram, test, waitUntil } from "./fixtures.js";
 
 const KEY = "containers-internet-banking-system";
 
@@ -235,4 +235,50 @@ test("few labels sit on another line", async ({ page, server }) => {
   // before labels looked at lines, 11 now (the line weight is 8; 15 at 2); the diagram is dense, so some crossings cannot be avoided. Two more are allowed
   // because real font metrics change the label sizes a little.
   expect(crossed.length, crossed.join("\n")).toBeLessThanOrEqual(13);
+});
+
+test("moving one box by hand redraws only its own lines; every other line and label stays exactly where it was", async ({ page, server }) => {
+  await openDiagram(page, KEY);
+  const diagram = await api(server, `/diagrams/${KEY}`);
+  const edges: { id: string; source: string; target: string }[] = diagram.edges;
+  const moved = "web-application";
+  const own = new Set(edges.filter((e) => e.source === moved || e.target === moved).map((e) => e.id));
+  expect(own.size).toBeGreaterThan(0);
+  expect(edges.length - own.size).toBeGreaterThan(3);
+
+  const snapshot = () =>
+    page.evaluate(
+      (ids) =>
+        Object.fromEntries(
+          ids.map((id) => {
+            const d = document.querySelector(`[data-testid="rf__edge-${id}"] path.react-flow__edge-path`)?.getAttribute("d") ?? null;
+            const r = document.querySelector(`[data-testid="edge-${id}"]`)?.getBoundingClientRect();
+            return [id, { d, label: r ? `${Math.round(r.x)},${Math.round(r.y)}` : null }];
+          }),
+        ),
+      edges.map((e) => e.id),
+    );
+  await page.waitForTimeout(300);
+  const before = await snapshot();
+
+  const box = (await page.getByTestId(`node-${moved}`).boundingBox())!;
+  const at = { x: box.x + box.width / 2, y: box.y + 12 };
+  await page.mouse.move(at.x, at.y);
+  await page.mouse.down();
+  await page.mouse.move(at.x + 40, at.y + 30, { steps: 8 });
+  await page.mouse.up();
+  // Wait until the move is saved and the model has been read back.
+  const was = diagram.nodes.find((n: { id: string }) => n.id === moved).position;
+  await waitUntil(async () => {
+    const now = (await api(server, `/diagrams/${KEY}`)).nodes.find((n: { id: string }) => n.id === moved).position;
+    return now.x !== was.x || now.y !== was.y;
+  });
+  await page.waitForTimeout(500);
+  const after = await snapshot();
+
+  for (const e of edges) {
+    if (own.has(e.id)) continue;
+    expect(after[e.id], `${e.id} did not change`).toEqual(before[e.id]);
+  }
+  expect([...own].some((id) => after[id]!.d !== before[id]!.d)).toBe(true);
 });

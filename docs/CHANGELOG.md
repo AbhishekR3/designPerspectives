@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Changed
+- **A change by hand moves only what it touches** (DEC-067). Dragging or nudging a box, or adding or removing a line, redraws only the lines at the boxes that changed; every other line and label stays where it was. Every line is planned again only when a diagram opens and when you choose Auto-layout, Make room or Spread out.
 - **Repository layout** (DEC-066). The root holds only `README.md`, `LICENSE`, `package.json`, `package-lock.json` and `.gitignore`; tool settings are in `config/`; the changelog and the one contributing, conduct and security guide are in `docs/`. The demo tour, example CI jobs and the demo credits (formerly `NOTICE`) are in `demo/`. Tests are in `tests/unit/` and `tests/browser/` (`npm run test:browser`, formerly `test:e2e`), and `tests/TESTS.csv` lists every test (`npm run test:list`).
 - **Readable file names.** The built UI is `app.js`, `app.css` and `diagram-layout.js`, revalidated with an ETag instead of cached for a year. Unclear source files are renamed (for example `ops.ts` → `modelEdits.ts`, `src/bmo/` → `src/assistant/`).
 

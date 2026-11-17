@@ -1327,7 +1327,7 @@ function polylineLength(pts: Pt[]): number {
 }
 
 /** The point at fraction `t` of the polyline's length (the same measure as `defaultLabelT` and the canvas use). */
-function pointAtT(pts: Pt[], t: number): Pt {
+export function pointAtT(pts: Pt[], t: number): Pt {
   const total = polylineLength(pts);
   if (pts.length === 0) return { x: 0, y: 0 };
   let want = Math.min(Math.max(t, 0), 1) * total;
@@ -1365,7 +1365,7 @@ function lengthInside(pts: Pt[], r: Box): number {
   return total;
 }
 
-const labelBox = (p: Pt, size: { w: number; h: number }): Box => ({ x: p.x - size.w / 2, y: p.y - size.h / 2, w: size.w, h: size.h });
+export const labelBox = (p: Pt, size: { w: number; h: number }): Box => ({ x: p.x - size.w / 2, y: p.y - size.h / 2, w: size.w, h: size.h });
 
 /**
  * Choose where each line's label sits (as t along its route, the value `labelT` has) so labels

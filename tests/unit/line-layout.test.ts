@@ -1,7 +1,7 @@
-/** Planning the right-angle lines of a diagram, in full and while boxes are dragged (ui/src/canvas/lineLayout.ts). */
+/** Planning the right-angle lines of a diagram: in full, while boxes are dragged, and only what changed after a change by hand (ui/src/canvas/lineLayout.ts). */
 
 import { describe, expect, test } from "vitest";
-import { layoutLines, type LineInput } from "../../ui/src/canvas/lineLayout.js";
+import { layoutLines, updateLines, type LineInput } from "../../ui/src/canvas/lineLayout.js";
 import type { Box } from "../../ui/src/canvas/routing.js";
 
 /** A 5 x 4 grid of boxes with lines between neighbours and a few longer ones. */
@@ -92,5 +92,67 @@ describe("layoutLines", () => {
     const part = layoutLines(moved, fixed, size, { prev: { boxes, lines: fixed, layout: full }, dragged: new Set(["b00"]) });
     expect(part.partial).toBe(true);
     expect(part.labelTs.e0).toBe(0.3);
+  });
+});
+
+describe("updateLines: after a change by hand, only what changed is planned again", () => {
+  const plan = () => {
+    const { boxes, lines } = grid();
+    const full = layoutLines(boxes, lines, size);
+    return { boxes, lines, full, prev: { boxes, lines, layout: full } };
+  };
+  const touching = (lines: LineInput[], id: string) => new Set(lines.filter((e) => e.source === id || e.target === id).map((e) => e.id));
+
+  test("moving one box keeps every other line's ends, route and label exactly", () => {
+    const { boxes, lines, full, prev } = plan();
+    const moved = { ...boxes, b11: { ...boxes.b11!, x: boxes.b11!.x + 70, y: boxes.b11!.y + 40 } };
+    const out = updateLines(prev, moved, lines, size);
+    expect(out.partial).toBe(false);
+    const near = touching(lines, "b11");
+    for (const e of lines) {
+      if (near.has(e.id)) continue;
+      expect(out.routes[e.id], e.id).toBe(full.routes[e.id]);
+      expect(out.ports[e.id], e.id).toBe(full.ports[e.id]);
+      expect(out.labelTs[e.id], e.id).toBe(full.labelTs[e.id]);
+    }
+    // the moved box's own lines start and end at the box where it is now
+    for (const id of near) {
+      const e = lines.find((l) => l.id === id)!;
+      const end = e.source === "b11" ? out.routes[id]![0]! : out.routes[id]!.at(-1)!;
+      const b = moved.b11!;
+      expect(end.x >= b.x - 1 && end.x <= b.x + b.w + 1 && end.y >= b.y - 1 && end.y <= b.y + b.h + 1, id).toBe(true);
+    }
+    expect(Object.keys(out.labelTs)).toHaveLength(lines.length);
+    expect(out.items).toHaveLength(lines.length);
+  });
+
+  test("nothing changed: the same plan comes back", () => {
+    const { boxes, lines, full, prev } = plan();
+    expect(updateLines(prev, { ...boxes }, [...lines], size)).toBe(full);
+  });
+
+  test("a new line is planned; the others stay; a removed line is dropped", () => {
+    const { boxes, lines, full, prev } = plan();
+    const added = [...lines.slice(1), { id: "new", source: "b00", target: "b22" }];
+    const out = updateLines(prev, boxes, added, size);
+    expect(out.routes.new).toBeDefined();
+    expect(out.routes.e0).toBeUndefined();
+    for (const e of lines.slice(1)) expect(out.routes[e.id], e.id).toBe(full.routes[e.id]);
+  });
+
+  test("a label that changes size is placed again; its line's route stays where its boxes stay", () => {
+    const { boxes, lines, full, prev } = plan();
+    const out = updateLines(prev, boxes, lines, (id) => (id === "e5" ? { w: 260, h: 60 } : size()));
+    for (const e of lines) if (e.id !== "e5") expect(out.labelTs[e.id], e.id).toBe(full.labelTs[e.id]);
+    expect(out.labelTs.e5).toBeDefined();
+  });
+
+  test("the result is a complete plan, so the next change builds on it", () => {
+    const { boxes, lines, prev } = plan();
+    const once: Record<string, Box> = { ...boxes, b11: { ...boxes.b11!, x: boxes.b11!.x + 70 } };
+    const first = updateLines(prev, once, lines, size);
+    const twice = { ...once, b33: { ...once.b33!, y: once.b33!.y + 50 } };
+    const second = updateLines({ boxes: once, lines, layout: first }, twice, lines, size);
+    for (const id of touching(lines, "b11")) if (!touching(lines, "b33").has(id)) expect(second.routes[id], id).toBe(first.routes[id]);
   });
 });

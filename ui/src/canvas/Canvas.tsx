@@ -39,7 +39,7 @@ import { CHANGE_COLORS } from "../colourOverlays";
 import { DRAG_TYPE, type PaletteItem } from "./Palette";
 import { estimateLabelSize } from "./labelSize";
 import { crowdedPairs, selectionInput, spreadLayout, spreadSelected } from "./makeRoom";
-import { layoutLines, type LineInput, type LinePrevious } from "./lineLayout";
+import { layoutLines, reusable, updateLines, type LineInput, type LinePrevious } from "./lineLayout";
 import type { Box } from "./routing";
 import { NODE_H, NODE_W, autoLayout, defaultSize, findFreeSpot, placeMissing, type Rect, type Size } from "./layout";
 import { nodeSelection, selectedNodeIds, type CommentTarget, type Diagram, type DiagramNode, type EdgeLayout, type Lens, type Pt, type Selection } from "../types";
@@ -111,6 +111,8 @@ interface Props {
   onComments(target: CommentTarget): void;
   /** The model shown cannot be changed by this person: no dragging, resizing, connecting or dropping, and nothing is saved. */
   readOnly: boolean;
+  /** The model version shown (main, a draft, a git ref) and what it is compared with: when it changes, every line is planned again. */
+  version: string;
 }
 
 type P = Record<string, Pt>;
@@ -164,6 +166,7 @@ export function Canvas({
   commentCounts,
   onComments,
   readOnly,
+  version,
 }: Props) {
   const rf = useReactFlow();
   const [positions, setPositions] = useState<P>({});
@@ -411,11 +414,13 @@ export function Canvas({
 
   /** The routes and label rectangles of the lines as drawn now (filled by `edges`); spread() counts what lies in each gap. */
   const lineGeometry = useRef<{ routes: Pt[][]; labels: Rect[] }>({ routes: [], labels: [] });
-  /** Boxes being dragged now (null: none), and a counter that changes when a drag ends so the lines are planned in full once more. */
+  /** Boxes being dragged now (null: none), and a counter that changes when a drag ends so the moved boxes' lines are planned once more. */
   const dragging = useRef<Set<string> | null>(null);
   const [dragEpoch, setDragEpoch] = useState(0);
-  /** The last full planning of the lines (see lineLayout.ts) and the edges built from it, reused while boxes are dragged. */
-  const lineCache = useRef<{ deps: unknown[]; prev: LinePrevious; edges: Map<string, Edge> } | null>(null);
+  /** The last complete planning of the lines (see lineLayout.ts), the version it was for, and the edges built from it. */
+  const lineCache = useRef<{ deps: unknown[]; version: string; prev: LinePrevious; edges: Map<string, Edge> } | null>(null);
+  /** Set by the layout actions a person asks for (Auto-layout, Make room, Spread out): the next planning covers every line. */
+  const replanAll = useRef(false);
 
   const edges: Edge[] = useMemo(() => {
     const groups = new Map<string, string[]>();
@@ -462,12 +467,23 @@ export function Canvas({
       const g = groups.get([e.source, e.target].sort().join("|"))!;
       return g.length > 1 && !e.layout.control ? (g.indexOf(e.id) - (g.length - 1) / 2) * 60 : 0;
     };
-    // While boxes are dragged, only the lines at the dragged boxes are routed again (see lineLayout.ts); everything else
-    // comes from the last full result, and the edge objects of the lines that did not change are reused as they are.
+    // Every line is planned together only when the diagram (or another version of the model) opens, and after a layout
+    // action a person asked for (Auto-layout, Make room, Spread out). After a change by hand (a box moved, a line added
+    // or removed) only the lines it touches are planned again, and every other line stays exactly as it was (updateLines).
+    // While boxes are dragged, only the lines at the dragged boxes are routed again (see lineLayout.ts), and the edge
+    // objects of the lines that did not change are reused as they are.
     const edgeDeps = [diagram, decorate, flow, flowStep, step, stepRel, selection, editable, onLayout, onSelect, openEdge, showChanges, onContextMenu, commentCounts, dragEpoch];
-    const cached = lineCache.current;
-    const reuse = dragging.current && cached && cached.deps.length === edgeDeps.length && cached.deps.every((d, i) => d === edgeDeps[i]) ? cached : null;
-    const layout = layoutLines(boxes, routed, (id) => labelSizeOf(byId.get(id)!), reuse ? { prev: reuse.prev, dragged: dragging.current! } : undefined);
+    const cached = lineCache.current?.version === version ? lineCache.current : null;
+    const sizeOfLabel = (id: string) => labelSizeOf(byId.get(id)!);
+    const reuse =
+      dragging.current && cached && cached.deps.length === edgeDeps.length && cached.deps.every((d, i) => d === edgeDeps[i]) && reusable(cached.prev, boxes, routed, dragging.current) ? cached : null;
+    const base = cached && !replanAll.current ? cached.prev : null;
+    const layout = reuse
+      ? layoutLines(boxes, routed, sizeOfLabel, { prev: reuse.prev, dragged: dragging.current! })
+      : base
+        ? updateLines(base, boxes, routed, sizeOfLabel)
+        : layoutLines(boxes, routed, sizeOfLabel);
+    if (!layout.partial) replanAll.current = false;
     const { ports, routes, labelTs } = layout;
     const obstacles = Object.values(boxes);
     if (!layout.partial) {
@@ -552,9 +568,9 @@ export function Canvas({
         selected: selection?.type === "edge" && selection.id === e.id,
       };
     });
-    if (!layout.partial) lineCache.current = { deps: edgeDeps, prev: { boxes, lines: routed, layout }, edges: new Map(built.map((e) => [e.id, e])) };
+    if (!layout.partial) lineCache.current = { deps: edgeDeps, version, prev: { boxes, lines: routed, layout }, edges: new Map(built.map((e) => [e.id, e])) };
     return built;
-  }, [diagram, nodes, decorate, flow, flowStep, step, stepRel, selection, editable, onLayout, onSelect, openEdge, showChanges, onContextMenu, commentCounts, dragEpoch]);
+  }, [diagram, nodes, decorate, flow, flowStep, step, stepRel, selection, editable, onLayout, onSelect, openEdge, showChanges, onContextMenu, commentCounts, dragEpoch, version]);
 
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => {
@@ -609,6 +625,7 @@ export function Canvas({
           ),
         );
         if (!pos) return; // the error is shown; the boxes stay where they are
+        replanAll.current = true; // asked for: every line is planned again with the new places
         setPositions(pos);
         const keep = savable(pos);
         if (Object.keys(keep).length) onPositions(keep);
@@ -650,6 +667,8 @@ export function Canvas({
           notify.info("Nothing is too close.");
           return;
         }
+        // Asked for on the whole diagram: every line is planned again. On a selection only the lines of the moved boxes are.
+        if (!scoped) replanAll.current = true;
         setPositions((prev) => ({ ...prev, ...moved }));
         const keep = savable(moved);
         if (Object.keys(keep).length) onPositions(keep);

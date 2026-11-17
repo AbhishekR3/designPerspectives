@@ -601,6 +601,7 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
                 commentCounts={comments.counts}
                 onComments={(t) => showComments(t, { type: "node", id: t.id }, false)}
                 readOnly={state.readOnly}
+                version={`${version.model}|${version.compare ?? ""}`}
               />
             </ReactFlowProvider>
           )}
