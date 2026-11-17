@@ -243,3 +243,62 @@
   background: var(--float);
   box-shadow: var(--shadow);
 }
+
+/* The legend of the colours a diagram has by itself (lines by connection kind, pipeline hues, a tint per kind of box). */
+.left-stack > .colour-legend {
+  margin-top: auto;
+}
+.left-stack > .dock + .colour-legend {
+  margin-top: 0;
+}
+.colour-legend {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  flex: none;
+  max-width: min(320px, 100%);
+}
+.colour-card {
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+.colour-switch {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+.colour-head {
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-top: 4px;
+}
+.colour-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.colour-row .n {
+  color: var(--muted);
+  font-size: 11px;
+}
+.colour-line {
+  width: 22px;
+  height: 3px;
+  border-radius: 2px;
+  flex: none;
+}
+.colour-dots {
+  display: inline-flex;
+  gap: 3px;
+  margin-right: 6px;
+  vertical-align: middle;
+}

@@ -28,6 +28,7 @@ import { CredentialStore } from "../core/credentials.js";
 import { checkProject, type CheckResult } from "../core/cliReports.js";
 import type { CatalogUpdate, ExistingModelAnswer } from "../shared/types.js";
 import { atomicWrite, DEMO_DIR, initProject, NotFound, Project } from "../core/project.js";
+import { readDemoHistory, writeDemoHistory } from "../demo/demoHistory.js";
 import { Auth } from "./auth.js";
 import { buildApp, onError } from "./app.js";
 import type { AppOptions, Ctx } from "./routeContext.js";
@@ -158,7 +159,14 @@ export function writeHubFile(dir: string, hub: HubFile): void {
   atomicWrite(path.join(dir, HUB_FILE), stableJson({ version: 1, name: hub.name, catalog: hub.catalog, projects: hub.projects }));
 }
 
-/** Create a hub folder: `hub.json`, an empty catalog, and (with `demo`) the demo hub's projects. */
+/** The project a new hub starts with: the demo model ("Demo bank"), so the home screen has something to open. */
+export const DEMO_PROJECT_ID = "demo";
+const DEMO_PROJECT_NAME = "Demo bank";
+
+/**
+ * Create a hub folder: `hub.json`, an empty catalog and the demo project (a made-up git history, as `dp init --demo`
+ * gives). With `demo`, the demo hub's own projects are copied instead.
+ */
 export function initHub(dir: string, opts: { name?: string | null; demo?: boolean; copyDemo?: (dir: string) => void } = {}): string {
   const file = path.join(dir, HUB_FILE);
   if (fs.existsSync(file)) throw new HubError(`${file} already exists.`);
@@ -167,7 +175,16 @@ export function initHub(dir: string, opts: { name?: string | null; demo?: boolea
     opts.copyDemo(dir);
     return file;
   }
-  writeHubFile(dir, { version: 1, name: opts.name || path.basename(path.resolve(dir)), catalog: CATALOG_ID, projects: [] });
+  const projects = [{ id: DEMO_PROJECT_ID, path: DEMO_PROJECT_ID, name: DEMO_PROJECT_NAME }];
+  writeHubFile(dir, { version: 1, name: opts.name || path.basename(path.resolve(dir)), catalog: CATALOG_ID, projects });
+  const demoRoot = path.join(dir, DEMO_PROJECT_ID);
+  initProject(demoRoot, { demo: true, name: DEMO_PROJECT_NAME });
+  try {
+    const history = readDemoHistory(DEMO_DIR);
+    if (history) writeDemoHistory(demoRoot, history);
+  } catch {
+    /* the demo's made-up history is a nicety: the project works without it */
+  }
   initProject(path.join(dir, CATALOG_ID), { name: "Shared catalog" });
   return file;
 }

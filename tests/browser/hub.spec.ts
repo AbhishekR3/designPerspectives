@@ -161,21 +161,22 @@ async function startHub(root: string): Promise<{ url: string; stop(): Promise<vo
   };
 }
 
-test("a new hub: the first project, then home again; the rail and the page count the same and the card opens it", async ({ page }, testInfo) => {
+test("a new hub: the demo project, then a second project; the rail and the page count the same and the card opens it", async ({ page }, testInfo) => {
   testInfo.skip(staticDir() === null, "UI not built");
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "dp-e2e-newhub-"));
   initHub(root, { name: "my-hub" });
   const h = await startHub(root);
   try {
     await page.goto(h.url);
-    await expect(page.getByTestId("hub-shell")).toContainText("0 projects");
+    await expect(page.getByTestId("hub-shell")).toContainText("1 project");
+    await expect(page.getByTestId("project-demo")).toBeVisible();
     await page.getByTestId("project-new").click();
     await page.getByTestId("project-new-name").fill("EPCAT");
     await page.getByTestId("project-new-create").click();
     await expect(page).toHaveURL(/pr=epcat/);
     await page.getByTestId("go-home").click();
-    await expect(page.getByTestId("home-page")).toContainText("1 project and a shared catalog");
-    await expect(page.locator(".hub-brand")).toContainText("1 project");
+    await expect(page.getByTestId("home-page")).toContainText("2 projects and a shared catalog");
+    await expect(page.locator(".hub-brand")).toContainText("2 projects");
     await expect(page.getByTestId("rail-project-epcat")).toBeVisible();
     // The card is a link into the project; a second visit works like the first.
     for (let i = 0; i < 2; i++) {

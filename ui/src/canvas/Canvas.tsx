@@ -17,6 +17,7 @@ import {
 import { toPng, toSvg } from "html-to-image";
 import { canvasInsets } from "./coveredEdges";
 import { isMac } from "./ContextMenu";
+import { autoLine, stageAccent } from "../lineColours";
 import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type ReactNode, type Ref } from "react";
 import {
   CUSTOM_HEADS,
@@ -88,6 +89,10 @@ const HANDLE_ANCHOR: Record<string, Pt> = { t: { x: 0.5, y: 0 }, r: { x: 1, y: 0
 
 interface Props {
   diagram: Diagram;
+  /** The diagram's own colours are on (lines by connection kind, pipeline hues, a tint per kind of box). */
+  colourful: boolean;
+  /** The kind of each relationship (see `relationshipKinds`), so a summary line can take the colour of the lines behind it. */
+  relKinds: ReadonlyMap<string, string>;
   lens: Lens;
   decorate(n: DiagramNode): NodeDecor;
   actions: NodeActions | null;
@@ -152,6 +157,8 @@ const addsToSelection = (e: { shiftKey: boolean; ctrlKey: boolean; metaKey: bool
 
 export function Canvas({
   diagram,
+  colourful,
+  relKinds,
   lens,
   decorate,
   actions,
@@ -379,14 +386,18 @@ export function Canvas({
         zIndex: -1,
       });
     }
+    const stageNodes = diagram.nodes.filter((n) => n.kind === "stage").map((n) => n.id);
     for (const n of diagram.nodes) {
       const p = positions[n.id];
       if (!p) continue;
       const dec = decorate(n);
       if (dec.hidden) continue;
       const sz = sizeOf(n.id);
+      const stageAt = n.kind === "stage" && diagram.connector ? stageNodes.indexOf(n.id) : -1;
       const data: C4NodeData = {
         el: n,
+        colourful,
+        accent: colourful && stageAt >= 0 ? stageAccent(diagram.connector!.relationshipId, stageAt, stageNodes.length) : null,
         w: sz.w,
         h: sz.h,
         overlay: dec.overlay,
@@ -425,6 +436,7 @@ export function Canvas({
     return out;
   }, [
     diagram,
+    colourful,
     positions,
     decorate,
     actions,
@@ -527,7 +539,27 @@ export function Canvas({
     // or removed) only the lines it touches are planned again, and every other line stays exactly as it was (updateLines).
     // While boxes are dragged, only the lines at the dragged boxes are routed again (see lineLayout.ts), and the edge
     // objects of the lines that did not change are reused as they are.
-    const edgeDeps = [diagram, diagramEdges, decorate, flow, flowStep, step, stepRel, selection, editable, onLayout, onSelect, openEdge, showChanges, onContextMenu, commentCounts, dragEpoch, testing];
+    const edgeDeps = [
+      diagram,
+      colourful,
+      relKinds,
+      diagramEdges,
+      decorate,
+      flow,
+      flowStep,
+      step,
+      stepRel,
+      selection,
+      editable,
+      onLayout,
+      onSelect,
+      openEdge,
+      showChanges,
+      onContextMenu,
+      commentCounts,
+      dragEpoch,
+      testing,
+    ];
     const cached = lineCache.current?.version === version ? lineCache.current : null;
     const sizeOfLabel = (id: string) => labelSizeOf(byId.get(id)!);
     const reuse =
@@ -577,7 +609,8 @@ export function Canvas({
       const mark = testing?.edges[e.id] ?? null;
       const current = stepRel === e.id || !!mark?.paused;
       const label = labelOf(e);
-      const color = current ? FLOW_CURRENT : edgeColor(e);
+      const auto = colourful ? autoLine(e, diagram, relKinds) : null;
+      const color = current ? FLOW_CURRENT : edgeColor({ ...e, auto });
       const head = e.style.arrowHead ?? "filled";
       const arrow: Edge["markerEnd"] = (CUSTOM_HEADS as readonly string[]).includes(head)
         ? `dp-head-${head}`
@@ -611,6 +644,7 @@ export function Canvas({
         editable: editable && !flow && !e.ghost,
         ghost: !!e.ghost,
         changeColor: showChanges && e.change ? CHANGE_COLORS[e.change] : null,
+        auto,
         onGeom: (id, layout) => onLayout({ edges: { [id]: layout } }),
         onSelect: (id) => onSelect({ type: "edge", id }),
         onOpen: openEdge,
@@ -631,6 +665,8 @@ export function Canvas({
     return built;
   }, [
     diagram,
+    colourful,
+    relKinds,
     diagramEdges,
     nodes,
     decorate,

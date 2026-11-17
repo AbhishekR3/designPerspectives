@@ -411,13 +411,20 @@ describe("hub", () => {
     expect(() => setRole(path.join(dir, ".dp", "users.json"), "viewer", "architect", "constructor")).toThrow(UsersError);
   });
 
-  it("dp init --hub makes an empty hub; dp check --hub checks every project", async () => {
+  it("dp init --hub starts with the demo project and an empty catalog; dp check --hub checks every project", async () => {
     const dir = path.join(tmpDir(), "hub");
     initHub(dir, { name: "Mine" });
-    expect(JSON.parse(fs.readFileSync(path.join(dir, "hub.json"), "utf-8"))).toEqual({ version: 1, name: "Mine", catalog: "catalog", projects: [] });
+    expect(JSON.parse(fs.readFileSync(path.join(dir, "hub.json"), "utf-8"))).toEqual({
+      version: 1,
+      name: "Mine",
+      catalog: "catalog",
+      projects: [{ id: "demo", path: "demo", name: "Demo bank" }],
+    });
+    expect(fs.existsSync(path.join(dir, "demo", "architecture", "workspace.json"))).toBe(true);
     expect(() => initHub(dir)).toThrow(HubError);
     const home = await ok(hubClient(dir, null).get("/api/home"));
-    expect(home.projects.map((p: any) => p.id)).toEqual(["catalog"]);
+    expect(home.projects.map((p: any) => p.id)).toEqual(["demo", "catalog"]);
+    expect(checkHubFolder(dir).errors).toEqual([]);
 
     const demo = demoHub();
     expect(checkHubFolder(demo).errors).toEqual([]);

@@ -2,7 +2,7 @@ import { ReactFlowProvider } from "@xyflow/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDismiss } from "./common/useDismiss";
 import { useElementSize, useInsetVars } from "./canvas/coveredEdges";
-import { PALETTE_KEY, storage } from "./preferences";
+import { COLOUR_KEY, PALETTE_KEY, storage } from "./preferences";
 import { draftActions, diagramActions, useElementActions } from "./selectionActions";
 import { api } from "./api";
 import { ApplyDialog, PlanDialog } from "./drafts/ApplyDialog";
@@ -19,6 +19,8 @@ import { CanvasNotes } from "./canvas/CanvasNotes";
 import { CommentsContext, DiagramComments, useComments } from "./common/comments";
 import { ContextMenu, type MenuItem } from "./canvas/ContextMenu";
 import { Dock } from "./canvas/OverlayDock";
+import { ColourLegend } from "./canvas/ColourLegend";
+import { relationshipKinds } from "./lineColours";
 import { CharacteristicsEditor, CostSettingsEditor, LensEditor, TagGroupEditor } from "./panels/SettingsDialogs";
 import { FlowCard } from "./canvas/FlowPlayer";
 import { FlowPanel } from "./panels/FlowPanel";
@@ -166,6 +168,12 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
     storage.set(PALETTE_KEY, next);
     setPalettePref(next);
   };
+  const [colourful, setColourfulState] = useState(() => storage.get(COLOUR_KEY) !== "off");
+  const setColourful = (v: boolean) => {
+    storage.set(COLOUR_KEY, v ? "on" : "off");
+    setColourfulState(v);
+  };
+  const relKinds = useMemo(() => relationshipKinds(state?.relationships ?? []), [state?.relationships]);
   const cw = !wrapSize ? "md" : wrapSize.w < 560 ? "xs" : wrapSize.w < 800 ? "sm" : wrapSize.w < 1100 ? "md" : "lg";
 
   // A box waiting to be renamed that is not on this diagram must not pop open later on another one.
@@ -805,6 +813,8 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
             <ReactFlowProvider key={diagram.key}>
               <Canvas
                 diagram={diagram}
+                colourful={colourful}
+                relKinds={relKinds}
                 lens={lens}
                 decorate={decorate}
                 actions={testingOn ? null : nodeActions}
@@ -978,6 +988,7 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
                 onEditCost={() => setModal({ type: "cost" })}
               />
             )}
+            {diagram && diagram.level !== "code" && diagram.level !== "flow" && <ColourLegend diagram={diagram} relKinds={relKinds} on={colourful} setOn={setColourful} />}
           </div>
 
           {/* Messages are a layer of their own, above the pages and dialogs: inside the top bar a page would cover them. */}

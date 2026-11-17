@@ -26,6 +26,7 @@
 
 - **Notifications** (DEC-080). A bell at the top right, in a project and on the hub pages. It lists what waits now (a model that did not load cleanly, drafts behind the main model, decisions that need a look; each opens what it names) and the errors and notices shown earlier in this tab, so a message that was dismissed or went by can still be read. A count shows what is new; **Clear** empties the list. Nothing is stored: the list is gone when the tab is reloaded.
 - **New project asks before it uses a model that is already in the folder** (DEC-081). `POST /api/hub/projects` answers 409 for a folder that holds a model, and uses it only with `adopt: true`; the dialog asks first and says that nothing is made from the template.
+- **Colour of its own** (DEC-083). Lines are coloured by connection kind, or by the technology when no kind is set (HTTPS, SQL, Kafka, SFTP ...), and kinds that are easy to confuse also have a dash pattern. Each pipeline (a connection with stages) has its own hue, shared by its line and, inside it, its stages, which get stronger along the pipeline. A summary line takes a colour when every relationship behind it has the same kind. Boxes have a quiet tint of their kind. A hand-set colour and an overlay come first. **Colour** at the bottom left of the canvas is the legend and the switch to turn it off.
 
 ### Fixed
 Small interactions that did not work as expected (DEC-078, DEC-079). Each has a browser test.

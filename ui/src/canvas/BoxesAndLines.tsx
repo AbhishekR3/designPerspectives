@@ -38,6 +38,7 @@ import {
 import { Shape, shapeInset } from "./typeSymbols";
 import { KIND_LABEL, type DiagramNode, type EdgeLayout, type Pt, type Section, type Style } from "../types";
 import { pinKind, pinSummary, type CommentCount } from "../common/comments";
+import { KIND_HUE } from "../lineColours";
 import { EdgeTestingBadges, NodeTestingBadges } from "../testing/TestingBadges";
 import type { EdgeMark, NodeMark } from "../testing/testingDecor";
 
@@ -158,6 +159,10 @@ const MODEL_KINDS = new Set(["person", "softwareSystem", "container", "component
 
 export type C4NodeData = {
   el: DiagramNode;
+  /** The diagram has its own colours (a tint per kind of box, a pipeline's hue on its stages); false: plain boxes. */
+  colourful: boolean;
+  /** The stage of a pipeline's inside view: the pipeline's hue, and how strongly it shows (stronger along the pipeline). */
+  accent: { color: string; strength: number } | null;
   w: number;
   h: number;
   overlay: OverlayInfo | null;
@@ -303,6 +308,14 @@ export function C4Node({ data, selected }: NodeProps<C4NodeType>) {
     stroke = overlay.color;
     sw = Math.max(sw, 1.6);
   }
+  // Colour of its own: a pipeline's hue on a stage, else a quiet tint of the kind. A fill or line colour set by hand and an overlay come first.
+  const hue = data.colourful && !overlay?.color ? (data.accent?.color ?? KIND_HUE[el.kind] ?? null) : null;
+  if (hue) {
+    const k = data.accent ? data.accent.strength : 1;
+    const [bgShare, lineShare] = data.accent ? [0.16 * k, 0.75 * k] : el.external ? [0.04, 0.35] : [0.08, 0.45];
+    if (!st.fill) bg = mix(hue, bg, bgShare);
+    if (!st.stroke) stroke = mix(hue, CARD_STROKE, lineShare);
+  }
   const fg = st.text ?? (st.fill && !overlay?.color ? textColorFor(bg) : "#e8eaed");
   const inset = outline ? shapeInset(type, w, h) : { top: 10, bottom: 10, left: 12, right: 12 };
   const fs = st.fontSize ?? 14;
@@ -397,7 +410,7 @@ export function C4Node({ data, selected }: NodeProps<C4NodeType>) {
       <div className="c4-content" style={{ paddingTop: inset.top, paddingBottom: inset.bottom, paddingLeft: inset.left, paddingRight: inset.right }}>
         <div className="c4-title">
           {el.kind !== "person" && (
-            <span className="c4-icon" style={{ color: KIND_COLOR[el.kind] }} data-tip={symbolName}>
+            <span className="c4-icon" style={{ color: (data.colourful ? KIND_HUE : KIND_COLOR)[el.kind] }} data-tip={symbolName}>
               <Icon name={iconFor(el.kind, el.archType)} size={Math.round(fs + 2)} />
             </span>
           )}
@@ -674,6 +687,8 @@ export type C4EdgeData = {
   ghost?: boolean;
   /** Colour by change, when the Changes overlay is on. */
   changeColor?: string | null;
+  /** The colour the line has by itself (its connection kind, or its pipeline's hue), and a pattern that goes with it. */
+  auto?: { color: string; dash?: string; group: string } | null;
   onGeom(id: string, layout: EdgeLayout): void;
   onSelect(id: string): void;
   onOpen(id: string): void;
@@ -684,15 +699,15 @@ export type C4EdgeData = {
 export const FLOW_CURRENT = "#5ee1f5";
 const FLOW_PAST = "#2a7f8f";
 
-export function edgeColor(d: { derived: boolean; style: Style }): string {
-  return d.style.stroke ?? (d.derived ? "#4f565f" : "#6b727c");
+export function edgeColor(d: { derived: boolean; style: Style; auto?: { color: string } | null }): string {
+  return d.style.stroke ?? d.auto?.color ?? (d.derived ? "#4f565f" : "#6b727c");
 }
 
 // Inline (not only CSS) so SVG/PNG export keeps the lines.
 function edgeStyle(d: C4EdgeData, selected: boolean): React.CSSProperties {
   let stroke = edgeColor(d);
-  let strokeWidth = d.style.strokeWidth ?? 1.6;
-  let strokeDasharray: string | undefined = dashFor(d.style.strokeStyle) ?? (d.derived ? "6 5" : undefined);
+  let strokeWidth = d.style.strokeWidth ?? (d.auto?.group === "pipeline" ? 2.2 : 1.6);
+  let strokeDasharray: string | undefined = dashFor(d.style.strokeStyle) ?? (d.derived ? "6 5" : d.auto?.dash);
   if (d.changeColor) [stroke, strokeWidth] = [d.changeColor, Math.max(2.2, strokeWidth)];
   if (d.ghost) strokeDasharray = "3 5";
   if (d.highlight === "past") [stroke, strokeWidth] = [FLOW_PAST, 2];
