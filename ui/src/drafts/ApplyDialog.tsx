@@ -231,6 +231,8 @@ export function PlanDialog({ state, draftId, onClose, onSaved }: { state: AppSta
       await api.updateDraft(draftId, { branch: v });
       onSaved();
       if (v && state.git) setAgainst(`ref:${v}`);
+      // No branch any more: the check against it goes too (its choice is gone from the list).
+      else setAgainst((a) => (a.startsWith("ref:") ? "none" : a));
     } catch (e) {
       savedBranch.current = before;
       setError(errorMessage(e));

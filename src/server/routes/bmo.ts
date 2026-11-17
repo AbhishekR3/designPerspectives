@@ -27,7 +27,7 @@ import { directBackend, type DirectFetch } from "../../assistant/providerBackend
 import { BmoInvalid, destinationOf, EFFECT, parseSelectors, planTask, previewOf, runBmo, StalePreview, taskList, type BmoEnv, type Planned, type Selectors } from "../../assistant/runTask.js";
 import { allowedRolesFor, canRun, defaultSettings, parseSettings, publicStatus, readSettings, writeSettings, type BmoSettings } from "../../assistant/settings.js";
 import { ModelError } from "../../core/modelEdits.js";
-import type { BmoPreview, BmoRunFailure, BmoRunResult, BmoSettingsData, BmoStatus } from "../../shared/types.js";
+import type { BmoPreview, BmoRunFailure, BmoRunResult, BmoStaleFailure, BmoSettingsData, BmoStatus } from "../../shared/types.js";
 import type { CredentialStore } from "../../core/credentials.js";
 import { decide } from "../auth.js";
 import { whoOf, type HubCtx } from "./hub.js";
@@ -193,7 +193,7 @@ export function registerBmo(app: Hono, ctx: Ctx): void {
 
   /** BmoError and a refused build as JSON answers with the right status. */
   const fail = (c: Context, e: unknown): Response => {
-    if (e instanceof StalePreview) return c.json({ detail: e.message }, 409);
+    if (e instanceof StalePreview) return c.json({ detail: e.message, stale: true } satisfies BmoStaleFailure, 409);
     if (e instanceof BmoInvalid) return c.json({ detail: e.message, errors: e.errors, pasteBack: e.pasteBack, warnings: e.warnings } satisfies BmoRunFailure, 422);
     if (e instanceof BmoError) return c.json({ detail: e.message }, KIND_STATUS[e.kind] as 409);
     throw e;

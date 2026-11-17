@@ -163,7 +163,7 @@ export function EdgePanel({ edgeId, ...p }: Common & { edgeId: string }) {
         </p>
       )}
       <Fields loose>
-        <TextField label="Description" value={r.description} onCommit={(v) => save({ description: v })} testId="field-rel-description" autoFocus={p.focusName && !state.readOnly} />
+        <TextField label="Description" value={r.description} onCommit={(v) => save({ description: v })} testId="field-rel-description" autoFocus={!state.readOnly && p.focusName} />
         {has("technology") && (
           <TagInput label="Technology / protocol" value={r.technologies} suggestions={state.technologies} onChange={(v) => save({ technology: v })} testId="field-rel-technology" />
         )}

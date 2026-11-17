@@ -1,6 +1,6 @@
-import { useCallback, useRef, type Dispatch, type RefObject, type SetStateAction } from "react";
+import { useCallback, useRef, type RefObject } from "react";
 import { api } from "../api";
-import type { Pt, Selection, Style } from "../types";
+import type { Pt, Style } from "../types";
 
 /** Style keys that apply to boxes and to lines (Paste style keeps only the ones that fit). */
 const NODE_STYLE_KEYS: (keyof Style)[] = ["fill", "text", "stroke", "strokeStyle", "strokeWidth", "fontSize"];
@@ -12,8 +12,8 @@ type Mutate = (fn: () => Promise<unknown>) => Promise<boolean>;
  * Copy/paste/duplicate of elements (the clipboard holds an element id; Paste adds a copy of it),
  * and Copy style / Paste style (like a format painter). Both are kept for the session.
  */
-export function useClipboard(p: { keyRef: RefObject<string | null>; mutate: Mutate; setSelection: Dispatch<SetStateAction<Selection>> }) {
-  const { keyRef, mutate, setSelection } = p;
+export function useClipboard(p: { keyRef: RefObject<string | null>; mutate: Mutate; onPasted(id: string): void }) {
+  const { keyRef, mutate, onPasted } = p;
   const clipboard = useRef<string | null>(null);
   /** Copy style / Paste style (like a format painter), kept for the session. */
   const styleClip = useRef<Style | null>(null);
@@ -26,9 +26,10 @@ export function useClipboard(p: { keyRef: RefObject<string | null>; mutate: Muta
       const ok = await mutate(async () => {
         newId = (await api.duplicate(id, at && k ? { diagramKey: k, position: at } : undefined)).id;
       });
-      if (ok) setSelection({ type: "node", id: newId });
+      // The caller shows the copy: selected here, or on its own diagram when it was copied from another one.
+      if (ok) onPasted(newId);
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyRef, setSelection are stable (state setters or refs), so it is safe to leave out of the dependencies
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyRef, onPasted are stable (a ref and a state setter), so it is safe to leave out of the dependencies
     [mutate],
   );
   const pasteStyle = (target: string, kind: "node" | "edge") => {

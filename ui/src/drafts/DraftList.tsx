@@ -1,4 +1,5 @@
 /** The drafts list in the sidebar, the strip above the canvas, and the new / rename draft form. */
+import { plural } from "../common/plural";
 import { useEffect, useRef, useState } from "react";
 import { promptDialog } from "../common/dialogs";
 import { errorMessage } from "../common/notify";
@@ -368,7 +369,7 @@ export function SummaryChips({ s, compact = false }: { s: { added: number; chang
       )}
       {s.layout > 0 && (
         <span className="muted" title="Moved or resized boxes, line shapes, styles">
-          {compact ? `· ${s.layout} layout` : `and ${s.layout} layout changes`}
+          {compact ? `· ${s.layout} layout` : `and ${plural(s.layout, "layout change")}`}
         </span>
       )}
     </span>

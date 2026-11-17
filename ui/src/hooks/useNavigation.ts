@@ -19,6 +19,14 @@ export interface HashState {
   /** The system testing mode is on (`t=1`). */
   testing: boolean;
 }
+/** A hash someone typed can hold a broken escape (`100%`): take it as written, do not fail. */
+function safeDecode(s: string): string {
+  try {
+    return decodeURIComponent(s);
+  } catch {
+    return s;
+  }
+}
 export function fromHash(): HashState {
   const h = window.location.hash;
   const m = /^#\/d\/([^?]+)(?:\?(.*))?$/.exec(h);
@@ -26,7 +34,7 @@ export function fromHash(): HashState {
   const bare = /^#\/(decisions(?:\/[^?]*)?)(?:\?(.*))?$/.exec(h);
   const q = new URLSearchParams(m?.[2] ?? bare?.[2] ?? "");
   return {
-    key: m?.[1] ? decodeURIComponent(m[1]) : null,
+    key: m?.[1] ? safeDecode(m[1]) : null,
     model: q.get("m") || "main",
     compare: q.get("c") || null,
     page: q.get("p") || bare?.[1] || null,
@@ -74,7 +82,9 @@ export function hashFor(key: string, model: string, compare: string | null, page
 
 /** The page over the diagram (null: the diagram itself). Opening one is a new history entry, so Back closes it. */
 export function usePage(keyRef: RefObject<string | null>) {
-  const [page, setPageState] = useState<string | null>(currentPage);
+  // The hash as it is when the app opens (not when this file was first loaded: the home page comes first in a hub,
+  // and its links to a decision carry the page).
+  const [page, setPageState] = useState<string | null>(() => (currentPage = fromHash().page));
   useEffect(() => {
     const onHash = () => {
       currentPage = fromHash().page;
@@ -107,7 +117,7 @@ export function usePage(keyRef: RefObject<string | null>) {
  * another diagram opens.
  */
 export function useTestingParam(keyRef: RefObject<string | null>) {
-  const [testing, setTestingState] = useState(currentTesting);
+  const [testing, setTestingState] = useState(() => (currentTesting = fromHash().testing));
   useEffect(() => {
     const onHash = () => {
       currentTesting = fromHash().testing;

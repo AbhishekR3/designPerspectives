@@ -3,7 +3,7 @@ import { api, ApiError, onForbidden, setContext } from "../api";
 import { dialogOpen, isTyping } from "../panels/formParts";
 import { inLens, lensOverlay, pickLens, savedLens } from "./useLens";
 import { lensKey, storage } from "../preferences";
-import { errorMessage, useErrorSlot, type ErrorAction } from "../common/notify";
+import { errorMessage, notify, useErrorSlot, type ErrorAction } from "../common/notify";
 import { fromHash, hashFor } from "./useNavigation";
 import type { Filter, OverlaySpec } from "../colourOverlays";
 import type { AppState, ChangeSet, Diagram, Selection } from "../types";
@@ -120,10 +120,20 @@ export function useModel(p: {
     try {
       const d = await api.diagram(k);
       if (current()) setDiagram(d);
-    } catch {
-      // The diagram is gone (deleted, or not in this version): open the landscape. Not while the
-      // version itself has not loaded: then the version's error is what counts.
-      if (current() && committed.current === v) setKey("landscape");
+    } catch (e) {
+      // Not while the version itself has not loaded: then the version's error is what counts.
+      if (!current() || committed.current !== v) return;
+      if (e instanceof ApiError && e.status === 404 && k !== "landscape") {
+        // The diagram is gone (deleted, or not in this version): the landscape takes its place in the history too,
+        // so Back does not land on the missing diagram again and again.
+        const at = versionRef.current;
+        replaceHash(hashFor("landscape", at.model, at.compare));
+        notify.info("That diagram is not in the model (any more). Showing the landscape.");
+        setKey("landscape");
+      } else {
+        // Anything else (the server, the network) is not "gone": say so and stay.
+        setError(`Could not load the diagram: ${errorMessage(e)}`);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- keyRef, setKey are stable (state setters or refs), so it is safe to leave out of the dependencies
   }, []);

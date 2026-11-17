@@ -7,7 +7,7 @@ import type { AddressInfo } from "node:net";
 import { serve } from "@hono/node-server";
 import { test as base, expect } from "@playwright/test";
 import { staticDir } from "../../src/core/project.js";
-import { copyDemoHub, createHubApp } from "../../src/server/hub.js";
+import { copyDemoHub, createHubApp, initHub } from "../../src/server/hub.js";
 
 const test = base.extend<{ hub: { url: string; root: string } }>({
   // eslint-disable-next-line no-empty-pattern -- Playwright fixtures take their dependencies as an object pattern
@@ -141,4 +141,108 @@ test("history: commits with what they changed, and what is not committed", async
   await expect(page.getByTestId("history-list")).toContainText("Customer DB");
   await page.getByTestId("history-filter-onboarding").click();
   await expect(page.getByTestId("uncommitted-payments")).toHaveCount(0);
+});
+
+// ---------------------------------------------------------------- the small things on the hub pages
+
+/** A hub server on a folder the test prepared itself; returns its URL and how to stop it. */
+async function startHub(root: string): Promise<{ url: string; stop(): Promise<void> }> {
+  const { app } = createHubApp(root, { secretKey: null });
+  const srv = await new Promise<ReturnType<typeof serve>>((resolve) => {
+    const s = serve({ fetch: app.fetch, port: 0, hostname: "127.0.0.1" }, () => resolve(s));
+  });
+  return {
+    url: `http://127.0.0.1:${(srv.address() as AddressInfo).port}/`,
+    stop: async () => {
+      (srv as { closeAllConnections?: () => void }).closeAllConnections?.();
+      await new Promise((r) => srv.close(r));
+      fs.rmSync(root, { recursive: true, force: true });
+    },
+  };
+}
+
+test("a new hub: the first project, then home again; the rail and the page count the same and the card opens it", async ({ page }, testInfo) => {
+  testInfo.skip(staticDir() === null, "UI not built");
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "dp-e2e-newhub-"));
+  initHub(root, { name: "my-hub" });
+  const h = await startHub(root);
+  try {
+    await page.goto(h.url);
+    await expect(page.getByTestId("hub-shell")).toContainText("0 projects");
+    await page.getByTestId("project-new").click();
+    await page.getByTestId("project-new-name").fill("EPCAT");
+    await page.getByTestId("project-new-create").click();
+    await expect(page).toHaveURL(/pr=epcat/);
+    await page.getByTestId("go-home").click();
+    await expect(page.getByTestId("home-page")).toContainText("1 project and a shared catalog");
+    await expect(page.locator(".hub-brand")).toContainText("1 project");
+    await expect(page.getByTestId("rail-project-epcat")).toBeVisible();
+    // The card is a link into the project; a second visit works like the first.
+    for (let i = 0; i < 2; i++) {
+      await page.getByTestId("project-epcat").click();
+      await expect(page).toHaveURL(/pr=epcat/);
+      await expect(page.getByTestId("ws-name")).toHaveText("EPCAT");
+      await page.getByTestId("go-home").click();
+      await expect(page.getByTestId("home-page")).toBeVisible();
+    }
+  } finally {
+    await h.stop();
+  }
+});
+
+test("a project added elsewhere shows in the rail when the window gets the focus, and its card opens it", async ({ page, hub }) => {
+  await page.goto(`${hub.url}#/home`);
+  await expect(page.getByTestId("project-payments")).toBeVisible();
+  const before = await page.locator(".hub-brand").innerText();
+  // Another tab, a colleague or the CLI adds a project.
+  const made = await fetch(`${hub.url}api/hub/projects`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: "cards", name: "Cards", template: "empty" }) });
+  expect(made.status).toBe(200);
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(page.getByTestId("project-cards")).toBeVisible();
+  await expect(page.getByTestId("rail-project-cards")).toBeVisible();
+  expect(await page.locator(".hub-brand").innerText()).not.toBe(before);
+  await page.getByTestId("project-cards").click();
+  await expect(page).toHaveURL(/pr=cards/);
+  await expect(page.getByTestId("ws-name")).toHaveText("Cards");
+});
+
+test("a link to a project this page has not heard of asks the server first; one that does not exist says so, and links still work after", async ({ page, hub }) => {
+  await page.goto(`${hub.url}#/home`);
+  await expect(page.getByTestId("project-payments")).toBeVisible();
+  await fetch(`${hub.url}api/hub/projects`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: "cards", name: "Cards", template: "empty" }) });
+  // No focus event: the page still has the old list, and the link names the new project.
+  await page.evaluate(() => (window.location.hash = "#/d/landscape?pr=cards"));
+  await expect(page.getByTestId("ws-name")).toHaveText("Cards");
+
+  await page.evaluate(() => (window.location.hash = "#/d/landscape?pr=no-such-project"));
+  await expect(page).toHaveURL(/#\/home$/);
+  await expect(page.getByTestId("error")).toContainText('no project "no-such-project"');
+  // The same bad link again is answered again (it used to do nothing the second time), and a good one opens.
+  await page.evaluate(() => (window.location.hash = "#/d/landscape?pr=no-such-project"));
+  await expect(page).toHaveURL(/#\/home$/);
+  await page.getByTestId("project-payments").click();
+  await expect(page).toHaveURL(/pr=payments/);
+});
+
+test("a decision on the home page opens that decision, not the diagram under it", async ({ page, hub }) => {
+  await page.goto(`${hub.url}#/home`);
+  await page.getByTestId("home-decisions").getByRole("link").first().click();
+  await expect(page).toHaveURL(/p=decisions\//);
+  await expect(page.getByTestId("decisions-page")).toBeVisible();
+  await expect(page.getByTestId("decision-record")).toBeVisible();
+});
+
+test("a card says its contents once, and a refresh that fails keeps the page", async ({ page, hub }) => {
+  await page.goto(`${hub.url}#/home`);
+  const card = page.getByTestId("project-payments");
+  await expect(card).toBeVisible();
+  const text = await card.innerText();
+  const stats = /\d+ systems?/.exec(text)?.[0];
+  expect(stats).toBeTruthy();
+  expect(text.split(stats!).length - 1).toBe(1);
+  // The server stops answering: the loaded page stays, with a message.
+  await page.route("**/api/home", (r) => r.fulfill({ status: 500, contentType: "application/json", body: JSON.stringify({ detail: "Down for the test." }) }));
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(page.getByTestId("error")).toContainText("could not be refreshed");
+  await expect(card).toBeVisible();
 });

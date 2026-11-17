@@ -10,7 +10,7 @@ import { useCallback, useEffect, useState } from "react";
 import App from "./App";
 import { api, setProject } from "./api";
 import { HubShell, type HubPage } from "./pages/Shell";
-import { errorMessage } from "./common/notify";
+import { errorMessage, notify } from "./common/notify";
 import type { HubInfo } from "./types";
 import { fromHash, setHashProject } from "./hooks/useNavigation";
 
@@ -27,14 +27,30 @@ export function Root({ onSignOut }: { onSignOut(): void }) {
   const [error, setError] = useState<string | null>(null);
   const [hash, setHash] = useState(window.location.hash);
 
-  const load = useCallback(() => {
-    setProject(null);
-    return api.hub().then(
-      (h) => (setHub(h), setError(null)),
-      (e) => setError(errorMessage(e)),
-    );
-  }, []);
+  /** Ask the server for the projects again. Resolves with the answer, or null when it failed (`quiet`: the list on screen stays, no error page). */
+  const refresh = useCallback(
+    (quiet: boolean): Promise<HubInfo | null> =>
+      api.hub().then(
+        (h) => (setHub(h), setError(null), h),
+        (e) => {
+          if (!quiet) setError(errorMessage(e));
+          return null;
+        },
+      ),
+    [],
+  );
+  const load = useCallback(() => refresh(false).then(() => undefined), [refresh]);
   useEffect(() => void load(), [load]);
+  // Others add projects too (another tab, a colleague, the CLI): look again when the window gets the focus back, so the
+  // rail, the home page and the links agree on what exists.
+  const isHubMode = hub?.mode === "hub";
+  useEffect(() => {
+    // One project has no list that can change.
+    if (!isHubMode) return;
+    const on = () => void refresh(true);
+    window.addEventListener("focus", on);
+    return () => window.removeEventListener("focus", on);
+  }, [refresh, isHubMode]);
   useEffect(() => {
     const on = () => setHash(window.location.hash);
     window.addEventListener("hashchange", on);
@@ -44,6 +60,33 @@ export function Root({ onSignOut }: { onSignOut(): void }) {
       window.removeEventListener("popstate", on);
     };
   }, []);
+
+  const page = pageOf(hash);
+  const h = fromHash();
+  const isHub = hub?.mode === "hub";
+  const known = isHub && !!h.project && hub.projects.some((p) => p.id === h.project);
+  // A hub URL that names no page and no known project. The URL is put right here, in an effect: changing it while
+  // rendering left this component with the old hash, and the next click on the same link then did nothing.
+  const wanted = isHub && !page && !known ? (h.project ?? "") : null;
+  useEffect(() => {
+    if (wanted === null) return;
+    const goHome = () => {
+      window.history.replaceState(null, "", "#/home");
+      setHash("#/home");
+    };
+    // No project in the URL: a hub starts on its home page.
+    if (!wanted) return goHome();
+    // A project this page has not heard of may be new (made in another tab or by a colleague): ask before giving up.
+    let live = true;
+    void refresh(true).then((fresh) => {
+      if (!live || fresh?.projects.some((p) => p.id === wanted)) return;
+      notify.error(fresh ? `There is no project "${wanted}" here (or you have no access to it).` : `Could not open the project "${wanted}": the server did not answer.`);
+      goHome();
+    });
+    return () => {
+      live = false;
+    };
+  }, [wanted, refresh]);
 
   if (error)
     return (
@@ -56,17 +99,15 @@ export function Root({ onSignOut }: { onSignOut(): void }) {
     );
   if (!hub) return <div className="loading">Loading…</div>;
 
-  const page = pageOf(hash);
-  const h = fromHash();
-  const known = hub.mode === "hub" && h.project && hub.projects.some((p) => p.id === h.project);
-  // A hub with no (or an unknown) project in the URL starts on its home page.
-  if (page || (hub.mode === "hub" && !known)) {
+  // The project every request and every link is for. Set before the page below renders, so its first requests carry it.
+  if (page || (isHub && !known)) {
     setProject(null);
     setHashProject(null);
-    if (!page) window.history.replaceState(null, "", "#/home");
+    // An unknown project is being asked about (the effect above): nothing to show yet.
+    if (!page && wanted) return <div className="loading">Loading…</div>;
     return <HubShell hub={hub} page={page ?? "home"} onSignOut={onSignOut} onChanged={load} />;
   }
-  const project = hub.mode === "hub" ? h.project : null;
+  const project = isHub ? h.project : null;
   setProject(project);
   setHashProject(project);
   return <App key={project ?? "single"} hub={hub} project={project} initialReveal={h.reveal} onSignOut={onSignOut} />;

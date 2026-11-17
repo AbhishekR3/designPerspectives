@@ -4,19 +4,21 @@
  * edits the draft's decisions.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api";
 import { confirmDialog } from "../common/dialogs";
 import { Icon } from "../common/icons";
 import { errorMessage, notify } from "../common/notify";
 import { DecisionEditor } from "./DecisionEditor";
-import { decisionFlags as sharedFlags, isoDay } from "../../../src/shared/decisionAlerts";
+import { decisionFlags as sharedFlags, decisionNeedsLook, isoDay } from "../../../src/shared/decisionAlerts";
 import { DECISION_KIND_INFO, DECISION_KINDS, DECISION_STATUS_LABEL, DECISION_STATUSES, type AppState, type Decision, type DecisionKind, type DecisionStatus, type DecisionSummary } from "../types";
 
 export const today = (): string => isoDay();
 
 /** What a decision asks of the reader now (shared rules with the server's home summary). */
 export const decisionFlags = (d: DecisionSummary, now = today()) => sharedFlags(d, now);
+/** Needs a look today (the same rule for the top bar, the filter and the list). */
+export const needsLook = (d: DecisionSummary) => decisionNeedsLook(d, today());
 
 export function StatusBadge({ status }: { status: DecisionStatus }) {
   return <span className={`dec-status s-${status}`}>{DECISION_STATUS_LABEL[status]}</span>;
@@ -45,6 +47,21 @@ export function DecisionsPage({ state, selected, onSelect, onClose, onReveal, mu
   const setEditing = (on: boolean) => setEditingId(on ? selected : null);
   const [creating, setCreating] = useState(false);
   const canEdit = !state.readOnly;
+  // The editor has changes that are not saved: leaving it (another decision, the diagram, Cancel) asks first.
+  const dirty = useRef(false);
+  const leaving = async (then: () => void) => {
+    if (editing && dirty.current && !(await confirmDialog({ title: "Discard your changes?", message: "This decision has changes that are not saved.", confirmLabel: "Discard", danger: true }))) return;
+    dirty.current = false;
+    then();
+  };
+  // Closing the tab or reloading with unsaved changes: the browser asks.
+  useEffect(() => {
+    const on = (e: BeforeUnloadEvent) => {
+      if (dirty.current) e.preventDefault();
+    };
+    window.addEventListener("beforeunload", on);
+    return () => window.removeEventListener("beforeunload", on);
+  }, []);
 
   // The full records; reloaded whenever the model (or its version) changes.
   useEffect(() => {
@@ -65,7 +82,7 @@ export function DecisionsPage({ state, selected, onSelect, onClose, onReveal, mu
     const q = query.trim().toLowerCase();
     const full = new Map((all ?? []).map((d) => [d.id, d]));
     return summaries
-      .filter((d) => (status === "all" ? true : status === "open" ? d.status === "proposed" || decisionFlags(d).some((f) => f.tone === "warn") : d.status === status))
+      .filter((d) => (status === "all" ? true : status === "open" ? needsLook(d) : d.status === status))
       .filter((d) => !kind || d.kind === kind)
       .filter((d) => {
         if (!q) return true;
@@ -80,7 +97,7 @@ export function DecisionsPage({ state, selected, onSelect, onClose, onReveal, mu
   const current = selected ? (all?.find((d) => d.id === selected) ?? null) : null;
   const currentSummary = selected ? summaries.find((d) => d.id === selected) : undefined;
   const counts = Object.fromEntries(DECISION_STATUSES.map((s) => [s, summaries.filter((d) => d.status === s).length])) as Record<DecisionStatus, number>;
-  const needsLook = summaries.filter((d) => d.status === "proposed" || decisionFlags(d).some((f) => f.tone === "warn")).length;
+  const needsLookCount = summaries.filter(needsLook).length;
 
   const save = async (id: string, body: Partial<Decision>) => {
     const ok = await mutate(() => api.updateDecision(id, body));
@@ -91,7 +108,7 @@ export function DecisionsPage({ state, selected, onSelect, onClose, onReveal, mu
   return (
     <div className="page" data-testid="decisions-page">
       <header className="page-head">
-        <button className="ghost" onClick={onClose} title="Back to the diagram" data-testid="decisions-close">
+        <button className="ghost" onClick={() => void leaving(onClose)} title="Back to the diagram" data-testid="decisions-close">
           <Icon name="back" size={14} /> Diagram
         </button>
         <h1>
@@ -120,7 +137,7 @@ export function DecisionsPage({ state, selected, onSelect, onClose, onReveal, mu
                 title="Proposed, or asking for a look: a review date, deadline or trigger"
                 data-testid="filter-attention"
               >
-                Needs a look {needsLook}
+                Needs a look {needsLookCount}
               </button>
               {DECISION_STATUSES.filter((s) => counts[s]).map((s) => (
                 <button key={s} className={`tiny${status === s ? " on" : ""}`} onClick={() => setStatus(s)} data-testid={`filter-${s}`}>
@@ -143,7 +160,7 @@ export function DecisionsPage({ state, selected, onSelect, onClose, onReveal, mu
             <ul className="dec-items">
               {shown.map((d) => (
                 <li key={d.file}>
-                  <button className={`dec-item${d.id === selected ? " on" : ""}`} onClick={() => onSelect(d.id)} data-testid={`decision-${d.id}`}>
+                  <button className={`dec-item${d.id === selected ? " on" : ""}`} onClick={() => d.id !== selected && void leaving(() => onSelect(d.id))} data-testid={`decision-${d.id}`}>
                     <span className="dec-item-top">
                       <span className="dec-num">{d.id}</span>
                       <StatusBadge status={d.status} />
@@ -223,7 +240,15 @@ export function DecisionsPage({ state, selected, onSelect, onClose, onReveal, mu
             />
           )}
           {!creating && current && !current.error && editing && (
-            <DecisionEditor key={current.id} d={current} state={state} all={all ?? []} onCancel={() => setEditing(false)} onSave={(body) => save(current.id, body)} />
+            <DecisionEditor
+              key={current.id}
+              d={current}
+              state={state}
+              all={all ?? []}
+              onCancel={() => void leaving(() => setEditing(false))}
+              onSave={(body) => save(current.id, body)}
+              onDirty={(v) => (dirty.current = v)}
+            />
           )}
         </section>
       </div>
@@ -277,7 +302,7 @@ function NewDecision({ onCancel, onCreate }: { onCancel(): void; onCreate(title:
 
 /** Shown when no decision is selected: what the kinds are for, and what needs a look. */
 function DecisionsIntro({ state, onSelect }: { state: AppState; onSelect(id: string): void }) {
-  const look = state.decisions.filter((d) => decisionFlags(d).some((f) => f.tone === "warn"));
+  const look = state.decisions.filter(needsLook);
   return (
     <div className="dec-intro">
       <h2>Why the architecture is the way it is</h2>
@@ -294,7 +319,7 @@ function DecisionsIntro({ state, onSelect }: { state: AppState; onSelect(id: str
                 <button className="link" onClick={() => onSelect(d.id)}>
                   {d.id} {d.title}
                 </button>{" "}
-                <span className="muted small">{decisionFlags(d).find((f) => f.tone === "warn")?.text}</span>
+                <span className="muted small">{(decisionFlags(d).find((f) => f.tone === "warn") ?? decisionFlags(d)[0])?.text}</span>
               </li>
             ))}
           </ul>

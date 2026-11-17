@@ -70,7 +70,22 @@ export function MoveDialog({ state, element, onMove, onClose }: { state: AppStat
         <>
           {targets.length >= FILTER_FROM && (
             <label className="field">
-              <input type="text" autoFocus placeholder={`Filter ${word}s`} value={filter} onChange={(e) => setFilter(e.target.value)} aria-label="Filter" data-testid="move-filter" />
+              <input
+                type="text"
+                autoFocus
+                placeholder={`Filter ${word}s`}
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                onKeyDown={(e) => {
+                  // Enter moves to the picked one, or to the only one the filter leaves.
+                  if (e.key !== "Enter") return;
+                  e.preventDefault();
+                  if (!picked && shown.length === 1) setPicked(shown[0].id);
+                  else void confirm();
+                }}
+                aria-label="Filter"
+                data-testid="move-filter"
+              />
             </label>
           )}
           <div className="move-list" role="listbox" aria-label={`Move to a ${word}`}>

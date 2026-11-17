@@ -58,6 +58,7 @@
   --z-dock: 20;
   --z-pop-menu: 40;
   --z-modal: 100;
+  --z-toast: 150; /* messages: above pages and dialogs, so a result is never hidden by what caused it */
   --z-ctx-menu: 200;
   --z-tooltip: 300; /* over everything, including menus and dialogs */
 }

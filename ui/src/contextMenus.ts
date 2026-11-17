@@ -48,7 +48,7 @@ export interface MenuState {
   keyboard?: boolean;
 }
 
-export function useContextMenu(p: { setFocusName: Dispatch<SetStateAction<boolean>>; setSelection: Dispatch<SetStateAction<Selection>>; setExportOpen: Dispatch<SetStateAction<boolean>> }) {
+export function useContextMenu(p: { setFocusName: (on: boolean) => void; setSelection: Dispatch<SetStateAction<Selection>>; setExportOpen: Dispatch<SetStateAction<boolean>> }) {
   const { setFocusName, setSelection, setExportOpen } = p;
   const [menu, setMenu] = useState<MenuState | null>(null);
   const menuSeq = useRef(0);
@@ -102,7 +102,7 @@ export interface MenuContext {
   mutate(fn: () => Promise<unknown>): Promise<boolean>;
   open(k: string): void;
   select(s: Selection): void;
-  setFocusName: Dispatch<SetStateAction<boolean>>;
+  setFocusName: (on: boolean) => void;
   setRenameId: Dispatch<SetStateAction<string | null>>;
   setOpenFile: Dispatch<SetStateAction<string | null>>;
   clip: Clipboard;

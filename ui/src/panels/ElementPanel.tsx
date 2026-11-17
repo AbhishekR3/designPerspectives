@@ -56,7 +56,7 @@ export function ObjectPanel({ element, ...p }: Common & { element: ElementSummar
         </span>
       </div>
       <Fields loose>
-        <TextField label="Name" value={element.name} onCommit={(v) => p.onRename(element.id, v)} testId="field-name" autoFocus={p.focusName && !state.readOnly} />
+        <TextField label="Name" value={element.name} onCommit={(v) => p.onRename(element.id, v)} testId="field-name" autoFocus={!state.readOnly && p.focusName} />
         <TextField label="Description" value={element.description} multiline onCommit={(v) => save({ description: v })} testId="field-description" />
         {element.kind !== "person" && (
           <label className="field">
@@ -242,7 +242,7 @@ export function ObjectPanel({ element, ...p }: Common & { element: ElementSummar
         {drill && <button onClick={() => p.onOpen(drill)}>Open {element.kind === "softwareSystem" ? "containers" : "components"}</button>}
         {element.kind === "softwareSystem" && <button onClick={() => p.onOpen(`context-${element.id}`)}>Open context</button>}
         {!state.readOnly && (
-          <button onClick={() => mutate(() => api.duplicate(element.id))} data-testid="duplicate-element">
+          <button onClick={() => p.onDuplicate(element.id)} data-testid="duplicate-element">
             Duplicate
           </button>
         )}

@@ -22,6 +22,11 @@ export function decisionFlags(d: Pick<DecisionSummary, "status" | "kind" | "revi
   return out;
 }
 
+/** Needs a look: anything `decisionFlags` reports, a proposed decision included (it waits for an answer). The one rule behind every count. */
+export function decisionNeedsLook(d: Parameters<typeof decisionFlags>[0], now: string): boolean {
+  return decisionFlags(d, now).length > 0;
+}
+
 /** YYYY-MM-DD in local time. */
 export function isoDay(d = new Date()): string {
   const p = (n: number) => String(n).padStart(2, "0");

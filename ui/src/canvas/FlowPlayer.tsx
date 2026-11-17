@@ -1,3 +1,4 @@
+import { plural } from "../common/plural";
 import { useEffect, useRef, useState } from "react";
 import { Icon, iconFor } from "../common/icons";
 import type { AppState, Diagram, Flow } from "../types";
@@ -105,7 +106,7 @@ export function FlowCard({
                 <span className="truncate" title={f.title}>
                   {f.title}
                 </span>{" "}
-                <span className="muted">{f.steps.length} steps</span>
+                <span className="muted">{plural(f.steps.length, "step")}</span>
               </button>
             ))}
             {!state.readOnly && (
@@ -163,7 +164,7 @@ export function FlowCard({
               <>
                 <div className="flow-step-title">Introduction</div>
                 <span className="pill intro">? Introduction</span>
-                <p className="small">{flow.description || `${n} steps. Press Next to walk through them.`}</p>
+                <p className="small">{flow.description || (n === 0 ? "This flow has no steps yet." : `${plural(n, "step")}. Press Next to walk through ${n === 1 ? "it" : "them"}.`)}</p>
               </>
             )}
             {phase === "step" && step && (
@@ -223,7 +224,7 @@ export function FlowCard({
               <>
                 <div className="flow-step-title">Conclusion</div>
                 <span className="pill end">⚑ Conclusion</span>
-                <p className="small muted">All {n} steps are shown on the diagram.</p>
+                <p className="small muted">{n === 1 ? "The one step is" : `All ${n} steps are`} shown on the diagram.</p>
               </>
             )}
           </div>

@@ -127,6 +127,7 @@ export function hubInfo(hub: HubCtx, c: Context): HubInfo {
     canAdmin: decide("admin", who, "main") === null,
     loginRequired: who.loginRequired,
     me: who.user,
+    readOnly: !!who.readOnlyServer,
     projects: visibleEntries(hub, c).map((e) => {
       const r = who.user && !who.readOnlyServer ? (hub.mode === "hub" ? (hub.auth.roleIn(who.user.name, e.id) ?? who.role) : who.role) : who.user ? "viewer" : null;
       const role = r === "none" ? null : r; // not listed (visibleEntries); narrows the type

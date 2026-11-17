@@ -21,7 +21,7 @@ export function useShortcuts(p: {
   diagram: Diagram | null;
   selection: Selection;
   setSelection: Dispatch<SetStateAction<Selection>>;
-  setFocusName: Dispatch<SetStateAction<boolean>>;
+  setFocusName: (on: boolean) => void;
   setRenameId: Dispatch<SetStateAction<string | null>>;
   setSearchOpen: Dispatch<SetStateAction<boolean>>;
   doHistory(dir: "undo" | "redo"): Promise<void>;
@@ -60,25 +60,36 @@ export function useShortcuts(p: {
     const onKey = (e: KeyboardEvent) => {
       if (dialogOpen()) return;
       if (isTyping(e.target)) return;
-      if (!state || !diagramEditable(state, diagram)) return;
+      if (!state) return;
       const mod = e.metaKey || e.ctrlKey;
       const k = e.key.toLowerCase();
+      // Looking is for everyone, a viewer too: fit, zoom, and Escape to clear the selection.
+      if (mod && !e.altKey && (k === "0" || k === "=" || k === "+" || k === "-")) {
+        if (k === "0") canvasRef.current?.fit();
+        else canvasRef.current?.zoom(k === "-" ? -1 : 1);
+        e.preventDefault();
+        return;
+      }
+      if (e.key === "Escape" && !mod) {
+        setSelection(null);
+        e.preventDefault();
+        return;
+      }
+      if (!diagramEditable(state, diagram)) return;
       const nodeId = selection?.type === "node" ? selection.id : null;
       const boxIds = selectedNodeIds(selection); // one box or several (arrows move them together)
       const isElement = nodeId ? state?.elements.some((x) => x.id === nodeId) : false;
       if (mod && !e.altKey) {
+        // Text marked on the page (a description, a comment): Ctrl/Cmd+C copies that text, as everywhere else.
+        if (k === "c" && !window.getSelection()?.isCollapsed) return;
         if (k === "c" && isElement) clipboard.current = nodeId;
         else if (k === "v" && clipboard.current && state?.elements.some((x) => x.id === clipboard.current)) pasteFrom(clipboard.current);
         else if (k === "d" && isElement) pasteFrom(nodeId!);
-        else if (k === "0") canvasRef.current?.fit();
-        else if (k === "=" || k === "+") canvasRef.current?.zoom(1);
-        else if (k === "-") canvasRef.current?.zoom(-1);
         else return;
         e.preventDefault();
         return;
       }
-      if (e.key === "Escape") setSelection(null);
-      else if (e.key.startsWith("Arrow") && boxIds.length > 0) {
+      if (e.key.startsWith("Arrow") && boxIds.length > 0) {
         const step = e.shiftKey ? 40 : 10;
         const d = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[e.key] as number[];
         canvasRef.current?.nudge(boxIds, d[0], d[1]);

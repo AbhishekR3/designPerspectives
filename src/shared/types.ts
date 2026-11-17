@@ -881,6 +881,8 @@ export interface HubInfo {
   canAdmin: boolean;
   loginRequired: boolean;
   me: SessionUser | null;
+  /** The server was started read-only: everyone is a viewer here, whatever role the users file gives. */
+  readOnly: boolean;
 }
 
 export interface HubProject {
@@ -1695,6 +1697,13 @@ export interface BmoRunFailure {
   errors: FieldError[];
   pasteBack: string;
   warnings?: FieldError[];
+}
+
+/** The 409 answer of a run whose preview is out of date (the model, the code or the settings changed since): `stale` tells it
+ *  apart from the other 409s (BMO turned off, a settings problem), which say their own reason in `detail`. */
+export interface BmoStaleFailure {
+  detail: string;
+  stale: true;
 }
 
 // ------------------------------------------------------------------ system testing mode (DEC-075)

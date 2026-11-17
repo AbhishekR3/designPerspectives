@@ -3,7 +3,8 @@
  * what is being watched (revisit triggers and dates), the latest decisions, and the shared catalog.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { plural } from "../common/plural";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api";
 import { StatusBadge } from "./DecisionsPage";
 import { Modal } from "../panels/formParts";
@@ -69,10 +70,12 @@ export function HomePage({ hub, onChanged }: { hub: HubInfo; onChanged(): Promis
   const [view, setView] = useState<"grid" | "list">(() => (storage.get(HOME_VIEW_KEY) === "list" ? "list" : "grid"));
   const [creating, setCreating] = useState(false);
 
+  // What is on screen, for the failure below: a refresh that fails keeps the page that is loaded.
+  const loaded = useRef(false);
   const load = useCallback(() => {
     api.home().then(
-      (h) => (setHome(h), setError(null)),
-      (e) => setError(errorMessage(e)),
+      (h) => ((loaded.current = true), setHome(h), setError(null)),
+      (e) => (loaded.current ? notify.error(`The home page could not be refreshed: ${errorMessage(e)}`) : setError(errorMessage(e))),
     );
   }, []);
   useEffect(() => {
@@ -84,7 +87,15 @@ export function HomePage({ hub, onChanged }: { hub: HubInfo; onChanged(): Promis
 
   const names = useMemo(() => new Map(hub.projects.map((p) => [p.id, p.name])), [hub]);
   const projectName = (id: string) => (hub.mode === "hub" ? (names.get(id) ?? id) : null);
-  if (error) return <p className="page-pad error-text">Could not load the home page: {error}</p>;
+  if (error && !home)
+    return (
+      <p className="page-pad error-text">
+        Could not load: {error}{" "}
+        <button onClick={() => load()} data-testid="home-retry">
+          Retry
+        </button>
+      </p>
+    );
   if (!home) return <p className="page-pad muted">Loading…</p>;
 
   const q = query.trim().toLowerCase();
@@ -98,7 +109,9 @@ export function HomePage({ hub, onChanged }: { hub: HubInfo; onChanged(): Promis
         <div>
           <h1>{home.name}</h1>
           <p className="muted">
-            {home.mode === "hub" ? `${home.projects.filter((p) => !p.catalog).length} projects and a shared catalog` : "Overview of the model"}
+            {home.mode === "hub"
+              ? `${plural(home.projects.filter((p) => !p.catalog).length, "project")}${home.projects.some((p) => p.catalog) ? " and a shared catalog" : ""}`
+              : "Overview of the model"}
             {problems > 0 ? ` · ${problems} thing${problems === 1 ? "" : "s"} need a look` : " · nothing needs a look"}
           </p>
         </div>
@@ -319,7 +332,7 @@ function ProjectTile({ p, hub, role }: { p: ProjectCard; hub: HubInfo; role: str
             </span>
           )}
         </div>
-        {p.error ? <p className="error-text small">{p.error}</p> : <p className="muted small clamp2">{p.description || stats(p)}</p>}
+        {p.error ? <p className="error-text small">{p.error}</p> : p.description ? <p className="muted small clamp2">{p.description}</p> : null}
         <p className="muted small p-card-foot">
           {stats(p)}
           {p.lastCommit && (

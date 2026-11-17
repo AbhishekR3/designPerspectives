@@ -120,7 +120,8 @@ export function useBmoRun(request: BmoRequest, active: boolean) {
             detail: errorMessage(e),
             errors: Array.isArray(data?.errors) ? (data!.errors as FieldError[]) : [],
             pasteBack: typeof data?.pasteBack === "string" ? data.pasteBack : null,
-            stale: e instanceof ApiError && e.status === 409,
+            // Only an out-of-date preview: BMO turned off or a settings problem is a 409 too, and says its own reason.
+            stale: e instanceof ApiError && e.status === 409 && data?.stale === true,
           });
         }
         return null;

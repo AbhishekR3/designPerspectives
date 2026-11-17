@@ -4,7 +4,7 @@
  * single project: its own data and who reads and writes it.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api";
 import { Icon } from "../common/icons";
 import { errorMessage, notify } from "../common/notify";
@@ -19,10 +19,12 @@ export function CatalogPage({ hub }: { hub: HubInfo }) {
   const [filter, setFilter] = useState<Filter>("all");
   const focus = new URLSearchParams(window.location.hash.split("?")[1] ?? "").get("a");
 
+  const loaded = useRef(false);
   const load = useCallback(() => {
     api.catalogUsage().then(
-      (x) => (setU(x), setError(null)),
-      (e) => setError(errorMessage(e)),
+      (x) => ((loaded.current = true), setU(x), setError(null)),
+      // A refresh that fails keeps the page that is loaded.
+      (e) => (loaded.current ? notify.error(`The page could not be refreshed: ${errorMessage(e)}`) : setError(errorMessage(e))),
     );
   }, []);
   useEffect(() => {
@@ -44,7 +46,15 @@ export function CatalogPage({ hub }: { hub: HubInfo }) {
     </a>
   );
 
-  if (error) return <p className="page-pad error-text">Could not load: {error}</p>;
+  if (error && !u)
+    return (
+      <p className="page-pad error-text">
+        Could not load: {error}{" "}
+        <button onClick={() => load()} data-testid="catalog-retry">
+          Retry
+        </button>
+      </p>
+    );
   if (!u) return <p className="page-pad muted">Loading…</p>;
   const assets = u.assets.filter((a) =>
     filter === "several" ? a.flags.includes("used-by-several") : filter === "writers" ? a.flags.includes("several-writers") : filter === "sensitive" ? a.sensitive : true,

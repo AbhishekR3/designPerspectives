@@ -4,7 +4,7 @@
  * before anything reaches the main model. Errors are shown by field, with the text to send back to the agent.
  */
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../api";
 import { CopyButton } from "../common/CopyButton";
 import { errorMessage } from "../common/notify";
@@ -134,6 +134,13 @@ export function HandoffPanel({ request, label, disabled, onDraft, idPrefix }: { 
   const [pasted, setPasted] = useState("");
   const [busy, setBusy] = useState<"write" | "read" | null>(null);
   const t = (s: string) => `${idPrefix}-${s}`;
+  // Another level or container: the prompt written before was for the other one, so it goes.
+  const requestKey = JSON.stringify(request);
+  useEffect(() => {
+    setOffer(null);
+    setProblems(null);
+    setPasted("");
+  }, [requestKey]);
 
   const write = async () => {
     setBusy("write");
@@ -238,6 +245,8 @@ export function PastePanel({ example, disabled, onDraft }: { example: string | n
     try {
       const r = await api.importFile(text);
       setCheck(null);
+      // The file is in a draft now: an empty box, so a second click cannot make the same draft again.
+      setText("");
       onDraft(r);
     } catch (e) {
       setProblems(problemsOf(e));

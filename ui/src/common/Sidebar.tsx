@@ -1,3 +1,4 @@
+import { plural } from "./plural";
 import { Icon } from "./icons";
 import { LEVEL_LABEL, type AppState, type DiagramInfo, type Lens, type Level, type TagGroup } from "../types";
 
@@ -119,7 +120,7 @@ export function Sidebar({
             <li key={l.id} className="tree-row">
               <span
                 className={`tree-label${l.id === lens.id ? " strong" : ""}`}
-                title={`${l.name}${l.id === lens.id ? " (in use)" : ""}\nA lens shows the same model for one audience: ${l.visibleLevels.length} levels, ${l.showTechnology ? "with" : "without"} technology.`}
+                title={`${l.name}${l.id === lens.id ? " (in use)" : ""}\nA lens shows the same model for one audience: ${plural(l.visibleLevels.length, "level")}, ${l.showTechnology ? "with" : "without"} technology.`}
               >
                 {l.name}
                 {l.builtin && <span className="muted small"> built-in</span>}

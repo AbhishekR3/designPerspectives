@@ -72,7 +72,17 @@ export function Rows<T extends object>({
             (patch, commit) => update(i, patch, commit),
             () => onSave(latest.current),
           )}
-          <button className="icon edit-only" aria-label="Remove" title="Remove" onClick={() => onSave(latest.current.filter((_, j) => j !== i))}>
+          <button
+            className="icon edit-only"
+            aria-label="Remove"
+            title="Remove"
+            onClick={() => {
+              // Also here, not only in the model: a row that was never saved (still blank) has nothing to save, and must go too.
+              const next = latest.current.filter((_, j) => j !== i);
+              setDraft(next);
+              onSave(next);
+            }}
+          >
             ×
           </button>
         </div>
@@ -105,12 +115,28 @@ const DETAIL_TEMPLATES: Record<string, DetailTable> = {
 
 /** Free tables of extra information: connection details, a database's columns, anything tabular. */
 export function DetailsEditor({ tables, onSave }: { tables: DetailTable[]; onSave(t: DetailTable[]): void }) {
-  const [draft, setDraft] = useState<DetailTable[]>(tables);
-  useEffect(() => setDraft(tables), [tables]);
-  const set = (i: number, t: DetailTable) => setDraft(draft.map((x, j) => (j === i ? t : x)));
-  const commit = (next = draft) => !sameKeys(next, tables) && onSave(next);
+  const [draft, setDraftState] = useState<DetailTable[]>(tables);
+  // As in `Rows`: saves read the latest tables from this ref, and a refresh does not replace a cell that is being typed in.
+  const latest = useRef<DetailTable[]>(tables);
+  const setDraft = (next: DetailTable[]) => {
+    latest.current = next;
+    setDraftState(next);
+  };
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const active = document.activeElement;
+    if (active && box.current?.contains(active) && active.matches("input, textarea, select")) return;
+    latest.current = tables;
+    setDraftState(tables);
+  }, [tables]);
+  const set = (i: number, t: DetailTable) => setDraft(latest.current.map((x, j) => (j === i ? t : x)));
+  const commit = (next = latest.current) => {
+    // Shown at once, saved only when it differs from the model (removing a row that was never saved changes nothing there).
+    setDraft(next);
+    if (!sameKeys(next, tables)) onSave(next);
+  };
   return (
-    <div data-testid="details">
+    <div data-testid="details" ref={box}>
       <p className="muted small edit-only">Do not store passwords or keys here; name where they are kept.</p>
       {draft.map((t, i) => (
         <div className="detail-table" key={i} data-testid={`detail-${i}`}>
@@ -451,8 +477,22 @@ function AddConnection({ direction, self, state, mutate }: { direction: "incomin
         + {word}
       </button>
     );
+  const submit = () =>
+    void run(async () => {
+      const body = direction === "incoming" ? { sourceId: chosen, destinationId: self.id, description } : { sourceId: self.id, destinationId: chosen, description };
+      if (await mutate(() => api.createRelationship(body))) close();
+    });
   return (
-    <div className="connection-add" data-testid={`add-${direction}-form`}>
+    <div
+      className="connection-add"
+      data-testid={`add-${direction}-form`}
+      onKeyDown={(e) => {
+        // Enter in a field adds the connection, as the Add button does (a button keeps its own Enter).
+        if (e.key !== "Enter" || (e.target as HTMLElement).tagName === "BUTTON" || !chosen || busy) return;
+        e.preventDefault();
+        submit();
+      }}
+    >
       <label className="field">
         <span>{direction === "incoming" ? "From" : "To"}</span>
         <input type="text" value={filter} placeholder="Type to filter…" onChange={(e) => setFilter(e.target.value)} data-testid={`add-${direction}-filter`} autoFocus />
@@ -475,18 +515,7 @@ function AddConnection({ direction, self, state, mutate }: { direction: "incomin
         <input type="text" value={description} placeholder="Uses" onChange={(e) => setDescription(e.target.value)} data-testid={`add-${direction}-description`} />
       </label>
       <div className="row">
-        <button
-          className="primary small"
-          disabled={!chosen || busy}
-          aria-busy={busy}
-          onClick={() =>
-            void run(async () => {
-              const body = direction === "incoming" ? { sourceId: chosen, destinationId: self.id, description } : { sourceId: self.id, destinationId: chosen, description };
-              if (await mutate(() => api.createRelationship(body))) close();
-            })
-          }
-          data-testid={`add-${direction}-submit`}
-        >
+        <button className="primary small" disabled={!chosen || busy} aria-busy={busy} onClick={submit} data-testid={`add-${direction}-submit`}>
           Add
         </button>
         <button className="ghost small" onClick={close} data-testid={`add-${direction}-cancel`}>
@@ -503,8 +532,11 @@ export function CharacteristicsEditor({ rows, defs, onSave }: { rows: Rating[]; 
   const [notes, setNotes] = useState<Record<string, string>>({});
   useEffect(() => setNotes(Object.fromEntries(rows.map((r) => [r.name, r.note ?? ""]))), [rows]);
   const put = (name: string, patch: Partial<Rating>) => {
-    const has = rows.some((r) => r.name === name);
-    onSave(has ? rows.map((r) => (r.name === name ? { ...r, ...patch } : r)) : [...rows, { name, ...patch }]);
+    // With the notes as typed: a note saved on blur just before (a click on a star blurs the note field first) is not in `rows` yet,
+    // and a save built from `rows` alone would take it out again.
+    const now = rows.map((r) => (notes[r.name] !== undefined && notes[r.name] !== (r.note ?? "") ? { ...r, note: notes[r.name] } : r));
+    const has = now.some((r) => r.name === name);
+    onSave(has ? now.map((r) => (r.name === name ? { ...r, ...patch } : r)) : [...now, { name, ...patch }]);
   };
   const unrated = defs.filter((d) => !rows.some((r) => r.name === d.name));
   const order = new Map(defs.map((d, i) => [d.name, i]));

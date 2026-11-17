@@ -52,7 +52,8 @@ test.describe("decisions", () => {
     await page.getByTestId("decision-trigger-0").click();
     await expect(page.getByTestId("decision-trigger-0")).toBeChecked();
     await expect(record).toContainText("1 trigger met");
-    await expect(page.getByTestId("open-decisions")).toContainText("1");
+    // Two need a look: this one (a trigger is met) and the demo's proposed decision (it waits for an answer).
+    await expect(page.getByTestId("open-decisions")).toContainText("2");
 
     // "About" jumps to the element; its panel lists the decision and opens it again.
     await page.getByTestId("decision-about-session-cache").click();

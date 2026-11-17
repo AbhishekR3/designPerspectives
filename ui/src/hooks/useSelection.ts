@@ -8,7 +8,9 @@ import type { Selection } from "../types";
  */
 export function useSelection() {
   const [selection, setSelection] = useState<Selection>(null);
-  const [focusName, setFocusName] = useState(false);
+  // A count, not a flag: asking again for the same selection (F2 a second time) focuses the field again. 0 is "not asked".
+  const [focusName, setFocusCount] = useState(0);
+  const setFocusName = useCallback((on: boolean) => setFocusCount((n) => (on ? n + 1 : 0)), []);
   const [renameId, setRenameId] = useState<string | null>(null);
   const fresh = useRef(new Set<string>());
   const clearRename = useCallback(() => setRenameId(null), []);

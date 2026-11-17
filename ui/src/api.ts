@@ -229,8 +229,9 @@ export const api = {
   changes: () => request<ChangeSet>("GET", "/changes"),
   decisions: () => request<Decision[]>("GET", "/decisions"),
   // Hub-level: the same in a hub and for one project (DEC-053 to DEC-056).
-  hub: () => request<HubInfo>("GET", "/hub"),
-  home: () => request<HomeSummary>("GET", "/home"),
+  // About the server, not a project or a model version: asked the same way whatever is open (a refresh while a project or a draft is shown).
+  hub: () => request<HubInfo>("GET", "/hub", undefined, { project: null, main: true }),
+  home: () => request<HomeSummary>("GET", "/home", undefined, { project: null, main: true }),
   catalog: () => request<CatalogEntry[]>("GET", "/catalog"),
   catalogUsage: () => request<SharedUsage>("GET", "/catalog/usage"),
   history: (project?: string | null) => request<HistoryList>("GET", `/history${project ? `?project=${enc(project)}` : ""}`),

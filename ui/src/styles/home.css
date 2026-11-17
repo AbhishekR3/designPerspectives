@@ -87,7 +87,7 @@
   position: fixed;
   top: 12px;
   right: 16px;
-  z-index: var(--z-modal);
+  z-index: var(--z-toast);
 }
 .page-pad {
   padding: 32px;

@@ -1,5 +1,6 @@
 import { ReactFlowProvider } from "@xyflow/react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useDismiss } from "./common/useDismiss";
 import { useElementSize, useInsetVars } from "./canvas/coveredEdges";
 import { PALETTE_KEY, storage } from "./preferences";
 import { draftActions, diagramActions, useElementActions } from "./selectionActions";
@@ -45,7 +46,7 @@ import { inLens, useLens, useLensState } from "./hooks/useLens";
 import { useModel } from "./hooks/useModel";
 import { useHashSync, useNavigation, usePage, useReveal, useTestingParam } from "./hooks/useNavigation";
 import { useTesting } from "./hooks/useTesting";
-import { decisionFlags, DecisionsPage } from "./pages/DecisionsPage";
+import { DecisionsPage, needsLook } from "./pages/DecisionsPage";
 import { useCatalog } from "./hooks/useCatalog";
 import type { HubInfo } from "./types";
 import { usePanels } from "./hooks/usePanels";
@@ -97,9 +98,17 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
   const { selection, setSelection, focusName, setFocusName, renameId, setRenameId, clearRename, select, startRename, fresh } = useSelection();
   const lensState = useLensState();
   const { overlay, setOverlay, filters, setFilters } = lensState;
-  const { key, setKey, keyRef, open, pickChange } = useNavigation(setSelection);
+  const { key, setKey, keyRef, open: openKey, pickChange } = useNavigation(setSelection);
   // A page over the diagram (decision records), kept in the URL with the diagram under it.
   const { page, setPage } = usePage(keyRef);
+  /** Open a diagram. Asking for the one already open under a page closes the page (another diagram closes it by the effect below). */
+  const open = useCallback(
+    (k: string) => {
+      if (k === keyRef.current) setPage(null, { replace: true });
+      openKey(k);
+    },
+    [keyRef, setPage, openKey],
+  );
   const decisionsOpen = page === "decisions" || !!page?.startsWith("decisions/");
   const decisionId = page?.startsWith("decisions/") ? page.slice("decisions/".length) : null;
   const importOpen = page === "import";
@@ -118,6 +127,8 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
   const [helpOpen, setHelpOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [bmoMenuOpen, setBmoMenuOpen] = useState(false);
+  const exportRef = useDismiss<HTMLSpanElement>(exportOpen, () => setExportOpen(false));
+  const bmoMenuRef = useDismiss<HTMLSpanElement>(bmoMenuOpen, () => setBmoMenuOpen(false));
   const [bmoSheet, setBmoSheet] = useState<BmoOpen | null>(null);
   // The BMO chat: open or not, what to put in its input when opened from an object, and the conversation (this tab only).
   const [chatOpen, setChatOpen] = useState(false);
@@ -162,7 +173,15 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
 
   useHashSync({ key, keyRef, setKey, versionRef, loadDiagram, switchVersion, setSelection, setMenu, setFlowStep, setPlaying });
   const flow = useFlowAutoplay(diagram, player);
-  const reveal = useReveal(state, diagram, setKey, setSelection);
+  const revealOnDiagram = useReveal(state, diagram, setKey, setSelection);
+  /** Show an element on its diagram; a page over the diagram closes, or the element would be selected unseen. */
+  const reveal = useCallback(
+    (id: string, opts: { home?: boolean } = {}) => {
+      setPage(null, { replace: true });
+      revealOnDiagram(id, opts);
+    },
+    [revealOnDiagram, setPage],
+  );
 
   // System testing mode (`t=1`): only on the main model without a comparison; the model cannot be edited while it is on.
   const { testing: testingParam, setTesting } = useTestingParam(keyRef);
@@ -239,7 +258,9 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only a change of diagram closes the page
   }, [key]);
   const { lens, chooseLens, chooseLensAfterSave, activeOverlay, decorate } = useLens({ state, refresh, diagram, open, lensState });
-  const clip = useClipboard({ keyRef, mutate, setSelection });
+  // A copy just made, waiting for the model to reload so it can be shown where it is (it may be on another diagram than this one).
+  const [pasted, setPasted] = useState<string | null>(null);
+  const clip = useClipboard({ keyRef, mutate, onPasted: setPasted });
   const { pasteFrom } = clip;
   const comments = useComments(state);
   /** Show an object's discussion: select it and open the details panel (with `compose`, a new comment box too). */
@@ -264,6 +285,31 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
     }, 150);
   };
   const { deleteRelationship, nodeActions, renameElement } = useElementActions({ state, mutate, pasteFrom, open, setSelection, setRenameId, fresh });
+
+  useEffect(() => {
+    if (!pasted || !state || !diagram) return;
+    if (!state.elements.some((e) => e.id === pasted)) return;
+    setPasted(null);
+    reveal(pasted);
+  }, [pasted, state, diagram, reveal]);
+  // What is selected can go away without a click here (undo, redo, a change by someone else): then nothing is selected,
+  // not a panel with no content. Checked against the diagram on screen and the model, once both are loaded.
+  useEffect(() => {
+    if (!selection || !state || !diagram || diagram.key !== key || loading) return;
+    const known = (id: string) =>
+      diagram.nodes.some((n) => n.id === id) || diagram.edges.some((e) => e.id === id) || state.elements.some((e) => e.id === id) || state.relationships.some((r) => r.id === id);
+    if (selection.type === "nodes") {
+      const left = selection.ids.filter(known);
+      if (left.length !== selection.ids.length) setSelection(left.length > 1 ? { type: "nodes", ids: left } : left.length === 1 ? { type: "node", id: left[0] } : null);
+    } else if (!known(selection.id)) setSelection(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- setSelection is stable; `selection` itself is checked when the model or the diagram changes
+  }, [state, diagram, key, loading]);
+  // The tab title names the project and the diagram, so tabs and the Back list can be told apart.
+  useEffect(() => {
+    if (!state) return;
+    const name = page === "import" ? "Import code" : page?.startsWith("decisions") ? "Decisions" : (state.diagrams.find((d) => d.key === key)?.title ?? null);
+    document.title = [name, state.workspace.name, "designPerspectives"].filter(Boolean).join(" · ");
+  }, [state, key, page]);
 
   // After a move: show the moved box, selected, where it now is (its new parent's diagram).
   useEffect(() => {
@@ -435,6 +481,7 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
     focusName,
     onRename: renameElement,
     onMove: setMoveId,
+    onDuplicate: (id: string) => void pasteFrom(id),
   };
   /** A review item picked: show its object, or the diagram a connection is on. */
   const pickReviewItem = (itemKey: string, item: { kind: string }) => {
@@ -447,12 +494,21 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
         const r = state.relationships.find((x) => x.id === id);
         if (r) reveal(r.sourceId);
       }
-    } else if (item.kind === "decision") openDecision(null);
+    } else if (item.kind === "decision") {
+      // The item names the decision by its file name without the number and `.md` (see review.ts).
+      const d = state.decisions.find((x) => x.file.replace(/^\d+-/, "").replace(/\.md$/, "") === id);
+      openDecision(d ? d.id : null);
+    } else if (item.kind === "flow") {
+      const f = state.flows.find((x) => x.key === id || x.key === `flow-${id}` || x.title === id);
+      if (f) open(f.key);
+      else notify.info("This flow is not in the draft any more.");
+    }
   };
   /** The review of an import draft stays visible whatever is selected: in the diagram's own panel when nothing is, above the object's details otherwise. */
   const reviewInDefault = !selection && !!diagram && !flow && diagram.level !== "connector" && diagram.level !== "code";
   const reviewBlock = draftId ? (
     <ImportReview
+      key={draftId}
       draftId={draftId}
       canEdit={state.can.editThis}
       version={state.version}
@@ -465,7 +521,7 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
       }
     />
   ) : null;
-  const decisionsToLook = state.decisions.filter((d) => decisionFlags(d).some((f) => f.tone === "warn")).length;
+  const decisionsToLook = state.decisions.filter(needsLook).length;
   const multiIds = selection?.type === "nodes" ? selection.ids : null;
   const movingEl = moveId ? state.elements.find((e) => e.id === moveId) : undefined;
 
@@ -538,7 +594,7 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
       >
         Test
       </button>
-      <span className="export-wrap" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setBmoMenuOpen(false)}>
+      <span className="export-wrap" ref={bmoMenuRef} onBlur={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setBmoMenuOpen(false)}>
         <button
           className={`ghost bmo-btn${bmoMenuOpen ? " on" : ""}`}
           onClick={() => setBmoMenuOpen(!bmoMenuOpen)}
@@ -598,7 +654,7 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
           </div>
         )}
       </span>
-      <span className="export-wrap" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setExportOpen(false)}>
+      <span className="export-wrap" ref={exportRef} onBlur={(e) => !e.currentTarget.contains(e.relatedTarget as Node) && setExportOpen(false)}>
         <button
           className="ghost icon"
           onClick={() => setExportOpen(!exportOpen)}
@@ -635,7 +691,7 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
     <div className={`app${leftOpen ? "" : " left-closed"}`} style={{ gridTemplateColumns }}>
       {leftOpen ? (
         <Sidebar
-          state={state}
+          state={panelState}
           lens={lens}
           currentKey={key}
           showAllLevels={showAllLevels}
@@ -862,13 +918,6 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
                   </button>
                 </div>
               </div>
-              <Toasts>
-                {serverReadOnly && (
-                  <div className="float toast info" data-testid="readonly-banner">
-                    Viewer role: this server is read-only. Changes are refused.
-                  </div>
-                )}
-              </Toasts>
             </div>
             <div className="topbar-sub">
               <div className="topbar-left">
@@ -898,7 +947,7 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
             )}
             {diagram && diagram.level !== "code" && diagram.level !== "connector" && (
               <Dock
-                state={state}
+                state={panelState}
                 diagram={diagram}
                 groups={visibleGroups}
                 overlay={activeOverlay}
@@ -913,8 +962,19 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
             )}
           </div>
 
-          {importOpen && <ImportPage state={state} refresh={refresh} onClose={() => setPage(null)} onOpenDraft={(id) => void openImportDraft(id)} />}
-          {decisionsOpen && <DecisionsPage state={state} selected={decisionId} onSelect={(id) => openDecision(id)} onClose={() => setPage(null)} onReveal={revealFromPage} mutate={mutate} />}
+          {/* Messages are a layer of their own, above the pages and dialogs: inside the top bar a page would cover them. */}
+          <div className="toast-layer">
+            <Toasts>
+              {serverReadOnly && (
+                <div className="float toast info" data-testid="readonly-banner">
+                  Viewer role: this server is read-only. Changes are refused.
+                </div>
+              )}
+            </Toasts>
+          </div>
+
+          {importOpen && <ImportPage state={panelState} refresh={refresh} onClose={() => setPage(null)} onOpenDraft={(id) => void openImportDraft(id)} />}
+          {decisionsOpen && <DecisionsPage state={panelState} selected={decisionId} onSelect={(id) => openDecision(id)} onClose={() => setPage(null)} onReveal={revealFromPage} mutate={mutate} />}
           {diagram && diagram.nodes.length === 0 && (
             <div className="free-area">
               {diagram.level === "landscape" && !state.readOnly && !testingOn && !diagram.compare?.removed ? (
@@ -1172,7 +1232,18 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
       {modal?.type === "chars" && <CharacteristicsEditor items={state.characteristics} onClose={() => setModal(null)} mutate={mutate} />}
       {modal?.type === "cost" && <CostSettingsEditor settings={state.costSettings} onClose={() => setModal(null)} mutate={mutate} />}
       {modal?.type === "lens" && (
-        <LensEditor lens={modal.lens} tagGroups={state.tagGroups} characteristics={state.characteristics} onClose={() => setModal(null)} mutate={mutate} onSaved={(id) => chooseLensAfterSave(id)} />
+        <LensEditor
+          lens={modal.lens}
+          tagGroups={state.tagGroups}
+          characteristics={state.characteristics}
+          onClose={() => setModal(null)}
+          mutate={mutate}
+          onSaved={(id) => {
+            // Deleting a lens that is not the one in use changes nothing on screen (the editor names "engineer" as the lens to fall back to).
+            const deletedOther = modal.lens && id !== modal.lens.id && modal.lens.id !== lens.id;
+            if (!deletedOther) chooseLensAfterSave(id);
+          }}
+        />
       )}
       {bmoSheet && (
         <BmoSheet

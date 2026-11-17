@@ -7,6 +7,7 @@ import { parseDecision, renumberAdded, serializeDecision } from "../../src/core/
 import { checkProject } from "../../src/core/cliReports.js";
 import { Project } from "../../src/core/project.js";
 import { flatten, unflatten } from "../../src/core/modelUnits.js";
+import { decisionFlags, decisionNeedsLook } from "../../src/shared/decisionAlerts.js";
 import { client, demoDir, ok } from "./helpers.js";
 
 const decDir = (dir: string) => path.join(dir, "architecture", "decisions");
@@ -286,5 +287,19 @@ describe.runIf(hasGit)("decisions at a git ref", () => {
     expect(atRef.decisions.map((d: any) => d.title)).not.toContain("Not committed");
     const changes = await ok(c.at("main", "ref:main").get("/api/changes"));
     expect(changes.decisions).toMatchObject([{ id, change: "added" }]);
+  });
+});
+
+describe("what needs a look", () => {
+  it("one rule for every count: any flag, a proposed decision included", () => {
+    const base = { status: "accepted", kind: "choice", reviewBy: "", decideBy: "", expires: "", triggers: { met: 0, open: 0 }, error: null } as unknown as Parameters<typeof decisionNeedsLook>[0];
+    const today = "2026-01-10";
+    expect(decisionNeedsLook(base, today)).toBe(false);
+    expect(decisionNeedsLook({ ...base, status: "proposed" }, today)).toBe(true);
+    expect(decisionNeedsLook({ ...base, reviewBy: "2026-01-01" }, today)).toBe(true);
+    expect(decisionNeedsLook({ ...base, reviewBy: "2026-02-01" }, today)).toBe(false);
+    expect(decisionNeedsLook({ ...base, status: "superseded", reviewBy: "2026-01-01" }, today)).toBe(false);
+    // Exactly the decisions that have a flag.
+    for (const d of [base, { ...base, status: "proposed" as const }, { ...base, triggers: { met: 1, open: 1 } }]) expect(decisionNeedsLook(d, today)).toBe(decisionFlags(d, today).length > 0);
   });
 });

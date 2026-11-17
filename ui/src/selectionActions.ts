@@ -128,7 +128,7 @@ export function diagramActions(c: {
   startRename(id: string): void;
   selection: Selection;
   setSelection: Dispatch<SetStateAction<Selection>>;
-  setFocusName: Dispatch<SetStateAction<boolean>>;
+  setFocusName: (on: boolean) => void;
   /** Show a pop menu of choices at a screen point. */
   openChoiceMenu(at: Pt, items: MenuItem[]): void;
 }) {

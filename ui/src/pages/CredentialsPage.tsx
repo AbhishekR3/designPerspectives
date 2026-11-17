@@ -33,15 +33,25 @@ export function CredentialsPage({ hub }: { hub: HubInfo }) {
   const [rotating, setRotating] = useState<string | null>(null);
 
   const load = useCallback(() => {
+    // Only an architect may ask (the server refuses anyone else).
+    if (!hub.canAdmin) return;
     api.credentials().then(
       (l) => (setList(l), setError(null)),
       (e) => setError(errorMessage(e)),
     );
-  }, []);
+  }, [hub.canAdmin]);
   useEffect(() => load(), [load]);
 
   if (!hub.canAdmin) return <p className="page-pad muted">Only an architect can see and manage credentials.</p>;
-  if (error) return <p className="page-pad error-text">Could not load: {error}</p>;
+  if (error && !list)
+    return (
+      <p className="page-pad error-text">
+        Could not load: {error}{" "}
+        <button onClick={() => load()} data-testid="credentials-retry">
+          Retry
+        </button>
+      </p>
+    );
   if (!list) return <p className="page-pad muted">Loading…</p>;
   const act = async (fn: () => Promise<unknown>, done: string) => {
     try {
@@ -156,11 +166,15 @@ export function CredentialsPage({ hub }: { hub: HubInfo }) {
 function CredentialForm({ onCancel, onSave }: { onCancel(): void; onSave(b: { name: string; provider: string; scopes: string[]; note: string; value: string }): Promise<unknown> }) {
   const [f, setF] = useState({ name: "", provider: "github", scopes: "", note: "", value: "" });
   const set = (k: keyof typeof f, v: string) => setF((x) => ({ ...x, [k]: v }));
+  // One save at a time: a second Enter or click while the first is on its way would store the credential twice (or fail as a duplicate).
+  const [busy, setBusy] = useState(false);
   return (
     <form
       className="home-box cred-form"
       onSubmit={(e) => {
         e.preventDefault();
+        if (busy) return;
+        setBusy(true);
         void onSave({
           ...f,
           name: f.name.trim(),
@@ -168,7 +182,7 @@ function CredentialForm({ onCancel, onSave }: { onCancel(): void; onSave(b: { na
             .split(",")
             .map((s) => s.trim())
             .filter(Boolean),
-        });
+        }).finally(() => setBusy(false));
       }}
       data-testid="credential-form"
     >
@@ -205,7 +219,7 @@ function CredentialForm({ onCancel, onSave }: { onCancel(): void; onSave(b: { na
         <button type="button" className="ghost" onClick={onCancel}>
           Cancel
         </button>
-        <button type="submit" className="primary" disabled={!f.name.trim() || !f.value.trim()} data-testid="credential-save">
+        <button type="submit" className="primary" disabled={busy || !f.name.trim() || !f.value.trim()} aria-busy={busy} data-testid="credential-save">
           Save
         </button>
       </div>
@@ -215,16 +229,19 @@ function CredentialForm({ onCancel, onSave }: { onCancel(): void; onSave(b: { na
 
 function RotateForm({ onCancel, onSave }: { onCancel(): void; onSave(v: string): Promise<unknown> }) {
   const [v, setV] = useState("");
+  const [busy, setBusy] = useState(false);
   return (
     <form
       className="row"
       onSubmit={(e) => {
         e.preventDefault();
-        if (v.trim()) void onSave(v);
+        if (!v.trim() || busy) return;
+        setBusy(true);
+        void onSave(v).finally(() => setBusy(false));
       }}
     >
       <input type="password" autoFocus autoComplete="off" value={v} onChange={(e) => setV(e.target.value)} placeholder="New value" aria-label="New value" data-testid="rotate-value" />
-      <button type="submit" className="small primary" disabled={!v.trim()}>
+      <button type="submit" className="small primary" disabled={busy || !v.trim()} aria-busy={busy}>
         Save
       </button>
       <button type="button" className="small ghost" onClick={onCancel}>

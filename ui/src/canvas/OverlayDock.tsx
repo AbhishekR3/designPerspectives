@@ -61,11 +61,26 @@ export function Dock({
   useEffect(() => {
     if (overlay) setTab(tabOf(overlay));
   }, [overlay]);
+  // Comparing stopped: the Changes tab is gone from the row, so its panel goes too.
+  useEffect(() => {
+    if (!state.compare) setTab((t) => (t === CHANGES_TAB.id ? null : t));
+  }, [state.compare]);
   useEffect(() => {
     if (!menu) return;
-    const close = (e: MouseEvent) => !menuRef.current?.contains(e.target as Node) && setMenu(null);
+    // Not for a press on a chip: its click opens another chip's menu, or closes this one.
+    const close = (e: MouseEvent) => !menuRef.current?.contains(e.target as Node) && !(e.target as Element).closest?.(".dock-chip") && setMenu(null);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.stopPropagation();
+      e.preventDefault();
+      setMenu(null);
+    };
     window.addEventListener("mousedown", close);
-    return () => window.removeEventListener("mousedown", close);
+    window.addEventListener("keydown", onKey, true);
+    return () => {
+      window.removeEventListener("mousedown", close);
+      window.removeEventListener("keydown", onKey, true);
+    };
   }, [menu]);
 
   const techs = techColors(diagram);

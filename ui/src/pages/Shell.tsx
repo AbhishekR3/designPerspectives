@@ -51,7 +51,8 @@ export function HubShell({ hub, page, onSignOut, onChanged }: { hub: HubInfo; pa
         <span className="grow" />
         {hub.me && (
           <div className="rail-user">
-            <UserChip me={hub.me} role={hub.me.role} onSignOut={onSignOut} />
+            {/* The role that holds here: on a read-only server everyone is a viewer, whatever the users file says. */}
+            <UserChip me={hub.me} role={hub.readOnly ? "viewer" : hub.me.role} onSignOut={onSignOut} />
           </div>
         )}
       </nav>

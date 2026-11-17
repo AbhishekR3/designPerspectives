@@ -52,15 +52,21 @@ export function TextField({
 }: {
   label: string;
   value: string;
-  onCommit(v: string): void;
+  /** May return the save's promise (as `mutate` does): when it resolves to false the save was refused and the field shows the model's value again. */
+  onCommit(v: string): unknown;
   multiline?: boolean;
   rows?: number;
   placeholder?: string;
   testId?: string;
-  autoFocus?: boolean;
+  /** Focus and select the field. A number focuses again each time it changes (F2 pressed a second time). */
+  autoFocus?: boolean | number;
 }) {
   const [draft, setDraft] = useState(value);
   const ref = useRef<HTMLInputElement & HTMLTextAreaElement>(null);
+  const valueRef = useRef(value);
+  valueRef.current = value;
+  // Enter and Escape take the focus away themselves; the blur that follows must not save again (or save what Escape dropped).
+  const handled = useRef(false);
   useEffect(() => setDraft(value), [value]);
   useEffect(() => {
     if (autoFocus) {
@@ -69,7 +75,22 @@ export function TextField({
     }
   }, [autoFocus]);
   const commit = () => {
-    if (draft !== value) onCommit(draft);
+    if (draft === value) return;
+    const sent = draft;
+    const result = onCommit(sent);
+    if (result instanceof Promise)
+      void result.then(
+        (ok) => {
+          // Refused by the server: the model kept its value, so the field shows it (unless something newer was typed).
+          if (ok === false) setDraft((d) => (d === sent ? valueRef.current : d));
+        },
+        () => undefined,
+      );
+  };
+  const leave = (el: HTMLElement) => {
+    handled.current = true;
+    el.blur();
+    handled.current = false;
   };
   const common = {
     ref,
@@ -77,15 +98,17 @@ export function TextField({
     placeholder,
     "data-testid": testId,
     onChange: (e: { target: { value: string } }) => setDraft(e.target.value),
-    onBlur: commit,
+    onBlur: () => {
+      if (!handled.current) commit();
+    },
     onKeyDown: (e: React.KeyboardEvent) => {
       if (e.key === "Enter" && (!multiline || e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         commit();
-        (e.target as HTMLElement).blur();
+        leave(e.target as HTMLElement);
       } else if (e.key === "Escape") {
         setDraft(value);
-        (e.target as HTMLElement).blur();
+        leave(e.target as HTMLElement);
       }
     },
   };
@@ -222,7 +245,7 @@ export function TagInput({
         {value.map((t) => (
           <span className="chip" key={t}>
             {t}
-            <button className="icon edit-only" aria-label={`Remove ${t}`} title={`Remove ${t}`} onClick={() => onChange(value.filter((x) => x !== t))}>
+            <button type="button" className="icon edit-only" aria-label={`Remove ${t}`} title={`Remove ${t}`} onClick={() => onChange(value.filter((x) => x !== t))}>
               ×
             </button>
           </span>

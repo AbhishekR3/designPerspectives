@@ -11,6 +11,8 @@ export interface Common {
   onRename(id: string, name: string): Promise<boolean>;
   /** Open the "Move to…" dialog (containers and components). */
   onMove(id: string): void;
+  /** Add a copy of the element and show it selected (as Ctrl/Cmd+D does). */
+  onDuplicate(id: string): void;
   onOpen(key: string): void;
   onReveal(elementId: string): void;
   onOpenFile(path: string): void;
@@ -24,7 +26,8 @@ export interface Common {
   onAsk?(target: { element?: string; relationship?: string }): void;
   /** The hub's shared catalog elements; null when this project is not in a hub with a catalog (or is the catalog). */
   catalog: CatalogEntry[] | null;
-  focusName: boolean;
+  /** How often the name field was asked for (0: not asked); see `useSelection`. */
+  focusName: number;
 }
 
 export const sameKeys = <T>(a: T[], b: T[]) => JSON.stringify(a) === JSON.stringify(b);

@@ -1,4 +1,5 @@
 /** The list of changes against the compared version, their field details, and the read-only panel of a removed object. */
+import { plural } from "../common/plural";
 import { CHANGE_COLORS, CHANGE_LABEL } from "../colourOverlays";
 import { KIND_LABEL, DECISION_KIND_INFO, type DecisionKind, type ChangeSet, type DiagramEdge, type DiagramNode, type FieldChange, type ObjectChange } from "../types";
 
@@ -7,7 +8,7 @@ const TYPE_LABEL: Record<string, string> = { elements: "Elements", relationships
 /** Every change, grouped by type. Clicking one opens the diagram that shows it (a decision: the decision). */
 export function ChangeList({ changes, onPick }: { changes: ChangeSet; onPick?(c: ObjectChange): void }) {
   const groups = (["elements", "relationships", "flows", "decisions", "settings"] as const).filter((g) => changes[g]?.length);
-  if (!groups.length && !changes.code.length) return <p className="empty-note">No changes{changes.summary.layout ? ` (only ${changes.summary.layout} layout changes)` : ""}.</p>;
+  if (!groups.length && !changes.code.length) return <p className="empty-note">No changes{changes.summary.layout ? ` (only ${plural(changes.summary.layout, "layout change")})` : ""}.</p>;
   return (
     <div className="change-list" data-testid="change-list">
       {groups.map((g) => (

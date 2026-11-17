@@ -232,6 +232,9 @@ describe("hub", () => {
     const c = hubClient(dir, null, { readOnly: true });
     await ok(c.get("/api/home"));
     expect(fs.readFileSync(path.join(dir, "payments", "architecture", "workspace.json"), "utf-8")).toBe(before);
+    // The page is told, so it shows everyone as a viewer.
+    expect((await ok(c.get("/api/hub"))).readOnly).toBe(true);
+    expect((await ok(hubClient(dir, null).get("/api/hub"))).readOnly).toBe(false);
   });
 
   it("hub.json is checked: folders that hold the hub or another project are refused", () => {

@@ -129,6 +129,7 @@ describe("off by default, and the settings", () => {
       const r = await c.post(path, forRoute(path, BODY.explain!));
       expect(r.status, path).toBe(409);
       expect(r.json().detail).toMatch(/turned off/);
+      expect(r.json().stale, path).toBeUndefined();
     }
     expect(sent).toEqual([]);
     expect(tree(dir)).toEqual(before);
@@ -373,6 +374,8 @@ describe("what was shown is what is sent", () => {
     const wrong = await c.post("/api/bmo/run", { ...BODY.explain, hash: "0".repeat(40) });
     expect(wrong.status).toBe(409);
     expect(wrong.json().detail).toMatch(/not the one that was shown/);
+    // Marked as an out-of-date preview, so the page can tell it from the other 409s (BMO turned off, a settings problem).
+    expect(wrong.json().stale).toBe(true);
     // The hash of another task's prompt does not do either.
     const other = await ok(c.post("/api/bmo/preview", BODY.challenge));
     expect((await c.post("/api/bmo/run", { ...BODY.explain, hash: other.hash })).status).toBe(409);

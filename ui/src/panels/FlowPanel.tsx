@@ -42,6 +42,8 @@ export function FlowPanel({
     .map((r) => ({ id: r.id, label: relLabel(r.id) }))
     .filter((o) => o.label.toLowerCase().includes(filter.toLowerCase()))
     .sort((a, b) => a.label.localeCompare(b.label));
+  // The picked relationship, only while the filter still shows it: what is added is what is seen.
+  const chosen = options.some((o) => o.id === pick) ? pick : "";
 
   const saveSteps = (steps: FlowStep[]) =>
     mutate(() =>
@@ -160,14 +162,21 @@ export function FlowPanel({
         <div className="add-step">
           <h4>Add a step</h4>
           <input placeholder="Filter relationships…" value={filter} onChange={(e) => setFilter(e.target.value)} data-testid="step-filter" />
-          <select value={pick} onChange={(e) => setPick(e.target.value)} size={6} data-testid="step-select">
+          <select value={chosen} onChange={(e) => setPick(e.target.value)} size={6} data-testid="step-select">
             {options.map((o) => (
               <option key={o.id} value={o.id}>
                 {o.label}
               </option>
             ))}
           </select>
-          <button disabled={!pick} data-testid="add-step" onClick={() => saveSteps([...flow.steps, { relationshipId: pick, description: "", response: false }])}>
+          <button
+            disabled={!chosen}
+            data-testid="add-step"
+            onClick={() => {
+              saveSteps([...flow.steps, { relationshipId: chosen, description: "", response: false }]);
+              setPick("");
+            }}
+          >
             Add step
           </button>
         </div>

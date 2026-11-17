@@ -257,7 +257,16 @@ button.link.tree-link .tree-mark {
 .left-stack > .dock {
   margin-top: auto;
 }
-/* Toasts hang below the first row of the top area. */
+/* Toasts hang below the first row of the top area, in a layer of their own (a page over the diagram covers the top area). */
+.toast-layer {
+  position: absolute;
+  top: var(--gutter);
+  left: var(--gutter);
+  right: var(--gutter);
+  height: 38px;
+  z-index: var(--z-toast);
+  pointer-events: none;
+}
 .toasts {
   position: absolute;
   top: calc(100% + var(--space-3));

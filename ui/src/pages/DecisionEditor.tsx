@@ -1,6 +1,6 @@
 /** The form for one decision record: fields change with the kind (DEC-050). Saves the whole record at once. */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { TagInput } from "../panels/formParts";
 import { Icon } from "../common/icons";
 import { objectName } from "./DecisionsPage";
@@ -32,13 +32,22 @@ interface Props {
   all: Decision[];
   onCancel(): void;
   onSave(body: Partial<Decision>): Promise<boolean>;
+  /** Told whenever the form starts or stops differing from the stored decision (the page asks before dropping changes). */
+  onDirty?(dirty: boolean): void;
 }
 
-export function DecisionEditor({ d, state, all, onCancel, onSave }: Props) {
+export function DecisionEditor({ d, state, all, onCancel, onSave, onDirty }: Props) {
   const [f, setF] = useState<Decision>(() => structuredClone(d));
   // Conditions are edited as one line each.
   const [conds, setConds] = useState<string[]>(() => d.alternatives.map((a) => a.wouldChooseIf.join("\n")));
   const [busy, setBusy] = useState(false);
+  const [first] = useState(() => JSON.stringify([f, conds]));
+  const dirty = JSON.stringify([f, conds]) !== first;
+  useEffect(() => {
+    onDirty?.(dirty);
+    return () => onDirty?.(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only a change of `dirty` is reported
+  }, [dirty]);
   const set = <K extends keyof Decision>(k: K, v: Decision[K]) => setF((x) => ({ ...x, [k]: v }));
   const setAlt = (i: number, patch: Partial<DecisionAlternative>) =>
     set(
