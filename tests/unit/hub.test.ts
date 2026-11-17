@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { checkHub, checkHubFolder, copyDemoHub, createHubApp, HubError, initHub } from "../../src/server/hub.js";
+import { initProject } from "../../src/core/project.js";
 import { caseInsensitiveDisk } from "../../src/core/util.js";
 import { roleIn, setRole, UsersError } from "../../src/core/users.js";
 import { Client, client, demoDir, ok, tmpDir, writeTestUsers } from "./helpers.js";
@@ -166,6 +167,14 @@ describe("hub", () => {
 
     const arch = await c.as("architect");
     await ok(arch.post("/api/hub/projects", { id: "cards", name: "Cards" }));
+    // A folder that already holds a model is not taken over without a word: 409 until the request says `adopt`.
+    initProject(path.join(dir, "legacy"), { demo: false, name: "Old model" });
+    const asked = await arch.post("/api/hub/projects", { id: "legacy", name: "Legacy" });
+    expect(asked.status).toBe(409);
+    expect(asked.json()).toMatchObject({ existing: true, folder: "legacy", workspaceName: "Old model" });
+    expect((await ok(arch.get("/api/hub"))).projects.map((p: any) => p.id)).not.toContain("legacy");
+    await ok(arch.post("/api/hub/projects", { id: "legacy", name: "Legacy", adopt: true }));
+    expect(JSON.parse(fs.readFileSync(path.join(dir, "legacy", "architecture", "workspace.json"), "utf-8")).name).toBe("Old model");
     expect(fs.existsSync(path.join(dir, "cards", "architecture", "workspace.json"))).toBe(true);
     expect((await ok(arch.get("/api/hub"))).projects.map((p: any) => p.id)).toContain("cards");
     expect((await ok(on(arch, "cards").get("/api/state"))).workspace.name).toBe("Cards");

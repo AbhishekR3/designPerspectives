@@ -54,6 +54,8 @@ import { useSelection } from "./hooks/useSelection";
 import { useShortcuts } from "./hooks/useShortcuts";
 import { confirmDialog, DialogHost, promptDialog } from "./common/dialogs";
 import { notify, Toasts } from "./common/notify";
+import { NotificationBell, type StandingItem } from "./common/Notifications";
+import { plural } from "./common/plural";
 import { CallPanel } from "./testing/CallPanel";
 import type { FlowTesting } from "./testing/flowTesting";
 import { continueCall, pausedTarget } from "./testing/pausedCall";
@@ -522,6 +524,21 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
     />
   ) : null;
   const decisionsToLook = state.decisions.filter(needsLook).length;
+  // What holds now, for the bell: a model that did not load cleanly, drafts behind the main model, decisions that wait.
+  const standing: StandingItem[] = [
+    ...state.loadErrors.map((text, i) => ({ id: `load-${i}`, tone: "warn" as const, text })),
+    ...state.drafts
+      .filter((d) => d.behind > 0)
+      .map((d) => ({
+        id: `draft-${d.id}`,
+        tone: "warn" as const,
+        text: `The draft "${d.title}" is ${plural(d.behind, "change")} behind the main model.`,
+        onOpen: () => void switchVersion(`draft:${d.id}`, "base"),
+      })),
+    ...(decisionsToLook
+      ? [{ id: "decisions", tone: "info" as const, text: `${plural(decisionsToLook, "decision")} ${decisionsToLook === 1 ? "needs" : "need"} a look.`, onOpen: () => openDecision(null) }]
+      : []),
+  ];
   const multiIds = selection?.type === "nodes" ? selection.ids : null;
   const movingEl = moveId ? state.elements.find((e) => e.id === moveId) : undefined;
 
@@ -906,6 +923,7 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
                     </select>
                   </label>
                   <span className="divider" />
+                  <NotificationBell standing={standing} />
                   <button
                     className={`ghost icon${helpOpen ? " on" : ""}`}
                     onClick={() => setHelpOpen(!helpOpen)}

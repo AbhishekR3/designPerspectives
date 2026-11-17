@@ -6,7 +6,7 @@ import path from "node:path";
 import type { AddressInfo } from "node:net";
 import { serve } from "@hono/node-server";
 import { test as base, expect } from "@playwright/test";
-import { staticDir } from "../../src/core/project.js";
+import { initProject, staticDir } from "../../src/core/project.js";
 import { copyDemoHub, createHubApp, initHub } from "../../src/server/hub.js";
 
 const test = base.extend<{ hub: { url: string; root: string } }>({
@@ -245,4 +245,55 @@ test("a card says its contents once, and a refresh that fails keeps the page", a
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
   await expect(page.getByTestId("error")).toContainText("could not be refreshed");
   await expect(card).toBeVisible();
+});
+
+test("the bell on the hub pages keeps an error after it is dismissed", async ({ page, hub }) => {
+  await page.goto(`${hub.url}#/home`);
+  await expect(page.getByTestId("project-payments")).toBeVisible();
+  await page.evaluate(() => (window.location.hash = "#/d/landscape?pr=no-such-project"));
+  await expect(page.getByTestId("error")).toContainText("no-such-project");
+  await page.getByRole("button", { name: "Dismiss" }).click();
+  await expect(page.getByTestId("notifications-count")).toHaveText("1");
+  await page.getByTestId("notifications").click();
+  await expect(page.getByTestId("notifications-panel")).toContainText("no-such-project");
+  // The bell does not sit on the page's own button.
+  const bell = (await page.getByTestId("notifications").boundingBox())!;
+  const add = (await page.getByTestId("project-new").boundingBox())!;
+  expect(add.x + add.width <= bell.x || add.y >= bell.y + bell.height).toBe(true);
+});
+
+test("New project on a folder that already holds a model asks first, and a create whose answer is lost still shows the project", async ({ page, hub }) => {
+  // A folder with a model that the hub does not list yet.
+  initProject(path.join(hub.root, "legacy"), { demo: false, name: "Old model" });
+  await page.goto(`${hub.url}#/home`);
+  await page.getByTestId("project-new").click();
+  await page.getByTestId("project-new-name").fill("Legacy");
+  await page.getByTestId("project-new-create").click();
+  const ask = page.getByTestId("dialog");
+  await expect(ask).toContainText("already holds a model");
+  await expect(ask).toContainText("Old model");
+  // No: nothing is added.
+  await page.getByTestId("dialog-cancel").click();
+  await expect(page.getByTestId("project-new-dialog")).toContainText("Not created");
+  expect(JSON.parse(fs.readFileSync(path.join(hub.root, "hub.json"), "utf-8")).projects.map((p: { id: string }) => p.id)).not.toContain("legacy");
+  // Yes: the model in the folder is the project.
+  await page.getByTestId("project-new-create").click();
+  await page.getByTestId("dialog-confirm").click();
+  await expect(page).toHaveURL(/pr=legacy/);
+  await expect(page.getByTestId("ws-name")).toHaveText("Old model"); // the model is kept as it is, its own name included
+
+  // A create that works on the server while the browser gets an error: the rail and the page show the project all the same.
+  await page.getByTestId("go-home").click();
+  await page.route("**/api/hub/projects", async (r) => {
+    await r.fetch();
+    await r.fulfill({ status: 502, contentType: "application/json", body: JSON.stringify({ detail: "The answer was lost." }) });
+  });
+  await page.getByTestId("project-new").click();
+  await page.getByTestId("project-new-name").fill("Cards");
+  await page.getByTestId("project-new-create").click();
+  await expect(page.getByTestId("project-new-dialog")).toContainText("The answer was lost.");
+  await expect(page.getByTestId("rail-project-cards")).toBeVisible();
+  await page.getByTestId("project-new-dialog").getByRole("button", { name: "Cancel" }).click();
+  await page.getByTestId("project-cards").click();
+  await expect(page).toHaveURL(/pr=cards/);
 });

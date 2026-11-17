@@ -64,7 +64,6 @@ Built in 0.5.0: `dp scan`, `dp import`, the import file (JSON, schema v1), revie
 
 | Task | What it covers | Source | Size |
 |---|---|---|---|
-| **New project on a folder that has a model** | The model in the folder is taken over without a word (`src/server/hub.ts`, `addProject`). Decide: keep it as the way to add an existing folder and say so in the dialog, or refuse. | [Review] | Small |
 | **Slow double-click on a selected box's name** | A second click after about 350 ms starts a rename where a double-click to open was meant. Not reproduced in a test (timing). | [Review] | Small |
 | **Arrow keys in the Move dialog** | The list has `role="option"` rows but no arrow-key movement; Enter in the filter works. | [Review] | Small |
 | **Hub pages while a deleted draft is open (single project)** | Catalog, history and credentials calls still carry the open draft's version; if that draft was deleted elsewhere they fail. Home and the project list no longer do. | [Review] | Small |

@@ -26,7 +26,7 @@ import { isProjectId } from "../core/users.js";
 import { syncCopies } from "../core/catalog.js";
 import { CredentialStore } from "../core/credentials.js";
 import { checkProject, type CheckResult } from "../core/cliReports.js";
-import type { CatalogUpdate } from "../shared/types.js";
+import type { CatalogUpdate, ExistingModelAnswer } from "../shared/types.js";
 import { atomicWrite, DEMO_DIR, initProject, NotFound, Project } from "../core/project.js";
 import { Auth } from "./auth.js";
 import { buildApp, onError } from "./app.js";
@@ -41,6 +41,17 @@ export const HUB_FILE = "hub.json";
 export const CATALOG_ID = "catalog";
 
 export class HubError extends Error {}
+
+/** New project on a folder that already holds a model: refused until the caller says to use that model (`adopt`). */
+export class ExistingModel extends Error {
+  constructor(
+    readonly folder: string,
+    /** The name of the workspace found there ("" when it cannot be read). */
+    readonly workspaceName: string,
+  ) {
+    super(`The folder "${folder}" already holds a model${workspaceName ? ` ("${workspaceName}")` : ""}.`);
+  }
+}
 
 export interface HubFile {
   version: 1;
@@ -328,8 +339,12 @@ export class Hub {
     return this.load(id, root).app;
   }
 
-  /** Add a project folder (a new empty or demo model) and list it in hub.json. */
-  addProject(id: string, name: string, folder: string | null, template: "empty" | "demo"): void {
+  /**
+   * Add a project folder (a new empty or demo model) and list it in hub.json. A folder that already holds a model is
+   * only taken as the project with `adopt` (the model there is kept as it is; the template is not used); without it
+   * `ExistingModel` is thrown, so a person is asked first.
+   */
+  addProject(id: string, name: string, folder: string | null, template: "empty" | "demo", adopt = false): void {
     this.reload();
     if (!isProjectId(id)) throw new ModelError("A project ID uses lower-case letters, digits and dashes, and starts with a letter or digit.");
     if (id === CATALOG_ID || this.file.projects.some((p) => p.id === id)) throw new ModelError(`There is already a project "${id}".`);
@@ -346,7 +361,18 @@ export class Hub {
       throw e;
     }
     const root = path.resolve(this.dir, rel);
-    if (!fs.existsSync(path.join(root, "architecture", "workspace.json"))) initProject(root, { demo: template === "demo", name: name.trim() || id });
+    const wsFile = path.join(root, "architecture", "workspace.json");
+    if (!fs.existsSync(wsFile)) initProject(root, { demo: template === "demo", name: name.trim() || id });
+    else if (!adopt) {
+      let found = "";
+      try {
+        const n = (JSON.parse(fs.readFileSync(wsFile, "utf-8")) as { name?: unknown }).name;
+        if (typeof n === "string") found = n;
+      } catch {
+        /* an unreadable model is still a model in the way */
+      }
+      throw new ExistingModel(rel, found);
+    }
     writeHubFile(this.dir, next);
     this.reload();
   }
@@ -388,7 +414,13 @@ export function createHubApp(dir: string, opts: AppOptions = {}): { app: Hono; h
     const b = await objBody(c);
     const id = typeof b.id === "string" ? b.id.trim() : "";
     const template = b.template === "demo" ? "demo" : "empty";
-    hub.addProject(id, typeof b.name === "string" ? b.name : "", typeof b.path === "string" ? b.path : null, template);
+    try {
+      hub.addProject(id, typeof b.name === "string" ? b.name : "", typeof b.path === "string" ? b.path : null, template, b.adopt === true);
+    } catch (e) {
+      // The page asks the person and sends the request again with `adopt`.
+      if (e instanceof ExistingModel) return c.json({ detail: e.message, existing: true, folder: e.folder, workspaceName: e.workspaceName } satisfies ExistingModelAnswer, 409);
+      throw e;
+    }
     return c.json({ id });
   });
 

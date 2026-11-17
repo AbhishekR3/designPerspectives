@@ -343,3 +343,40 @@ test.describe("more small things", () => {
     await expect(page.getByTestId("decision-new")).toHaveCount(0);
   });
 });
+
+test.describe("the notification bell", () => {
+  test("an error that was dismissed can still be read, and the count shows what is new", async ({ page }) => {
+    await openDiagram(page, KEY);
+    await expect(page.getByTestId("notifications-count")).toHaveCount(0);
+    await node(page, "atm").click();
+    const field = page.getByTestId("field-name");
+    await field.fill("");
+    await field.press("Enter");
+    await expect(page.getByTestId("error")).toBeVisible();
+    await page.getByRole("button", { name: "Dismiss" }).click();
+    await expect(page.getByTestId("error")).toHaveCount(0);
+    await expect(page.getByTestId("notifications-count")).toHaveText("1");
+    await page.getByTestId("notifications").click();
+    const panel = page.getByTestId("notifications-panel");
+    await expect(panel.getByTestId("notification-log")).toHaveCount(1);
+    await expect(panel).toContainText(/name/i);
+    // Opened: nothing is new any more, and the line stays until it is cleared.
+    await expect(page.getByTestId("notifications-count")).toHaveCount(0);
+    await page.keyboard.press("Escape");
+    await expect(panel).toHaveCount(0);
+    await page.getByTestId("notifications").click();
+    await expect(panel.getByTestId("notification-log")).toHaveCount(1);
+    await page.getByTestId("notifications-clear").click();
+    await expect(panel.getByTestId("notification-log")).toHaveCount(0);
+  });
+
+  test("what waits now is listed and opens: the decisions that need a look", async ({ page }) => {
+    await openDiagram(page, KEY);
+    await page.getByTestId("notifications").click();
+    const item = page.getByTestId("notification-decisions");
+    await expect(item).toContainText("1 decision needs a look");
+    await item.click();
+    await expect(page.getByTestId("decisions-page")).toBeVisible();
+    await expect(page.getByTestId("notifications-panel")).toHaveCount(0);
+  });
+});

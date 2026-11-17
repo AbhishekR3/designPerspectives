@@ -3,6 +3,7 @@
 import { DialogHost } from "../common/dialogs";
 import { Icon } from "../common/icons";
 import { Toasts } from "../common/notify";
+import { NotificationBell } from "../common/Notifications";
 import { UserChip } from "../common/UserChip";
 import type { HubInfo } from "../types";
 import { projectLink } from "../hooks/useNavigation";
@@ -61,6 +62,9 @@ export function HubShell({ hub, page, onSignOut, onChanged }: { hub: HubInfo; pa
         {page === "catalog" && <CatalogPage hub={hub} />}
         {page === "credentials" && <CredentialsPage hub={hub} />}
         {page === "history" && <HistoryPage hub={hub} />}
+        <div className="hub-bell">
+          <NotificationBell className="float-btn icon" />
+        </div>
         <div className="hub-toasts">
           <Toasts />
         </div>

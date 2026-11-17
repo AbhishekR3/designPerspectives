@@ -13,14 +13,28 @@ export interface ErrorAction {
   run(): void;
 }
 
+/** One line of the notification log (the bell): an error or a notice shown in this tab, newest first. Kept for the session, in memory only. */
+export interface LogEntry {
+  id: number;
+  kind: "error" | "info";
+  message: string;
+  /** When it was shown (ms since the epoch). */
+  at: number;
+}
+
 interface Snapshot {
   error: string | null;
   errorAction: ErrorAction | null;
   successes: { id: number; message: string; kind: "success" | "info" }[];
+  /** Errors and notices shown so far, newest first; a message gone from the screen can still be read here. */
+  log: LogEntry[];
+  /** How many log entries came in since the log was last opened. */
+  unread: number;
 }
 
 const SUCCESS_MS = 3000;
-let snap: Snapshot = { error: null, errorAction: null, successes: [] };
+const LOG_MAX = 50;
+let snap: Snapshot = { error: null, errorAction: null, successes: [], log: [], unread: 0 };
 let nextId = 1;
 const listeners = new Set<() => void>();
 
@@ -37,9 +51,16 @@ const getSnapshot = () => snap;
 /** While the session has ended (the sign-in page is shown) the failures of the calls that ended it are not reported. */
 let suspended = false;
 
+/** Add a line to the log. The same message as the newest line is not added again (a retry that fails the same way). */
+function logged(kind: LogEntry["kind"], message: string): Pick<Snapshot, "log" | "unread"> {
+  if (snap.log[0]?.kind === kind && snap.log[0].message === message) return { log: snap.log, unread: snap.unread };
+  return { log: [{ id: nextId++, kind, message, at: Date.now() }, ...snap.log].slice(0, LOG_MAX), unread: snap.unread + 1 };
+}
+
 const setError = (message: string | null, action: ErrorAction | null = null) => {
   if (suspended && message !== null) return;
-  if (snap.error !== message || snap.errorAction !== action) set({ error: message, errorAction: message === null ? null : action });
+  if (snap.error !== message || snap.errorAction !== action)
+    set({ error: message, errorAction: message === null ? null : action, ...(message !== null && snap.error !== message ? logged("error", message) : {}) });
 };
 
 export const notify = {
@@ -53,11 +74,21 @@ export const notify = {
   success: (message: string) => toast(message, "success"),
   /** A short notice that is not an error: it disappears by itself, like a success. */
   info: (message: string) => toast(message, "info"),
+  /** The log was opened: nothing in it is new any more. */
+  markRead: () => snap.unread && set({ unread: 0 }),
+  clearLog: () => set({ log: [], unread: 0 }),
 };
+
+/** The notification log and how many of its lines are new (for the bell). */
+export function useNotificationLog(): { log: LogEntry[]; unread: number } {
+  const { log, unread } = useSyncExternalStore(subscribe, getSnapshot);
+  return { log, unread };
+}
 
 function toast(message: string, kind: "success" | "info") {
   const id = nextId++;
-  set({ successes: [...snap.successes, { id, message, kind }] });
+  // A notice is kept in the log (it is gone from the screen in seconds); a success is not: it only confirms what the person just did.
+  set({ successes: [...snap.successes, { id, message, kind }], ...(kind === "info" ? logged("info", message) : {}) });
   window.setTimeout(() => set({ successes: snap.successes.filter((s) => s.id !== id) }), SUCCESS_MS);
 }
 

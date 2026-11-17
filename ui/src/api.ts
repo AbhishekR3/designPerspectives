@@ -236,7 +236,7 @@ export const api = {
   catalogUsage: () => request<SharedUsage>("GET", "/catalog/usage"),
   history: (project?: string | null) => request<HistoryList>("GET", `/history${project ? `?project=${enc(project)}` : ""}`),
   refreshWork: () => request<WorkRefresh>("POST", "/work/refresh"),
-  addProject: (body: { id: string; name: string; template: "empty" | "demo" }) => request<{ id: string }>("POST", "/hub/projects", body),
+  addProject: (body: { id: string; name: string; template: "empty" | "demo"; adopt?: boolean }) => request<{ id: string }>("POST", "/hub/projects", body),
   credentials: () => request<CredentialList>("GET", "/credentials"),
   addCredential: (body: { name: string; provider: string; scopes: string[]; note: string; value: string }) => request("POST", "/credentials", body),
   rotateCredential: (name: string, value: string) => request("PUT", `/credentials/${enc(name)}`, { value }),

@@ -83,9 +83,19 @@
   overflow-y: auto;
   min-height: 0;
 }
-.hub-toasts .toasts {
+/* The bell of the hub pages: the top right corner; the page header keeps clear of it, and messages hang below it. */
+.hub-bell {
   position: fixed;
   top: 12px;
+  right: 16px;
+  z-index: var(--z-pop-menu);
+}
+.hub-main .home-head {
+  padding-right: 36px;
+}
+.hub-toasts .toasts {
+  position: fixed;
+  top: 52px;
   right: 16px;
   z-index: var(--z-toast);
 }

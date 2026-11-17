@@ -85,6 +85,84 @@ kbd {
   overflow-y: auto;
   overscroll-behavior: contain;
 }
+/* The notification bell: a count of new lines (or a dot when something waits), and its list. */
+.bell-wrap {
+  position: relative;
+  display: inline-flex;
+}
+.bell-btn {
+  position: relative;
+}
+.bell-count,
+.bell-dot {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  border-radius: 999px;
+  background: var(--danger);
+  color: #fff;
+  pointer-events: none;
+}
+.bell-count {
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  font-size: 9px;
+  line-height: 14px;
+  font-weight: 700;
+  text-align: center;
+}
+.bell-dot {
+  width: 7px;
+  height: 7px;
+  background: #fbbf24;
+}
+.pop-menu.bell-panel {
+  width: min(360px, calc(100vw - 2 * var(--gutter)));
+  gap: 2px;
+}
+.bell-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 8px 2px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.bell-head button.link {
+  width: auto;
+  padding: 0;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.bell-item,
+.pop-menu button.bell-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 8px;
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+.bell-item svg {
+  flex: none;
+  margin-top: 2px;
+}
+.bell-item.error svg {
+  color: var(--danger);
+}
+.bell-item.warn svg {
+  color: #fbbf24;
+}
+.bell-empty {
+  padding: 4px 8px 8px;
+  margin: 0;
+}
 .pop-menu.wide {
   min-width: min(260px, calc(100vw - 2 * var(--gutter)));
 }

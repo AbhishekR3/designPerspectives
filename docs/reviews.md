@@ -59,7 +59,7 @@ The owner reported two problems on the hub home page (the rail said "0 projects"
 - **The owner's "0 projects" was not reproduced.** In a new hub, New project, then Home shows one project in the rail and on the page, on the old build as well. What is confirmed and fixed is the mechanism: the rail's list was loaded once, so a project that arrived any other way (another tab or window, a colleague, the command line, a create that failed in the browser but worked on the server) left the rail behind, and the card of such a project did nothing. How the screenshot came about is not known.
 - Two fixes from the plan were taken back because existing tests showed the old behaviour is intended: **Suggest labels** and **Ask BMO** stay clickable for someone who cannot import (they are told why), and Back onto a draft that is gone still shows an error.
 - Fixed without a test of their own: the details table that lost typing (timing), the Changes panel closing when a comparison stops, the cleared plan branch, the prompt that goes when the level changes, the emptied paste box, flow and decision items in the import review, the review not carrying over between drafts, credential forms sent twice, the role chip on a read-only hub, Enter in the Move dialog, and the wording of counts.
-- Not changed, in `future_tasks.md`: New project takes over a folder that already holds a model; a slow double-click on a selected box's name starts a rename; arrow keys in the Move dialog's list; on a single-project server the home pages fail when the open draft was deleted elsewhere (the hub and home calls no longer depend on the open draft, the other pages still do).
+- Not changed, in `future_tasks.md`: a slow double-click on a selected box's name starts a rename; arrow keys in the Move dialog's list; on a single-project server the home pages fail when the open draft was deleted elsewhere (the hub and home calls no longer depend on the open draft, the other pages still do).
 - A copy that is undone before it was shown stays "waiting to be shown"; a redo then shows it.
 
 ### Questions for the owner
@@ -70,7 +70,12 @@ The owner reported two problems on the hub home page (the rail said "0 projects"
 
 ### Owner feedback
 
-(none yet)
+Answered on 2026-11-16:
+
+1. "I dont remember anymore. Can you just check both." Done: a project added from a second window is covered by a test, and so is a create that works on the server while the browser gets an error (the dialog now refreshes the rail and the page when a create fails). Neither a single window nor these two leave the rail behind any more. The screenshot itself is still not explained.
+2. "You can give warning pop ups in this." Done: DEC-081.
+3. "Go with what you think is best." Kept: one rule, proposed decisions included (DEC-079). Reason (interpretation): a badge and a filter that disagree were the bug; a proposed decision does wait for someone.
+4. New request: a notification symbol at the top right with the warnings, errors and other things to see. Done: DEC-080. Four more browser tests and one unit test addition; 227 browser tests and 994 unit tests pass.
 
 ## System Testing mode (replaces the live UI inspector)
 

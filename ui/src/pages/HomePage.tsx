@@ -5,7 +5,8 @@
 
 import { plural } from "../common/plural";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { api } from "../api";
+import { api, ApiError } from "../api";
+import { confirmDialog } from "../common/dialogs";
 import { StatusBadge } from "./DecisionsPage";
 import { Modal } from "../panels/formParts";
 import { Icon } from "../common/icons";
@@ -112,7 +113,7 @@ export function HomePage({ hub, onChanged }: { hub: HubInfo; onChanged(): Promis
             {home.mode === "hub"
               ? `${plural(home.projects.filter((p) => !p.catalog).length, "project")}${home.projects.some((p) => p.catalog) ? " and a shared catalog" : ""}`
               : "Overview of the model"}
-            {problems > 0 ? ` · ${problems} thing${problems === 1 ? "" : "s"} need a look` : " · nothing needs a look"}
+            {problems > 0 ? ` · ${plural(problems, "thing")} ${problems === 1 ? "needs" : "need"} a look` : " · nothing needs a look"}
           </p>
         </div>
         <span className="grow" />
@@ -273,6 +274,10 @@ export function HomePage({ hub, onChanged }: { hub: HubInfo; onChanged(): Promis
       {creating && (
         <NewProjectDialog
           onClose={() => setCreating(false)}
+          onFailed={() => {
+            void onChanged();
+            load();
+          }}
           onCreated={(id) => {
             setCreating(false);
             notify.success("Project created.");
@@ -384,7 +389,7 @@ const slug = (s: string) =>
     .slice(0, 40);
 
 /** A new project folder in the hub, from a blank model or the demo bank (like starting from a template). */
-function NewProjectDialog({ onClose, onCreated }: { onClose(): void; onCreated(id: string): void }) {
+function NewProjectDialog({ onClose, onCreated, onFailed }: { onClose(): void; onCreated(id: string): void; onFailed(): void }) {
   const [name, setName] = useState("");
   const [id, setId] = useState("");
   const [idTouched, setIdTouched] = useState(false);
@@ -399,10 +404,28 @@ function NewProjectDialog({ onClose, onCreated }: { onClose(): void; onCreated(i
         onSubmit={(e) => {
           e.preventDefault();
           setBusy(true);
-          api
-            .addProject({ id: theId, name: name.trim(), template })
+          setErr(null);
+          const add = (adopt: boolean) => api.addProject({ id: theId, name: name.trim(), template, ...(adopt ? { adopt } : {}) });
+          add(false)
+            .catch(async (x) => {
+              // The folder already holds a model: ask before it becomes this project (nothing is made from the template then).
+              const d = x instanceof ApiError && x.status === 409 && x.data?.existing === true ? x.data : null;
+              if (!d) throw x;
+              const found = typeof d.workspaceName === "string" && d.workspaceName ? ` ("${d.workspaceName}")` : "";
+              const yes = await confirmDialog({
+                title: "This folder already holds a model",
+                message: `The folder "${String(d.folder)}" already holds a model${found}. Use it as this project? The model is kept as it is; nothing is made from "${template === "demo" ? "Demo bank" : "Blank model"}".`,
+                confirmLabel: "Use the model in the folder",
+              });
+              if (!yes) throw new Error("Not created. Pick another folder and ID, or use the model in the folder.");
+              return add(true);
+            })
             .then(() => onCreated(theId))
-            .catch((x) => setErr(errorMessage(x)))
+            .catch((x) => {
+              setErr(errorMessage(x));
+              // The request may have worked on the server all the same (a lost answer): show what is there now.
+              onFailed();
+            })
             .finally(() => setBusy(false));
         }}
       >

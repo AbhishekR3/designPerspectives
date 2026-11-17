@@ -885,6 +885,14 @@ export interface HubInfo {
   readOnly: boolean;
 }
 
+/** The 409 answer of `POST /api/hub/projects` when the folder already holds a model; sending `adopt: true` uses that model. */
+export interface ExistingModelAnswer {
+  detail: string;
+  existing: true;
+  folder: string;
+  workspaceName: string;
+}
+
 export interface HubProject {
   id: string;
   name: string;
