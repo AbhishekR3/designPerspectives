@@ -31,7 +31,7 @@ export function fromHash(): HashState {
   const h = window.location.hash;
   const m = /^#\/d\/([^?]+)(?:\?(.*))?$/.exec(h);
   // A page with no diagram yet: `#/decisions...` (a link someone typed or shared).
-  const bare = /^#\/(decisions(?:\/[^?]*)?)(?:\?(.*))?$/.exec(h);
+  const bare = /^#\/(decisions(?:\/[^?]*)?|work)(?:\?(.*))?$/.exec(h);
   const q = new URLSearchParams(m?.[2] ?? bare?.[2] ?? "");
   return {
     key: m?.[1] ? safeDecode(m[1]) : null,

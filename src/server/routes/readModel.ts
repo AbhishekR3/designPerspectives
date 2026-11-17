@@ -13,7 +13,7 @@ export function registerRead(app: Hono, ctx: Ctx): void {
   /** For process monitors: the server is up and the model files load. */
   app.get("/api/health", (c) => c.json({ ok: true, version: version(), loadErrors: project.loadErrors.length }));
 
-  app.get("/api/state", (c) => c.json(state(project, readOnly, sel(), drafts, gitModels, ctx.access(c))));
+  app.get("/api/state", (c) => c.json(state(project, readOnly, sel(), drafts, gitModels, ctx.access(c), ctx.workConnections())));
 
   /** The changes between the shown model and the one it is compared with. */
   const changes = (): ChangeSet => {

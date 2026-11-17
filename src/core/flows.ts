@@ -17,10 +17,10 @@
 
 import { decorate, positionsOf, type RawEdge, type RawNode } from "./diagrams.js";
 import { inlineJson, isObj, str, type Obj } from "./util.js";
-import { buildIndex, elementSummary, ModelError, relationshipSummary, slugify, unique, type Index } from "./modelEdits.js";
+import { buildIndex, elementSummary, getJson, ModelError, relationshipSummary, slugify, unique, WORK_KEY, type Index } from "./modelEdits.js";
 import type { Sidecar } from "./designPerspectivesFile.js";
 import { allViews, type RelationshipView, type View, type Workspace } from "./workspace.js";
-import type { Diagram, Flow } from "../shared/types.js";
+import type { Diagram, Flow, WorkItem } from "../shared/types.js";
 
 export const FLOW_PROPERTY = "dp.flow";
 export const STEP_DATA_PROPERTY = "dp.stepData"; // JSON {"<order>": {"example": str, "format": str}} on the flow's view
@@ -134,6 +134,7 @@ export function listFlows(ws: Workspace): Flow[] {
         example: data[rv.order ?? ""]?.example ?? "",
         format: data[rv.order ?? ""]?.format ?? "",
       })),
+      work: getJson<WorkItem>(v, WORK_KEY),
     };
   });
 }
@@ -271,6 +272,7 @@ export function flowDiagram(ws: Workspace, key: string, sidecar?: Sidecar | null
       edges: [...edges.values()],
       addable: [],
       flow,
+      work: flow.work,
     },
     sidecar ?? null,
   );

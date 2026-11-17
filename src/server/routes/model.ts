@@ -4,10 +4,10 @@ import type { Hono } from "hono";
 import * as diagrams from "../../core/diagrams.js";
 import * as flows from "../../core/flows.js";
 import { isObj, str, type Obj } from "../../core/util.js";
-import { applyStates, fetchStates, gitHubLinks } from "../../core/githubWorkStatus.js";
+import { applyStatuses, failures, fetchStatuses, refreshPlan, tokenFor } from "../../core/workStatus.js";
 import * as ops from "../../core/modelEdits.js";
 import { ModelError } from "../../core/modelEdits.js";
-import type { WorkRefresh } from "../../shared/types.js";
+import { WORK_TOOLS, type WorkRefresh, type WorkToolId } from "../../shared/types.js";
 import { body, HttpError, needStr, objBody, optStr, point, type Ctx } from "../routeContext.js";
 
 export function registerModel(app: Hono, ctx: Ctx): void {
@@ -245,18 +245,30 @@ export function registerFlows(app: Hono, ctx: Ctx): void {
   });
 }
 
-/** Linked work status from GitHub (DEC-059): one button refreshes every GitHub issue and pull request link of the shown version. */
+/** Linked work status (DEC-059, DEC-085): one button refreshes every link of the shown version that a connection
+ *  knows (GitHub, GitLab, SonarQube, Jira), wherever it is pinned. Optional body: {"tools": [...]} for some tools only. */
 export function registerWork(app: Hono, ctx: Ctx): void {
   app.post("/api/work/refresh", async (c) => {
+    const b = await body(c);
+    if (b !== null && !isObj(b)) throw new HttpError(422, "The request body must be a JSON object.");
+    let tools: WorkToolId[] | undefined;
+    if (b && b.tools !== undefined) {
+      if (!Array.isArray(b.tools) || b.tools.some((t) => typeof t !== "string" || !(WORK_TOOLS as readonly string[]).includes(t))) {
+        throw new HttpError(422, `"tools" is a list of: ${WORK_TOOLS.join(", ")}.`);
+      }
+      tools = b.tools as WorkToolId[];
+    }
     const project = ctx.writable();
     project.reloadIfChanged();
-    const urls = gitHubLinks(project.workspace);
-    const cred = urls.length ? ctx.credentials.byProvider("github") : null;
-    const states = urls.length ? await fetchStates(urls, cred?.value ?? null, ctx.fetch) : new Map();
+    const connections = ctx.integrations.connections();
+    const plan = refreshPlan(project.workspace, connections, tools);
+    const { states, byTool } = await fetchStatuses(plan, (conn) => tokenFor(conn, ctx.credentials, connections), ctx.fetch, project.sidecar.work.severity);
+    const now = new Date().toISOString();
     // Look on a copy first: nothing to change, nothing written (and no undo step).
-    const would = applyStates(structuredClone(project.workspace), structuredClone(project.sidecar), states);
-    const updated = would.length ? ctx.edit((ws, sc) => applyStates(ws, sc, states)) : [];
-    const failed = [...states].filter(([, s]) => "error" in s).map(([url, s]) => ({ url, reason: (s as { error: string }).error }));
-    return c.json({ checked: urls.length, updated, failed, usedCredential: cred?.name ?? null } satisfies WorkRefresh);
+    const copy = structuredClone(project.workspace);
+    applyStatuses(copy, states, now);
+    const changed = JSON.stringify(copy) !== JSON.stringify(project.workspace);
+    const updated = changed ? ctx.edit((ws) => applyStatuses(ws, states, now)) : [];
+    return c.json({ checked: plan.links.length, updated, failed: failures(plan, states), byTool, unknown: plan.unknown } satisfies WorkRefresh);
   });
 }

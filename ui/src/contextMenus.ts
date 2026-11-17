@@ -11,7 +11,7 @@ import { addBlockedReason } from "./canvas/connectRequired";
 import { automaticLabel } from "./canvas/lineShapes";
 import { paletteItems, type PaletteItem } from "./canvas/Palette";
 import { edgeCommentTarget } from "./common/comments";
-import { selectedNodeIds, type AppState, type CommentTarget, type Diagram, type DiagramEdge, type DiagramNode, type EdgeLayout, type Pt, type Selection, type Style } from "./types";
+import { selectedNodeIds, type AppState, type CommentTarget, type WorkTarget, type Diagram, type DiagramEdge, type DiagramNode, type EdgeLayout, type Pt, type Selection, type Style } from "./types";
 import type { Clipboard } from "./hooks/useClipboard";
 
 /** Choices in the line menus; labels match the panel. */
@@ -125,6 +125,8 @@ export interface MenuContext {
   placeNote(at: Pt): void;
   /** Open the checklist with a new item about this object or diagram (absent: the role cannot change the checklist). */
   addToChecklist?(target: CommentTarget, selectAs: Selection): void;
+  /** Open the Work page with an add form for this object or diagram (absent: the model cannot be changed here). */
+  linkWork?(target: WorkTarget, selectAs: Selection): void;
   /** Open the BMO chat about an element or a relationship. */
   askBmo?(target: { element?: string; relationship?: string }): void;
 }
@@ -167,6 +169,7 @@ export function menuItems(menu: MenuState | null, c: MenuContext): MenuItem[] {
       el &&
         !n.ghost &&
         c.addToChecklist && { label: "Add to checklist…", icon: "checklist", testId: "ctx-checklist", onSelect: () => c.addToChecklist!({ type: "element", id: n.id }, { type: "node", id: n.id }) },
+      el && !n.ghost && c.linkWork && { label: "Link work…", icon: "work", testId: "ctx-work", onSelect: () => c.linkWork!({ type: "element", id: n.id }, { type: "node", id: n.id }) },
       el && !n.ghost && c.askBmo && { label: "Ask BMO about this…", testId: "ctx-ask-bmo", onSelect: () => c.askBmo!({ element: n.id }) },
       { sep: true },
       canEditEl && { label: "Rename", icon: "edit", shortcut: "F2", testId: "ctx-rename", onSelect: () => setRenameId(n.id) },
@@ -253,6 +256,7 @@ export function menuItems(menu: MenuState | null, c: MenuContext): MenuItem[] {
       },
       commentTarget && c.canComment && { label: "Comment…", icon: "comment", testId: "ctx-comment", onSelect: () => c.comment(commentTarget, { type: "edge", id: e.id }) },
       commentTarget && c.addToChecklist && { label: "Add to checklist…", icon: "checklist", testId: "ctx-checklist", onSelect: () => c.addToChecklist!(commentTarget, { type: "edge", id: e.id }) },
+      commentTarget && c.linkWork && { label: "Link work…", icon: "work", testId: "ctx-work", onSelect: () => c.linkWork!(commentTarget, { type: "edge", id: e.id }) },
       relId && !e.ghost && c.askBmo && { label: "Ask BMO about this…", testId: "ctx-ask-bmo", onSelect: () => c.askBmo!({ relationship: relId }) },
       { sep: true },
       lineEditable && {
@@ -315,6 +319,7 @@ export function menuItems(menu: MenuState | null, c: MenuContext): MenuItem[] {
       c.canComment && { label: "Add note here…", icon: "comment", testId: "ctx-add-note", onSelect: () => c.placeNote(at) },
       c.canComment && { label: "Comment on this diagram…", icon: "comment", testId: "ctx-comment", onSelect: () => c.comment({ type: "diagram", id: diagram.key }, null) },
       c.addToChecklist && { label: "Add to checklist…", icon: "checklist", testId: "ctx-checklist", onSelect: () => c.addToChecklist!({ type: "diagram", id: diagram.key }, null) },
+      diagram.work && !frozen && c.linkWork && { label: "Link work…", icon: "work", testId: "ctx-work", onSelect: () => c.linkWork!({ type: "diagram", id: diagram.key }, null) },
       addable.length > 0 && {
         label: "Add here",
         icon: "plus",

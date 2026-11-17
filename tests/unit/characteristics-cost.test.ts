@@ -153,7 +153,7 @@ describe("characteristics and cost", () => {
     await ok(c.patch(`/api/relationships/${rel.id}`, { work: [{ type: "update", title: "Move to TLS 1.3" }] }));
     const rel2 = (await ok(c.get("/api/state"))).relationships.find((r: any) => r.id === rel.id);
     expect(rel2.work).toEqual([{ type: "update", title: "Move to TLS 1.3", status: "open" }]);
-    expect(new Set((await ok(c.get("/api/state"))).enums.workTypes.map((t: any) => t.id))).toEqual(new Set(["security", "pr", "issue", "backlog", "update"]));
+    expect(new Set((await ok(c.get("/api/state"))).enums.workTypes.map((t: any) => t.id))).toEqual(new Set(["security", "pr", "issue", "backlog", "update", "quality"]));
   });
 });
 

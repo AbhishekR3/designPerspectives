@@ -65,6 +65,7 @@ export const WORK_LABEL: Record<string, string> = {
   issue: "Issues / bugs",
   backlog: "Backlog",
   update: "Required updates",
+  quality: "Quality gates and scans",
 };
 export const SEVERITY_COLORS: Record<string, string> = { critical: "#dc2626", high: "#f97316", medium: "#eab308", low: "#3b82f6", open: "#a78bfa" };
 const SEV_ORDER = ["critical", "high", "medium", "low", "open"];

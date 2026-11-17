@@ -1,4 +1,5 @@
 import { plural } from "../common/plural";
+import { isOpenWork } from "../../../src/shared/workLinks";
 import { useEffect, useRef, useState } from "react";
 import { Icon, iconFor } from "../common/icons";
 import type { AppState, Diagram, Flow } from "../types";
@@ -107,6 +108,11 @@ export function FlowCard({
                   {f.title}
                 </span>{" "}
                 <span className="muted">{plural(f.steps.length, "step")}</span>
+                {f.work.some(isOpenWork) && (
+                  <span className="work-count" title={`${plural(f.work.filter(isOpenWork).length, "open linked work item")} on this flow`} data-testid={`work-count-${f.key}`}>
+                    {f.work.filter(isOpenWork).length}
+                  </span>
+                )}
               </button>
             ))}
             {!state.readOnly && (

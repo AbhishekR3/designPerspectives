@@ -216,9 +216,9 @@ export function EdgePanel({ edgeId, ...p }: Common & { edgeId: string }) {
           title={`Linked work${openWork(r).length ? ` · ${openWork(r).length} open` : ""}`}
           count={r.work.length}
           testId="sec-rel-work"
-          footer={<WorkRefreshButton rows={r.work} mutate={p.mutate} readOnly={state.readOnly} />}
+          footer={<WorkRefreshButton state={state} mutate={p.mutate} />}
         >
-          <WorkEditor rows={r.work} enums={p.state.enums} onSave={(rows) => save({ work: rows })} />
+          <WorkEditor rows={r.work} enums={p.state.enums} connections={state.workConnections} onSave={(rows) => save({ work: rows })} />
         </Section>
       )}
       {has("notes") && (

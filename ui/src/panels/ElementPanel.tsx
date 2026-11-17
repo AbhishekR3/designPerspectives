@@ -132,9 +132,9 @@ export function ObjectPanel({ element, ...p }: Common & { element: ElementSummar
           title={`Linked work${openWork(element).length ? ` · ${openWork(element).length} open` : ""}`}
           count={element.work.length}
           testId="sec-work"
-          footer={<WorkRefreshButton rows={element.work} mutate={p.mutate} readOnly={state.readOnly} />}
+          footer={<WorkRefreshButton state={state} mutate={p.mutate} />}
         >
-          <WorkEditor rows={element.work} enums={state.enums} onSave={(r) => save({ work: r })} />
+          <WorkEditor rows={element.work} enums={state.enums} connections={state.workConnections} onSave={(r) => save({ work: r })} />
         </Section>
       )}
       {has("details") && (

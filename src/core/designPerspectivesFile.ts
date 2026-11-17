@@ -6,13 +6,30 @@
  * - `styles`:  colours/line styles per element or relationship ID (global, all diagrams)
  * - `layouts`: per-diagram data: box sizes, edge geometry (anchors, bend point, label position, routing),
  *              and, for diagrams Structurizr has no view for (connector detail, code), box positions
+ * - `work`:    linked work settings: `severity`, how tools' severities become dp's (DEC-087)
  *
  * Tag *values* and descriptive fields live on the elements themselves, as Structurizr element
  * properties named `dp.*` (see modelEdits.ts).
  */
 
 import { deepEqual, isObj, ordered, type Obj } from "./util.js";
-import { LEVELS, SECTIONS, type CharacteristicDef, type CostSettings, type EdgeLayout, type Lens, type Level, type Pt, type Section, type Style, type TagGroup } from "../shared/types.js";
+import {
+  DEFAULT_WORK_SEVERITY,
+  LEVELS,
+  SECTIONS,
+  WORK_SEVERITY_TABLES,
+  type CharacteristicDef,
+  type CostSettings,
+  type EdgeLayout,
+  type Lens,
+  type Level,
+  type Pt,
+  type Section,
+  type Style,
+  type TagGroup,
+  type WorkSeverityChoice,
+  type WorkSeverityMaps,
+} from "../shared/types.js";
 
 export { LEVELS, SECTIONS };
 
@@ -48,6 +65,55 @@ export function defaultCost(): CostSettings {
       { name: "Very high", max: null, color: "#ef4444" },
     ],
   };
+}
+
+export const defaultWorkSeverity = (): WorkSeverityMaps => structuredClone(DEFAULT_WORK_SEVERITY);
+
+const SEVERITY_CHOICES: readonly WorkSeverityChoice[] = ["critical", "high", "medium", "low", ""];
+const SEVERITY_TABLE_MAX = 50;
+const SEVERITY_NAME_MAX = 60;
+
+/**
+ * The severity mapping from a file or a request (DEC-087). A table or the scores left out take the defaults;
+ * anything else that is wrong is an Error that says what. Names are trimmed and put in lower case.
+ */
+export function cleanWorkSeverity(v: unknown): WorkSeverityMaps {
+  if (v === undefined || v === null) return defaultWorkSeverity();
+  if (!isObj(v)) throw new Error("The severity mapping must be an object.");
+  const out = defaultWorkSeverity();
+  if (v.sarifScore !== undefined) {
+    const s = objOr(v.sarifScore);
+    const num = (k: "critical" | "high" | "medium") => {
+      const n = s[k] === undefined ? out.sarifScore[k] : Number(s[k]);
+      if (!Number.isFinite(n) || n < 0 || n > 10) throw new Error(`The SARIF score for ${k} must be a number from 0 to 10.`);
+      return n;
+    };
+    out.sarifScore = { critical: num("critical"), high: num("high"), medium: num("medium") };
+    if (!(out.sarifScore.critical > out.sarifScore.high && out.sarifScore.high > out.sarifScore.medium)) throw new Error("The SARIF scores must go down from critical to high to medium.");
+  }
+  for (const t of WORK_SEVERITY_TABLES) {
+    if (v[t] === undefined) continue;
+    if (!isObj(v[t])) throw new Error(`The severity table "${t}" must be an object of name → severity.`);
+    const entries = Object.entries(v[t] as Obj);
+    if (entries.length > SEVERITY_TABLE_MAX) throw new Error(`The severity table "${t}" has more than ${SEVERITY_TABLE_MAX} names.`);
+    const table: Record<string, WorkSeverityChoice> = {};
+    for (const [rawName, sev] of entries) {
+      const name = rawName.trim().toLowerCase();
+      if (!name || name.length > SEVERITY_NAME_MAX || [...name].some((ch) => ch.charCodeAt(0) < 32)) throw new Error(`"${rawName}" is not a usable name in the severity table "${t}".`);
+      if (name in table) throw new Error(`"${name}" is listed twice in the severity table "${t}".`);
+      if (typeof sev !== "string" || !(SEVERITY_CHOICES as readonly string[]).includes(sev))
+        throw new Error(`"${name}" in the severity table "${t}" must map to critical, high, medium, low or "" (none).`);
+      table[name] = sev as WorkSeverityChoice;
+    }
+    out[t] = table;
+  }
+  return out;
+}
+
+/** Same mapping, whatever the order of the names. */
+export function sameWorkSeverity(a: WorkSeverityMaps, b: WorkSeverityMaps): boolean {
+  const sorted = (t: Record<string, string>) => Object.entries(t).sort(([x], [y]) => (x < y ? -1 : x > y ? 1 : 0));
+  return deepEqual(a.sarifScore, b.sarifScore) && WORK_SEVERITY_TABLES.every((t) => deepEqual(sorted(a[t]), sorted(b[t])));
 }
 
 export function makeLens(p: Partial<Lens> & { id: string; name: string }): Lens {
@@ -111,6 +177,8 @@ export interface Sidecar {
   lenses: Lens[];
   styles: Record<string, Style>;
   layouts: Record<string, DiagramLayout>;
+  /** Linked work settings (DEC-087); other keys a newer version writes are kept. */
+  work: { severity: WorkSeverityMaps; [extra: string]: unknown };
   [extra: string]: unknown;
 }
 
@@ -123,6 +191,7 @@ export function emptySidecar(): Sidecar {
     lenses: [],
     styles: {},
     layouts: {},
+    work: { severity: defaultWorkSeverity() },
   };
 }
 
@@ -179,6 +248,10 @@ export function toSidecar(data: unknown): Sidecar {
           : defaultCost().bands,
     };
   }
+  if ("work" in data) {
+    const w = objOr(data.work);
+    sc.work = { ...w, severity: cleanWorkSeverity(w.severity) };
+  }
   sc.lenses = arrOr(data.lenses).map((l) => {
     const o = objOr(l);
     needStr(o, "id", "Lens");
@@ -224,6 +297,15 @@ export function edgeLayoutData(e: EdgeLayout): Obj {
   return ordered(o, EDGE_LAYOUT_KEYS);
 }
 
+const SEVERITY_DATA_KEYS = ["sarifScore", "sarifLevel", "codeQuality", "sonar", "jira"];
+
+/** The work settings as written: the severity mapping in a fixed key order, left out when it is the default. */
+function workData(w: Sidecar["work"]): Obj {
+  const { severity, ...rest } = w;
+  const sev = ordered({ ...severity, sarifScore: ordered(severity.sarifScore as unknown as Obj, ["critical", "high", "medium"]) } as unknown as Obj, SEVERITY_DATA_KEYS);
+  return ordered({ ...rest, severity: sameWorkSeverity(severity, DEFAULT_WORK_SEVERITY) ? undefined : sev } as Obj, ["severity"], (_k, v) => v === undefined);
+}
+
 function costData(c: CostSettings): Obj {
   return ordered({ ...c, bands: c.bands.map((b) => ordered(b as unknown as Obj, ["name", "max", "color"])) } as Obj, ["currency", "bands"]);
 }
@@ -258,6 +340,7 @@ export function sidecarData(sc: Sidecar): Obj {
     lenses: sc.lenses.map(lensData),
     styles,
     layouts,
+    work: workData(sc.work),
   };
   const isDefaultChars =
     deepEqual(
@@ -265,8 +348,8 @@ export function sidecarData(sc: Sidecar): Obj {
       DEFAULT_CHARACTERISTICS,
     ) && sc.characteristics.every((c) => Object.keys(c).length === 2);
   const isDefaultCost = deepEqual(out.cost, costData(defaultCost()));
-  return ordered(out, ["version", "tagGroups", "characteristics", "cost", "lenses", "styles", "layouts"], (k, v) => {
-    if (k === "styles" || k === "layouts") return Object.keys(v as Obj).length === 0;
+  return ordered(out, ["version", "tagGroups", "characteristics", "cost", "work", "lenses", "styles", "layouts"], (k, v) => {
+    if (k === "styles" || k === "layouts" || k === "work") return Object.keys(v as Obj).length === 0;
     if (k === "characteristics") return isDefaultChars;
     if (k === "cost") return isDefaultCost;
     return false;

@@ -51,13 +51,138 @@ export interface Rating {
   note?: string;
 }
 export interface WorkItem {
-  type: string; // security | pr | issue | backlog | update
+  type: string; // security | pr | issue | backlog | update | quality
   title: string;
   url?: string;
   status: string; // open | in-progress | blocked | done
   severity?: string; // critical | high | medium | low
   note?: string;
+  /** A stable id given by the tool that pushed it ("sonar:AYx…", a SARIF fingerprint); a push matches on it, then on `url`. */
+  key?: string;
+  /** The tool's own status, as last read: "Merged", "In Review", "Quality gate failed · 3 vulnerabilities". */
+  remote?: string;
+  /** When `remote` was read (ISO 8601). */
+  checked?: string;
 }
+
+/** What linked work is pinned to (DEC-085): the targets of comments and checklist items, plus the project
+ *  itself. A flow is a diagram (`flow-<name>`). Diagram items need a stored view: landscape, context,
+ *  container, component diagrams and flows (not connector or code diagrams). */
+export type WorkTarget = CommentTarget | { type: "project" };
+
+/** Tools whose links get a live status (DEC-059, DEC-085). */
+export const WORK_TOOLS = ["github", "gitlab", "sonar", "jira"] as const;
+export type WorkToolId = (typeof WORK_TOOLS)[number];
+export const WORK_TOOL_LABEL: Record<WorkToolId, string> = { github: "GitHub", gitlab: "GitLab", sonar: "SonarQube", jira: "Jira" };
+
+/** A place links are read from, as everyone may see it: no credential. `base` is the origin plus any path
+ *  prefix (a GitLab or Jira under a path), without a trailing slash. */
+export interface WorkConnectionInfo {
+  id: string;
+  tool: WorkToolId;
+  base: string;
+  /** Shipped with dp (github.com, gitlab.com, sonarcloud.io), not from the integrations file. */
+  builtIn: boolean;
+}
+
+/** One connection in `.dp/integrations.json` (architects only). */
+export interface WorkConnection {
+  id: string;
+  tool: WorkToolId;
+  /** https (http only for this machine), no user, query or fragment. */
+  baseUrl: string;
+  /** Name of a stored credential (DEC-056); none: public data only. */
+  credential?: string;
+  /** "basic" sends the credential value `user:token` (Jira Cloud: email and API token); default "bearer". */
+  auth?: "bearer" | "basic";
+}
+export interface IntegrationsSettings {
+  connections: WorkConnection[];
+  builtIn: WorkConnectionInfo[];
+  /** The file, for people (relative to the project or hub folder). */
+  file: string;
+}
+
+/** One linked work item with what it is pinned to: a row of the Work page and `dp work list`. */
+export interface WorkRow {
+  target: WorkTarget;
+  /** For people: the element's name, "Source → Destination", the diagram or flow title, or "Project". */
+  label: string;
+  /** Kind of the target, for filters: an element kind, "relationship", "diagram", "flow" or "project". */
+  targetKind: string;
+  /** Its place in the target's list. */
+  index: number;
+  item: WorkItem;
+  /** The tool its link belongs to (by the known connections), or null. */
+  tool: WorkToolId | null;
+}
+export interface WorkList {
+  rows: WorkRow[];
+  connections: WorkConnectionInfo[];
+}
+
+/** One item a tool or a script pushes (POST /api/work/items, `dp work add`, `dp work import`). */
+export interface WorkPush {
+  to: WorkTarget;
+  item: Partial<WorkItem> & { title?: string };
+}
+export const WORK_IMPORT_FORMATS = ["sarif", "gitlab-codequality", "sonar-issues", "dp"] as const;
+export type WorkImportFormat = (typeof WORK_IMPORT_FORMATS)[number];
+export interface WorkPushResult {
+  added: number;
+  updated: number;
+  /** Items of the same source that this run no longer reports, set to done (`closeMissing`). */
+  closed: number;
+  unchanged: number;
+  rows: { to: WorkTarget; label: string; title: string; change: "added" | "updated" | "closed" | "unchanged" }[];
+  /** Import only: findings whose file no element's code paths hold, pinned to the project. */
+  unmapped?: number;
+  /** Nothing was written (`--check`, `dryRun`). */
+  dryRun?: boolean;
+}
+/** One of dp's four severities, or "" for none. */
+export type WorkSeverityChoice = "critical" | "high" | "medium" | "low" | "";
+
+/**
+ * How dp turns a tool's own severity words into its four levels (DEC-087). Kept in the sidecar as
+ * `work.severity`, so a team can change it and the change is drafted and reviewed like the rest of the model.
+ * Names are matched in lower case. A name not in a table gives no severity.
+ */
+export interface WorkSeverityMaps {
+  /** SARIF `security-severity` scores (0-10): at or above `critical` is critical, and so on; below `medium` is low. */
+  sarifScore: { critical: number; high: number; medium: number };
+  /** SARIF result levels (`error`, `warning`, `note`, `none`), used when a finding has no score. */
+  sarifLevel: Record<string, WorkSeverityChoice>;
+  /** GitLab Code Quality severities (`dp work import --format gitlab-codequality`). */
+  codeQuality: Record<string, WorkSeverityChoice>;
+  /** SonarQube severities and impact severities: the `sonar-issues` import and the status refresh. */
+  sonar: Record<string, WorkSeverityChoice>;
+  /** Jira priority names (a site can have its own): the status refresh. */
+  jira: Record<string, WorkSeverityChoice>;
+}
+export type WorkSeverityTable = Exclude<keyof WorkSeverityMaps, "sarifScore">;
+export const WORK_SEVERITY_TABLES: readonly WorkSeverityTable[] = ["sarifLevel", "codeQuality", "sonar", "jira"];
+export const DEFAULT_WORK_SEVERITY: WorkSeverityMaps = {
+  sarifScore: { critical: 9, high: 7, medium: 4 },
+  sarifLevel: { error: "high", warning: "medium", note: "low", none: "low" },
+  codeQuality: { blocker: "critical", critical: "critical", major: "high", minor: "medium", info: "low" },
+  sonar: { blocker: "critical", critical: "critical", high: "high", major: "high", medium: "medium", minor: "medium", low: "low", info: "low" },
+  jira: { highest: "critical", high: "high", medium: "medium", low: "low", lowest: "low" },
+};
+
+/** Open linked work across the projects a person may see (GET /api/hub/work): the hub's Work page. */
+export interface HubWorkRow extends WorkRow {
+  project: string;
+}
+export interface HubWorkList {
+  projects: { id: string; name: string; catalog: boolean; error: string | null; open: number; total: number }[];
+  rows: HubWorkRow[];
+  connections: WorkConnectionInfo[];
+  /** The work types and statuses, for labels and filters (a hub page has no project state). */
+  types: { id: string; label: string }[];
+  statuses: string[];
+}
+
 export interface CostItem {
   item: string;
   monthly: number;
@@ -251,6 +376,8 @@ export interface Flow {
   scope: string | null;
   warnings: string[];
   steps: FlowStep[];
+  /** Linked work pinned to the flow itself (DEC-085). */
+  work: WorkItem[];
 }
 
 export interface Diagram {
@@ -281,6 +408,8 @@ export interface Diagram {
     archType?: string;
   };
   code?: { ownerName: string; paths: string[]; missing: string[]; hasRoot: boolean; truncated: boolean };
+  /** Linked work pinned to this diagram (DEC-085); absent where a diagram cannot hold any (connector, code). */
+  work?: WorkItem[];
   /** Set when compared with another version; `removed`: this diagram exists only in that version. */
   compare?: { against: string; removed: boolean };
 }
@@ -327,6 +456,8 @@ export interface DiagramInfo {
   parentKey: string | null;
   c4: string;
   depth: number;
+  /** Open linked work pinned to this diagram itself (not to what it shows). */
+  openWork?: number;
 }
 
 export interface TagValue {
@@ -691,6 +822,12 @@ export interface AppState {
   compare: { against: string; title: string; summary: ChangeSummary } | null;
   /** Null when the model folder is not in a git repository. */
   git: { branch: string | null; refs: string[] } | null;
+  /** Linked work pinned to the project itself (DEC-085). */
+  projectWork: WorkItem[];
+  /** Where links get a live status (DEC-085), to label links by tool; no credentials. */
+  workConnections: WorkConnectionInfo[];
+  /** How tools' severities become dp's (DEC-087): the sidecar's `work.severity`, or the defaults. */
+  workSeverity: WorkSeverityMaps;
 }
 
 // ------------------------------------------------------------------ planned change (Stage C)
@@ -1128,7 +1265,7 @@ export interface CatalogEntry {
 // ------------------------------------------------------------------ integration credentials (DEC-056)
 
 /** "anthropic", "openai" and "ollama": the LLM backends BMO calls directly (DEC-051); "llm" is any other. */
-export const CREDENTIAL_PROVIDERS = ["github", "gitlab", "jira", "issue-tracker", "observability", "llm", "anthropic", "openai", "ollama", "ci", "other"] as const;
+export const CREDENTIAL_PROVIDERS = ["github", "gitlab", "jira", "sonarqube", "issue-tracker", "observability", "llm", "anthropic", "openai", "ollama", "ci", "other"] as const;
 export type CredentialProvider = (typeof CREDENTIAL_PROVIDERS)[number];
 
 /** A stored credential as the API shows it: never its value. */
@@ -1194,12 +1331,14 @@ export interface HistoryList {
 // ------------------------------------------------------------------ linked work status from GitHub (DEC-059)
 
 export interface WorkRefresh {
-  /** GitHub issue and pull request links looked up. */
+  /** Links looked up, all tools together. */
   checked: number;
   updated: { owner: string; title: string; from: string; to: string }[];
   failed: { url: string; reason: string }[];
-  /** A stored GitHub credential was used (otherwise public repositories only, at GitHub's lower rate). */
-  usedCredential: string | null;
+  /** Per connection used: how many links, and the stored credential (null: public data only). */
+  byTool: { tool: WorkToolId; base: string; checked: number; credential: string | null }[];
+  /** Links that no connection knows; they keep the status a person gave them. */
+  unknown: number;
 }
 
 // ------------------------------------------------------------------ import file (DEC-051, Stage B)

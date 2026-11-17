@@ -8,7 +8,7 @@ import { BmoError, type Backend } from "../../src/assistant/backend.js";
 import { fakeBackend, type FakeAnswer } from "../../src/assistant/fakeBackend.js";
 import { runsDir } from "../../src/assistant/providerBackend.js";
 import { RUN_HEADROOM_TOKENS, runTokenLimit } from "../../src/assistant/settings.js";
-import type { Fetch } from "../../src/core/githubWorkStatus.js";
+import type { Fetch } from "../../src/core/workTools/types.js";
 import { decide, ROUTE_RULES, type Who } from "../../src/server/auth.js";
 import { copyDemoHub, createHubApp } from "../../src/server/hub.js";
 import type { ImportFile } from "../../src/shared/types.js";

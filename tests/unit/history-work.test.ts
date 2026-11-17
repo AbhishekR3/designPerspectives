@@ -1,8 +1,11 @@
-/** Linked work status from GitHub (DEC-059): status updates with the stored token, where the token may go, and role rules. */
+/** History of model commits, and the linked work status refresh (DEC-059, DEC-085): status updates with the stored token, where the token may go, items pinned to diagrams, flows and the project, and role rules. */
 import { execFileSync } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { CredentialStore } from "../../src/core/credentials.js";
-import { apiUrl, fetchStates, isGitHubWork, type Fetch } from "../../src/core/githubWorkStatus.js";
+import { github } from "../../src/core/workTools/github.js";
+import { apiAddress, linkRest, type Conn, type Fetch } from "../../src/core/workTools/types.js";
 import { copyDemoHub, createHubApp } from "../../src/server/hub.js";
 import { Client, client, demoDir, ok, tmpDir } from "./helpers.js";
 
@@ -74,10 +77,20 @@ describe("linked work status from GitHub", () => {
   const ISSUE = "https://github.com/acme/bank/issues/12";
   const PR = "https://github.com/acme/bank/pull/7";
   const GONE = "https://github.com/acme/bank/issues/999";
+  const GH: Conn = { id: "github", tool: "github", base: "https://github.com", builtIn: true, auth: "bearer" };
+  /** The API address a link would be read from, or null when the GitHub adapter does not read it. */
+  const apiUrl = (link: string): string | null => {
+    const at = linkRest(link, GH);
+    const p = at && github.match(at.link, at.rest, GH);
+    return p ? apiAddress(github.apiRoot(GH), github.requests(p, GH)[0]!) : null;
+  };
 
-  function fake(calls: { url: string; auth?: string }[]): Fetch {
+  /** Links of the demo's own linked work that no connection reads. */
+  const demoUnknown = async () => (await ok(client(demoDir(), { secretKey: null, fetch: fake([]) }).post("/api/work/refresh"))).unknown as number;
+
+  function fake(calls: { url: string; auth?: string; redirect?: string }[]): Fetch {
     return async (url, init) => {
-      calls.push({ url, auth: init.headers.Authorization });
+      calls.push({ url, auth: init.headers.Authorization, redirect: init.redirect });
       const body = url.endsWith("/issues/12") ? { state: "closed" } : url.endsWith("/pulls/7") ? { state: "open" } : null;
       return { ok: !!body, status: body ? 200 : 404, json: async () => body };
     };
@@ -100,7 +113,8 @@ describe("linked work status from GitHub", () => {
     );
     const r = await ok(c.post("/api/work/refresh"));
     expect(r.checked).toBe(3);
-    expect(r.usedCredential).toBe("gh");
+    expect(r.unknown).toBe((await demoUnknown()) + 1);
+    expect(r.byTool).toEqual([{ tool: "github", base: "https://github.com", checked: 3, credential: "gh" }]);
     expect(r.updated).toEqual(
       expect.arrayContaining([
         { owner: "Database", title: "Slow queries", from: "in-progress", to: "done" },
@@ -116,6 +130,8 @@ describe("linked work status from GitHub", () => {
     expect(calls.every((x) => x.auth === "Bearer ghp_testtoken000000000000")).toBe(true);
     const db = (await ok(c.get("/api/state"))).elements.find((e: any) => e.id === "database");
     expect(db.work.map((w: any) => w.status)).toEqual(["done", "open", "open", "open"]);
+    expect(db.work.map((w: any) => w.remote)).toEqual(["Closed", "Open", undefined, undefined]);
+    expect(db.work[0].checked).toMatch(/^\d{4}-\d\d-\d\dT/);
     // One undo step for the refresh; a second refresh with nothing new adds none.
     await ok(c.post("/api/work/refresh"));
     await ok(c.post("/api/undo"));
@@ -133,19 +149,28 @@ describe("linked work status from GitHub", () => {
       "https://github.com/ac.me/bank/issues/1",
       "https://github.com/acme/ba%2fnk/issues/1",
       "https://github.com/acme/bank/issues/1/../../../../user",
+      "https://github.com/x/../acme/bank/issues/1",
+      "https://github.com.evil.io/acme/bank/issues/1",
+      "https://user:pw@github.com/acme/bank/issues/1",
+      "http://github.com/acme/bank/issues/1",
     ]) {
-      expect(isGitHubWork(bad), bad).toBe(false);
       expect(apiUrl(bad), bad).toBeNull();
     }
     expect(apiUrl("https://github.com/acme/my.repo_1/pull/7?x=1#y")).toBe("https://api.github.com/repos/acme/my.repo_1/pulls/7");
     expect(apiUrl("https://github.com/acme/..hidden/issues/3")).toBe("https://api.github.com/repos/acme/..hidden/issues/3");
     const seen: { url: string; redirect?: string }[] = [];
-    const states = await fetchStates(["https://github.com/acme/../issues/1", ISSUE], "tok", async (url, init) => {
-      seen.push({ url, redirect: init.redirect });
-      return { ok: true, status: 200, json: async () => ({ state: "open" }) };
-    });
-    expect(seen).toEqual([{ url: "https://api.github.com/repos/acme/bank/issues/12", redirect: "error" }]);
-    expect(states.get("https://github.com/acme/../issues/1")).toEqual({ error: "not a GitHub issue or pull request link" });
+    const c = client(demoDir(), { secretKey: null, fetch: fake(seen) });
+    await ok(
+      c.patch("/api/elements/database", {
+        work: [
+          { type: "issue", title: "Hostile", url: "https://github.com/acme/../issues/1", status: "open" },
+          { type: "issue", title: "Fine", url: ISSUE, status: "open" },
+        ],
+      }),
+    );
+    const r = await ok(c.post("/api/work/refresh"));
+    expect(seen).toEqual([{ url: "https://api.github.com/repos/acme/bank/issues/12", auth: undefined, redirect: "error" }]);
+    expect(r).toMatchObject({ checked: 1, unknown: (await demoUnknown()) + 1 });
   });
 
   it("works without a credential (public repositories) and follows the role rules", async () => {
@@ -155,9 +180,49 @@ describe("linked work status from GitHub", () => {
     const arch = await c.as("architect");
     await ok(arch.patch("/api/elements/database", { work: [{ type: "issue", title: "x", url: ISSUE, status: "open" }] }));
     const r = await ok(arch.post("/api/work/refresh"));
-    expect(r).toMatchObject({ checked: 1, usedCredential: null, updated: [{ to: "done" }] });
+    expect(r).toMatchObject({ checked: 1, byTool: [{ tool: "github", credential: null }], updated: [{ to: "done" }] });
     expect(calls[0]!.auth).toBeUndefined();
     const viewer = await c.as("viewer");
     expect((await viewer.post("/api/work/refresh")).status).toBe(403);
+  });
+
+  it("refreshes items pinned to a diagram, a flow and the project; nothing new writes nothing and adds no undo step", async () => {
+    const dir = demoDir();
+    const calls: { url: string }[] = [];
+    const c = client(dir, { secretKey: null, fetch: fake(calls) });
+    const pin = (target: unknown, url: string, status = "open") => ok(c.put("/api/work/target", { target, work: [{ type: "issue", title: `On ${JSON.stringify(target)}`, url, status }] }));
+    await pin({ type: "project" }, ISSUE);
+    await pin({ type: "diagram", id: "containers-internet-banking-system" }, PR, "done");
+    await pin({ type: "diagram", id: "flow-sign-in" }, ISSUE, "blocked");
+    const r = await ok(c.post("/api/work/refresh", { tools: ["github"] }));
+    expect(r.checked).toBe(2); // the same link twice is read once
+    expect(r.updated.map((u: any) => `${u.from}→${u.to}`).sort()).toEqual(["blocked→done", "done→open", "open→done"]);
+    const list = await ok(c.get("/api/work"));
+    // By target: the demo has linked work of its own on the project and on other diagrams and flows.
+    const at = (target: string) => list.rows.find((x: any) => JSON.stringify(x.target) === target && x.item.title === `On ${target}`)?.item;
+    const byKind = {
+      project: at(JSON.stringify({ type: "project" })),
+      diagram: at(JSON.stringify({ type: "diagram", id: "containers-internet-banking-system" })),
+      flow: at(JSON.stringify({ type: "diagram", id: "flow-sign-in" })),
+    };
+    expect(byKind.project).toMatchObject({ status: "done", remote: "Closed" });
+    expect(byKind.diagram).toMatchObject({ status: "open", remote: "Open" });
+    expect(byKind.flow).toMatchObject({ status: "done", remote: "Closed" });
+
+    const file = path.join(dir, "architecture", "workspace.json");
+    const before = fs.readFileSync(file, "utf-8");
+    const again = await ok(c.post("/api/work/refresh"));
+    expect(again.updated).toEqual([]);
+    expect(fs.readFileSync(file, "utf-8")).toBe(before);
+    // The only undo step left is the first refresh's: undoing it brings back the pinned statuses.
+    await ok(c.post("/api/undo"));
+    const flowTarget = JSON.stringify({ type: "diagram", id: "flow-sign-in" });
+    const back = (await ok(c.get("/api/work"))).rows.find((x: any) => JSON.stringify(x.target) === flowTarget && x.item.title === `On ${flowTarget}`)?.item;
+    expect(back).toMatchObject({ status: "blocked" });
+    expect(back.remote).toBeUndefined();
+    // Only other tools asked for: GitHub links are left out, not counted as unknown.
+    // (The pin on the project replaced the demo's project items, one of which has a link no connection knows.)
+    expect(await ok(c.post("/api/work/refresh", { tools: ["jira"] }))).toMatchObject({ checked: 0, unknown: (await demoUnknown()) - 1 });
+    expect((await c.post("/api/work/refresh", { tools: ["nope"] })).status).toBe(422);
   });
 });

@@ -64,6 +64,10 @@ export function HelpCard({ onClose }: { onClose(): void }) {
           Checklist: the Checklist button in the top bar (or L) opens a list of tasks, questions and assumptions. dp ticks the items it can check itself. Right-click a box, a line or empty space and
           choose Add to checklist… to link an item to it.
         </li>
+        <li>
+          Linked work: the Work button in the top bar lists the issues, pull requests, security findings and tickets linked to the model, with their status from GitHub, GitLab, SonarQube or Jira.
+          Right-click a box, a line or empty space and choose Link work… to pin an item to it.
+        </li>
         <li>Dashed lines are derived from relationships between elements inside the boxes.</li>
         <li>Bottom left: colour boxes by a tag group, technology, characteristic or cost; click a value to focus on or hide those boxes.</li>
       </ul>

@@ -15,7 +15,7 @@ import { registerChecklist } from "./routes/checklist.js";
 import { registerComments } from "./routes/comments.js";
 import { registerDecisions } from "./routes/decisions.js";
 import { registerDrafts } from "./routes/drafts.js";
-import { registerCredentials, registerHub, type HubCtx } from "./routes/hub.js";
+import { registerCredentials, registerHub, registerIntegrations, type HubCtx } from "./routes/hub.js";
 import { registerBmo } from "./routes/bmo.js";
 import { registerImport } from "./routes/import.js";
 import { registerCatalog, registerFlows, registerModel, registerWork } from "./routes/model.js";
@@ -23,6 +23,7 @@ import { registerBacktrack, registerHistory, registerRead } from "./routes/readM
 import { registerSidecar } from "./routes/sidecar.js";
 import { registerTesting } from "./routes/testing.js";
 import { registerTraces } from "./routes/traces.js";
+import { registerWorkItems } from "./routes/work.js";
 import { registerUi } from "./routes/ui.js";
 
 export { codePair, HttpError, state, type Access, type AppOptions, type Selection } from "./routeContext.js";
@@ -74,6 +75,7 @@ export function buildApp(root: string, opts: AppOptions & { hub?: boolean } = {}
     const hub = singleHub(root, ctx);
     registerHub(app, hub);
     registerCredentials(app, hub, opts.secretKey);
+    registerIntegrations(app, hub, ctx.integrations);
   }
   registerRead(app, ctx);
   registerDrafts(app, ctx);
@@ -86,6 +88,7 @@ export function buildApp(root: string, opts: AppOptions & { hub?: boolean } = {}
   registerCode(app, ctx);
   registerFlows(app, ctx);
   registerWork(app, ctx);
+  registerWorkItems(app, ctx); // "/api/work/refresh" is in registerWork
   registerDecisions(app, ctx);
   registerTraces(app, ctx);
   registerTesting(app, ctx);

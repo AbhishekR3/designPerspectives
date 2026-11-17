@@ -889,3 +889,18 @@ button.link.tree-link .tree-mark {
   background: var(--link);
   border-radius: 999px;
 }
+
+/* Open linked work on a diagram (sidebar) or a flow (flows menu). */
+.work-count {
+  flex: none;
+  min-width: 14px;
+  margin-left: 4px;
+  padding: 0 4px;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 14px;
+  text-align: center;
+  color: var(--bg);
+  background: var(--amber);
+  border-radius: 999px;
+}

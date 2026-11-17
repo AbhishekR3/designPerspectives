@@ -1,5 +1,27 @@
 import { notify } from "./common/notify";
-import type { CatalogEntry, CredentialList, Decision, DecisionInput, DecisionStatus, HistoryList, HomeSummary, HubInfo, SharedUsage, WorkRefresh } from "./types";
+import type {
+  CatalogEntry,
+  CredentialList,
+  Decision,
+  DecisionInput,
+  DecisionStatus,
+  HistoryList,
+  HomeSummary,
+  HubInfo,
+  IntegrationsSettings,
+  SharedUsage,
+  HubWorkList,
+  WorkConnection,
+  WorkImportFormat,
+  WorkItem,
+  WorkList,
+  WorkPush,
+  WorkPushResult,
+  WorkRefresh,
+  WorkSeverityMaps,
+  WorkTarget,
+  WorkToolId,
+} from "./types";
 import type {
   AcceptAllResult,
   AppState,
@@ -246,7 +268,20 @@ export const api = {
   catalog: () => request<CatalogEntry[]>("GET", "/catalog"),
   catalogUsage: () => request<SharedUsage>("GET", "/catalog/usage"),
   history: (project?: string | null) => request<HistoryList>("GET", `/history${project ? `?project=${enc(project)}` : ""}`),
-  refreshWork: () => request<WorkRefresh>("POST", "/work/refresh"),
+  // Linked work (DEC-085, DEC-086): every item with what it is pinned to, one target's list, items pushed by a tool, a report import, the status refresh.
+  work: () => request<WorkList>("GET", "/work"),
+  setWork: (target: WorkTarget, work: WorkItem[]) => request<{ ok: boolean; work: WorkItem[] }>("PUT", "/work/target", { target, work }),
+  pushWork: (body: { items: WorkPush[]; source?: string; closeMissing?: boolean; dryRun?: boolean }) => request<WorkPushResult>("POST", "/work/items", body),
+  importWork: (body: { format: WorkImportFormat; report: string; source?: string; closeMissing?: boolean; dryRun?: boolean }) => request<WorkPushResult>("POST", "/work/import", body),
+  /** `tools`: only links of these tools (absent: every tool). */
+  setWorkSettings: (severity: WorkSeverityMaps | null) => request<{ ok: boolean }>("PUT", "/work-settings", { severity }),
+  /** Linked work of every project this person may see (the hub's Work page, DEC-088). */
+  hubWork: () => request<HubWorkList>("GET", "/hub/work", undefined, { project: null, main: true }),
+  refreshWork: (tools?: WorkToolId[]) => request<WorkRefresh>("POST", "/work/refresh", tools ? { tools } : undefined),
+  // Tool connections (architects): the same in a hub and for one project.
+  integrations: () => request<IntegrationsSettings>("GET", "/integrations"),
+  setIntegrations: (connections: WorkConnection[]) => request<IntegrationsSettings>("PUT", "/integrations", { connections }),
+  removeIntegration: (id: string) => request("DELETE", `/integrations/${enc(id)}`),
   addProject: (body: { id: string; name: string; template: "empty" | "demo"; adopt?: boolean }) => request<{ id: string }>("POST", "/hub/projects", body),
   credentials: () => request<CredentialList>("GET", "/credentials"),
   addCredential: (body: { name: string; provider: string; scopes: string[]; note: string; value: string }) => request("POST", "/credentials", body),

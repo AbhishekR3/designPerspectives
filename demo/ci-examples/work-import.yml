@@ -1,0 +1,12 @@
+# Sample CI step: pin the findings of a code scan to the architecture model as linked work.
+# Each finding lands on the element whose code paths hold its file (otherwise on the project).
+# Nothing goes over the network: dp reads the report file and writes the model, which you then commit
+# (or write into a draft with --draft ci-findings and review it in dp serve).
+#
+# NOT RUN: written without a CI runner; check it before relying on it.
+# Formats: --format sarif (SARIF 2.1.0), gitlab-codequality (GitLab Code Quality JSON),
+# sonar-issues (the answer of SonarQube's /api/issues/search saved to a file), dp (dp work import --schema).
+- name: Link scan findings to the architecture model
+  run: |
+    npx dp work import results.sarif . --format sarif --source codeql --check
+    npx dp work import results.sarif . --format sarif --source codeql --close-missing

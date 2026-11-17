@@ -872,3 +872,11 @@ button.change-item:disabled {
 .chip.some:focus-within {
   opacity: 1;
 }
+
+/* Under a linked work row: its tool and the status the tool reported last. */
+.work-remote {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}

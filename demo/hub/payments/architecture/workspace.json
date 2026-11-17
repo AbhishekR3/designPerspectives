@@ -77,7 +77,8 @@
             "description": "Takes payment requests.",
             "tags": "Element,Container",
             "properties": {
-              "dp.archType": "service"
+              "dp.archType": "service",
+              "dp.work": "[{\"type\": \"pr\", \"title\": \"Idempotency keys for payment requests\", \"status\": \"in-progress\", \"url\": \"https://example.com/payments/pull/311\"}, {\"type\": \"issue\", \"title\": \"Card payments: return 409 on a repeated request\", \"status\": \"done\", \"url\": \"https://example.com/payments/issues/305\", \"severity\": \"low\"}]"
             },
             "relationships": [
               {
@@ -108,7 +109,8 @@
             "description": "Posts ledger entries and updates balances.",
             "tags": "Element,Container",
             "properties": {
-              "dp.archType": "pipeline"
+              "dp.archType": "pipeline",
+              "dp.work": "[{\"type\": \"quality\", \"title\": \"Ledger Worker quality gate\", \"status\": \"open\", \"url\": \"https://example.com/quality/ledger-worker\", \"severity\": \"critical\", \"note\": \"Two bugs in balance rounding\"}]"
             },
             "relationships": [
               {

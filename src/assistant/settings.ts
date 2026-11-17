@@ -17,7 +17,7 @@
  * The key is only ever sent to the configured provider's host; Ollama gets no key.
  */
 
-import { isLinkLocal, isLoopback } from "../core/hosts.js";
+import { baseOf, checkServiceUrl, isLinkLocal, isLoopback } from "../core/hosts.js";
 import fs from "node:fs";
 import path from "node:path";
 import { ModelError } from "../core/modelEdits.js";
@@ -134,24 +134,12 @@ export function checkEndpoint(provider: Provider, endpoint: string | undefined, 
   if (endpoint !== undefined && provider !== "ollama" && !allowCustom) {
     return { error: `The ${provider === "anthropic" ? "Claude API" : "OpenAI API"} is reached at ${PROVIDER_BASE[provider]} only; another endpoint needs "allowCustomEndpoint": true as well.` };
   }
-  let u: URL;
   try {
-    u = new URL(raw);
-  } catch {
-    return { error: "The endpoint is not a web address." };
+    return { base: baseOf(checkServiceUrl(raw, "endpoint")) };
+  } catch (e) {
+    if (e instanceof ModelError) return { error: e.message };
+    throw e;
   }
-  if (u.protocol !== "https:" && u.protocol !== "http:") return { error: "The endpoint must start with https:// (or http:// for this computer)." };
-  if (u.username || u.password) return { error: "The endpoint must not hold a user name or password; store the key as a credential." };
-  if (u.search || raw.includes("?")) return { error: "The endpoint must not have a query (?...)." };
-  if (u.hash || raw.includes("#")) return { error: "The endpoint must not have a fragment (#...)." };
-  if (!u.hostname) return { error: "The endpoint has no host." };
-  if (isLinkLocal(u.hostname))
-    return {
-      error: "The endpoint is a link-local or cloud-metadata address (169.254.x.x, fe80::, a metadata host name). That is never a model server and it is where a cloud machine keeps its credentials.",
-    };
-  if (u.protocol === "http:" && !isLoopback(u.hostname)) return { error: "A host other than this computer (127.0.0.1, ::1, localhost) must use https." };
-  const base = `${u.protocol}//${u.host}${u.pathname.replace(/\/+$/, "")}`;
-  return { base };
 }
 
 function roles(v: unknown, at: string, errors: FieldError[]): Role[] | undefined {

@@ -4,11 +4,11 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { api } from "../api";
+import { api, ApiError } from "../api";
 import { confirmDialog } from "../common/dialogs";
 import { Icon } from "../common/icons";
 import { errorMessage, notify } from "../common/notify";
-import { CREDENTIAL_PROVIDERS, type CredentialList, type HubInfo } from "../types";
+import { CREDENTIAL_PROVIDERS, WORK_TOOLS, WORK_TOOL_LABEL, type CredentialList, type HubInfo, type IntegrationsSettings, type WorkConnection, type WorkToolId } from "../types";
 import { ago } from "./HomePage";
 import { BmoSettings } from "./BmoSettings";
 
@@ -16,6 +16,7 @@ const LABEL: Record<string, string> = {
   github: "GitHub",
   gitlab: "GitLab",
   jira: "Jira",
+  sonarqube: "SonarQube",
   "issue-tracker": "Issue tracker",
   observability: "Observability",
   llm: "LLM provider",
@@ -158,6 +159,8 @@ export function CredentialsPage({ hub }: { hub: HubInfo }) {
         </div>
       )}
 
+      <ToolConnections credentials={list.credentials.map((c) => c.name)} />
+
       <BmoSettings credentials={list.credentials} />
     </div>
   );
@@ -248,5 +251,155 @@ function RotateForm({ onCancel, onSave }: { onCancel(): void; onSave(v: string):
         Cancel
       </button>
     </form>
+  );
+}
+
+/** Where linked work gets its status from (DEC-085): the tools dp ships with, and the ones an architect adds. */
+function ToolConnections({ credentials }: { credentials: string[] }) {
+  const [settings, setSettings] = useState<IntegrationsSettings | null>(null);
+  const [rows, setRows] = useState<WorkConnection[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [unavailable, setUnavailable] = useState(false);
+  const adopt = (s: IntegrationsSettings) => {
+    setSettings(s);
+    setRows(s.connections);
+    setError(null);
+  };
+  useEffect(() => {
+    api.integrations().then(adopt, (e) => {
+      // A server without the tool connections shows nothing here.
+      if (e instanceof ApiError && e.status === 404) setUnavailable(true);
+      else setError(errorMessage(e));
+    });
+  }, []);
+  if (unavailable) return null;
+  const dirty = !!settings && JSON.stringify(rows) !== JSON.stringify(settings.connections);
+  const set = (i: number, patch: Partial<WorkConnection>) => setRows((r) => r.map((x, j) => (j === i ? { ...x, ...patch } : x)));
+  const add = () => setRows((r) => [...r, { id: `connection-${r.length + 1}`, tool: "gitlab", baseUrl: "https://" }]);
+  const save = async () => {
+    setBusy(true);
+    try {
+      // An empty credential or the default auth is not stored.
+      adopt(
+        await api.setIntegrations(
+          rows.map((c) => ({
+            id: c.id.trim(),
+            tool: c.tool,
+            baseUrl: c.baseUrl.trim(),
+            ...(c.credential ? { credential: c.credential } : {}),
+            ...(c.auth === "basic" ? { auth: "basic" as const } : {}),
+          })),
+        ),
+      );
+      notify.success("Saved the tool connections.");
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <section className="home-box tool-connections" data-testid="tool-connections">
+      <h2>Tool connections</h2>
+      <p className="muted small">
+        Where linked work gets its status: GitHub, GitLab, SonarQube and Jira. A link is read by the connection whose address it starts with, with the stored credential named here (none: public data
+        only).
+        {settings && ` Saved in ${settings.file}.`}
+      </p>
+      {error && (
+        <p className="error-text" data-testid="connections-error">
+          {error}
+        </p>
+      )}
+      {settings && (
+        <div className="table-wrap">
+          <table className="home-table" data-testid="connections-table">
+            <thead>
+              <tr>
+                <th>Tool</th>
+                <th>ID</th>
+                <th>Address</th>
+                <th>Credential</th>
+                <th>Sent as</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {settings.builtIn.map((b) => (
+                <tr key={b.id} data-testid={`connection-${b.id}`}>
+                  <td>{WORK_TOOL_LABEL[b.tool]}</td>
+                  <td>
+                    <code>{b.id}</code>
+                  </td>
+                  <td>
+                    <code>{b.base}</code>
+                  </td>
+                  <td colSpan={3} className="muted small">
+                    Built in. Public data only; add a connection to the same address to use a credential.
+                  </td>
+                </tr>
+              ))}
+              {rows.map((c, i) => (
+                <tr key={i} data-testid={`connection-row-${i}`}>
+                  <td>
+                    <select value={c.tool} onChange={(e) => set(i, { tool: e.target.value as WorkToolId })} aria-label="Tool" data-testid={`connection-tool-${i}`}>
+                      {WORK_TOOLS.map((t) => (
+                        <option key={t} value={t}>
+                          {WORK_TOOL_LABEL[t]}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td>
+                    <input value={c.id} onChange={(e) => set(i, { id: e.target.value })} aria-label="ID" data-testid={`connection-id-${i}`} style={{ width: 130 }} />
+                  </td>
+                  <td>
+                    <input value={c.baseUrl} onChange={(e) => set(i, { baseUrl: e.target.value })} placeholder="https://gitlab.example.com" aria-label="Base URL" data-testid={`connection-url-${i}`} />
+                  </td>
+                  <td>
+                    <select value={c.credential ?? ""} onChange={(e) => set(i, { credential: e.target.value || undefined })} aria-label="Credential" data-testid={`connection-credential-${i}`}>
+                      <option value="">None (public data)</option>
+                      {c.credential && !credentials.includes(c.credential) && <option value={c.credential}>{c.credential} (missing)</option>}
+                      {credentials.map((n) => (
+                        <option key={n} value={n}>
+                          {n}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td>
+                    <select value={c.auth ?? "bearer"} onChange={(e) => set(i, { auth: e.target.value === "basic" ? "basic" : "bearer" })} aria-label="Sent as" data-testid={`connection-auth-${i}`}>
+                      <option value="bearer">Bearer token</option>
+                      <option value="basic">user:token (basic)</option>
+                    </select>
+                  </td>
+                  <td className="nowrap">
+                    <button
+                      className="small ghost icon"
+                      aria-label={`Remove connection ${c.id}`}
+                      title="Remove"
+                      onClick={() => setRows((r) => r.filter((_, j) => j !== i))}
+                      data-testid={`connection-remove-${i}`}
+                    >
+                      <Icon name="trash" size={14} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <div className="row">
+        <button onClick={add} data-testid="connection-add">
+          <Icon name="plus" size={14} /> Add a connection
+        </button>
+        <span className="grow" />
+        <button className="primary" onClick={() => void save()} disabled={!dirty || busy} aria-busy={busy} data-testid="connections-save">
+          Save connections
+        </button>
+      </div>
+    </section>
   );
 }

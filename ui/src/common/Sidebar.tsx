@@ -101,6 +101,11 @@ export function Sidebar({
                   {d.level === "landscape" ? "System landscape" : d.level === "context" ? `${d.label} (context)` : d.label}
                 </span>
                 {empty && <span className="muted tree-mark">(empty)</span>}
+                {!!d.openWork && (
+                  <span className="work-count" title={`${plural(d.openWork, "open linked work item")} on this diagram`} data-testid={`work-count-${d.key}`}>
+                    {d.openWork}
+                  </span>
+                )}
               </button>
             </li>
           ))}

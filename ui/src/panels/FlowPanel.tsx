@@ -5,6 +5,7 @@ import type { AppState, Flow, FlowStep } from "../types";
 import { confirmDialog } from "../common/dialogs";
 import { SamplePayload } from "../inspect/SamplePayload";
 import { stepInfo, stepSummaryLine, type StepEnd, type StepInfo } from "./flowStepInfo";
+import { DiagramWorkSection } from "./DiagramWorkSection";
 import { LIVENESS_LABEL, type FlowTesting } from "../testing/flowTesting";
 
 export function FlowPanel({
@@ -17,6 +18,7 @@ export function FlowPanel({
   onBacktrack,
   onOpenDiagram,
   testing,
+  showWork = true,
 }: {
   flow: Flow;
   state: AppState;
@@ -29,6 +31,8 @@ export function FlowPanel({
   onOpenDiagram?(key: string): void;
   /** System testing mode: each step's liveness, its breakpoint, and a way into its pipeline. */
   testing?: FlowTesting;
+  /** The lens shows linked work. */
+  showWork?: boolean;
 }) {
   const [filter, setFilter] = useState("");
   const [pick, setPick] = useState("");
@@ -76,6 +80,7 @@ export function FlowPanel({
         <TextField label="Name" value={flow.title} onCommit={(v) => mutate(() => api.updateFlow(flow.key, { title: v }))} />
         <TextField label="Description" value={flow.description} multiline onCommit={(v) => mutate(() => api.updateFlow(flow.key, { description: v }))} />
       </Fields>
+      {showWork && <DiagramWorkSection state={state} rows={flow.work} target={{ type: "diagram", id: flow.key }} mutate={mutate} />}
       {flow.warnings.length > 0 && (
         <div className="warning">
           <strong>May not open in Structurizr:</strong>

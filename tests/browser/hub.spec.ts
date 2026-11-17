@@ -298,3 +298,37 @@ test("New project on a folder that already holds a model asks first, and a creat
   await page.getByTestId("project-cards").click();
   await expect(page).toHaveURL(/pr=cards/);
 });
+
+test("Work across projects: the demo hub's items, filtered by project and status, each linked to its project (DEC-088)", async ({ page, hub }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.goto(`${hub.url}#/home`);
+  await page.getByTestId("rail-work").click();
+  await expect(page).toHaveURL(/#\/work$/);
+  const rows = page.getByTestId("hub-work-row");
+  await expect(page.getByTestId("hub-work-summary")).toContainText("open");
+  // Grouped by project; done items hidden.
+  await expect(page.getByTestId("hub-work-group").filter({ hasText: "Payments" })).toBeVisible();
+  await expect(page.getByTestId("hub-work-group").filter({ hasText: "Customer onboarding" })).toBeVisible();
+  await expect(rows.filter({ hasText: "Ledger Worker quality gate" })).toBeVisible();
+  await expect(rows.filter({ hasText: "return 409 on a repeated request" })).toHaveCount(0);
+  await page.getByTestId("hub-work-status").selectOption("all");
+  await expect(rows.filter({ hasText: "return 409 on a repeated request" })).toBeVisible();
+
+  await page.getByTestId("hub-work-project-onboarding").click();
+  await expect(rows.filter({ hasText: "Ledger Worker quality gate" })).toHaveCount(0);
+  await expect(rows.filter({ hasText: "Retry identity checks" })).toBeVisible();
+  await page.getByTestId("hub-work-project-all").click();
+  await page.getByTestId("hub-work-severity").selectOption("critical");
+  await expect(rows).toHaveCount(1);
+  await page.getByTestId("hub-work-severity").selectOption("");
+  await page.getByTestId("hub-work-search").fill("nothing like this");
+  await expect(page.getByTestId("hub-work-empty")).toContainText("Nothing matches");
+  await page.getByTestId("hub-work-search").fill("");
+
+  // A row pinned to a box opens its project on that box.
+  await rows.filter({ hasText: "Ledger Worker quality gate" }).getByTestId("hub-work-pin").click();
+  await expect(page).toHaveURL(/pr=payments/);
+  await expect(page.getByTestId("node-ledger-worker")).toHaveClass(/selected/);
+  expect(errors).toEqual([]);
+});

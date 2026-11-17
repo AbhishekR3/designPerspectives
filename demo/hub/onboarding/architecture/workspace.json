@@ -1,6 +1,9 @@
 {
   "name": "Customer onboarding",
   "description": "How a new customer signs up and is checked before an account is opened.",
+  "properties": {
+    "dp.work": "[{\"type\": \"backlog\", \"title\": \"Move sign-up to the shared design system\", \"status\": \"open\", \"url\": \"https://example.com/onboarding/issues/97\"}]"
+  },
   "model": {
     "people": [
       {
@@ -105,7 +108,8 @@
             "description": "Checks a new customer's identity and creates the customer.",
             "tags": "Element,Container",
             "properties": {
-              "dp.archType": "service"
+              "dp.archType": "service",
+              "dp.work": "[{\"type\": \"security\", \"title\": \"Identity check provider SDK has a known flaw\", \"status\": \"in-progress\", \"url\": \"https://example.com/security/advisories/42\", \"severity\": \"high\"}, {\"type\": \"issue\", \"title\": \"Retry identity checks when the provider times out\", \"status\": \"open\", \"url\": \"https://example.com/onboarding/issues/118\", \"severity\": \"medium\"}]"
             },
             "relationships": [
               {

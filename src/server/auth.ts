@@ -96,6 +96,7 @@ export const ROUTE_RULES: Record<string, Action> = {
   "DELETE /api/tag-groups/:name": "edit",
   "PUT /api/characteristics": "edit",
   "PUT /api/cost-settings": "edit",
+  "PUT /api/work-settings": "edit",
   "POST /api/lenses": "edit",
   "PUT /api/lenses/:id": "edit",
   "DELETE /api/lenses/:id": "edit",
@@ -115,8 +116,15 @@ export const ROUTE_RULES: Record<string, Action> = {
   "PUT /api/credentials/:name": "admin",
   "PATCH /api/credentials/:name": "admin",
   "DELETE /api/credentials/:name": "admin",
+  // routes/hub.ts (integrations): tool connections for linked work, architects only (DEC-085)
+  "PUT /api/integrations": "admin",
+  "DELETE /api/integrations/:id": "admin",
   // routes/model.ts (work): linked work status from GitHub, written to the model (DEC-059)
   "POST /api/work/refresh": "edit",
+  // routes/work.ts: linked work of any target, pushed by tools or scripts (DEC-085)
+  "PUT /api/work/target": "edit",
+  "POST /api/work/items": "edit",
+  "POST /api/work/import": "edit",
   // routes/decisions.ts: decision records are part of the model (DEC-050)
   "POST /api/decisions": "edit",
   "PUT /api/decisions/:id": "edit",

@@ -1,11 +1,11 @@
-/** Sidecar routes: tag groups, characteristics, cost settings, lenses, diagram layout and styles. */
+/** Sidecar routes: tag groups, characteristics, cost settings, linked work settings, lenses, diagram layout and styles. */
 
 import type { Hono } from "hono";
 import * as diagrams from "../../core/diagrams.js";
 import { isObj, type Obj } from "../../core/util.js";
 import * as ops from "../../core/modelEdits.js";
 import { buildIndex, ModelError, slugify, unique } from "../../core/modelEdits.js";
-import { BUILTIN_LENSES, edgeLayoutData, emptyLayout, isLineShape, LINE_SHAPES, makeLens, SECTIONS } from "../../core/designPerspectivesFile.js";
+import { BUILTIN_LENSES, cleanWorkSeverity, edgeLayoutData, emptyLayout, isLineShape, LINE_SHAPES, makeLens, SECTIONS } from "../../core/designPerspectivesFile.js";
 import type { CharacteristicDef, CostBand, CostSettings, EdgeLayout, Lens, Level, Section } from "../../shared/types.js";
 import { body, HttpError, needStr, num, objBody, optStr, point, strList, type Ctx } from "../routeContext.js";
 
@@ -156,6 +156,22 @@ export function registerSidecar(app: Hono, ctx: Ctx): void {
       if (closed.some((x, i) => i > 0 && x <= closed[i - 1]!)) throw new ModelError("Cost band limits must increase from band to band.");
       if (bands.some((x) => !x.name)) throw new ModelError("Every cost band needs a name.");
       sc.cost = { currency, bands } satisfies CostSettings;
+    });
+    return ok(c);
+  });
+
+  /** Linked work settings (DEC-087): `severity`, how tools' severities become dp's; `null` puts back the defaults. */
+  app.put("/api/work-settings", async (c) => {
+    const b = await objBody(c);
+    if (!("severity" in b)) throw new HttpError(422, 'Send {"severity": …} (or null for the defaults).');
+    let severity;
+    try {
+      severity = cleanWorkSeverity(b.severity);
+    } catch (e) {
+      throw new ModelError((e as Error).message);
+    }
+    edit((_ws, sc) => {
+      sc.work = { ...sc.work, severity };
     });
     return ok(c);
   });

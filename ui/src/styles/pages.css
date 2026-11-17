@@ -1250,3 +1250,180 @@ button.cl-chip.target:hover {
 .bmo-mention-name {
   overflow-wrap: anywhere;
 }
+
+/* ---------------------------------------------------------------- linked work (DEC-085) */
+
+.work-add {
+  margin: var(--space-4) var(--space-5) 0;
+}
+.work-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--line);
+}
+.work-filters input[type="search"] {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+.work-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--space-4) var(--space-5);
+}
+.work-empty {
+  max-width: 520px;
+  margin: var(--space-5) auto;
+  text-align: center;
+}
+.work-table .work-title {
+  max-width: 340px;
+  overflow-wrap: anywhere;
+}
+.work-table .work-note {
+  max-width: 220px;
+  overflow-wrap: anywhere;
+}
+.work-table tr.work-done td {
+  opacity: 0.6;
+}
+.work-table tr.work-group th {
+  background: var(--panel);
+  color: var(--text);
+  font-size: 13px;
+}
+.work-pin {
+  text-align: left;
+  padding: 0;
+}
+.work-kind {
+  font-size: 10.5px;
+  color: var(--muted);
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  padding: 0 6px;
+  margin-right: 2px;
+}
+.work-tool {
+  font-size: 10.5px;
+  line-height: 16px;
+  padding: 0 6px;
+  border-radius: 999px;
+  border: 1px solid #1e5670;
+  color: var(--accent);
+  white-space: nowrap;
+}
+.work-sev {
+  font-size: 11px;
+  font-weight: 600;
+}
+.work-sev.sev-critical {
+  color: #dc2626;
+}
+.work-sev.sev-high {
+  color: #f97316;
+}
+.work-sev.sev-medium {
+  color: #eab308;
+}
+.work-sev.sev-low {
+  color: #3b82f6;
+}
+.tool-connections input,
+.tool-connections select {
+  max-width: 100%;
+}
+
+/* How it works (DEC-087) */
+.work-guide {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: 980px;
+}
+.work-guide h2 {
+  margin: 0 0 var(--space-2);
+  font-size: 15px;
+}
+.work-guide p {
+  margin: 0 0 var(--space-2);
+  line-height: 1.5;
+}
+.work-guide ul {
+  margin: 0 0 var(--space-2);
+  padding-left: 18px;
+  line-height: 1.6;
+}
+.work-guide code {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.work-cli {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+.work-cli pre {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  overflow-x: auto;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+}
+.work-guide fieldset {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3) var(--space-3);
+  margin: 0 0 var(--space-3);
+  min-width: 0;
+}
+.work-guide legend {
+  font-weight: 600;
+  font-size: 13px;
+  padding: 0 var(--space-1);
+}
+.work-sev-score {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+.work-sev-score input {
+  width: 80px;
+}
+.work-sev-tables {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--space-3);
+}
+.work-sev-row {
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
+}
+.work-sev-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Work across projects (DEC-088) */
+.hub-work-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin: 0 0 var(--space-3);
+}
+.hub-work-stats strong {
+  font-size: 18px;
+}
+.hub-work-filters {
+  padding: var(--space-3) 0;
+  margin-bottom: var(--space-3);
+}

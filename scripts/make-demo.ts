@@ -16,6 +16,7 @@ import os from "node:os";
 import path from "node:path";
 import { syncViews } from "../src/core/diagrams.js";
 import * as flows from "../src/core/flows.js";
+import * as workOps from "../src/core/work.js";
 import { atomicWrite, stableJson } from "../src/core/util.js";
 import * as ops from "../src/core/modelEdits.js";
 import { emptySidecar, makeLens, sidecarData, type Sidecar } from "../src/core/designPerspectivesFile.js";
@@ -1064,6 +1065,23 @@ export function build(): [Workspace, Sidecar] {
       },
     ],
   });
+
+  // Linked work on the project, a diagram and a flow (DEC-085), and a scan's quality gate as the tool last reported it.
+  syncViews(ws);
+  workOps.setWork(ws, { type: "project" }, [
+    {
+      type: "quality",
+      title: "Quality gate of the banking repositories",
+      status: "open",
+      severity: "high",
+      url: "https://example.com/quality/banking",
+      remote: "Quality gate failed · 2 vulnerabilities, 5 hotspots",
+      checked: "2026-11-16T09:00:00Z",
+    },
+    { type: "backlog", title: "Write the disaster recovery runbook for the whole bank", status: "open", severity: "medium" },
+  ]);
+  workOps.setWork(ws, { type: "diagram", id: "landscape" }, [{ type: "backlog", title: "Add the card processor to the landscape once its contract is signed", status: "open" }]);
+  workOps.setWork(ws, { type: "diagram", id: key3 }, [{ type: "issue", title: "Show the fraud fallback path in this flow", status: "open", severity: "low", url: "https://example.com/issues/301" }]);
 
   syncViews(ws);
   flows.syncFlows(ws);

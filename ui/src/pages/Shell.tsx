@@ -11,8 +11,9 @@ import { CatalogPage } from "./CatalogPage";
 import { CredentialsPage } from "./CredentialsPage";
 import { HistoryPage } from "./HistoryPage";
 import { HomePage } from "./HomePage";
+import { HubWorkPage } from "./HubWorkPage";
 
-export type HubPage = "home" | "catalog" | "credentials" | "history";
+export type HubPage = "home" | "catalog" | "credentials" | "history" | "work";
 
 export function HubShell({ hub, page, onSignOut, onChanged }: { hub: HubInfo; page: HubPage; onSignOut(): void; onChanged(): Promise<void> }) {
   const projects = hub.projects.filter((p) => !p.catalog);
@@ -33,6 +34,7 @@ export function HubShell({ hub, page, onSignOut, onChanged }: { hub: HubInfo; pa
         {nav("home", "#/home", "home", "Home", "rail-home")}
         {nav("catalog", "#/catalog", "database", hub.mode === "hub" ? "Shared catalog" : "Data", "rail-catalog")}
         {nav("history", "#/history", "restart", "History", "rail-history")}
+        {nav("work", "#/work", "work", "Work", "rail-work")}
         {hub.canAdmin && nav("credentials", "#/settings/credentials", "gear", "Credentials", "rail-credentials")}
         <div className="rail-heading">{hub.mode === "hub" ? "Projects" : "Project"}</div>
         <div className="rail-projects">
@@ -62,6 +64,7 @@ export function HubShell({ hub, page, onSignOut, onChanged }: { hub: HubInfo; pa
         {page === "catalog" && <CatalogPage hub={hub} />}
         {page === "credentials" && <CredentialsPage hub={hub} />}
         {page === "history" && <HistoryPage hub={hub} />}
+        {page === "work" && <HubWorkPage hub={hub} />}
         <div className="hub-bell">
           <NotificationBell className="float-btn icon" />
         </div>

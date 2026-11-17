@@ -8,6 +8,7 @@
  */
 
 import * as decisions from "../src/core/decisions.js";
+import { setWork } from "../src/core/work.js";
 import { prune, syncViews } from "../src/core/diagrams.js";
 import { syncFlows } from "../src/core/flows.js";
 import { stableJson } from "../src/core/util.js";
@@ -16,7 +17,7 @@ import { emptySidecar, sidecarData, type Sidecar } from "../src/core/designPersp
 import { errors } from "../src/core/validate.js";
 import { writeTree } from "./write-folder.js";
 import { dumpWorkspace, emptyWorkspace, type Workspace } from "../src/core/workspace.js";
-import type { Decision } from "../src/shared/types.js";
+import type { Decision, WorkItem } from "../src/shared/types.js";
 
 interface Built {
   ws: Workspace;
@@ -44,6 +45,8 @@ function model(name: string, description: string) {
     },
     U: (id: string, patch: Record<string, unknown>) => ops.updateElement(ws, sc, id, patch),
     D: (input: Record<string, unknown>) => decisions.createDecision(decs, input),
+    /** Linked work (DEC-085) on an element or the project; links on example.com, so a status refresh calls no real tool. */
+    W: (id: string | null, items: WorkItem[]) => setWork(ws, id ? { type: "element", id } : { type: "project" }, items),
   };
 }
 
@@ -130,6 +133,11 @@ export function buildOnboarding(catalog: Workspace): Built {
       { text: "The shared database's retention did not meet the KYC rules", alternative: "Separate KYC database" },
     ],
   });
+  m.W(kyc, [
+    { type: "security", title: "Identity check provider SDK has a known flaw", url: "https://example.com/security/advisories/42", status: "in-progress", severity: "high" },
+    { type: "issue", title: "Retry identity checks when the provider times out", url: "https://example.com/onboarding/issues/118", status: "open", severity: "medium" },
+  ]);
+  m.W(null, [{ type: "backlog", title: "Move sign-up to the shared design system", url: "https://example.com/onboarding/issues/97", status: "open" }]);
   return done(m);
 }
 
@@ -169,6 +177,11 @@ export function buildPayments(catalog: Workspace): Built {
     decision: "The Ledger Worker updates accounts directly. No other project writes it.",
     consequences: "Schema changes to accounts need the payments team's review until the ledger has its own store.",
   });
+  m.W(ledger, [{ type: "quality", title: "Ledger Worker quality gate", url: "https://example.com/quality/ledger-worker", status: "open", severity: "critical", note: "Two bugs in balance rounding" }]);
+  m.W(api, [
+    { type: "pr", title: "Idempotency keys for payment requests", url: "https://example.com/payments/pull/311", status: "in-progress" },
+    { type: "issue", title: "Card payments: return 409 on a repeated request", url: "https://example.com/payments/issues/305", status: "done", severity: "low" },
+  ]);
   return done(m);
 }
 

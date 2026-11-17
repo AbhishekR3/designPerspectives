@@ -3,12 +3,16 @@
 
 import type { Context, Hono } from "hono";
 import { CredentialStore } from "../../core/credentials.js";
+import type { IntegrationsStore } from "../../core/integrations.js";
 import { catalogEntries, sharedUsage } from "../../core/catalog.js";
 import { homeSummary, type HomeProject } from "../../core/homeSummary.js";
 import { history, uncommitted } from "../../core/history.js";
 import type { GitModels } from "../../core/git.js";
 import type { Project } from "../../core/project.js";
-import type { CatalogUpdate, HistoryList, HomeSummary, HubInfo, AttentionItem, SharedUsage } from "../../shared/types.js";
+import type { CatalogUpdate, HistoryList, HomeSummary, HubInfo, HubWorkList, AttentionItem, SharedUsage } from "../../shared/types.js";
+import { listWork } from "../../core/work.js";
+import { WORK_STATUSES, WORK_TYPES } from "../../core/modelEdits.js";
+import { isOpenWork } from "../../shared/workLinks.js";
 import { decide, type Who } from "../auth.js";
 import type { Auth } from "../auth.js";
 import type { Ctx } from "../routeContext.js";
@@ -229,5 +233,48 @@ export function registerCredentials(app: Hono, hub: HubCtx, secret?: string | nu
     needAdmin(hub, c);
     store.remove(name(c.req.param("name")));
     return c.json({ ok: true });
+  });
+}
+
+/** Linked work of every project the user may see, from each main model (DEC-088): the rows of the hub's Work
+ *  page. A project that cannot be loaded is listed with its error and no rows. */
+export function hubWork(hub: HubCtx, c: Context, store: IntegrationsStore): HubWorkList {
+  const connections = store.infos();
+  const out: HubWorkList = { projects: [], rows: [], connections, types: WORK_TYPES.map(([id, label]) => ({ id, label })), statuses: [...WORK_STATUSES] };
+  for (const e of visibleEntries(hub, c)) {
+    try {
+      const p = e.ctx().project;
+      p.reloadIfChanged();
+      const { rows } = listWork(p.workspace, connections);
+      out.projects.push({ id: e.id, name: e.name || p.workspace.name, catalog: e.catalog, error: null, open: rows.filter((r) => isOpenWork(r.item)).length, total: rows.length });
+      for (const r of rows) out.rows.push({ ...r, project: e.id });
+    } catch (err) {
+      out.projects.push({ id: e.id, name: e.name || e.id, catalog: e.catalog, error: (err as Error).message, open: 0, total: 0 });
+    }
+  }
+  return out;
+}
+
+/** Tool connections for linked work (DEC-085): architects list, replace and remove them. They name credentials
+ *  by name only; a value never leaves the server. Kept in `.dp/integrations.json` of the hub (or the project).
+ *  Also the hub's list of linked work (`GET /api/hub/work`, everyone), which labels links by these connections. */
+export function registerIntegrations(app: Hono, hub: HubCtx, store: IntegrationsStore): void {
+  app.get("/api/hub/work", (c) => {
+    hub.sync?.();
+    return c.json(hubWork(hub, c, store));
+  });
+  app.get("/api/integrations", (c) => {
+    needAdmin(hub, c);
+    return c.json(store.settings());
+  });
+  app.put("/api/integrations", async (c) => {
+    needAdmin(hub, c);
+    store.replace((await objBody(c)).connections);
+    return c.json(store.settings());
+  });
+  app.delete("/api/integrations/:id", (c) => {
+    needAdmin(hub, c);
+    store.remove(c.req.param("id"));
+    return c.json(store.settings());
   });
 }

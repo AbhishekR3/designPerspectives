@@ -29,7 +29,8 @@
  *   dp.sensitive     JSON [{"item","level"}]                     elements, relationships
  *   dp.characteristics JSON [{"name","rating","driving","note"}] elements; rating 1-5 per characteristic
  *   dp.cost          JSON [{"item","monthly","note"}]            elements; monthly cost line items
- *   dp.work          JSON [{"type","title","url","status","severity","note"}]  elements, relationships;
+ *   dp.work          JSON [{"type","title","url","status","severity","note","key","remote","checked"}]  elements,
+ *                    relationships, views (a diagram or flow) and the workspace (the project), DEC-085 (work.ts);
  *                    linked work: security issues, pull requests, issues, backlog items, required updates
  *   dp.code.paths    JSON ["path/relative/to/code/root", ...]    elements, relationships
  *   dp.code.from     a path in the SOURCE element's code paths: where the call leaves it    relationships (C4 code
@@ -155,8 +156,14 @@ export const WORK_TYPES: [string, string][] = [
   ["issue", "Issue / bug"],
   ["backlog", "Backlog item"],
   ["update", "Required update"],
+  ["quality", "Quality gate / scan"],
 ];
 export const WORK_STATUSES = ["open", "in-progress", "blocked", "done"];
+/** Limits on linked work (DEC-085): items per object, items in a model, and the length of a key and a remote status. */
+export const WORK_MAX_PER_TARGET = 500;
+export const WORK_MAX_TOTAL = 5000;
+export const WORK_KEY_MAX = 200;
+export const WORK_REMOTE_MAX = 200;
 export const SEVERITIES = ["critical", "high", "medium", "low"];
 
 export const ARCH_TYPES: [string, string][] = [
@@ -596,8 +603,18 @@ export function cleanWork(items: unknown): WorkItem[] {
     }
     const note = s(x.note);
     if (note) row.note = note;
+    const key = s(x.key);
+    if (key) {
+      if (key.length > WORK_KEY_MAX) throw new ModelError(`A work item key is at most ${WORK_KEY_MAX} characters.`);
+      row.key = key;
+    }
+    const remote = s(x.remote);
+    if (remote) row.remote = remote.slice(0, WORK_REMOTE_MAX);
+    const checked = s(x.checked);
+    if (checked && !Number.isNaN(Date.parse(checked))) row.checked = checked;
     out.push(row);
   }
+  if (out.length > WORK_MAX_PER_TARGET) throw new ModelError(`An object holds at most ${WORK_MAX_PER_TARGET} linked work items; this list has ${out.length}.`);
   return out;
 }
 

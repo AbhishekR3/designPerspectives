@@ -1,6 +1,6 @@
 # Future plans and backlog
 
-Last updated: 2026-11-16. Current version: 0.5.0 (see `CHANGELOG.md`, which also lists unreleased changes). Latest review: `reviews.md`.
+Last updated: 2026-11-17. Current version: 0.5.0 (see `CHANGELOG.md`, which also lists unreleased changes). Latest review: `reviews.md`.
 
 This file collects work that is not built yet, with sources and reasoning. For the short list in order (what to build soon, and what needs more thought), see [future_tasks.md](future_tasks.md). Nothing here is scheduled or rejected; items are revisited after feedback on the current stage.
 
@@ -37,13 +37,13 @@ Rules for Stage D [Notes]: the LLM gets the model as structured text, not images
 
 ## 3. Proposed additions to the stages (integrations)
 
-Principle [Proposal]: because the tool is local, single-user and has no cloud accounts or LLM during development, integrations read **standard report files** and **map file paths to model objects** (using the code mapping), show results as **tag-group or overlay colours**, and run `dp` in CI instead of building hosted apps. Trade-off: no live status or webhooks (data is as fresh as the last report file); no tokens, accounts or vendor lock-in; any tool that writes the standard format works.
+Principle [Proposal]: because the tool is local, single-user and has no cloud accounts or LLM during development, integrations read **standard report files** and **map file paths to model objects** (using the code mapping), show results as **tag-group or overlay colours**, and run `dp` in CI instead of building hosted apps. Trade-off: no webhooks; report data is as fresh as the last report file. Status from a tool's API is read only on request, and only for linked work (DEC-085), which is the one place that needs tokens; no accounts or vendor lock-in; any tool that writes the standard format works.
 
 | ID | Item | How | Size [Proposal] |
 |---|---|---|---|
 | A8+ | CSV export of model objects | name, type, technology, owner, tags; created/updated timestamps would need tracking in the sidecar or come from git, so start without them | Small |
 | B4 | CODEOWNERS → owner proposals | Read `CODEOWNERS` (used by GitHub, GitLab and Bitbucket [Training]); propose the `owner` property for mapped objects. The 0.5.0 scan already reads `CODEOWNERS` as evidence (`src/import/scan.ts`); proposing owners from it is not done | Small |
-| B5 | SARIF import → findings overlay | `dp import sarif <file>`; SARIF 2.1.0 is an OASIS standard written by Semgrep, CodeQL, Trivy and others [Training]; findings mapped to objects by file path; counts by severity as a "Security findings" overlay | Small–medium |
+| B5 | SARIF import → findings overlay | **Built (DEC-085)** as `dp work import <file> --format sarif` (SARIF 2.1.0, an OASIS standard [Training]). Findings become linked work, mapped to objects by file path, so the Work overlay shows them. A separate "Security findings" overlay with counts by severity is not built | Small–medium |
 | B6 | Coverage overlay | Cobertura XML (e.g. from coverage.py [Training]) → % per object in High/Medium/Low bands | Small |
 | C3 | `dp check` and `dp diff` | Built (see `reviews.md`). `dp check` warns about mapped paths that do not exist, and, once a scan exists, about code that no component maps (`src/import/unmappedCode.ts`, 0.5.0) | Medium |
 
@@ -228,8 +228,12 @@ The accept decision and any typed text stay in the import folder; nothing about 
 ### Integrations (beyond section 3)
 - Git hotspots: churn per mapped object as an overlay.
 - SBOM / dependency vulnerabilities (CycloneDX or SPDX [Training]) attached to containers; a Security lens preset.
-- GitLab Code Quality JSON; SonarQube/SonarCloud metrics (needs a server or account); complexity per module (e.g. radon [Training]).
-- Issue links with live status from GitHub or a tracker (needs tokens); linked work synced from GitHub issues, PRs and security alerts for named repositories (needs a token and network access) [Review, release-0.2]; create issues from a draft; ADR links on objects (Markdown ADRs).
+- Built (DEC-085): GitLab Code Quality JSON and SonarQube issues, as linked work. Not built: SonarQube/SonarCloud metrics beyond issues; complexity per module (e.g. radon [Training]).
+- Built (DEC-059, DEC-085): issue links with live status from GitHub, GitLab, SonarQube and Jira, refreshed on request.
+- Open: linked work synced from GitHub security alerts (Dependabot, code scanning) for named repositories (needs a token and network access) [Review, release-0.2]; create issues from a draft; ADR links on objects (Markdown ADRs).
+- Open: webhooks, and unattended pushes from outside with API keys. The server binds to 127.0.0.1 and has session sign-in only, so CI pushes through `dp work import` and commits the model [Proposal, DEC-085].
+- Built (DEC-088): linked work across projects on the hub pages (`#/work`), with filters; read-only, main models only. Open: a status refresh for every project from there [Proposal].
+- Built (DEC-087): the severity mapping of imports and status refreshes, editable on the Work page and stored in the sidecar.
 - Infrastructure-as-code import (Terraform, compose, Kubernetes), network and deployment views, isometric rendering, OpenTelemetry runtime traces, live cloud inventory.
 
 ### Sign-in and roles (after Stage P4) [Review, prod-p4]
@@ -270,7 +274,7 @@ The accept decision and any typed text stay in the import folder; nothing about 
 
 - Windows: the CLI's browser opening and paths were written for it but not run [Review, rewrite-ts].
 - For 0.4.0, installing the packed tarball was run (1.0 MB, 171 files; `dp init --demo`, `dp check` and `dp serve` worked). Not run: install from the GitHub URL `npm install -g github:AbhishekR3/designPerspectives`; Windows; Structurizr's own tools reading the files (including the `dp.*` properties and the `dp.level` view property; Docker/Maven were not available when the stages were built). These are the owner's steps [Review, release-0.4.0, DEC-063].
-- Linked work refresh from GitHub needs a stored token for private repositories; without one, only public repositories are read (DEC-059).
+- Linked work status refresh needs a stored credential for private items; a tool other than the built-in connections needs a connection in `.dp/integrations.json` (DEC-085). Without a GitHub credential, only public repositories are read (DEC-059).
 - Line routing is drawn by the app; Structurizr ignores the sidecar `layouts`. Connector stages are not model elements and do not appear in Structurizr views [Review, stage-a2].
 - Import scanning handles Python and JS/TS relative imports only [Review, stage-a2].
 - The built UI (`static/`) is committed (decided, DEC-063; this closes the question on DEC-014).

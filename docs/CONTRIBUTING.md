@@ -175,7 +175,9 @@ designPerspectives is a local tool. In plain words:
 - In a hub (`dp serve --hub`), no project folder may hold the hub folder or another project, so one project's code routes cannot reach another's model, `hub.json` or the shared catalog. No project folder may be hidden (such as `.dp` or `.git`), as written or through a link, and a project added from the browser must be a folder inside the hub.
 - `hub.json` is trusted. It is checked when the hub loads, but a hand-written entry can still point outside the hub folder. Write only entries you trust.
 - Integration credentials are kept in `.dp/credentials.json` (mode 0600, ignored by git). They are plain text on disk unless `DP_SECRET_KEY` is set, which encrypts them with AES-256-GCM. Their values are never sent to the browser or printed; only architects manage them.
-- The server reaches out to the network in three cases only, each started by a person: **Refresh status from GitHub** (it calls `api.github.com` for the GitHub links in linked work, with the stored `github` credential if there is one), a BMO run with the `direct` backend (below), and a call that passes an intercept point in System Testing mode (below).
+- Tool connections for linked work are kept in `.dp/integrations.json` (mode 0600 in a 0700 `.dp/`, ignored by git; the hub's in a hub) and changed by architects only (`dp integrations`, the integrations routes). They are never in the model or the sidecar, because an engineer can edit a draft and could otherwise point a token at another host. A connection names a stored credential by name only.
+- The severity mapping for linked work (DEC-087) is in the sidecar (`work.severity`) because it holds only names and levels, no host, token or path, so anyone with edit rights may change it. `GET /api/hub/work` (DEC-088) lists only the projects the user may see, the same rule as the home page (DEC-060).
+- The server reaches out to the network in three cases only, each started by a person: **Refresh status** of linked work (below), a BMO run with the `direct` backend (below), and a call that passes an intercept point in System Testing mode (below).
 
 ## System Testing mode
 
@@ -235,6 +237,20 @@ add the path to the must-not-open list.
 rules. The review level is computed by dp from checkable evidence, not taken from the answer. An item dp
 cannot verify stays unverified until a person accepts it. Nothing in an answer chooses an address, a provider,
 a file to read or a file to write. An answer is shown as text, never as HTML.
+
+## Linked work status (DEC-085)
+
+These rules apply when someone presses **Refresh status** on linked work (on an object, or on the Work page).
+
+**Where it calls.** Only to a connection's API root: api.github.com for github.com, `<base>/api/v3` for GitHub Enterprise, `<base>/api/v4` for GitLab, `<base>/api` for SonarQube and SonarCloud, `<base>/rest/api/2` for Jira. The built-in connections are github.com, gitlab.com and sonarcloud.io. Any other address comes from `.dp/integrations.json` and must use https (http only for this machine), with no user name, password, query or fragment, and never a link-local or cloud metadata address.
+
+**Which links.** A link is read only when it has the connection's exact scheme, host, port and base path, and its tool's adapter matches its path strictly. The path must be unchanged by URL parsing (no `.` or `..` segments, no backslashes, no encoded dots), and its parts use tight character classes (no `%`, so no encoded slash). Sonar keys come from the query. The API address is built from encoded parts and checked again to start with the connection's API root. Nothing in a link, the model or the sidecar chooses a host.
+
+**Which token.** A connection sends only the credential it names. A built-in connection sends the first credential of its provider (github, gitlab, sonarqube) that no connection names, so a token meant for a team's own server never goes to a public host. A named credential that is missing or locked means that connection's links are not called.
+
+**How.** No redirects (a 3xx is an error). 10 seconds per request, 4 at once, at most 200 links per refresh. Answers over 1 MB are refused. An error is a short reason that names the tool; it never repeats the answer's body or the token. Values never reach the browser.
+
+**What is written.** The status, the tool's words (`remote`), the time (`checked`) and, for Sonar and Jira, the severity, into the model. Only when one of them changed. A refresh that finds nothing new writes nothing.
 
 ## Out of scope
 

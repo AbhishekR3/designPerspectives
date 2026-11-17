@@ -5,6 +5,7 @@
  *   DIR/catalog/            the shared catalog: a normal project folder (H4)
  *   DIR/.dp/users.json      one sign-in for every project (optional)
  *   DIR/.dp/credentials.json  integration credentials (H5)
+ *   DIR/.dp/integrations.json tool connections for linked work status (DEC-085)
  *
  * Each project is served by its own app (`buildApp`, unchanged route modules), built on first use.
  * This app answers sign-in, the hub-level routes and the UI itself, and passes every other API
@@ -25,6 +26,7 @@ import { ModelError } from "../core/modelEdits.js";
 import { isProjectId } from "../core/users.js";
 import { syncCopies } from "../core/catalog.js";
 import { CredentialStore } from "../core/credentials.js";
+import { IntegrationsStore } from "../core/integrations.js";
 import { checkProject, type CheckResult } from "../core/cliReports.js";
 import type { CatalogUpdate, ExistingModelAnswer } from "../shared/types.js";
 import { atomicWrite, DEMO_DIR, initProject, NotFound, Project } from "../core/project.js";
@@ -34,7 +36,7 @@ import { buildApp, onError } from "./app.js";
 import type { AppOptions, Ctx } from "./routeContext.js";
 import { installProtection } from "./requestProtection.js";
 import { registerHubBmo } from "./routes/bmo.js";
-import { needAdmin, registerCredentials, registerHub, type HubCtx, type HubEntry } from "./routes/hub.js";
+import { needAdmin, registerCredentials, registerHub, registerIntegrations, type HubCtx, type HubEntry } from "./routes/hub.js";
 import { registerUi } from "./routes/ui.js";
 import { HttpError, objBody } from "./routeContext.js";
 
@@ -202,6 +204,8 @@ export class Hub {
 
   /** The hub's credentials (DEC-056), used by every project's integrations. */
   readonly credentials: CredentialStore;
+  /** The hub's tool connections for linked work (DEC-085), used by every project. */
+  readonly integrations: IntegrationsStore;
 
   constructor(
     dir: string,
@@ -210,6 +214,7 @@ export class Hub {
   ) {
     this.dir = path.resolve(dir);
     this.credentials = new CredentialStore(this.dir, opts.secretKey === undefined ? (process.env.DP_SECRET_KEY ?? null) : opts.secretKey);
+    this.integrations = new IntegrationsStore(this.dir);
     this.reload();
   }
 
@@ -273,6 +278,7 @@ export class Hub {
       catalog,
       projectId: id,
       credentials: this.credentials,
+      integrations: this.integrations,
     });
     const entry = { root, ...built };
     this.apps.set(id, entry);
@@ -424,6 +430,7 @@ export function createHubApp(dir: string, opts: AppOptions = {}): { app: Hono; h
   };
   registerHub(app, hubCtx);
   registerCredentials(app, hubCtx, opts.secretKey);
+  registerIntegrations(app, hubCtx, hub.integrations);
   registerHubBmo(app, hubCtx, hub.credentials, !!opts.bmoBackend);
 
   app.post("/api/hub/projects", async (c) => {

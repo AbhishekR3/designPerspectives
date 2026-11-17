@@ -1,6 +1,9 @@
 {
   "name": "Big Bank plc",
   "description": "Demo: the Internet Banking System example from the C4 model, grown into a bank as it runs in production: payments with fraud checks, notifications, sessions, statements, monitoring and on-call. It uses every designPerspectives feature (tag groups, lenses, characteristic ratings, cost, linked work, owners and links, notes, tradeoffs, usage, sensitive labels, details tables, symbols, pipeline connectors, flows with example data, and code mapped to components). A guided tour is in docs/demo-tour.md. Names, numbers, ratings, costs, links and work items are made-up examples.",
+  "properties": {
+    "dp.work": "[{\"type\": \"quality\", \"title\": \"Quality gate of the banking repositories\", \"status\": \"open\", \"url\": \"https://example.com/quality/banking\", \"severity\": \"high\", \"remote\": \"Quality gate failed · 2 vulnerabilities, 5 hotspots\", \"checked\": \"2026-11-16T09:00:00Z\"}, {\"type\": \"backlog\", \"title\": \"Write the disaster recovery runbook for the whole bank\", \"status\": \"open\", \"severity\": \"medium\"}]"
+  },
   "model": {
     "people": [
       {
@@ -1362,7 +1365,8 @@
         "order": 1,
         "description": "System landscape",
         "properties": {
-          "dp.level": "landscape"
+          "dp.level": "landscape",
+          "dp.work": "[{\"type\": \"backlog\", \"title\": \"Add the card processor to the landscape once its contract is signed\", \"status\": \"open\"}]"
         },
         "elements": [
           {
@@ -2058,7 +2062,8 @@
         "description": "A customer pays a saved payee from the web app: checks, fraud score, submission to the mainframe and the published outcome.",
         "properties": {
           "dp.flow": "true",
-          "dp.stepData": "{\"1\": {\"example\": \"POST /api/payments\\nAuthorization: Bearer 9f2c41d07a3b5e68\\n{\\\"accountId\\\": \\\"11-22-33-44556677\\\", \\\"payeeSortCode\\\": \\\"608371\\\", \\\"payeeAccount\\\": \\\"12345678\\\", \\\"amountPence\\\": 4500, \\\"reference\\\": \\\"Rent March\\\", \\\"idempotencyKey\\\": \\\"pay_7c1e\\\"}\", \"format\": \"JSON over HTTPS\"}, \"2\": {\"example\": \"GET session:9f2c41d07a3b5e68\", \"format\": \"Redis command\"}, \"3\": {\"example\": \"\\\"alice\\\"\", \"format\": \"\"}, \"6\": {\"example\": \"BALANCE.REQ account=11-22-33-44556677\", \"format\": \"MQ message\"}, \"7\": {\"example\": \"availablePence=182040\", \"format\": \"\"}, \"9\": {\"example\": \"POST /v1/score\\n{\\\"account\\\": \\\"11-22-33-44556677\\\", \\\"amountPence\\\": 4500, \\\"payee\\\": \\\"608371-12345678\\\"}\", \"format\": \"JSON over HTTPS\"}, \"10\": {\"example\": \"{\\\"score\\\": 0.12}\", \"format\": \"JSON\"}, \"11\": {\"example\": \"PAYMENT.REQ id=pay_7c1e amount=4500\", \"format\": \"MQ message\"}, \"12\": {\"example\": \"\", \"format\": \"ISO 20022 pacs.008\"}, \"13\": {\"example\": \"reference=FP24031900417\", \"format\": \"\"}, \"15\": {\"example\": \"key: pay_7c1e\\n{\\\"type\\\": \\\"payment.completed\\\", \\\"paymentId\\\": \\\"pay_7c1e\\\", \\\"status\\\": \\\"completed\\\", \\\"mainframeReference\\\": \\\"FP24031900417\\\"}\", \"format\": \"Kafka record (JSON)\"}, \"16\": {\"example\": \"202 Accepted\\n{\\\"paymentId\\\": \\\"pay_7c1e\\\", \\\"status\\\": \\\"completed\\\"}\", \"format\": \"JSON\"}}"
+          "dp.stepData": "{\"1\": {\"example\": \"POST /api/payments\\nAuthorization: Bearer 9f2c41d07a3b5e68\\n{\\\"accountId\\\": \\\"11-22-33-44556677\\\", \\\"payeeSortCode\\\": \\\"608371\\\", \\\"payeeAccount\\\": \\\"12345678\\\", \\\"amountPence\\\": 4500, \\\"reference\\\": \\\"Rent March\\\", \\\"idempotencyKey\\\": \\\"pay_7c1e\\\"}\", \"format\": \"JSON over HTTPS\"}, \"2\": {\"example\": \"GET session:9f2c41d07a3b5e68\", \"format\": \"Redis command\"}, \"3\": {\"example\": \"\\\"alice\\\"\", \"format\": \"\"}, \"6\": {\"example\": \"BALANCE.REQ account=11-22-33-44556677\", \"format\": \"MQ message\"}, \"7\": {\"example\": \"availablePence=182040\", \"format\": \"\"}, \"9\": {\"example\": \"POST /v1/score\\n{\\\"account\\\": \\\"11-22-33-44556677\\\", \\\"amountPence\\\": 4500, \\\"payee\\\": \\\"608371-12345678\\\"}\", \"format\": \"JSON over HTTPS\"}, \"10\": {\"example\": \"{\\\"score\\\": 0.12}\", \"format\": \"JSON\"}, \"11\": {\"example\": \"PAYMENT.REQ id=pay_7c1e amount=4500\", \"format\": \"MQ message\"}, \"12\": {\"example\": \"\", \"format\": \"ISO 20022 pacs.008\"}, \"13\": {\"example\": \"reference=FP24031900417\", \"format\": \"\"}, \"15\": {\"example\": \"key: pay_7c1e\\n{\\\"type\\\": \\\"payment.completed\\\", \\\"paymentId\\\": \\\"pay_7c1e\\\", \\\"status\\\": \\\"completed\\\", \\\"mainframeReference\\\": \\\"FP24031900417\\\"}\", \"format\": \"Kafka record (JSON)\"}, \"16\": {\"example\": \"202 Accepted\\n{\\\"paymentId\\\": \\\"pay_7c1e\\\", \\\"status\\\": \\\"completed\\\"}\", \"format\": \"JSON\"}}",
+          "dp.work": "[{\"type\": \"issue\", \"title\": \"Show the fraud fallback path in this flow\", \"status\": \"open\", \"url\": \"https://example.com/issues/301\", \"severity\": \"low\"}]"
         },
         "elementId": "payments-service",
         "elements": [

@@ -25,10 +25,10 @@
 import { codeDiagram, type CodeInput } from "./codeMap.js";
 import { connectorDiagram } from "./connectors.js";
 import { roundHalfEven } from "./util.js";
-import { buildIndex, CODE_KEY, elementSummary, getJson, idStillValid, moveElement, relationshipSummary, STAGES_KEY, type Index } from "./modelEdits.js";
+import { buildIndex, CODE_KEY, elementSummary, getJson, idStillValid, moveElement, relationshipSummary, STAGES_KEY, WORK_KEY, type Index } from "./modelEdits.js";
 import { edgeLayoutData, isLineShape, styleData, type Sidecar } from "./designPerspectivesFile.js";
 import { allViews, VIEW_LISTS, type View, type ViewList, type Workspace } from "./workspace.js";
-import type { Crumb, Diagram, DiagramEdge, DiagramInfo, DiagramNode, DrillTarget, Pt, Style } from "../shared/types.js";
+import type { Crumb, Diagram, DiagramEdge, DiagramInfo, DiagramNode, DrillTarget, Pt, Style, WorkItem } from "../shared/types.js";
 
 export const SCALE = 2;
 export type RefLevel = "landscape" | "context" | "container" | "component" | "code" | "connector";
@@ -291,7 +291,7 @@ export function parentKey(idx: Index, r: DiagramRef, drawn: Map<string, string>)
   }
 }
 
-function relLabel(idx: Index, relId: string): string {
+export function relLabel(idx: Index, relId: string): string {
   const rel = idx.relationships.get(relId)!;
   return `${idx.elements.get(rel.sourceId)!.name} → ${idx.elements.get(rel.destinationId)!.name}`;
 }
@@ -361,6 +361,7 @@ export function diagram(ws: Workspace, key: string, sidecar?: Sidecar | null, co
   d.c4 = C4_OF_LEVEL[r.level] ?? "";
   d.addable = addableKinds(r);
   d.connectRequired = connectRequiredKinds(r);
+  if (r.level in VIEW_LIST_OF_LEVEL) d.work = getJson<WorkItem>(findView(ws, key), WORK_KEY);
   return decorate(d, sidecar ?? null);
 }
 
@@ -457,6 +458,12 @@ export function diagramRefs(idx: Index): DiagramRef[] {
  *  Every software system is listed with its context and containers diagrams (the one that opens
  *  when the system is double-clicked), even before it has containers; only those stored as views
  *  (`diagramRefs`) are written to the workspace. */
+/** `{openWork: n}` for a view with open linked work of its own (DEC-085), else nothing. */
+function openWorkOf(view: View | undefined): { openWork?: number } {
+  const n = getJson<WorkItem>(view, WORK_KEY).filter((w) => w.status !== "done").length;
+  return n ? { openWork: n } : {};
+}
+
 export function diagramList(ws: Workspace): DiagramInfo[] {
   const idx = buildIndex(ws);
   const drawn = drawnInMap(idx);
@@ -507,6 +514,7 @@ export function diagramList(ws: Workspace): DiagramInfo[] {
         parentKey: pk,
         c4: C4_OF_LEVEL[r.level] ?? "",
         depth,
+        ...openWorkOf(findView(ws, r.key)),
       });
       walk(r.key, depth + 1);
     }
@@ -517,7 +525,7 @@ export function diagramList(ws: Workspace): DiagramInfo[] {
 
 // --------------------------------------------------------------------------- Structurizr views
 
-function ensureView(ws: Workspace, idx: Index, r: DiagramRef): View {
+export function ensureView(ws: Workspace, idx: Index, r: DiagramRef): View {
   const existing = findView(ws, r.key);
   if (existing) return existing;
   const v: View = { key: r.key, description: titleOf(idx, r), properties: { [LEVEL_PROPERTY]: r.level }, elements: [], relationships: [] };

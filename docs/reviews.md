@@ -6,6 +6,7 @@ File paths inside older sections are the paths at the time; see DEC-062 for the 
 
 ## Contents
 
+- [Linked work: pin anywhere, live status from four tools, push from CI, a Work page](#linked-work-pin-anywhere-live-status-from-four-tools-push-from-ci-a-work-page)
 - [The checklist: starting a project, importing a codebase, BMO's questions](#the-checklist-starting-a-project-importing-a-codebase-bmos-questions)
 - [Interaction fixes: the small things that did not work](#interaction-fixes-the-small-things-that-did-not-work)
 - [System Testing mode (replaces the live UI inspector)](#system-testing-mode-replaces-the-live-ui-inspector)
@@ -32,6 +33,59 @@ File paths inside older sections are the paths at the time; see DEC-062 for the 
 - [Stage A3 review: canvas-first layout, characteristics and cost](#stage-a3-review-canvas-first-layout-characteristics-and-cost)
 - [Stage A2 review: feature round of 14 November](#stage-a2-review-feature-round-of-14-november)
 - [Stage A review — Model and diagrams (Proof of Concept)](#stage-a-review--model-and-diagrams-proof-of-concept)
+
+## Linked work: pin anywhere, live status from four tools, push from CI, a Work page
+
+Date: 2026-11-17. Branch: `feat/work-tracking`. Decisions: DEC-085 to DEC-088.
+
+Linked work could be pinned to elements and relationships, and its live status came from github.com only (DEC-059). This round lets it sit on diagrams, flows and the project, adds status refresh for GitLab, SonarQube and Jira, lets CI push findings from report files, and adds a Work page for every item.
+
+### What was built
+
+- The model: `dp.work` on a diagram (its view's properties), a flow (its dynamic view) and the project (the workspace's properties). New item fields `key`, `remote` and `checked`, and the type `quality`. `src/core/work.ts` (list, set, push and upsert), `src/shared/workLinks.ts` (which connection a link belongs to), `src/server/routes/work.ts` (`/api/work*`).
+- Status refresh: `src/core/workStatus.ts` and `src/core/workTools/` (one adapter each for github, gitlab, sonar and jira), with `POST /api/work/refresh` in `routes/model.ts`. It replaces `githubWorkStatus.ts`.
+- Tool connections: `src/core/integrations.ts` (`.dp/integrations.json`), `/api/integrations`, `dp integrations list|set|remove`, a section on the Credentials page, and a new credential provider `sonarqube`.
+- Push from reports: `src/core/workImport.ts` (SARIF 2.1.0, GitLab Code Quality JSON, SonarQube issues, and a dp JSON format), `dp work list|add|import`. A finding goes to the element whose code paths hold its file.
+- UI: `ui/src/pages/WorkPage.tsx` (`p=work`), `ui/src/panels/DiagramWorkSection.tsx` (linked work on a diagram or flow), `ui/src/hooks/useWork.ts`, the Work button, **Link work…** on the right-click menus, and a count beside diagrams with open items.
+- After the owner's answers (2026-11-17):
+  - no key for the Work page;
+  - **How it works** on the Work page, with an editable severity mapping stored in the sidecar (`ui/src/pages/WorkGuide.tsx`, `PUT /api/work-settings`, DEC-087);
+  - Work across projects on the hub pages (`ui/src/pages/HubWorkPage.tsx`, `GET /api/hub/work`, DEC-088), with sample items in the demo hub;
+  - CI pushes stay on the main model by default (recorded in DEC-085).
+- Docs: DEC-085 and DEC-086, the Security model section in CONTRIBUTING, the README, and the changelog.
+
+### How it was checked
+
+- Unit tests: `tests/unit/work-api.test.ts`, `work-import.test.ts`, `work-tools.test.ts` (the four adapters and link matching), `integrations.test.ts` (connections, credentials, the built-in hosts), `cli-work.test.ts` (`dp work` and `dp integrations`), and `history-work.test.ts`.
+- `tests/unit/work-settings.test.ts`: the severity mapping (checks, sidecar round trip, imports and refresh use it, the route, drafts) and `GET /api/hub/work` (single project, hub, hidden and broken projects).
+- Browser tests: `tests/browser/work.spec.ts` (the Work page, How it works and the severity editor, read-only) and a Work-across-projects test in `tests/browser/hub.spec.ts`.
+- Typecheck, lint and the format check run in CI.
+
+### Limits
+
+- A status is a snapshot. A refresh runs on request only: no polling and no webhooks.
+- Unattended pushes from outside (webhooks with API keys) are not built. The server binds to 127.0.0.1 and has session sign-in only, so CI uses the CLI and commits the model.
+- SonarQube bearer tokens need SonarQube 10 or later. Older servers use `basic` with the token as the user name.
+- A refresh reads at most 200 links. A finding in a file shared by several components goes to the first one in model order.
+- Work across projects reads main models only and cannot refresh status; it links into each project for that.
+- A changed severity mapping applies to the next import or refresh, not to items already in the model.
+- Linked work is part of the model, so it follows drafts, diffs and merges. The checklist does not (DEC-084).
+
+### Questions for the owner
+
+1. Should **W** be the key for the Work page?
+2. Should a hub-level roll-up of open linked work come next?
+3. Are the severity mappings of the imports right?
+4. Should a push from CI go to a draft by default, so findings are reviewed before they reach the main model?
+
+### Owner feedback
+
+2026-11-17:
+
+1. No key, just the Work toolbar button. Done: `W` is removed.
+2. Yes, with filters and the relevant items. Done: DEC-088.
+3. Yes, and explain this on a page where people can change it. Done: DEC-087.
+4. "Whatever you think is best." Kept on the main model by default, with `--draft` available. The reasons are in DEC-085.
 
 ## The checklist: starting a project, importing a codebase, BMO's questions
 

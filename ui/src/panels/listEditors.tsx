@@ -4,7 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
 import { confirmDeleteRelationship } from "../common/dialogs";
 import { Icon } from "../common/icons";
-import { errorMessage, notify } from "../common/notify";
+import { knownLinkCount, refreshWorkStatus } from "../common/workRefresh";
+import { ago } from "../pages/HomePage";
+import { connectionFor } from "../../../src/shared/workLinks";
 import { RATING_COLORS, formatMoney } from "../colourOverlays";
 import { TagInput, TextField, useBusy } from "./formParts";
 import {
@@ -19,7 +21,9 @@ import {
   type SensitiveItem,
   type Tradeoff,
   type Usage,
+  type WorkConnectionInfo,
   type WorkItem,
+  WORK_TOOL_LABEL,
 } from "../types";
 import { sameKeys, type Common } from "./panelProps";
 
@@ -651,8 +655,25 @@ export function CostEditor({ element, currency, onSave }: { element: ElementSumm
   );
 }
 
+/** Under a work row: the tool its link belongs to, and the status that tool reported last. */
+function WorkRemote({ item, connections }: { item: WorkItem; connections: WorkConnectionInfo[] }) {
+  const tool = connectionFor(item.url, connections)?.tool;
+  if (!tool && !item.remote) return null;
+  return (
+    <div className="work-remote small" data-testid="work-remote">
+      {tool && <span className="work-tool">{WORK_TOOL_LABEL[tool]}</span>}
+      {item.remote && (
+        <span className="muted">
+          {tool ? " " : ""}remote: {item.remote}
+          {item.checked ? ` · checked ${ago(item.checked)}` : ""}
+        </span>
+      )}
+    </div>
+  );
+}
+
 /** Security issues, pull requests, issues, backlog items and required updates linked to an object or line. */
-export function WorkEditor({ rows, enums, onSave }: { rows: WorkItem[]; enums: AppState["enums"]; onSave(r: WorkItem[]): void }) {
+export function WorkEditor({ rows, enums, connections = [], onSave }: { rows: WorkItem[]; enums: AppState["enums"]; connections?: WorkConnectionInfo[]; onSave(r: WorkItem[]): void }) {
   return (
     <Rows<WorkItem>
       rows={rows}
@@ -700,6 +721,7 @@ export function WorkEditor({ rows, enums, onSave }: { rows: WorkItem[]; enums: A
               </a>
             )}
           </div>
+          <WorkRemote item={r} connections={connections} />
         </div>
       )}
     />
@@ -728,31 +750,27 @@ export function ExampleFields({
   );
 }
 
-const GH = /^https:\/\/github\.com\/[^/]+\/[^/]+\/(issues|pull)\/\d+/;
-
-/** "Refresh from GitHub" under Linked work (DEC-059): every GitHub issue and pull request link of the shown version. */
-export function WorkRefreshButton({ rows, mutate, readOnly }: { rows: WorkItem[]; mutate: Common["mutate"]; readOnly: boolean }) {
+/** "Refresh status" under Linked work (DEC-059, DEC-085): reads the status of every link in the model that a known tool (GitHub, GitLab, SonarQube, Jira) serves. */
+export function WorkRefreshButton({ state, mutate, extra }: { state: AppState; mutate: Common["mutate"]; extra?: WorkItem[] }) {
   const [busy, setBusy] = useState(false);
-  if (readOnly || !rows.some((w) => w.url && GH.test(w.url))) return null;
+  if (state.readOnly || knownLinkCount(state, extra) === 0) return null;
   const run = async () => {
     setBusy(true);
     try {
-      let msg = "";
-      await mutate(async () => {
-        const r = await api.refreshWork();
-        msg = `Checked ${r.checked} GitHub link${r.checked === 1 ? "" : "s"}${r.usedCredential ? ` with ${r.usedCredential}` : " (no GitHub credential: public repositories only)"}: ${r.updated.length} status${r.updated.length === 1 ? "" : "es"} changed.`;
-        if (r.failed.length) notify.error(`${r.failed.length} could not be read: ${r.failed.map((f) => `${f.url.replace("https://github.com/", "")} (${f.reason})`).join("; ")}`);
-      });
-      if (msg) notify.success(msg);
-    } catch (e) {
-      notify.error(errorMessage(e));
+      await refreshWorkStatus(mutate);
     } finally {
       setBusy(false);
     }
   };
   return (
-    <button className="add" onClick={() => void run()} disabled={busy} title="Read the status of every GitHub issue and pull request linked in this model" data-testid="work-refresh">
-      {busy ? "Asking GitHub…" : "↻ Refresh status from GitHub"}
+    <button
+      className="add"
+      onClick={() => void run()}
+      disabled={busy}
+      title="Read the status of every linked issue, pull request, finding and ticket in this model from its tool"
+      data-testid="work-refresh"
+    >
+      {busy ? "Asking the tools…" : "↻ Refresh status"}
     </button>
   );
 }

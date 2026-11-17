@@ -1,7 +1,7 @@
 /**
  * Below the sign-in: the hub-level pages (home, shared catalog, credentials; DEC-053) or a project's
  * diagrams (App). The URL says which:
- *   #/home  #/catalog  #/settings/credentials            pages of the server (a hub, or one project)
+ *   #/home  #/catalog  #/history  #/work  #/settings/credentials   pages of the server (a hub, or one project)
  *   #/d/<diagram>?pr=<project>&…                          a project (no `pr` on a single-project server)
  * An empty hash opens the home page in a hub and the diagrams of a single project, as before.
  */
@@ -19,6 +19,7 @@ function pageOf(hash: string): HubPage | null {
   if (/^#\/catalog(\?.*)?$/.test(hash)) return "catalog";
   if (/^#\/settings\/credentials\/?$/.test(hash)) return "credentials";
   if (/^#\/history(\?.*)?$/.test(hash)) return "history";
+  if (/^#\/work\/?$/.test(hash)) return "work";
   return null;
 }
 

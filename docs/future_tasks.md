@@ -1,6 +1,6 @@
 # Future tasks
 
-Last updated: 2026-11-16, after release 0.5.0 and the repository clean-up (DEC-066, DEC-067).
+Last updated: 2026-11-17, after release 0.5.0, the repository clean-up (DEC-066, DEC-067) and linked work (DEC-085 to DEC-088).
 
 This file is the short, ordered list of what is left to do. It is built from [backlog.md](backlog.md) (the full list, with sources and reasoning) and from the limits at the end of [planned-change.md](planned-change.md). It has two parts:
 
@@ -50,7 +50,7 @@ Built in 0.5.0: `dp scan`, `dp import`, the import file (JSON, schema v1), revie
 |---|---|---|---|
 | **Business and Security lens presets** | The lens mechanism is built; only Engineer, Architect and Overview ship. | [Owner, 2026-11-13] | Small |
 | **CODEOWNERS → owner proposals** | The scan already reads `CODEOWNERS` as evidence; turning it into proposed `owner` values on mapped objects is not done. | [Proposal] | Small |
-| **SARIF import → "Security findings" overlay** | `dp import sarif <file>` (SARIF 2.1.0 [Training]); findings mapped to objects by file path; counts by severity. | [Proposal] | Small–medium |
+| **SARIF import → linked work** (built, not yet released, DEC-085) | `dp work import <file> --format sarif` reads SARIF 2.1.0 (also GitLab Code Quality JSON, SonarQube issues and a dp JSON format). Findings go to the element whose code paths hold their file, and arrive as linked work, so the existing Work overlay shows them. A separate "Security findings" overlay with counts by severity is not built. | [Proposal] | — |
 | **Coverage overlay** | Cobertura XML → percent per object, in bands. | [Proposal] | Small |
 | **Line routing, stage 2** | Route straight, curved and smooth lines in the same pass; give ELK the label sizes; optional hops where lines cross; an itemised "Line shape" row in the change list; Make room / Spread out for selected boxes only. Stage 1, lanes, label avoidance (DEC-052, DEC-061) and "a change by hand moves only what it touches" (DEC-067) are done. | [Proposal, DEC-052, DEC-061] | Medium–large |
 | **Light theme** | The app is dark only (`color-scheme: dark` in `ui/src/styles/tokens.css`). | [Review, prod-p5] | Medium |
@@ -130,11 +130,12 @@ Principle [Proposal]: read standard report files, map file paths to model object
 
 - Git hotspots: churn per mapped object as an overlay.
 - SBOM and dependency vulnerabilities (CycloneDX or SPDX [Training]) on containers.
-- GitLab Code Quality JSON; SonarQube or SonarCloud metrics (needs a server or account); complexity per module.
-- Linked work with live status from other trackers (GitHub issues and pull requests are built, DEC-059); create issues from a draft.
+- Built (DEC-085): GitLab Code Quality JSON and SonarQube issues as linked work; live status from GitHub, GitLab, SonarQube and SonarCloud, and Jira (DEC-059, DEC-085). Not built: SonarQube coverage and other metrics, complexity per module.
+- Built (DEC-087, DEC-088): an editable severity mapping, and work across projects on the hub pages.
+- Open (DEC-085): create issues from a draft; webhooks and unattended pushes with API keys; GitHub security alerts (Dependabot, code scanning) as a source; a status refresh across every project from the hub's Work page.
 - Infrastructure-as-code import (Terraform, compose, Kubernetes), isometric rendering, live cloud inventory. The scan already reads compose and Dockerfiles.
 
-Open: tokens and network access, which the tool does not use today except for the optional GitHub status and BMO direct calls.
+Open: tokens and network access, which the tool does not use today except for the optional status refresh of linked work (on request, GitHub, GitLab, SonarQube and Jira) and BMO direct calls.
 
 ### 2.6 Collaboration and permissions
 

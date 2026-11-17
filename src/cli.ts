@@ -20,7 +20,10 @@ import { buildApp, LOOPBACK_HOSTS } from "./server/app.js";
 import type { TestSession } from "./server/testSession.js";
 import { CredentialStore } from "./core/credentials.js";
 import { ModelError } from "./core/modelEdits.js";
-import { CREDENTIAL_PROVIDERS } from "./shared/types.js";
+import { BUILTIN_CONNECTIONS, IntegrationsStore } from "./core/integrations.js";
+import { listWork, parseTargetSpec } from "./core/work.js";
+import { MAX_REPORT_CHARS, parseWorkReport, pushWork, WORK_IMPORT_SCHEMA } from "./core/workImport.js";
+import { CREDENTIAL_PROVIDERS, WORK_IMPORT_FORMATS, WORK_TOOLS, type WorkImportFormat, type WorkPush, type WorkPushResult } from "./shared/types.js";
 import { directBackend } from "./assistant/providerBackend.js";
 import { writeImportHandoff } from "./assistant/importTasks.js";
 import { BmoInvalid, destinationOf, parseSelectors, planTask, previewOf, runBmo, type BmoEnv } from "./assistant/runTask.js";
@@ -339,6 +342,54 @@ export function program(): Command {
       }
     });
 
+  const integ = p.command("integrations").description("Tool connections for linked work status (GitLab, SonarQube, GitHub Enterprise, Jira), in <folder>/.dp/integrations.json (never in git).");
+  integ
+    .command("list")
+    .description("List the connections: built in, and those of the file (with the credential each one names).")
+    .argument("[folder]", "Project or hub folder.", ".")
+    .action((folder: string) => {
+      try {
+        const s = new IntegrationsStore(folder).settings();
+        const shadowed = new Set(s.connections.map((c) => c.baseUrl));
+        for (const b of s.builtIn) console.log(`  ${b.id.padEnd(24)} ${b.tool.padEnd(8)} ${b.base}  (built in${shadowed.has(b.base) ? ", replaced below" : ""})`);
+        for (const c of s.connections)
+          console.log(`  ${c.id.padEnd(24)} ${c.tool.padEnd(8)} ${c.baseUrl}${c.credential ? `  credential: ${c.credential}` : "  no credential"}${c.auth === "basic" ? " (basic)" : ""}`);
+        if (!s.connections.length) console.log(`No connections in ${s.file}.`);
+      } catch (e) {
+        fail(e);
+      }
+    });
+  integ
+    .command("set")
+    .description("Add a connection, or change the one with this ID.")
+    .argument("<id>", "e.g. gitlab-internal")
+    .argument("[folder]", "Project or hub folder.", ".")
+    .requiredOption("--tool <tool>", `One of: ${WORK_TOOLS.join(", ")}.`)
+    .requiredOption("--url <url>", "The tool's address, e.g. https://gitlab.example.com (https, or http for this computer).")
+    .option("--credential <name>", "The stored credential to send (dp credentials add).")
+    .addOption(new Option("--auth <kind>", "How the credential is sent: bearer, or basic with the value user:token (Jira Cloud).").choices(["bearer", "basic"]))
+    .action((id: string, folder: string, o: { tool: string; url: string; credential?: string; auth?: string }) => {
+      try {
+        const c = new IntegrationsStore(folder).set({ id, tool: o.tool, baseUrl: o.url, credential: o.credential, auth: o.auth });
+        console.log(`Saved ${c.id}: ${c.tool} at ${c.baseUrl}${c.credential ? ` with the credential ${c.credential}` : ""}.`);
+      } catch (e) {
+        fail(e);
+      }
+    });
+  integ
+    .command("remove")
+    .description("Remove a connection.")
+    .argument("<id>")
+    .argument("[folder]", "Project or hub folder.", ".")
+    .action((id: string, folder: string) => {
+      try {
+        new IntegrationsStore(folder).remove(id);
+        console.log(`Removed ${id}.`);
+      } catch (e) {
+        fail(e);
+      }
+    });
+
   p.command("check")
     .alias("validate")
     .description("Check the model, its drafts and its code mapping. Exit code: 0 OK, 1 problems, 2 no model.")
@@ -590,6 +641,7 @@ export function program(): Command {
     });
 
   bmoCommands(p);
+  workCommands(p);
   usersCommands(p);
 
   return p;
@@ -999,4 +1051,156 @@ if (invokedDirectly) {
   const p = program();
   if (process.argv.length <= 2) p.help();
   void p.parseAsync();
+}
+
+/** `dp work ...`: linked work (DEC-085) from the command line, for scripts and CI. Nothing here uses the network: a report is a file. */
+function workCommands(p: Command): void {
+  const work = p
+    .command("work")
+    .description("Linked work: issues, findings and pull requests pinned to elements, relationships, diagrams, flows or the project. Exit code: 0 OK, 1 problems, 2 no model.");
+  const open = (dir: string, draft: string | undefined): Project => {
+    const project = openProject(dir);
+    if (!draft) return project;
+    try {
+      return new Drafts(project, gitUserName(project.dir)).get(draft);
+    } catch (e) {
+      if (e instanceof NotFound) {
+        console.error(e.message);
+        process.exit(1);
+      }
+      throw e;
+    }
+  };
+  const guard = (fn: () => void) => {
+    try {
+      fn();
+    } catch (e) {
+      if (e instanceof ModelError) {
+        console.error(e.message);
+        process.exit(1);
+      }
+      throw e;
+    }
+  };
+  const show = (r: WorkPushResult, dir: string, draft: string | undefined, extra = "") => {
+    console.log(
+      `${r.dryRun ? "Checked (nothing written): " : ""}added ${r.added}, updated ${r.updated}, closed ${r.closed}, unchanged ${r.unchanged}${r.unmapped !== undefined ? `, unmapped ${r.unmapped}` : ""}.${extra}`,
+    );
+    for (const row of r.rows.filter((x) => x.change !== "unchanged")) console.log(`  ${row.change.padEnd(8)} ${row.title}  -> ${row.label}`);
+    if (!r.dryRun && (r.added || r.updated || r.closed)) console.log(draft ? `Written to draft ${draft}.` : `Written to ${path.join(path.resolve(dir), ARCH_DIR)}.`);
+  };
+
+  work
+    .command("list")
+    .description("List linked work items (by default those not done).")
+    .argument("[path]", "Project folder containing architecture/.", ".")
+    .addOption(new Option("--status <status>", "Which items.").choices(["open", "in-progress", "blocked", "done", "all"]))
+    .option("--draft <id>", "Read the draft's model instead of the main model.")
+    .option("--json", "Print the rows as JSON.")
+    .action((dir: string, o: { status?: string; draft?: string; json?: boolean }) =>
+      guard(() => {
+        const rows = listWork(open(dir, o.draft).workspace, BUILTIN_CONNECTIONS).rows.filter((r) => (o.status === "all" ? true : o.status ? r.item.status === o.status : r.item.status !== "done"));
+        if (o.json) {
+          console.log(JSON.stringify(rows, null, 2));
+          return;
+        }
+        if (!rows.length) {
+          console.log("No linked work.");
+          return;
+        }
+        const w = (k: (r: (typeof rows)[number]) => string) => Math.max(...rows.map((r) => k(r).length));
+        const cols: [string, (r: (typeof rows)[number]) => string][] = [
+          ["STATUS", (r) => r.item.status],
+          ["SEVERITY", (r) => r.item.severity ?? "-"],
+          ["TYPE", (r) => r.item.type],
+          ["TITLE", (r) => r.item.title],
+          ["PINNED TO", (r) => `${r.targetKind}: ${r.label}`],
+          ["LINK", (r) => r.item.url ?? ""],
+        ];
+        const widths = cols.map(([h, k]) => Math.max(h.length, w(k)));
+        console.log(
+          cols
+            .map(([h], i) => h.padEnd(widths[i]!))
+            .join("  ")
+            .trimEnd(),
+        );
+        for (const r of rows)
+          console.log(
+            cols
+              .map(([, k], i) => k(r).padEnd(widths[i]!))
+              .join("  ")
+              .trimEnd(),
+          );
+      }),
+    );
+
+  work
+    .command("add")
+    .description("Add one linked work item, or update the one with the same key or link.")
+    .argument("[path]", "Project folder containing architecture/.", ".")
+    .requiredOption("--to <target>", "Where it is pinned: project, element:<id>, relationship:<id>, diagram:<key> (a flow is diagram:flow-<name>), or a bare ID or key.")
+    .requiredOption("--title <title>", "The item's title.")
+    .option("--type <type>", "security, pr, issue, backlog, update or quality.", "issue")
+    .option("--url <url>", "A link to the item.")
+    .option("--severity <severity>", "critical, high, medium or low.")
+    .option("--status <status>", "open, in-progress, blocked or done.")
+    .option("--key <key>", "A stable ID, so a later add or import updates this item.")
+    .option("--note <note>", "A note.")
+    .option("--source <name>", "Keep the key under <name>: (the name of the tool or script).")
+    .option("--draft <id>", "Write into this draft instead of the main model.")
+    .option("--check", "Only check: say what would change, write nothing.")
+    .action(
+      (dir: string, o: { to: string; title: string; type: string; url?: string; severity?: string; status?: string; key?: string; note?: string; source?: string; draft?: string; check?: boolean }) =>
+        guard(() => {
+          const project = open(dir, o.draft);
+          const item: WorkPush["item"] = { title: o.title, type: o.type };
+          for (const k of ["url", "severity", "status", "key", "note"] as const) if (o[k]) item[k] = o[k];
+          const r = pushWork(project, [{ to: parseTargetSpec(project.workspace, o.to), item }], { source: o.source, dryRun: o.check });
+          show(r, dir, o.draft);
+        }),
+    );
+
+  work
+    .command("import")
+    .description(
+      "Import findings from a report (SARIF, GitLab code quality, SonarQube issues, or dp's own format) as linked work. A finding goes to the element whose code paths hold its file, else to the project.",
+    )
+    .argument("[file]", "The report file (see --schema for the dp format).")
+    .argument("[path]", "Project folder containing architecture/.", ".")
+    .addOption(new Option("--format <format>", "The report's format.").choices([...WORK_IMPORT_FORMATS]))
+    .option("--source <name>", "Keep the findings' keys under <name>: so that a later import updates them.")
+    .option("--close-missing", "Set to done the items of this source that the report no longer lists (needs --source).")
+    .option("--draft <id>", "Write into this draft instead of the main model.")
+    .option("--check", "Only check: say what would change, write nothing.")
+    .option("--schema", "Print the JSON Schema of the dp format and exit.")
+    .action((file: string | undefined, dir: string, o: { format?: WorkImportFormat; source?: string; closeMissing?: boolean; draft?: string; check?: boolean; schema?: boolean }) => {
+      if (o.schema) {
+        console.log(JSON.stringify(WORK_IMPORT_SCHEMA, null, 2));
+        return;
+      }
+      if (!file || !o.format) {
+        console.error("Give the report file and --format (sarif, gitlab-codequality, sonar-issues or dp), or --schema to print the dp format.");
+        process.exit(1);
+      }
+      let text: string;
+      try {
+        if (fs.statSync(file).size > MAX_REPORT_CHARS) {
+          console.error(`${file} is over ${MAX_REPORT_CHARS / 1_000_000} MB, the most dp reads.`);
+          process.exit(1);
+        }
+        text = fs.readFileSync(file, "utf-8");
+      } catch (e) {
+        if (e instanceof Error && "code" in e) {
+          console.error(`Cannot read ${file}: ${e.message}`);
+          process.exit(1);
+        }
+        throw e;
+      }
+      guard(() => {
+        const project = open(dir, o.draft);
+        const { pushes, unmapped } = parseWorkReport(o.format!, text, project.workspace, project.sidecar.work.severity);
+        const r = pushWork(project, pushes, { source: o.source, closeMissing: o.closeMissing, dryRun: o.check });
+        show({ ...r, unmapped }, dir, o.draft);
+      });
+    });
 }

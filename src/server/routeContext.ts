@@ -10,7 +10,7 @@ import { DiskCode, NO_CODE, type CodeSource } from "../core/codeFiles.js";
 import { currentBranch, GitCodes, GitModels, gitUserName, listRefs } from "../core/git.js";
 import { decisionSummary } from "../core/decisions.js";
 import { CredentialStore } from "../core/credentials.js";
-import type { Fetch } from "../core/githubWorkStatus.js";
+import type { Fetch } from "../core/workTools/types.js";
 import type { Backend } from "../assistant/backend.js";
 import * as flows from "../core/flows.js";
 import { isObj, type Obj } from "../core/util.js";
@@ -19,7 +19,8 @@ import { buildIndex, elementSummary, relationshipSummary } from "../core/modelEd
 import { BUILTIN_LENSES, lensData, SECTIONS, styleData, type Sidecar } from "../core/designPerspectivesFile.js";
 import { Project, type ModelSource } from "../core/project.js";
 import type { Workspace } from "../core/workspace.js";
-import type { AppState, Decision, DraftInfo, Lens, Permissions, SessionUser, Style } from "../shared/types.js";
+import type { AppState, Decision, DraftInfo, Lens, Permissions, SessionUser, Style, WorkConnectionInfo, WorkItem } from "../shared/types.js";
+import { BUILTIN_CONNECTIONS, IntegrationsStore } from "../core/integrations.js";
 import { Auth, defaultLensFor, permissions, type AuthOptions, type Who } from "./auth.js";
 import { TestSession } from "./testSession.js";
 import { TraceStore } from "../core/traces.js";
@@ -70,7 +71,15 @@ export interface Access {
   canEdit: (d: DraftInfo) => boolean;
 }
 
-export function state(project: Project, readOnly = false, sel?: Selection, drafts?: Drafts, gitModels?: GitModels, access?: Access): AppState {
+export function state(
+  project: Project,
+  readOnly = false,
+  sel?: Selection,
+  drafts?: Drafts,
+  gitModels?: GitModels,
+  access?: Access,
+  workConnections: WorkConnectionInfo[] = BUILTIN_CONNECTIONS,
+): AppState {
   const src = sel?.src ?? project;
   const legacyEdit = !(readOnly || src.readOnly);
   const can: Permissions = access?.can ?? {
@@ -121,6 +130,9 @@ export function state(project: Project, readOnly = false, sel?: Selection, draft
       const repo = gitModels?.get();
       return repo ? { branch: currentBranch(repo), refs: listRefs(repo) } : null;
     })(),
+    projectWork: ops.getJson<WorkItem>(ws, ops.WORK_KEY),
+    workConnections,
+    workSeverity: sc.work.severity,
     compare: sel?.cmp && sel.cmpRef ? { against: sel.cmpRef, title: sel.cmpTitle ?? sel.cmpRef, summary: diffModels(sel.cmp, src, sel.cmpRef, codePair(sel)).summary } : null,
   };
 }
@@ -203,6 +215,8 @@ export interface AppOptions {
   credentials?: CredentialStore;
   /** How the server calls other services (tests replace it); default: the global fetch. */
   fetch?: Fetch;
+  /** Where linked work gets a live status (a hub's store, DEC-085); default: this project's `.dp/integrations.json`. */
+  integrations?: IntegrationsStore;
   /** A backend for BMO runs, plugged in by code (tests and e2e: a fake). Never chosen by a request or the settings; without it BMO uses the direct backend the settings name. */
   bmoBackend?: Backend;
 }
@@ -242,6 +256,11 @@ export interface Ctx {
   /** Integration credentials (DEC-056): the hub's, or the project's own. */
   credentials: CredentialStore;
   fetch: Fetch;
+  /** Where linked work links get a live status (DEC-085), without credentials: the built-in connections plus
+   *  those of `.dp/integrations.json` (the hub's in a hub). */
+  workConnections: () => WorkConnectionInfo[];
+  /** The connections file (with credential names: server only), the hub's in a hub. */
+  integrations: IntegrationsStore;
   /** This project's ID in a hub, or null. */
   projectId: string | null;
   /** The BMO backend plugged in by code (a fake in tests), or null. */
@@ -339,6 +358,7 @@ export function createContext(root: string, opts: AppOptions = {}): Ctx {
     };
   };
 
+  const integrations = opts.integrations ?? new IntegrationsStore(project.root);
   const traces = new TraceStore(opts.tracesDir ? path.resolve(opts.tracesDir) : path.join(project.root, "traces"));
   return {
     readOnly,
@@ -363,6 +383,8 @@ export function createContext(root: string, opts: AppOptions = {}): Ctx {
     catalog: opts.catalog ?? (() => null),
     credentials: opts.credentials ?? new CredentialStore(project.root, opts.secretKey === undefined ? (process.env.DP_SECRET_KEY ?? null) : opts.secretKey),
     fetch: opts.fetch ?? ((url, init) => fetch(url, init)),
+    workConnections: () => integrations.infos(),
+    integrations,
     projectId: opts.projectId ?? null,
     bmoBackend: opts.bmoBackend ?? null,
   };

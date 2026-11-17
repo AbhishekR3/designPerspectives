@@ -751,3 +751,84 @@ Entry format: **ID — title** · date · status · who decided · what was deci
   - **While modelling.** A Checklist button with the open count in the top bar and the key L open a card docked over the canvas: filter (open, all, the selection), tick, skip, edit in place, answer, link to the selection, move to a section, delete, clear done items, and add with Enter. "Add to checklist…" on the right-click menu of a box, a line or the canvas adds an item about it. The bell lists open BMO questions; the Import code page offers the import list and says how many questions an import added.
 - Why: the import already asked BMO for questions and assumptions, but dp dropped them, so a person never saw them; and the typed feedback that verifies notes lived in the review of one draft and was lost with it. A list beside the diagram, which ticks itself where the model can answer, turns "is the model done?" into something a person can see and work through.
 - Trade-off: not versioned with drafts, so a draft cannot carry its own checklist and ticks have no undo (git history is the record). The rules are fixed and a person cannot override one except by skipping it. Matching BMO's questions by exact words keeps re-worded repeats; a person deletes them. A viewer who knows an answer has to comment instead. Confirming an assumption by a click does not verify notes: the words must be typed (the same rule as DEC-064), which costs typing. Storing it in the sidecar was not chosen: ticks would need edit rights and every draft would fork the list.
+
+## DEC-085 — Linked work from GitHub, GitLab, SonarQube and Jira, pushed from CI, pinned anywhere
+
+- Date: 2026-11-17 · Status: Accepted · Decided by: Owner [2026-11-16] ("integrate … open source tools that developers use … like SonarQube or GitLab … so users can pin different links/issues/bugs … to this project in the diagram to track"; chose GitLab including self-hosted, SonarQube/SonarCloud and Jira; pull and push; boxes, lines, diagrams, flows and the project), [Proposal] (storage, connections, token rules, import formats)
+- Decision:
+  - **Where it can be pinned.** Linked work (`dp.work`) can sit on an element, a relationship, a diagram (its stored view), a flow (its dynamic view) or the project (the workspace's properties). Connector and code diagrams are refused, with a hint to pin to the relationship or the element. Targets use the same vocabulary as comments and checklist items (element, relationship, diagram), plus project.
+  - **What an item holds.** The existing fields, plus `key` (a stable ID from a tool), `remote` (the tool's own status words) and `checked` (when the status was read). A new type `quality` (a SonarQube project's quality gate). At most 500 items per object and 5000 per model.
+  - **Live status, on request only.** **Refresh status** (`POST /api/work/refresh`) reads GitHub (github.com and GitHub Enterprise), GitLab (gitlab.com and self-hosted; issues and merge requests), SonarQube and SonarCloud (issues, security hotspots, and the project's quality gate with counts) and Jira (issues; the status category gives open, in progress or done; the priority gives severity).
+    - Rule: the tool says done, so done; open on a done item, so open; in progress, so in progress; otherwise the status is kept, so a manual "blocked" stays.
+    - A change is written only when the status, the tool's words or the severity changed. A refresh that finds nothing new writes nothing and adds no undo step.
+  - **Tool connections.** The built-in connections are github.com, gitlab.com and sonarcloud.io. Others (self-hosted GitLab, SonarQube, Jira, GitHub Enterprise) are kept in `.dp/integrations.json` (mode 0600, ignored by git; the hub's own in a hub). Only architects change them: on the Credentials page, with `dp integrations list|set|remove`, or with `GET/PUT /api/integrations` and `DELETE /api/integrations/:id`.
+    - A connection names a stored credential (DEC-056) by name. `auth` is `bearer` (the default) or `basic` (`user:token`, for example Jira Cloud's email and API token).
+    - A built-in connection uses the first credential of its provider (github, gitlab, or sonarqube, a new provider) that no connection names. So a token for a team's own server never goes to a public host.
+  - **Push, with no network.** `dp work list|add|import`, and `GET /api/work`, `PUT /api/work/target`, `POST /api/work/items`, `POST /api/work/import`. Import formats: SARIF 2.1.0, GitLab Code Quality JSON, SonarQube issues search JSON, and a small dp JSON format (`dp work import --schema` prints it).
+    - Each finding goes to the element whose `dp.code.paths` hold its file (the longest path match, then the deeper element), otherwise to the project.
+    - `--source NAME` keeps the keys under `NAME:`. `--close-missing` sets that source's items, which this run no longer reports, to done. `--draft ID` writes into a draft. `--check` writes nothing.
+    - A push that changes nothing writes nothing.
+    - CI pattern: run the scanner, then `dp work import results.sarif . --format sarif --source codeql --close-missing`, and commit the model.
+    - **A push goes to the main model by default** (owner question answered 2026-11-17: "whatever you think is best"). In CI, "the main model" is the model on the CI branch, and the pull request is where people review it. A default draft would keep findings out of the model until someone applies the draft after every scan, so the Work page and the overlays would lag behind the scanner. `--draft ID` is there for a team that wants an architect to accept findings first.
+  - **Against the checklist (DEC-084).** The checklist is a to-do list for modelling, in a file next to the model. It is not drafted or diffed. Linked work points at items in other tools and stays in the model, so it goes through drafts, diffs and merges like other model data.
+- Why: linked work already points at items in other tools, so keeping their status current and taking reports from CI is the smallest useful next step. Report files work offline, so CI needs no tokens.
+- Alternatives considered:
+  - Hosts in the sidecar: refused. An engineer can edit a draft's sidecar and point a token at another host.
+  - Live API sync from the tools into the model on a schedule: refused. It needs tokens and network access in CI, where report files work offline.
+  - A separate work file next to the model, like the checklist: refused. Work items belong to model objects and should follow drafts.
+- Trade-off:
+  - A status is a snapshot. There is no polling and no webhooks.
+  - Unattended pushes from outside (webhooks with API keys) are not built. The server binds to 127.0.0.1 and has session sign-in only, so CI uses the CLI and commits the model.
+  - SonarQube bearer tokens need SonarQube 10 or later. Older servers use `basic` with the token as the user name.
+  - A refresh reads at most 200 links. A finding in a file shared by several components goes to the first one in model order.
+  - Outbound calls and their limits are in [CONTRIBUTING.md](CONTRIBUTING.md#linked-work-status-dec-085).
+
+## DEC-086 — A Work page for every pinned item
+
+- Date: 2026-11-17 · Status: Accepted · Decided by: Owner [2026-11-16] ("There should be a separate section to track these"; chose a page per project), Owner [2026-11-17] (no key, "just the work toolbar button"), [Proposal] (columns, filters, entry points)
+- Decision:
+  - **A page over the diagram.** `p=work`, from the **Work** button in the toolbar (no key: the owner chose the button only). It lists every linked work item in the model with what it is pinned to: the title (a link), tool, type, status (editable), severity, pinned to (a click reveals the box or line, or opens the diagram or flow), the tool's status and when it was checked, and the note.
+  - **Filters and grouping.** Text, tool, type, status (done is hidden by default), severity and kind of target. Group by target.
+  - **Adding and refreshing.** **Add item** has a target picker (default: Project). **Refresh status** reads the live status of the linked items (DEC-085).
+  - **Entry points.** **Link work…** in the right-click menu of a box, a line or the diagram background opens the page with that target chosen. Diagram and flow panels have a "Linked work" section. The diagram list shows a count beside diagrams and flows that have open items of their own.
+- Why: a checklist card beside the diagram suits a short list. Linked work can be long and needs a table with filters, so it gets a page.
+- Trade-off: the page is per project. Work across a hub is DEC-088.
+
+## DEC-087 — The severity mapping is a model setting, explained and edited on the Work page
+
+- Date: 2026-11-17 · Status: Accepted · Decided by: Owner [2026-11-17] (on the import severity mappings: "Include info like this in a page to understand the tool better and allows user to change around things"), [Proposal] (where it is stored, the tables, the page)
+- Decision:
+  - **Stored in the sidecar** as `work.severity` (`designperspectives.json`). It holds five parts: the SARIF `security-severity` score thresholds (critical, high and medium, from 9, 7 and 4 by default), and four name tables: SARIF levels, GitLab Code Quality severities, SonarQube severities (issues, impacts and hotspot probability), and Jira priorities. Names match in lower case, and a name that is not listed (or one mapped to "none") gives no severity. The defaults are the mappings DEC-085 shipped, plus SonarQube's newer `HIGH`, `MEDIUM` and `LOW` in the import. A model with the defaults writes nothing, so existing files are unchanged.
+  - **Used by** `dp work import`, `POST /api/work/import` and **Refresh status** (SonarQube and Jira). An item already in the model keeps its severity until the next import or refresh.
+  - **Edited** with `PUT /api/work-settings` (`{severity}`, or `null` for the defaults; role `edit`). The mapping is part of the model, so a draft can change it and the change list shows it as "Linked work settings".
+  - **"How it works" on the Work page.** A second view next to **Items** explains, in the page itself:
+    - what linked work is, compared with the checklist;
+    - which servers and link shapes give a live status;
+    - the status rule;
+    - how CI brings findings in, with the commands;
+    - the severity mapping, as editable tables. Names can be added (a Jira site's own priorities), changed and removed. Duplicate names and scores that do not go down are refused before saving, and **Use dp's defaults** resets it.
+- Why: a tool's severities do not match every team's sense of urgency (one team's "major" is another's "high"), and Jira sites rename their priorities. The owner wanted the rules visible and changeable. In the sidecar the mapping follows the model's review flow, and it holds no host or token, so it is safe for an engineer to edit (unlike tool connections, DEC-085).
+- Alternatives considered:
+  - In `.dp/integrations.json`, next to the connections: refused. That file is for architects only and is not reviewed with the model, and a mapping needs neither restriction.
+  - Fixed in code with a long help text: refused, because the owner asked to be able to change it.
+- Trade-off:
+  - A changed mapping does not rewrite items already in the model; the next import or refresh does.
+  - GitHub and GitLab give no severity, so they have no table.
+
+## DEC-088 — Work across projects on the hub pages
+
+- Date: 2026-11-17 · Status: Accepted · Decided by: Owner [2026-11-17] ("you can have an open work across all projects but include filters and relevant items"), [Proposal] (route, page, links)
+- Decision:
+  - **`GET /api/hub/work`**: the linked work of every project the person may see (DEC-060), read from each main model. Each row has its project. Each project reports its open and total counts, or the error that kept it from loading. It returns the tool connections, work types and statuses, so the page can label rows without a project's state. In a single project it is the same list for that project.
+  - **A Work page on the hub pages** (`#/work`, **Work** in the left rail). It shows:
+    - totals: open, critical or high, security, and how many projects have open work;
+    - one chip per project, with its open count, which filters to that project;
+    - filters for text, status (not done by default), type, severity, tool and kind of target;
+    - grouping by project (on by default in a hub).
+  - Each row links out: its title to the tool, its project to that project's Work page, and its target to the box on its diagram, to the diagram or flow, or (for a line or the project) to the project's Work page.
+  - **Read-only.** Items are added, changed and refreshed in a project's own Work page, where the version (main or a draft) and the role are clear.
+- Why: someone who looks after several projects wants to see what is open, especially security findings and failed quality gates, without opening each project.
+- Trade-off:
+  - Main models only: drafts are not included.
+  - The list is built from every project on each request. It is reloaded when the window gets the focus back, not live.
+  - No refresh from this page, so a status is as fresh as each project's last refresh.

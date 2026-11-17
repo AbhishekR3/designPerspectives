@@ -132,6 +132,12 @@ one, so viewers cannot run them.
 | `dp plan DRAFT [PATH]` | The coding plan of a draft: what to build, connect, change or remove. | `--check` how much the code already does (exit 1 while steps are open); `--against REF`; `--format md\|json`; `--out FILE`; `--code-root DIR` |
 | `dp scan [PATH]` | Scan the code for what a C4 model needs: dependencies, Dockerfiles, compose, folders and imports. No network, no model. Writes `architecture/import/evidence.json` and `analysis.json`. Exit code 0 OK, 1 problem, 2 no model. | `--plan` print the readiness table; `--prompt` write the handoff files for one level; `--level c1\|c2\|c3` (with `--prompt`); `--container ID` (with `--prompt --level c3`); `--json`; `--code-root DIR` |
 | `dp import FILE [PATH]` | Check a JSON import file and bring it into the model as a draft. Nothing reaches the main model until its items are accepted and the draft is applied. Exit code 0 OK, 1 problems, 2 no model. | `--check` check only, create nothing; `--title TITLE`; `--schema` print the JSON Schema and exit (no file needed); `--code-root DIR` |
+| `dp work list [PATH]` | List linked work items, by default those not done: target, tool, status, severity, link. | `--status open\|in-progress\|blocked\|done\|all`; `--draft ID`; `--json` |
+| `dp work add [PATH]` | Add one linked work item, or update the one with the same key or link. Exit code 0 OK, 1 problems, 2 no model. | `--to TARGET` (required: `project`, `element:ID`, `relationship:ID` or `diagram:KEY`); `--title TITLE` (required); `--type security\|pr\|issue\|backlog\|update\|quality`; `--url URL`; `--severity critical\|high\|medium\|low`; `--status`; `--key KEY`; `--note TEXT`; `--source NAME`; `--draft ID`; `--check` |
+| `dp work import FILE [PATH]` | Import findings or a report as linked work, with no network. Formats: `sarif` (SARIF 2.1.0), `gitlab-codequality`, `sonar-issues` (SonarQube issues search) and `dp` (see `--schema`). Each finding goes to the element whose code paths hold its file, otherwise to the project. Exit code 0 OK, 1 problems, 2 no model. | `--format NAME` (the report's format, as listed above); `--source NAME`; `--close-missing` (with `--source`: items the report no longer lists become done); `--draft ID`; `--check`; `--schema` |
+| `dp integrations list [FOLDER]` | List the tool connections: the built-in ones and those in `.dp/integrations.json`, with the credential each one names. | |
+| `dp integrations set ID [FOLDER]` | Add a tool connection, or change the one with this ID. | `--tool github\|gitlab\|sonar\|jira` (required); `--url URL` (required); `--credential NAME`; `--auth bearer\|basic` |
+| `dp integrations remove ID [FOLDER]` | Remove a tool connection. | |
 | `dp bmo status [PATH]` | Show the BMO settings and whether a run is possible. Never prints a key. | |
 | `dp bmo set [PATH]` | Change the BMO settings in `.dp/bmo.json`. Only the options given change. | `--enabled` / `--disabled`; `--backend handoff\|direct`; `--provider anthropic\|openai\|ollama`; `--model NAME`; `--endpoint URL`; `--clear-endpoint`; `--allow-custom-endpoint`; `--credential NAME`; `--roles LIST` (architect, engineer, viewer); `--budget TOKENS` |
 | `dp bmo run TASK [PATH]` | Run one BMO task: `import-level`, `describe-to-model`, `explain`, `decision-from-draft`, `draft-summary`, `challenge` or `suggest-labels`. Shows what would be sent and sends nothing without `--yes-send` (exit code 1). | `--yes-send`; `--show-prompt`; `--level c1\|c2\|c3`; `--container ID`; `--diagram KEY`; `--element ID`; `--relationship ID`; `--lens NAME`; `--draft ID`; `--text-file FILE` (at most 60 KB); `--code-root DIR` |
@@ -159,6 +165,8 @@ dp plan tell-customers-when-a-payment-is-held --check
 dp users add sam --role engineer --password-stdin < password.txt
 dp users role sam viewer --project payments
 dp credentials add github-token --provider github < token.txt   # the value stays out of your shell history
+dp integrations set gitlab-internal --tool gitlab --url https://gitlab.example.com --credential gitlab-token
+dp work import results.sarif . --format sarif --source codeql --close-missing   # findings as linked work, e.g. in CI
 ```
 
 **Network access.** `dp serve` listens on `127.0.0.1` by default, and the server answers only requests
@@ -211,9 +219,18 @@ before, plus what is not committed yet. dp only reads git; commit with your usua
 
 **Credentials** (architects): tokens dp uses to reach other services, kept in `.dp/credentials.json`,
 never in git and never shown again after saving. They are plain text on disk (file mode 0600) unless
-you set `DP_SECRET_KEY`, which encrypts them. The first use: **Refresh status from GitHub** under an
-object's Linked work reads the state of every linked GitHub issue and pull request (with a stored
-`github` credential, or public repositories only).
+you set `DP_SECRET_KEY`, which encrypts them. **Tool connections** (architects; on the Credentials page or with
+`dp integrations`) name the address of a tool and the credential it uses, kept in `.dp/integrations.json`.
+The built-in connections (github.com, gitlab.com, sonarcloud.io) need none. The first use: **Refresh status**
+under an object's Linked work, or on the Work page, reads the state of linked GitHub, GitLab, SonarQube and
+Jira items. A built-in connection uses the stored credential of its provider that no connection names;
+without one, GitHub reads public repositories only.
+
+**Work** (DEC-086 to DEC-088): the **Work** button in a project's toolbar lists every linked work item with
+filters. Its **How it works** view explains where status comes from and how CI brings findings in, and edits
+the model's severity mapping (how SARIF, GitLab Code Quality, SonarQube and Jira severities become critical,
+high, medium or low). **Work** in the hub pages' left rail lists the linked work of every project you may see,
+with filters by project, status, type, severity and tool.
 
 ## Sign-in and roles (optional)
 
@@ -253,6 +270,7 @@ The users file holds password hashes and must not be committed. `.dp/` is added 
 | `hub.json` (hub folder) | The projects of a hub and its catalog folder. |
 | `.dp/users.json` | Sign-in users and password hashes. Not in git. |
 | `.dp/credentials.json` | Integration credentials. Not in git; mode 0600; encrypted with `DP_SECRET_KEY` when that is set. |
+| `.dp/integrations.json` | Tool connections for linked work (the address of each tool and the credential it names). Not in git; mode 0600; changed by architects only. |
 | `.dp/bmo.json` | BMO settings (on or off, backend, provider, model, endpoint, the credential to use, the roles allowed to run it). Not in git; mode 0600; changed by architects only. |
 | `.dp/bmo/runs/` | A record of each direct BMO run. Not in git; it holds code excerpts. |
 | `architecture/import/` | Code import review data, kept out of the model: `evidence.json`, `analysis.json`, `intake.json`, `ignore.json`, `levels.json`, `ledger.json`, `reviews/`, `files/`. Committable, except `handoff/` and the typed description, which `.gitignore` lists. |
@@ -351,9 +369,14 @@ connector and code diagrams).
   *driving* ones, and note why. The list is editable.
 - Cost: monthly cost lines per object; systems and containers show the total of everything inside them.
   Cost bands (Free to Very high) and the currency are editable.
-- Linked work: link boxes and lines to security issues, pull requests, issues, backlog items and
-  required updates (title, link, status, severity). Boxes show open items; the **Work** overlay colours
-  boxes by their most severe open item.
+- Linked work (DEC-085): pin security issues, pull requests, issues, backlog items, required updates and
+  quality gates to a box, a line, a diagram, a flow or the project. Each item has a title, link, status,
+  severity and the tool's own status. **Refresh status** reads GitHub, GitLab, SonarQube and Jira on request.
+  CI pushes findings with `dp work import` (SARIF, GitLab Code Quality, SonarQube issues). Boxes show open
+  items; the **Work** overlay colours boxes by their most severe open item.
+- **Work page** (DEC-086): **Work** in the toolbar. It lists every linked work item with what
+  it is pinned to, and filters by text, tool, type, status, severity and kind of target. Add an item, refresh
+  the status, or use **Link work…** on a box, a line or the diagram background.
 
 ### Code level
 

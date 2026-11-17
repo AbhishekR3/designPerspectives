@@ -268,7 +268,7 @@ export function unitLabel(u: Unit): string {
     case "views":
       return `View settings "${u.k}"`;
     case "sc":
-      return u.k === "characteristics" ? "Characteristics list" : u.k === "cost" ? "Cost settings" : `Setting "${u.k}"`;
+      return u.k === "characteristics" ? "Characteristics list" : u.k === "cost" ? "Cost settings" : u.k === "work" ? "Linked work settings" : `Setting "${u.k}"`;
     case "tg":
       return `Tag group "${String(u.v.name)}"`;
     case "lens":

@@ -14,6 +14,9 @@ import { BmoChat, type BmoChatSeed } from "./common/BmoChat";
 import { mentionTargets } from "./common/bmoChatText";
 import { useBmoChatLog, type BmoRequest } from "./hooks/useBmo";
 import { ImportPage } from "./pages/ImportPage";
+import { WorkPage, workBadge, type WorkAddRequest } from "./pages/WorkPage";
+import { useWork } from "./hooks/useWork";
+import { DiagramWorkSection } from "./panels/DiagramWorkSection";
 import { Canvas, type CanvasHandle } from "./canvas/Canvas";
 import { CanvasNotes } from "./canvas/CanvasNotes";
 import { CommentsContext, DiagramComments, edgeCommentTarget, useComments } from "./common/comments";
@@ -43,7 +46,7 @@ import { ReadOnlyContext } from "./panels/formParts";
 import { CodeDiagramPanel, ConnectorPanel, EdgePanel, FilePanel, MultiPanel, ObjectPanel, StagePanel } from "./panels";
 import { SearchBox } from "./common/SearchBox";
 import { Sidebar } from "./common/Sidebar";
-import { LEVEL_LABEL, type CommentTarget, type Lens, type Pt, type Selection, type TagGroup } from "./types";
+import { LEVEL_LABEL, type CommentTarget, type Lens, type Pt, type Selection, type TagGroup, type WorkTarget } from "./types";
 import { useClipboard } from "./hooks/useClipboard";
 import { useFlowAutoplay, useFlowPlayer } from "./hooks/useFlowPlayer";
 import { inLens, useLens, useLensState } from "./hooks/useLens";
@@ -118,6 +121,7 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
   const decisionsOpen = page === "decisions" || !!page?.startsWith("decisions/");
   const decisionId = page?.startsWith("decisions/") ? page.slice("decisions/".length) : null;
   const importOpen = page === "import";
+  const workOpen = page === "work";
   const { state, diagram, version, versionRef, loading, changes, loadError, retryLoad, loadDiagram, refresh, switchVersion, mutate, doHistory } = useModel({
     keyRef,
     setKey,
@@ -278,6 +282,25 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
   // The checklist card and the BMO chat take the same place: opening one closes the other.
   const checklist = useChecklist(state);
   const [checklistOpen, setChecklistOpen] = useState(false);
+  // Linked work (DEC-085): the page, the number on its button, and a "Link work…" request waiting to open its form.
+  const work = useWork(state);
+  const badge = useMemo(() => (work.data ? workBadge(work.data.rows) : { count: 0, urgent: false }), [work.data]);
+  const [workAdd, setWorkAdd] = useState<WorkAddRequest | null>(null);
+  const workSeq = useRef(0);
+  /** Open the Work page (closes the checklist card; the selection goes). With `add`, its form opens on that target. */
+  const openWork = (add?: WorkTarget) => {
+    setSelection(null);
+    setChecklistOpen(false);
+    setWorkAdd(add ? { target: add, n: ++workSeq.current } : null);
+    setPage("work", { replace: decisionsOpen || importOpen });
+  };
+  /** From the Work page: show what an item is pinned to (a box or a line on its diagram, a diagram or a flow opened). */
+  const revealWork = (t: WorkTarget) => {
+    if (t.type === "project") return;
+    setPage(null, { replace: true });
+    if (t.type === "diagram") open(t.id);
+    else revealRef(t.id);
+  };
   const openChecklist = () => {
     setChatOpen(false);
     setPage(null, { replace: true });
@@ -331,7 +354,7 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
   // The tab title names the project and the diagram, so tabs and the Back list can be told apart.
   useEffect(() => {
     if (!state) return;
-    const name = page === "import" ? "Import code" : page?.startsWith("decisions") ? "Decisions" : (state.diagrams.find((d) => d.key === key)?.title ?? null);
+    const name = page === "import" ? "Import code" : page === "work" ? "Linked work" : page?.startsWith("decisions") ? "Decisions" : (state.diagrams.find((d) => d.key === key)?.title ?? null);
     document.title = [name, state.workspace.name, "designPerspectives"].filter(Boolean).join(" · ");
   }, [state, key, page]);
 
@@ -484,6 +507,14 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
                 select(selectAs);
                 checklist.askFor(target);
                 openChecklist();
+              },
+            }
+          : {}),
+        ...(!panelState.readOnly
+          ? {
+              linkWork: (target: WorkTarget, selectAs: Selection) => {
+                select(selectAs);
+                openWork(target);
               },
             }
           : {}),
@@ -932,6 +963,17 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
                     </button>
                   )}
                   <button
+                    className={`ghost diagrams-btn decisions-btn${workOpen ? " on" : ""}`}
+                    onClick={() => (workOpen ? setPage(null) : openWork())}
+                    title={`Linked work: ${badge.count ? `${badge.count} ${badge.urgent ? "critical or high" : "open"}` : "nothing open"}`}
+                    aria-label="Work"
+                    aria-pressed={workOpen}
+                    data-testid="open-work"
+                  >
+                    <Icon name="work" size={14} /> <span className="diagrams-label">Work</span>
+                    {badge.count > 0 && <span className="comments-count">{badge.count > 99 ? "99+" : badge.count}</span>}
+                  </button>
+                  <button
                     className={`ghost diagrams-btn decisions-btn checklist-btn${checklistOpen ? " on" : ""}`}
                     onClick={() => (checklistOpen ? setChecklistOpen(false) : openChecklist())}
                     title={`Checklist (L): ${checklist.open} open`}
@@ -1047,6 +1089,7 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
           {importOpen && (
             <ImportPage state={panelState} refresh={refresh} onClose={() => setPage(null)} onOpenDraft={(id) => void openImportDraft(id)} checklist={checklist} onOpenChecklist={openChecklist} />
           )}
+          {workOpen && <WorkPage state={panelState} work={work.data} loadError={work.error} onClose={() => setPage(null)} onReveal={revealWork} mutate={mutate} initialAdd={workAdd} />}
           {decisionsOpen && <DecisionsPage state={panelState} selected={decisionId} onSelect={(id) => openDecision(id)} onClose={() => setPage(null)} onReveal={revealFromPage} mutate={mutate} />}
           {diagram && diagram.nodes.length === 0 && (
             <div className="free-area">
@@ -1171,6 +1214,7 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
                 onBacktrack={setBacktrackQ}
                 onOpenDiagram={open}
                 testing={flowTesting}
+                showWork={lens.visibleSections.includes("work")}
               />
             )}
             {!selection && diagram?.level === "connector" && <ConnectorPanel {...panelProps} />}
@@ -1217,6 +1261,7 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
                     </select>
                   </label>
                 )}
+                {diagram.work && lens.visibleSections.includes("work") && <DiagramWorkSection state={panelState} rows={diagram.work} target={{ type: "diagram", id: diagram.key }} mutate={mutate} />}
                 <p className="muted small">Click an object or connection to see its details here. Press ? or use the help button at the top right.</p>
                 {reviewBlock}
                 {changes && (
