@@ -110,6 +110,14 @@
   gap: 6px;
   align-items: center;
 }
+.flow-io {
+  margin-top: var(--space-2);
+  overflow-wrap: anywhere;
+}
+.flow-io .muted {
+  display: inline-block;
+  min-width: 20px;
+}
 .flow-route span {
   display: inline-flex;
   align-items: center;

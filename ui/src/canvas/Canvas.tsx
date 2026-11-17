@@ -17,13 +17,14 @@ import {
 import { toPng, toSvg } from "html-to-image";
 import { canvasInsets } from "./coveredEdges";
 import { isMac } from "./ContextMenu";
-import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type Ref } from "react";
+import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type ReactNode, type Ref } from "react";
 import {
   CUSTOM_HEADS,
   FLOW_CURRENT,
   MarkerDefs,
   edgeColor,
   edgeTypes,
+  layoutPoints,
   lineShape,
   nodeTypes,
   pointAlong,
@@ -38,8 +39,8 @@ import { edgeCommentTarget, type CommentCount } from "../common/comments";
 import { CHANGE_COLORS } from "../colourOverlays";
 import { DRAG_TYPE, type PaletteItem } from "./Palette";
 import { estimateLabelSize } from "./labelSize";
-import { crowdedPairs, selectionInput, spreadLayout, spreadSelected } from "./makeRoom";
-import { layoutLines, reusable, updateLines, type LineInput, type LinePrevious } from "./lineLayout";
+import { crowdedPairs, movePoints, selectionInput, spreadLayout, spreadSelected } from "./makeRoom";
+import { carryLines, layoutLines, reusable, updateLines, type LineInput, type LinePrevious } from "./lineLayout";
 import type { Box } from "./routing";
 import { NODE_H, NODE_W, autoLayout, defaultSize, findFreeSpot, placeMissing, type Rect, type Size } from "./layout";
 import { nodeSelection, selectedNodeIds, type CommentTarget, type Diagram, type DiagramNode, type EdgeLayout, type Lens, type Pt, type Selection } from "../types";
@@ -102,7 +103,8 @@ interface Props {
   onDrill(key: string): void;
   onConnect(source: string, target: string, anchors: { sourceAnchor?: Pt; targetAnchor?: Pt }): void;
   onPositions(positions: Record<string, Pt>, auto?: boolean): void;
-  onLayout(patch: LayoutPatch): void;
+  /** `auto`: a detail of the edit just made (hand-set line corners carried along with moved boxes), not an undo step of its own. */
+  onLayout(patch: LayoutPatch, auto?: boolean): void;
   onOpenFile(path: string): void;
   onContextMenu(target: ContextTarget, client: Pt): void;
   handleRef: Ref<CanvasHandle>;
@@ -113,6 +115,8 @@ interface Props {
   readOnly: boolean;
   /** The model version shown (main, a draft, a git ref) and what it is compared with: when it changes, every line is planned again. */
   version: string;
+  /** Extra layers drawn inside the canvas (the comment notes, which pan and zoom with the diagram). */
+  children?: ReactNode;
 }
 
 type P = Record<string, Pt>;
@@ -167,6 +171,7 @@ export function Canvas({
   onComments,
   readOnly,
   version,
+  children,
 }: Props) {
   const rf = useReactFlow();
   const [positions, setPositions] = useState<P>({});
@@ -213,6 +218,39 @@ export function Canvas({
   const savable = useCallback((p: P): P => (frozen ? {} : Object.fromEntries(Object.entries(p).filter(([id]) => !ghosts.has(id)))), [frozen, ghosts]);
 
   useEffect(() => setSizeOverride({}), [diagram]);
+  /** Line layouts saved a moment ago (hand-set corners carried along with moved boxes), shown until the diagram reloads with them. */
+  const [edgeOverride, setEdgeOverride] = useState<Record<string, EdgeLayout>>({});
+  useEffect(() => setEdgeOverride({}), [diagram]);
+  const diagramEdges = useMemo(
+    () => (Object.keys(edgeOverride).length ? diagram.edges.map((e) => (edgeOverride[e.id] ? { ...e, layout: edgeOverride[e.id] } : e)) : diagram.edges),
+    [diagram, edgeOverride],
+  );
+  /**
+   * Lines with corners set by hand (`EdgeLayout.points`) whose boxes moved: `map` gives their new corners (null: unchanged).
+   * Saved as a detail of the move (`auto`), so the move and the corners are one undo step.
+   */
+  const carryPoints = useCallback(
+    (map: (e: Diagram["edges"][number], pts: Pt[]) => Pt[] | null) => {
+      if (frozen) return;
+      const patch: Record<string, EdgeLayout> = {};
+      for (const e of diagramEdges) {
+        const pts = layoutPoints(e.layout);
+        if (!pts || e.ghost) continue;
+        const next = map(e, pts);
+        if (!next) continue;
+        const layout = { ...e.layout };
+        if (next.length) layout.points = next;
+        else delete layout.points;
+        if (JSON.stringify(layout) !== JSON.stringify(e.layout)) patch[e.id] = layout;
+      }
+      if (!Object.keys(patch).length) return;
+      setEdgeOverride((o) => ({ ...o, ...patch }));
+      onLayout({ edges: patch }, true);
+    },
+    [diagramEdges, frozen, onLayout],
+  );
+  /** Box positions before a drag, to tell how far each dragged box went. */
+  const dragFrom = useRef<P>({});
 
   // Resolve positions: saved ones, otherwise lay out and save.
   useEffect(() => {
@@ -424,14 +462,14 @@ export function Canvas({
 
   const edges: Edge[] = useMemo(() => {
     const groups = new Map<string, string[]>();
-    for (const e of diagram.edges) {
+    for (const e of diagramEdges) {
       const k = [e.source, e.target].sort().join("|");
       groups.set(k, [...(groups.get(k) ?? []), e.id]);
     }
     const pastSteps = new Set(flow && flowStep !== null ? flow.steps.slice(0, flowStep).map((s) => s.relationshipId) : []);
     const shown = new Set(nodes.map((n) => n.id));
     const unfocused = new Set(diagram.nodes.filter((n) => decorate(n).outOfFocus).map((n) => n.id));
-    const visible = diagram.edges.filter((e) => shown.has(e.source) && shown.has(e.target));
+    const visible = diagramEdges.filter((e) => shown.has(e.source) && shown.has(e.target));
     // Right-angle lines are planned together so lines that meet one side of a box get separate slots. The boxes are
     // the same rectangles React Flow measures for the nodes (position and the size set on them above).
     const boxes: Record<string, Box> = {};
@@ -441,7 +479,16 @@ export function Canvas({
         const r = e.layout.routing ?? diagram.lineShape ?? "rounded";
         return r === "orthogonal" || r === "rounded";
       })
-      .map((e) => ({ id: e.id, source: e.source, target: e.target, sourceAnchor: e.layout.sourceAnchor, targetAnchor: e.layout.targetAnchor, control: e.layout.control, fixedT: e.layout.labelT }));
+      .map((e) => ({
+        id: e.id,
+        source: e.source,
+        target: e.target,
+        sourceAnchor: e.layout.sourceAnchor,
+        targetAnchor: e.layout.targetAnchor,
+        control: e.layout.control,
+        fixedT: e.layout.labelT,
+        points: layoutPoints(e.layout),
+      }));
     const commentsOf = (e: (typeof visible)[number]) => {
       const t = edgeCommentTarget(e);
       return t ? (commentCounts.relationship[t.id] ?? null) : null;
@@ -472,16 +519,17 @@ export function Canvas({
     // or removed) only the lines it touches are planned again, and every other line stays exactly as it was (updateLines).
     // While boxes are dragged, only the lines at the dragged boxes are routed again (see lineLayout.ts), and the edge
     // objects of the lines that did not change are reused as they are.
-    const edgeDeps = [diagram, decorate, flow, flowStep, step, stepRel, selection, editable, onLayout, onSelect, openEdge, showChanges, onContextMenu, commentCounts, dragEpoch];
+    const edgeDeps = [diagram, diagramEdges, decorate, flow, flowStep, step, stepRel, selection, editable, onLayout, onSelect, openEdge, showChanges, onContextMenu, commentCounts, dragEpoch];
     const cached = lineCache.current?.version === version ? lineCache.current : null;
     const sizeOfLabel = (id: string) => labelSizeOf(byId.get(id)!);
     const reuse =
       dragging.current && cached && cached.deps.length === edgeDeps.length && cached.deps.every((d, i) => d === edgeDeps[i]) && reusable(cached.prev, boxes, routed, dragging.current) ? cached : null;
     const base = cached && !replanAll.current ? cached.prev : null;
+    // While both boxes of a line with corners set by hand are dragged together, the corners go along (saved on release).
     const layout = reuse
-      ? layoutLines(boxes, routed, sizeOfLabel, { prev: reuse.prev, dragged: dragging.current! })
+      ? layoutLines(boxes, routed, sizeOfLabel, { prev: reuse.prev, dragged: dragging.current!, from: dragFrom.current })
       : base
-        ? updateLines(base, boxes, routed, sizeOfLabel)
+        ? updateLines(base, boxes, dragging.current ? carryLines(routed, dragFrom.current, boxes, dragging.current) : routed, sizeOfLabel)
         : layoutLines(boxes, routed, sizeOfLabel);
     if (!layout.partial) replanAll.current = false;
     const { ports, routes, labelTs } = layout;
@@ -570,7 +618,7 @@ export function Canvas({
     });
     if (!layout.partial) lineCache.current = { deps: edgeDeps, version, prev: { boxes, lines: routed, layout }, edges: new Map(built.map((e) => [e.id, e])) };
     return built;
-  }, [diagram, nodes, decorate, flow, flowStep, step, stepRel, selection, editable, onLayout, onSelect, openEdge, showChanges, onContextMenu, commentCounts, dragEpoch, version]);
+  }, [diagram, diagramEdges, nodes, decorate, flow, flowStep, step, stepRel, selection, editable, onLayout, onSelect, openEdge, showChanges, onContextMenu, commentCounts, dragEpoch, version]);
 
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => {
@@ -628,7 +676,11 @@ export function Canvas({
         replanAll.current = true; // asked for: every line is planned again with the new places
         setPositions(pos);
         const keep = savable(pos);
-        if (Object.keys(keep).length) onPositions(keep);
+        if (Object.keys(keep).length) {
+          onPositions(keep);
+          // Corners set by hand do not fit a new arrangement: those lines go back to automatic.
+          carryPoints(() => []);
+        }
         requestAnimationFrame(() => rf.fitView(fitOptions(wrapper.current, 300)));
       },
       nudge(ids, dx, dy) {
@@ -641,6 +693,8 @@ export function Canvas({
         if (!Object.keys(moved).length) return;
         setPositions((prev) => ({ ...prev, ...moved }));
         onPositions(moved);
+        const by = { x: Math.round(dx), y: Math.round(dy) };
+        carryPoints((e, pts) => (moved[e.source] && moved[e.target] ? pts.map((p) => ({ x: p.x + by.x, y: p.y + by.y })) : null));
       },
       async spread(mode) {
         if (!editable) return;
@@ -671,7 +725,18 @@ export function Canvas({
         if (!scoped) replanAll.current = true;
         setPositions((prev) => ({ ...prev, ...moved }));
         const keep = savable(moved);
-        if (Object.keys(keep).length) onPositions(keep);
+        if (Object.keys(keep).length) {
+          onPositions(keep);
+          // Corners set by hand move with the boxes: as their two boxes did when those moved together, else with the stretch around them.
+          carryPoints((e, pts) => {
+            const [a, b] = [boxes.find((x) => x.id === e.source), boxes.find((x) => x.id === e.target)];
+            if (!a || !b) return null;
+            const da = { x: (keep[a.id]?.x ?? a.x) - a.x, y: (keep[a.id]?.y ?? a.y) - a.y };
+            const db = { x: (keep[b.id]?.x ?? b.x) - b.x, y: (keep[b.id]?.y ?? b.y) - b.y };
+            if (da.x === db.x && da.y === db.y) return da.x || da.y ? pts.map((p) => ({ x: p.x + da.x, y: p.y + da.y })) : null;
+            return movePoints(boxes, keep, pts, [e.source, e.target]);
+          });
+        }
         requestAnimationFrame(() => rf.fitView(fitOptions(wrapper.current, 300)));
       },
       fit() {
@@ -714,7 +779,7 @@ export function Canvas({
             width,
             height,
             style: { width: `${width}px`, height: `${height}px`, transform: `translate(${vp.x}px, ${vp.y}px) scale(1)` },
-            filter: (el: HTMLElement) => !el.classList?.contains("react-flow__handle") && !el.classList?.contains("edge-grip"),
+            filter: (el: HTMLElement) => !el.classList?.contains("react-flow__handle") && !el.classList?.contains("edge-grip") && !el.classList?.contains("canvas-notes"),
           };
           const url = format === "svg" ? await toSvg(viewport, opts) : await toPng(viewport, { ...opts, pixelRatio: 2 });
           const a = document.createElement("a");
@@ -724,7 +789,7 @@ export function Canvas({
         });
       },
     }),
-    [rf, diagram, nodes, positions, onPositions, rects, sizeOf, direction, editable, ghosts, savable],
+    [rf, diagram, nodes, positions, onPositions, rects, sizeOf, direction, editable, ghosts, savable, carryPoints],
   );
 
   return (
@@ -737,6 +802,7 @@ export function Canvas({
         onNodesChange={onNodesChange}
         onNodeDragStart={(_, __, dragged) => {
           dragging.current = new Set(dragged.filter((n) => !n.id.startsWith("boundary:")).map((n) => n.id));
+          dragFrom.current = Object.fromEntries(dragged.map((n) => [n.id, { ...n.position }]));
         }}
         onNodeDragStop={(_, node, dragged) => {
           dragging.current = null;
@@ -752,7 +818,16 @@ export function Canvas({
               setPositions((p) => ({ ...p, [node.id]: spot }));
             }
           }
-          if (Object.keys(moved).length && !frozen) onPositions(moved);
+          if (Object.keys(moved).length && !frozen) {
+            onPositions(moved);
+            // A line whose two boxes moved together keeps its corners set by hand where they were on it.
+            const by = (id: string) => (moved[id] && dragFrom.current[id] ? { x: moved[id].x - dragFrom.current[id].x, y: moved[id].y - dragFrom.current[id].y } : null);
+            carryPoints((e, pts) => {
+              const [a, b] = [by(e.source), by(e.target)];
+              if (!a || !b || Math.abs(a.x - b.x) > 0.5 || Math.abs(a.y - b.y) > 0.5 || (Math.abs(a.x) < 0.5 && Math.abs(a.y) < 0.5)) return null;
+              return pts.map((p) => ({ x: Math.round((p.x + a.x) * 10) / 10, y: Math.round((p.y + a.y) * 10) / 10 }));
+            });
+          }
         }}
         onNodeClick={(e, n) => {
           const id = n.id.startsWith("boundary:") ? n.id.slice(9) : n.id;
@@ -839,6 +914,7 @@ export function Canvas({
         <MarkerDefs />
         <Background gap={22} size={1.2} color="#262a30" />
         <Controls showInteractive={false} position="bottom-right" onFitView={() => rf.fitView(fitOptions(wrapper.current, 200))} />
+        {children}
       </ReactFlow>
     </div>
   );

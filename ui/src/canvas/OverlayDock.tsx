@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Icon } from "../common/icons";
 import { NONE, bandRange, counts, encodeSpec, formatMoney, legendItems, overlayable, sameSpec, specLabel, techColors, type Filter, type OverlaySpec, WORK_LABEL, openWork } from "../colourOverlays";
 import type { AppState, Diagram, TagGroup } from "../types";
+import { diagramCost } from "../diagramCost";
 
 type Tab = "tags" | "tech" | "char" | "cost" | "work" | "changes";
 const TABS: { id: Tab; label: string; icon: string }[] = [
@@ -11,6 +12,15 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: "cost", label: "Cost", icon: "coin" },
   { id: "work", label: "Work", icon: "warning" },
 ];
+/** What each tab does, for the hover text. */
+const TAB_HINT: Record<Tab, string> = {
+  tags: "Tags: colour the objects by a tag group, such as Team or Lifecycle",
+  tech: "Technology: colour the objects by the technology they use",
+  char: "Characteristics: colour the objects by a rating such as scalability or security",
+  cost: "Cost: colour the objects by monthly cost, and see the total of this diagram",
+  work: "Work: colour the objects by open work (security issues, updates, pull requests)",
+  changes: "Changes: colour the objects by what changed against the version you compare with",
+};
 const CHANGES_TAB = { id: "changes" as Tab, label: "Changes", icon: "layers" };
 
 const tabOf = (s: OverlaySpec | null): Tab | null => (s ? (s.kind === "tag" ? "tags" : s.kind) : null);
@@ -85,8 +95,8 @@ export function Dock({
   const c = active ? counts(active, diagram, state, techs) : null;
   const items = active ? legendItems(active, state, diagram) : [];
   const spec = active ? encodeSpec(active) : "";
-  // Diagram total: elements shown here are siblings (no element is drawn inside another), so their roll-ups add up.
-  const total = els.reduce((sum, n) => sum + (n.costRollup ?? 0), 0);
+  // The cost of what the diagram is about, with costly boxes around it (other systems) in their own figure.
+  const cost = diagramCost(diagram, state.elements);
 
   const addFilter = (key: string, label: string, mode: Filter["mode"]) => {
     const rest = filters.filter((f) => !(f.spec === spec && f.key === key));
@@ -116,10 +126,10 @@ export function Dock({
         </button>
         {menu?.key === key && (
           <div className="pop-menu" ref={menuRef} role="menu" style={menu.style}>
-            <button role="menuitem" onClick={() => addFilter(key, label, "focus")} data-testid="filter-focus">
+            <button role="menuitem" onClick={() => addFilter(key, label, "focus")} title="Show only the objects with this value" data-testid="filter-focus">
               <Icon name="focus" size={14} /> Focus
             </button>
-            <button role="menuitem" onClick={() => addFilter(key, label, "hide")} data-testid="filter-hide">
+            <button role="menuitem" onClick={() => addFilter(key, label, "hide")} title="Hide the objects with this value" data-testid="filter-hide">
               <Icon name="eyeOff" size={14} /> Hide
             </button>
             {f && (
@@ -137,7 +147,14 @@ export function Dock({
     <div className="dock" data-testid="dock" data-occludes="bottom">
       <div className="dock-tabs">
         {(state.compare ? [CHANGES_TAB, ...TABS] : TABS).map((t) => (
-          <button key={t.id} className={`float-btn${tab === t.id ? " on" : ""}`} onClick={() => setTab(tab === t.id ? null : t.id)} data-testid={`dock-${t.id}`} aria-expanded={tab === t.id}>
+          <button
+            key={t.id}
+            className={`float-btn${tab === t.id ? " on" : ""}`}
+            onClick={() => setTab(tab === t.id ? null : t.id)}
+            title={TAB_HINT[t.id]}
+            data-testid={`dock-${t.id}`}
+            aria-expanded={tab === t.id}
+          >
             <Icon name={t.icon} size={14} /> {t.label}
           </button>
         ))}
@@ -181,7 +198,13 @@ export function Dock({
           </div>
           {tab === "cost" && (
             <div className="dock-note small" data-testid="cost-total">
-              This diagram: <strong>{formatMoney(total, state.costSettings.currency)}/mo</strong>
+              This diagram: <strong>{formatMoney(cost.total, state.costSettings.currency)}/mo</strong>
+              {cost.outside > 0 && (
+                <span className="muted">
+                  {" "}
+                  · {cost.outsideLabel.toLowerCase()}: {formatMoney(cost.outside, state.costSettings.currency)}/mo
+                </span>
+              )}
               <span className="muted"> · totals include everything inside each object</span>
             </div>
           )}

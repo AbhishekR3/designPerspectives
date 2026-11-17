@@ -122,7 +122,7 @@ describe("off by default, and the settings", () => {
     const st = await ok(c.get("/api/bmo"));
     expect(st).toMatchObject({ enabled: false, backend: "handoff", provider: null, fake: false, canAdmin: true, problem: null });
     expect(st.canRun).toEqual({ ok: false, reason: "BMO is turned off in the settings." });
-    expect(st.tasks.map((t: any) => t.id).sort()).toEqual(["challenge", "decision-from-draft", "describe-to-model", "draft-summary", "explain", "import-level", "suggest-labels"]);
+    expect(st.tasks.map((t: any) => t.id).sort()).toEqual(["ask", "challenge", "decision-from-draft", "describe-to-model", "draft-summary", "explain", "import-level", "suggest-labels"]);
     expect(st.tasks.find((t: any) => t.id === "explain")).toEqual({ id: "explain", title: "Explain", output: "text" });
     expect(st.settings).toMatchObject({ enabled: false, allowedRoles: ["architect", "engineer", "viewer"] });
     for (const path of ["/api/bmo/preview", "/api/bmo/run"]) {

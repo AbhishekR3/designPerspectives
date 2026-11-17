@@ -128,7 +128,7 @@ describe("prompts", () => {
     const p1 = preview(TASKS["import-level"], levelInputs(dir, project), ctx);
     const p2 = preview(TASKS["import-level"], levelInputs(dir, project), ctx);
     expect(p2).toEqual(p1);
-    expect(TASK_IDS.sort()).toEqual(["challenge", "decision-from-draft", "describe-to-model", "draft-summary", "explain", "import-level", "suggest-labels"]);
+    expect(TASK_IDS.sort()).toEqual(["ask", "challenge", "decision-from-draft", "describe-to-model", "draft-summary", "explain", "import-level", "suggest-labels"]);
   });
 });
 

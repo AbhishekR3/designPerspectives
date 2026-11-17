@@ -117,6 +117,66 @@ export function CodePaths({ paths, onSave }: { paths: string[]; onSave(paths: st
   );
 }
 
+/**
+ * Choose the file of one end of a relationship: where a call leaves its source ("Leaves from file") or arrives at
+ * its destination ("Arrives at file"). The choices are the files behind that element's code paths. The code
+ * diagram draws the line to this file; "not set" lets the diagram guess it from imports.
+ */
+export function CodeEndPicker({
+  label,
+  ownerId,
+  paths,
+  value,
+  readOnly,
+  onChange,
+  testId,
+}: {
+  label: string;
+  ownerId: string;
+  /** The owner's code paths: the list of files is loaded again when they change. */
+  paths: string[];
+  value: string;
+  readOnly: boolean;
+  onChange(file: string): void;
+  testId: string;
+}) {
+  const [files, setFiles] = useState<string[] | null>(null);
+  const key = paths.join("\n");
+  useEffect(() => {
+    let live = true;
+    api
+      .codeFiles(ownerId)
+      .then((r) => live && setFiles(r.files))
+      .catch(() => live && setFiles([]));
+    return () => {
+      live = false;
+    };
+  }, [ownerId, key]);
+  const choices = files ?? [];
+  const listed = !value || choices.includes(value);
+  if (readOnly) {
+    return (
+      <p className="small">
+        {label}: {value ? <code>{value}</code> : <span className="muted">not set</span>}
+      </p>
+    );
+  }
+  return (
+    <label className="field">
+      <span>{label}</span>
+      <select value={value} onChange={(e) => onChange(e.target.value)} data-testid={testId}>
+        <option value="">— not set (guess from imports) —</option>
+        {!listed && <option value={value}>{value} (not found in the code)</option>}
+        {choices.map((f) => (
+          <option key={f} value={f}>
+            {f}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
 const PLANNED_TEXT: Record<string, string> = {
   added: "New file planned in this draft.",
   changed: "This draft plans a change to this file.",

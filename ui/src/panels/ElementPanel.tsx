@@ -33,6 +33,8 @@ export function ObjectPanel({ element, ...p }: Common & { element: ElementSummar
   const [newLink, setNewLink] = useState({ label: "", url: "" });
   const drill = element.kind === "softwareSystem" ? `containers-${element.id}` : element.kind === "container" ? `components-${element.id}` : null;
   const style = state.styles[element.id] ?? {};
+  // Same rule as the rest of this panel: nothing is edited in a version the person cannot change, or on a removed (ghost) box.
+  const editable = !state.readOnly && !diagram.nodes.find((n) => n.id === element.id)?.ghost;
   const hasTech = element.kind === "container" || element.kind === "component";
 
   return (
@@ -42,9 +44,16 @@ export function ObjectPanel({ element, ...p }: Common & { element: ElementSummar
           {KIND_LABEL[element.kind]}
           {parent && <span className="muted"> in {parent.name}</span>}
         </span>
-        <button className="ghost tiny" onClick={() => p.onExplain({ element: element.id }, element.name)} title="Ask BMO to explain this" data-testid="explain-element">
-          Explain
-        </button>
+        <span className="row">
+          {p.onAsk && (
+            <button className="ghost tiny" onClick={() => p.onAsk!({ element: element.id })} title="Ask BMO a question about this (opens the chat)" data-testid="ask-element">
+              Ask
+            </button>
+          )}
+          <button className="ghost tiny" onClick={() => p.onExplain({ element: element.id }, element.name)} title="Ask BMO to explain this" data-testid="explain-element">
+            Explain
+          </button>
+        </span>
       </div>
       <Fields loose>
         <TextField label="Name" value={element.name} onCommit={(v) => p.onRename(element.id, v)} testId="field-name" autoFocus={p.focusName && !state.readOnly} />
@@ -206,8 +215,34 @@ export function ObjectPanel({ element, ...p }: Common & { element: ElementSummar
         </Section>
       )}
 
-      <ConnectionList title="Incoming" rels={incoming} other={(r) => r.sourceId} inside={(r) => r.destinationId} selfId={element.id} state={state} onReveal={p.onReveal} testId="incoming" />
-      <ConnectionList title="Outgoing" rels={outgoing} other={(r) => r.destinationId} inside={(r) => r.sourceId} selfId={element.id} state={state} onReveal={p.onReveal} testId="outgoing" />
+      <ConnectionList
+        title="Incoming"
+        direction="incoming"
+        rels={incoming}
+        other={(r) => r.sourceId}
+        inside={(r) => r.destinationId}
+        self={element}
+        state={state}
+        onReveal={p.onReveal}
+        testId="incoming"
+        editable={editable}
+        showTechnology={has("technology")}
+        mutate={mutate}
+      />
+      <ConnectionList
+        title="Outgoing"
+        direction="outgoing"
+        rels={outgoing}
+        other={(r) => r.destinationId}
+        inside={(r) => r.sourceId}
+        self={element}
+        state={state}
+        onReveal={p.onReveal}
+        testId="outgoing"
+        editable={editable}
+        showTechnology={has("technology")}
+        mutate={mutate}
+      />
       <div className="panel-actions">
         {drill && <button onClick={() => p.onOpen(drill)}>Open {element.kind === "softwareSystem" ? "containers" : "components"}</button>}
         {element.kind === "softwareSystem" && <button onClick={() => p.onOpen(`context-${element.id}`)}>Open context</button>}

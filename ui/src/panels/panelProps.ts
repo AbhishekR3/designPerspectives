@@ -22,6 +22,8 @@ export interface Common {
   onOpenDecision(id: string): void;
   /** Ask BMO to explain an element or a relationship (opens the BMO sheet). */
   onExplain(target: { element?: string; relationship?: string }, name: string): void;
+  /** Open the BMO chat with this element or relationship referred to in its input. */
+  onAsk?(target: { element?: string; relationship?: string }): void;
   /** The hub's shared catalog elements; null when this project is not in a hub with a catalog (or is the catalog). */
   catalog: CatalogEntry[] | null;
   focusName: boolean;

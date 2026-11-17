@@ -14,14 +14,30 @@ import {
   type Node,
   type NodeProps,
 } from "@xyflow/react";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { canvasInsets } from "./coveredEdges";
+import { estimateLabelSize } from "./labelSize";
 import { NODE_H, NODE_W } from "./layout";
 import { Icon, iconFor } from "../common/icons";
-import { defaultLabelT, orthoRoute, sideOfAnchor, type Box, type Port, type PortPair } from "./routing";
+import {
+  defaultLabelT,
+  handleBesideLabel,
+  moveSegment,
+  orthoRoute,
+  routeThrough,
+  sideOfAnchor,
+  snapAxis,
+  STRAIGHT_TOLERANCE,
+  straightenJogs,
+  tidyRoute,
+  type Box,
+  type Port,
+  type PortPair,
+  type RouteEnd,
+} from "./routing";
 import { Shape, shapeInset } from "./typeSymbols";
 import { KIND_LABEL, type DiagramNode, type EdgeLayout, type Pt, type Section, type Style } from "../types";
-import type { CommentCount } from "../common/comments";
+import { pinKind, pinSummary, type CommentCount } from "../common/comments";
 
 // Accent colour per C4 kind (icon colour on the dark cards).
 export const KIND_COLOR: Record<string, string> = {
@@ -171,6 +187,9 @@ function typeLabel(el: DiagramNode): string {
   return KIND_LABEL[el.kind];
 }
 
+/** Shortens a description for a tooltip (the full text is in the details panel). */
+const brief = (t: string, n = 180) => (t.length > n ? `${t.slice(0, n).trimEnd()}…` : t);
+
 function InlineName({ value, fontSize, onDone }: { value: string; fontSize: number; onDone(v: string | null): void }) {
   const [v, setV] = useState(value);
   const ref = useRef<HTMLInputElement>(null);
@@ -289,6 +308,28 @@ export function C4Node({ data, selected }: NodeProps<C4NodeType>) {
   const driving = (el.characteristics ?? []).filter((c) => c.driving).map((c) => c.name);
   const workOpen = (el.work ?? []).filter((w) => w.status !== "done");
   const secOpen = workOpen.filter((w) => w.type === "security").length;
+  // What hovering a box says: kind and symbol, technology and a short description, then what a double-click or a click does.
+  const symbol = el.kind !== "person" && el.archType ? data.archTypes.find((a) => a.id === el.archType)?.label : undefined;
+  const symbolName = symbol ?? (type === "person" ? "Person" : KIND_LABEL[el.kind]);
+  const hint = !act
+    ? el.drillKey
+      ? "Double-click to open the next level"
+      : ""
+    : selected
+      ? "Click the name to rename"
+      : el.drillKey
+        ? "Double-click to open the next level; select, then click the name to rename"
+        : "Double-click to rename";
+  const tip =
+    [
+      el.name.length > 28 ? el.name : "",
+      [typeLabel(el), symbol && el.archType !== "box" ? symbol : ""].filter(Boolean).join(" · "),
+      el.technologies?.length ? el.technologies.join(", ") : "",
+      el.description ? brief(el.description) : "",
+      hint,
+    ]
+      .filter(Boolean)
+      .join("\n") || undefined;
   const cls = [
     "c4-node",
     "nokey", // Shift+click (or Ctrl/Cmd+click) on a box toggles it in the selection instead of starting a selection box
@@ -300,26 +341,20 @@ export function C4Node({ data, selected }: NodeProps<C4NodeType>) {
     data.focused ? "focused" : "",
     overlay && !overlay.color ? "no-value" : "",
     el.external ? "external" : "",
+    el.outside ? "outside" : "",
     el.ghost ? "ghost" : "",
   ]
     .filter(Boolean)
     .join(" ");
   return (
-    <div
-      className={cls}
-      style={{ color: fg, width: w, height: h }}
-      data-testid={`node-${el.id}`}
-      data-change={el.change}
-      data-shape={type}
-      title={[el.name.length > 28 ? el.name : "", el.drillKey ? "Double-click to open the next level" : ""].filter(Boolean).join("\n") || undefined}
-    >
+    <div className={cls} style={{ color: fg, width: w, height: h }} data-testid={`node-${el.id}`} data-change={el.change} data-shape={type} data-tip={tip}>
       {outline ? (
         <Shape type={type} w={w} h={h} s={{ fill: bg, stroke, strokeWidth: sw, dash }} />
       ) : (
         <div className="card-bg" style={{ background: bg, borderColor: stroke, borderWidth: sw, borderStyle: dash ? "dashed" : "solid" }} />
       )}
       {el.kind === "person" && (
-        <div className="person-badge" style={{ borderColor: stroke }}>
+        <div className="person-badge" style={{ borderColor: stroke }} data-tip="Person">
           <Icon name="person" size={14} />
         </div>
       )}
@@ -335,13 +370,13 @@ export function C4Node({ data, selected }: NodeProps<C4NodeType>) {
       )}
       {data.comments && data.comments.open > 0 && (
         <button
-          className={`comment-pin${data.comments.question ? " q" : ""}`}
+          className={`comment-pin ck-${pinKind(data.comments)}`}
           onClick={(e) => {
             e.stopPropagation();
             data.onComments(el.id);
           }}
           onDoubleClick={(e) => e.stopPropagation()}
-          title={`${data.comments.open} open comment${data.comments.open === 1 ? "" : "s"}${data.comments.question ? ", with a question" : ""}. Click to read.`}
+          title={`${pinSummary(data.comments)}. Click to read.`}
           aria-label={`${data.comments.open} open comments`}
           data-testid={`comments-${el.id}`}
         >
@@ -357,7 +392,7 @@ export function C4Node({ data, selected }: NodeProps<C4NodeType>) {
       <div className="c4-content" style={{ paddingTop: inset.top, paddingBottom: inset.bottom, paddingLeft: inset.left, paddingRight: inset.right }}>
         <div className="c4-title">
           {el.kind !== "person" && (
-            <span className="c4-icon" style={{ color: KIND_COLOR[el.kind] }}>
+            <span className="c4-icon" style={{ color: KIND_COLOR[el.kind] }} data-tip={symbolName}>
               <Icon name={iconFor(el.kind, el.archType)} size={Math.round(fs + 2)} />
             </span>
           )}
@@ -389,11 +424,6 @@ export function C4Node({ data, selected }: NodeProps<C4NodeType>) {
                 e.stopPropagation();
                 setRenaming(true);
               }}
-              title={
-                [el.name.length > 28 ? el.name : "", act ? (selected ? "Click to rename" : el.drillKey ? "Double-click to open; select, then click the name to rename" : "Double-click to rename") : ""]
-                  .filter(Boolean)
-                  .join("\n") || undefined
-              }
             >
               {el.name}
             </span>
@@ -411,7 +441,11 @@ export function C4Node({ data, selected }: NodeProps<C4NodeType>) {
           {techs && <span className="c4-tech"> · {techs}</span>}
         </div>
         <div className="c4-badges">
-          {has("cost") && data.costLabel && !overlay && <span className="badge cost">{data.costLabel}</span>}
+          {has("cost") && data.costLabel && !overlay && (
+            <span className="badge cost" data-tip="Monthly cost, with everything inside it">
+              {data.costLabel}
+            </span>
+          )}
           {has("characteristics") && driving.length > 0 && (
             <span className="badge subtle" title={`Driving characteristics: ${driving.join(", ")}`}>
               ★ {driving.length > 2 ? `${driving.slice(0, 2).join(", ")} +${driving.length - 2}` : driving.join(", ")}
@@ -424,18 +458,30 @@ export function C4Node({ data, selected }: NodeProps<C4NodeType>) {
             </span>
           )}
           {has("sensitive") && el.sensitivityLevel && (
-            <span className={`badge sens-${el.sensitivityLevel}`} data-testid={`sensitive-${el.id}`}>
+            <span className={`badge sens-${el.sensitivityLevel}`} data-tip={`Data sensitivity: ${el.sensitivityLevel}`} data-testid={`sensitive-${el.id}`}>
               Sensitive: {el.sensitivityLevel}
             </span>
           )}
-          {has("usage") && freq && <span className="badge subtle">Used {freq}</span>}
+          {has("usage") && freq && (
+            <span className="badge subtle" data-tip={`How often it is used: ${freq}`}>
+              Used {freq}
+            </span>
+          )}
           {has("notes") && el.notes && (
-            <span className="badge subtle" data-testid={`notes-${el.id}`}>
+            <span className="badge subtle" data-tip="Has notes: select the box to read them" data-testid={`notes-${el.id}`}>
               Notes
             </span>
           )}
-          {has("tradeoffs") && el.tradeoffs.length > 0 && <span className="badge subtle">Tradeoffs {el.tradeoffs.length}</span>}
-          {has("code") && el.codePaths.length > 0 && el.kind !== "file" && <span className="badge subtle">Code</span>}
+          {has("tradeoffs") && el.tradeoffs.length > 0 && (
+            <span className="badge subtle" data-tip={el.tradeoffs.map((t) => `${t.kind}: ${t.text}`).join("\n")}>
+              Tradeoffs {el.tradeoffs.length}
+            </span>
+          )}
+          {has("code") && el.codePaths.length > 0 && el.kind !== "file" && (
+            <span className="badge subtle" data-tip={`Linked to code: ${el.codePaths.join(", ")}`}>
+              Code
+            </span>
+          )}
         </div>
       </div>
       {act && (
@@ -663,6 +709,14 @@ export function lineShape(rs: R, rt: R, L: EdgeLayout, routing: NonNullable<Edge
   const aim = L.control ?? parallel;
   const p1 = L.sourceAnchor ? anchorPoint(rs, L.sourceAnchor) : borderPoint(rs, aim);
   const p2 = L.targetAnchor ? anchorPoint(rt, L.targetAnchor) : borderPoint(rt, aim);
+  // A straight line with corners set by hand is a polyline through them (its ends aim at the nearest corner).
+  const corners = routing === "straight" ? layoutPoints(L) : undefined;
+  if (corners) {
+    const a = L.sourceAnchor ? anchorPoint(rs, L.sourceAnchor) : borderPoint(rs, corners[0]);
+    const z = L.targetAnchor ? anchorPoint(rt, L.targetAnchor) : borderPoint(rt, corners[corners.length - 1]);
+    const pts = [a, ...corners, z];
+    return { p1: a, p2: z, pts, path: `M ${pts.map((p) => `${p.x} ${p.y}`).join(" L ")}` };
+  }
   if (routing === "smooth") {
     // S-curve that leaves and enters the boxes square to their sides (cubic Bezier).
     const o1 = outward(L.sourceAnchor, p1, p2);
@@ -691,7 +745,53 @@ export function lineShape(rs: R, rt: R, L: EdgeLayout, routing: NonNullable<Edge
   return { p1, p2, pts: [p1, p2], path: `M ${p1.x} ${p1.y} L ${p2.x} ${p2.y}` };
 }
 
-type Drag = { kind: "source" | "target" | "bend" | "label"; value: Pt | { t: number; offset: number } };
+type Drag =
+  | { kind: "source" | "target" | "bend"; value: Pt }
+  | { kind: "label"; value: { t: number; offset: number } }
+  /** The whole route of a right-angle line while one of its pieces is dragged. */
+  | { kind: "segment"; value: Pt[] }
+  /** The corners of a straight line while one of them is dragged. */
+  | { kind: "points"; value: Pt[] };
+
+/** Where a press on the line or a grip started, and the shape then (a drag starts only once the pointer has moved a little). */
+type DragStart = { kind: Drag["kind"]; at: Pt; moved: boolean; route?: Pt[]; index?: number; ends?: { source: RouteEnd; target: RouteEnd }; bend?: Pt; points?: Pt[]; t?: number };
+
+/** A piece of a right-angle line shorter than this (px) gets no handle of its own; the line itself can still be grabbed there. */
+const MIN_HANDLE_PIECE = 28;
+
+/** The pointer moves this far (screen px) before a press counts as a drag (a click only selects). */
+const DRAG_START = 3;
+const round1 = (p: Pt): Pt => ({ x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10 });
+
+/** The exact fraction of a box a point on its border is at: a hand-set anchor that keeps a snapped end exactly where it was put. */
+function anchorAt(r: R, p: Pt): Pt {
+  const a = toAnchor(r, p);
+  const fx = Math.round(Math.min(Math.max((p.x - r.x) / r.w, 0), 1) * 1e4) / 1e4;
+  const fy = Math.round(Math.min(Math.max((p.y - r.y) / r.h, 0), 1) * 1e4) / 1e4;
+  return a.x === 0 || a.x === 1 ? { x: a.x, y: fy } : { x: fx, y: a.y };
+}
+
+/** The corners set by hand on a line (`EdgeLayout.points`), when they are usable (a file edited by hand may hold anything). */
+export function layoutPoints(L: EdgeLayout): Pt[] | undefined {
+  const p: unknown = L.points;
+  return Array.isArray(p) && p.length > 0 && p.every((q) => !!q && Number.isFinite(q.x) && Number.isFinite(q.y)) ? (p as Pt[]) : undefined;
+}
+
+/** Index of the piece of a polyline nearest to `q`. */
+function nearestPiece(pts: Poly, q: Pt): number {
+  let best = 0;
+  let bestD = Infinity;
+  for (let i = 1; i < pts.length; i++) {
+    const [a, b] = [pts[i - 1], pts[i]];
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const len2 = dx * dx + dy * dy || 1;
+    const k = Math.min(Math.max(((q.x - a.x) * dx + (q.y - a.y) * dy) / len2, 0), 1);
+    const d = Math.hypot(q.x - (a.x + dx * k), q.y - (a.y + dy * k));
+    if (d < bestD) [best, bestD] = [i - 1, d];
+  }
+  return best;
+}
 
 export function C4Edge({ id, source, target, data, selected, markerEnd, markerStart }: EdgeProps & { data?: C4EdgeData }) {
   const s = useInternalNode(source);
@@ -699,36 +799,65 @@ export function C4Edge({ id, source, target, data, selected, markerEnd, markerSt
   const rf = useReactFlow();
   const [drag, setDrag] = useState<Drag | null>(null);
   const dragRef = useRef<Drag | null>(null);
+  const startRef = useRef<DragStart | null>(null);
+  /** This render's move and end, for the window listeners a drag adds (see capture). */
+  const live = useRef<{ move(e: { clientX: number; clientY: number }): void; end(): void }>({ move: () => {}, end: () => {} });
+  // The label's drawn size (canvas units: offset sizes ignore the zoom), so piece handles keep clear of it.
+  const [labelDrawn, setLabelDrawn] = useState<{ w: number; h: number } | null>(null);
+  const measureLabel = useCallback((el: HTMLDivElement | null) => {
+    if (!el) return;
+    const measure = () => setLabelDrawn((cur) => (cur && cur.w === el.offsetWidth && cur.h === el.offsetHeight ? cur : { w: el.offsetWidth, h: el.offsetHeight }));
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   if (!s || !t || !data) return null;
 
   const L: EdgeLayout = { ...data.layout };
-  if (drag?.kind === "source") L.sourceAnchor = drag.value as Pt;
-  if (drag?.kind === "target") L.targetAnchor = drag.value as Pt;
-  if (drag?.kind === "bend") L.control = drag.value as Pt;
-  if (drag?.kind === "label") L.labelT = (drag.value as { t: number }).t;
+  if (drag?.kind === "source") L.sourceAnchor = drag.value;
+  if (drag?.kind === "target") L.targetAnchor = drag.value;
+  if (drag?.kind === "bend") L.control = drag.value;
+  if (drag?.kind === "label") L.labelT = drag.value.t;
+  if (drag?.kind === "points") L.points = drag.value;
+  const manualPts = layoutPoints(L);
+  if (!manualPts) delete L.points;
 
   const rs = rectOf(s);
   const rt = rectOf(t);
   const cs = centerOf(rs);
   const ct = centerOf(rt);
   const routing = L.routing ?? data.defaultRouting ?? "rounded";
-  const shape = lineShape(rs, rt, L, routing, source < target ? 1 : -1, data.offset);
+  const rightAngles = routing === "orthogonal" || routing === "rounded";
+  const flip = source < target ? 1 : -1;
+  const shape = lineShape(rs, rt, L, routing, flip, data.offset);
   const { p1, p2 } = shape;
+
+  // The planned ports spread the line ends along the box sides; a grip being dragged overrides its own end.
+  const port = (r: R, anchor: Pt | undefined, planned: Port | undefined, other: Pt, dragging: boolean): Port => {
+    if (anchor && (dragging || !planned)) return { ...anchorPoint(r, anchor), side: sideOfAnchor(anchor) };
+    if (planned) return planned;
+    const p = borderPoint(r, other);
+    return { ...p, side: sideOfAnchor(toAnchor(r, p)) };
+  };
+  /** The route of a right-angle line with layout `lay`: the diagram-wide route, unless an end or the bend is being dragged (then it follows the pointer, through the hand-set points if there are any). */
+  const routeFor = (lay: EdgeLayout, moving: Drag["kind"] | null): { pts: Pt[]; ends: { source: Port; target: Port } } => {
+    if (data.route && data.ports && (!moving || moving === "label" || moving === "segment")) return { pts: data.route, ends: data.ports };
+    const own = layoutPoints(lay);
+    const man = own ? routeThrough(rs, rt, own, lay.sourceAnchor, lay.targetAnchor) : null;
+    if (man) return { pts: man.pts, ends: { source: man.source, target: man.target } };
+    const src = port(rs, lay.sourceAnchor, data.ports?.source, lay.control ?? ct, moving === "source");
+    const dst = port(rt, lay.targetAnchor, data.ports?.target, lay.control ?? cs, moving === "target");
+    return { pts: orthoRoute(src, dst, rs, rt, lay.control, data.obstacles), ends: { source: src, target: dst } };
+  };
 
   let pts: Poly;
   let path: string;
-  if (routing === "orthogonal" || routing === "rounded") {
-    // The planned ports spread the line ends along the box sides; a grip being dragged overrides its own end.
-    const port = (r: R, anchor: Pt | undefined, planned: Port | undefined, other: Pt, dragging: boolean): Port => {
-      if (anchor && (dragging || !planned)) return { ...anchorPoint(r, anchor), side: sideOfAnchor(anchor) };
-      if (planned) return planned;
-      const p = borderPoint(r, other);
-      return { ...p, side: sideOfAnchor(toAnchor(r, p)) };
-    };
-    const src = port(rs, L.sourceAnchor, data.ports?.source, L.control ?? ct, drag?.kind === "source");
-    const dst = port(rt, L.targetAnchor, data.ports?.target, L.control ?? cs, drag?.kind === "target");
-    // The diagram-wide route stands unless an end or the bend is being dragged (then it follows the pointer).
-    pts = data.route && (!drag || drag.kind === "label") ? data.route : orthoRoute(src, dst, rs, rt, L.control, data.obstacles);
+  let ends: { source: Port; target: Port } | null = null;
+  if (rightAngles) {
+    const r = routeFor(L, drag?.kind ?? null);
+    pts = drag?.kind === "segment" ? drag.value : r.pts;
+    ends = r.ends;
     path = routing === "rounded" ? roundedPath(pts) : `M ${pts.map((p) => `${p.x} ${p.y}`).join(" L ")}`;
   } else {
     pts = shape.pts;
@@ -736,60 +865,186 @@ export function C4Edge({ id, source, target, data, selected, markerEnd, markerSt
   }
 
   // A label slides along its line only; it never leaves it (labelOffset saved by older versions is ignored).
-  const rightAngles = routing === "orthogonal" || routing === "rounded";
   const lt = Math.min(0.95, Math.max(0.05, L.labelT ?? (rightAngles ? (data.labelT ?? defaultLabelT(pts)) : 0.5)));
   const at = pointAlong(pts, lt);
   const lx = at.p.x;
   const ly = at.p.y;
+  // The label's box as drawn, or as the planner estimates it before it is drawn (handleBesideLabel).
+  const labelSize = labelDrawn ?? estimateLabelSize({ text: data.label, technologies: data.technologies, badges: [], fontSize: data.style.fontSize ? data.style.fontSize - 2 : undefined });
   // The grip sits on the bend point when there is one, so it does not jump when released.
   const bend = L.control ?? pointAlong(pts, 0.5).p;
 
   const cls = ["c4-edge", data.derived ? "derived" : "", selected ? "selected" : "", data.highlight ?? "", data.dimmed ? "dimmed" : "", data.ghost ? "ghost" : ""].filter(Boolean).join(" ");
 
-  const flowPoint = (e: React.PointerEvent): Pt => rf.screenToFlowPosition({ x: e.clientX, y: e.clientY });
-  const begin = (kind: Drag["kind"]) => (e: React.PointerEvent) => {
-    // Only the main button drags; a right-click opens the menu instead.
-    if (!data.editable || e.button !== 0) return;
-    e.stopPropagation();
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    data.onSelect(id);
-    dragRef.current = { kind, value: kind === "bend" ? bend : kind === "label" ? { t: lt, offset: 0 } : { x: 0, y: 0 } };
-  };
-  const move = (e: React.PointerEvent) => {
-    const cur = dragRef.current;
-    if (!cur) return;
-    const p = flowPoint(e);
-    let value: Drag["value"];
-    if (cur.kind === "source") value = toAnchor(rs, p);
-    else if (cur.kind === "target") value = toAnchor(rt, p);
-    else if (cur.kind === "bend") value = p;
-    else {
-      const pr = project(pts, p);
-      value = { t: Math.min(0.95, Math.max(0.05, Math.round(pr.t * 100) / 100)), offset: 0 };
+  /** A dragged end, snapped so the line is straight when it nearly is (feature: a line a few px from straight becomes straight). */
+  const snapEnd = (kind: "source" | "target", p: Pt): Pt => {
+    const r = kind === "source" ? rs : rt;
+    const key = kind === "source" ? "sourceAnchor" : "targetAnchor";
+    let a = toAnchor(r, p);
+    const lay: EdgeLayout = { ...data.layout, [key]: a };
+    if (rightAngles) {
+      const trial = routeFor(lay, kind);
+      const end = (w: "source" | "target"): RouteEnd => ({ box: w === "source" ? rs : rt, side: trial.ends[w].side, fixed: w !== kind });
+      const straight = straightenJogs(trial.pts, { source: end("source"), target: end("target"), obstacles: data.obstacles, moveInner: false });
+      const [was, now] = kind === "source" ? [trial.pts[0], straight[0]] : [trial.pts[trial.pts.length - 1], straight[straight.length - 1]];
+      if (now && was && (now.x !== was.x || now.y !== was.y)) a = anchorAt(r, now);
+    } else if (routing === "straight") {
+      const sh = lineShape(rs, rt, lay, routing, flip, data.offset).pts;
+      const [mine, near] = kind === "source" ? [sh[0], sh[1]] : [sh[sh.length - 1], sh[sh.length - 2]];
+      const q = snapAxis(mine, near);
+      const side = sideOfAnchor(a);
+      const onSide = side === "left" || side === "right" ? q.x === mine.x && q.y >= r.y && q.y <= r.y + r.h : q.y === mine.y && q.x >= r.x && q.x <= r.x + r.w;
+      if (onSide && (q.x !== mine.x || q.y !== mine.y)) a = anchorAt(r, q);
     }
-    dragRef.current = { kind: cur.kind, value };
-    setDrag({ kind: cur.kind, value });
+    return a;
+  };
+  /** A dragged bend of a curved line, put on the straight line between the ends when it is that close. */
+  const snapBend = (c: Pt): Pt => {
+    if (routing !== "curved") return c;
+    const sh = lineShape(rs, rt, { ...L, control: c }, routing, flip, data.offset);
+    const dx = sh.p2.x - sh.p1.x;
+    const dy = sh.p2.y - sh.p1.y;
+    const len2 = dx * dx + dy * dy;
+    if (!len2) return c;
+    const k = ((c.x - sh.p1.x) * dx + (c.y - sh.p1.y) * dy) / len2;
+    const q = { x: sh.p1.x + dx * k, y: sh.p1.y + dy * k };
+    return k > 0 && k < 1 && Math.hypot(c.x - q.x, c.y - q.y) <= STRAIGHT_TOLERANCE ? q : c;
+  };
+  /** A dragged corner of a straight line, made exactly horizontal or vertical to its neighbours when it nearly is (an end with no anchor counts from its box's middle). */
+  const snapCorner = (list: Pt[], k: number, p: Pt): Pt => {
+    const before = k > 0 ? list[k - 1] : L.sourceAnchor ? anchorPoint(rs, L.sourceAnchor) : cs;
+    const after = k < list.length - 1 ? list[k + 1] : L.targetAnchor ? anchorPoint(rt, L.targetAnchor) : ct;
+    return snapAxis(snapAxis(p, before), after);
+  };
+
+  const flowPoint = (e: { clientX: number; clientY: number }): Pt => rf.screenToFlowPosition({ x: e.clientX, y: e.clientY });
+  /** Take the pointer for a drag (only the main button: a right-click opens the menu instead). */
+  const capture = (e: React.PointerEvent): boolean => {
+    if (!data.editable || e.button !== 0) return false;
+    e.stopPropagation();
+    (e.currentTarget as Element).setPointerCapture(e.pointerId);
+    // The grip may be drawn again under another key while it is dragged (a piece handle, when the line gains corners),
+    // which drops the pointer capture; the window still sees the moves and the release, so the drag always finishes.
+    const id0 = e.pointerId;
+    const onMove = (ev: PointerEvent) => ev.pointerId === id0 && live.current.move(ev);
+    const onUp = (ev: PointerEvent) => {
+      if (ev.pointerId !== id0) return;
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+      live.current.end();
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+    data.onSelect(id);
+    return true;
+  };
+  const begin = (kind: "source" | "target" | "bend" | "label") => (e: React.PointerEvent) => {
+    if (!capture(e)) return;
+    startRef.current = { kind, at: flowPoint(e), moved: false, bend, t: lt };
+  };
+  const endsNow = (): { source: RouteEnd; target: RouteEnd } | undefined =>
+    ends ? { source: { box: rs, side: ends.source.side, fixed: !!L.sourceAnchor }, target: { box: rt, side: ends.target.side, fixed: !!L.targetAnchor } } : undefined;
+  /** A press on piece `i` of a right-angle line (its handle, or the line itself): drag that piece. */
+  const grabPiece = (i: number) => (e: React.PointerEvent) => {
+    if (!capture(e)) return;
+    startRef.current = { kind: "segment", at: flowPoint(e), moved: false, route: pts.map((p) => ({ ...p })), index: i, ends: endsNow() };
+  };
+  /** A press on a straight or curved line (not on a grip): a straight line gets a new corner there, a curved one bends from there. */
+  const grabLine = (e: React.PointerEvent) => {
+    if (!capture(e)) return;
+    const p = flowPoint(e);
+    if (routing === "straight") {
+      const j = nearestPiece(pts, p);
+      const list = [...(manualPts ?? [])];
+      list.splice(j, 0, p);
+      startRef.current = { kind: "points", at: p, moved: false, points: list, index: j };
+    } else startRef.current = { kind: "bend", at: p, moved: false, bend };
+  };
+  /** A press on a corner of a straight line. */
+  const grabCorner = (k: number) => (e: React.PointerEvent) => {
+    if (!capture(e) || !manualPts) return;
+    startRef.current = { kind: "points", at: flowPoint(e), moved: false, points: [...manualPts], index: k };
+  };
+  const move = (e: { clientX: number; clientY: number }) => {
+    const st = startRef.current;
+    if (!st) return;
+    const p = flowPoint(e);
+    if (!st.moved && Math.hypot(p.x - st.at.x, p.y - st.at.y) < DRAG_START / (rf.getZoom() || 1)) return;
+    st.moved = true;
+    let next: Drag;
+    if (st.kind === "source" || st.kind === "target") next = { kind: st.kind, value: snapEnd(st.kind, p) };
+    else if (st.kind === "bend") next = { kind: "bend", value: snapBend({ x: st.bend!.x + p.x - st.at.x, y: st.bend!.y + p.y - st.at.y }) };
+    else if (st.kind === "segment") {
+      // The piece moves by as much as the pointer did (it does not jump to where the pointer is on the wide hit area).
+      const from = st.route![st.index!]!;
+      next = { kind: "segment", value: moveSegment(st.route!, st.index!, { x: from.x + p.x - st.at.x, y: from.y + p.y - st.at.y }, st.ends ?? {}) };
+    } else if (st.kind === "points") {
+      const list = [...st.points!];
+      list[st.index!] = snapCorner(list, st.index!, p);
+      next = { kind: "points", value: list };
+    } else {
+      const pr = project(pts, p);
+      next = { kind: "label", value: { t: Math.min(0.95, Math.max(0.05, Math.round(pr.t * 100) / 100)), offset: 0 } };
+    }
+    dragRef.current = next;
+    setDrag(next);
   };
   const end = () => {
+    const st = startRef.current;
     const cur = dragRef.current;
+    startRef.current = null;
     dragRef.current = null;
-    if (!cur) return;
+    if (!st) return;
     setDrag(null);
+    if (!st.moved || !cur) return; // a click: nothing changes
     const next: EdgeLayout = { ...data.layout };
-    if (cur.kind === "source") next.sourceAnchor = cur.value as Pt;
-    if (cur.kind === "target") next.targetAnchor = cur.value as Pt;
-    if (cur.kind === "bend") next.control = cur.value as Pt;
-    if (cur.kind === "label") {
-      next.labelT = (cur.value as { t: number }).t;
+    if (cur.kind === "source") next.sourceAnchor = cur.value;
+    else if (cur.kind === "target") next.targetAnchor = cur.value;
+    else if (cur.kind === "bend") next.control = cur.value;
+    else if (cur.kind === "label") {
+      next.labelT = cur.value.t;
       delete next.labelOffset;
+    } else if (cur.kind === "points") {
+      next.points = cur.value.map(round1);
+      delete next.control;
+    } else if (cur.kind === "segment") {
+      // The route's inner corners become the line's own; its ends follow from them (an end at a hand-set anchor stays).
+      const route = tidyRoute(cur.value);
+      const inner = route.slice(1, -1).map(round1);
+      delete next.control;
+      if (inner.length) next.points = inner;
+      else {
+        // A straight route moved sideways: no corners, so the ends where they slid to are kept as anchors.
+        delete next.points;
+        const [a, z] = [route[0], route[route.length - 1]];
+        if (a && z && st.route) {
+          if (a.x !== st.route[0].x || a.y !== st.route[0].y) next.sourceAnchor = anchorAt(rs, a);
+          const last = st.route[st.route.length - 1];
+          if (z.x !== last.x || z.y !== last.y) next.targetAnchor = anchorAt(rt, z);
+        }
+      }
     }
     if (JSON.stringify(next) !== JSON.stringify(data.layout)) data.onGeom(id, next);
   };
-  const reset = (key: keyof EdgeLayout) => () => {
+  live.current = { move, end };
+  // A grip's double-click must not reach the line's own (React events bubble through the label portal), which opens the connector detail.
+  const reset = (key: keyof EdgeLayout) => (e?: React.MouseEvent) => {
+    e?.stopPropagation();
     const next = { ...data.layout };
     delete next[key];
     data.onGeom(id, next);
   };
+  /** Back to the automatic shape: no corners set by hand and no bend point. */
+  const resetShape = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    const next = { ...data.layout };
+    delete next.points;
+    delete next.control;
+    if (JSON.stringify(next) !== JSON.stringify(data.layout)) data.onGeom(id, next);
+  };
+  const editing = !!selected && data.editable && !data.highlight;
 
   const techs = data.technologies.length ? data.technologies.join(", ") : "";
   const handleStyle = (p: Pt): React.CSSProperties => ({ transform: `translate(-50%, -50%) translate(${p.x}px, ${p.y}px)` });
@@ -808,11 +1063,43 @@ export function C4Edge({ id, source, target, data, selected, markerEnd, markerSt
   return (
     <>
       <BaseEdge id={id} path={path} className={cls} style={edgeStyle(data, !!selected)} markerEnd={markerEnd} markerStart={markerStart} interactionWidth={18} />
+      {editing &&
+        (rightAngles ? (
+          pts.slice(1).map((b, k) => {
+            const a = pts[k];
+            if (Math.abs(a.x - b.x) < 1e-6 && Math.abs(a.y - b.y) < 1e-6) return null;
+            return (
+              <path
+                key={k}
+                d={`M ${a.x} ${a.y} L ${b.x} ${b.y}`}
+                className="edge-hit nodrag nopan"
+                style={{ stroke: "transparent", strokeWidth: 14, fill: "none", pointerEvents: "stroke", cursor: Math.abs(a.y - b.y) < 1e-6 ? "ns-resize" : "ew-resize" }}
+                onPointerDown={grabPiece(k)}
+                onPointerMove={move}
+                onPointerUp={end}
+                onPointerCancel={end}
+                data-testid={`edge-hit-${k}`}
+              />
+            );
+          })
+        ) : (
+          <path
+            d={path}
+            className="edge-hit nodrag nopan"
+            style={{ stroke: "transparent", strokeWidth: 14, fill: "none", pointerEvents: "stroke", cursor: "move" }}
+            onPointerDown={grabLine}
+            onPointerMove={move}
+            onPointerUp={end}
+            onPointerCancel={end}
+            data-testid="edge-hit"
+          />
+        ))}
       <EdgeLabelRenderer>
         <div
           className={`edge-label nodrag nopan ${cls}${data.editable ? " movable" : ""}`}
           style={{ transform: `translate(-50%, -50%) translate(${lx}px, ${ly}px)`, fontSize: data.style.fontSize ? data.style.fontSize - 2 : undefined, color: data.style.text }}
           data-testid={`edge-${data.testId}`}
+          ref={measureLabel}
           onPointerDown={begin("label")}
           onClick={() => data.onSelect(id)}
           onDoubleClick={() => data.onOpen(id)}
@@ -837,18 +1124,14 @@ export function C4Edge({ id, source, target, data, selected, markerEnd, markerSt
               {data.hasNotes && <span className="badge subtle">Notes</span>}
               {data.openWork > 0 && <span className="badge work">{data.openWork} open</span>}
               {data.comments && data.comments.open > 0 && (
-                <span
-                  className={`badge comments${data.comments.question ? " q" : ""}`}
-                  title={`${data.comments.open} open comment${data.comments.open === 1 ? "" : "s"}. Click the line to read.`}
-                  data-testid={`comments-edge-${data.testId}`}
-                >
+                <span className={`badge comments ck-${pinKind(data.comments)}`} title={`${pinSummary(data.comments)}. Click the line to read.`} data-testid={`comments-edge-${data.testId}`}>
                   <Icon name="comment" size={10} /> {data.comments.open}
                 </span>
               )}
             </div>
           )}
         </div>
-        {selected && data.editable && !data.highlight && (
+        {editing && (
           <>
             <div
               className="edge-grip end nodrag nopan"
@@ -868,15 +1151,50 @@ export function C4Edge({ id, source, target, data, selected, markerEnd, markerSt
               title="Drag to move where the line ends (double-click: automatic)"
               data-testid="grip-target"
             />
-            <div
-              className="edge-grip bend nodrag nopan"
-              style={handleStyle(bend)}
-              onPointerDown={begin("bend")}
-              onDoubleClick={reset("control")}
-              {...grab}
-              title="Drag to bend the line (double-click: straighten)"
-              data-testid="grip-bend"
-            />
+            {rightAngles &&
+              pts.slice(1).map((b, k) => {
+                const a = pts[k];
+                if (Math.hypot(b.x - a.x, b.y - a.y) < MIN_HANDLE_PIECE) return null;
+                const across = Math.abs(a.y - b.y) < 1e-6 ? "ns-resize" : "ew-resize";
+                // A handle is never taken away while it may hold the pointer: when the label covers the whole piece it stays in the middle.
+                const at = handleBesideLabel(a, b, { x: lx, y: ly, ...labelSize }) ?? { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+                return (
+                  <div
+                    key={k}
+                    className="edge-grip seg nodrag nopan"
+                    style={{ ...handleStyle(at), cursor: across }}
+                    onPointerDown={grabPiece(k)}
+                    onDoubleClick={resetShape}
+                    {...grab}
+                    title="Drag to move this part of the line (double-click: automatic shape)"
+                    data-testid={`grip-seg-${k}`}
+                  />
+                );
+              })}
+            {routing === "straight" &&
+              manualPts?.map((p, k) => (
+                <div
+                  key={k}
+                  className="edge-grip bend nodrag nopan"
+                  style={handleStyle(p)}
+                  onPointerDown={grabCorner(k)}
+                  onDoubleClick={resetShape}
+                  {...grab}
+                  title="Drag to move this corner (double-click: straight line)"
+                  data-testid={`grip-point-${k}`}
+                />
+              ))}
+            {(routing === "curved" || routing === "smooth") && (
+              <div
+                className="edge-grip bend nodrag nopan"
+                style={handleStyle(bend)}
+                onPointerDown={begin("bend")}
+                onDoubleClick={resetShape}
+                {...grab}
+                title="Drag to bend the line (double-click: straighten)"
+                data-testid="grip-bend"
+              />
+            )}
           </>
         )}
       </EdgeLabelRenderer>

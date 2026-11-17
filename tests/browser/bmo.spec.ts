@@ -12,7 +12,9 @@ const user = (note: string) => [{ kind: "user" as const, note }];
 const EXPLAIN = "This diagram shows the Internet Banking System and what it is made of.";
 const CHALLENGE = "1. Why does the web application not call the mainframe through the API?\n2. Who owns the Session Cache?";
 const SUMMARY = "Adds a Ledger container to the Internet Banking System.";
+const ASK = "The **Internet Banking System** lets customers bank online.\n\n- It has a web and a mobile front end.";
 const ANSWERS = {
+  ask: ASK,
   explain: EXPLAIN,
   challenge: CHALLENGE,
   "draft-summary": SUMMARY,
@@ -293,6 +295,83 @@ test.describe("with the fake backend", () => {
     await expect(page.getByTestId("bmo-failed")).toBeVisible();
     await expect(page.getByTestId("bmo-errors")).toContainText("/objects/0");
     await expect(page.getByTestId("bmo-copy-errors")).toBeVisible();
+  });
+
+  test("ask: [Internet Banki suggests the system; picked, previewed, then sent; the chat stays open over the diagram", async ({ page, server }) => {
+    await openDiagram(page, KEY);
+    await page.getByTestId("bmo-menu").click();
+    await page.getByTestId("bmo-ask").click();
+    const chat = page.getByTestId("bmo-chat");
+    const input = page.getByTestId("bmo-chat-input");
+    await expect(input).toBeFocused();
+    await input.pressSequentially("What does [Internet Banki");
+    await expect(page.getByTestId("bmo-mention-list")).toBeVisible();
+    await expect(page.getByTestId("bmo-mention-internet-banking-system")).toHaveAttribute("aria-selected", "true");
+    await page.keyboard.press("Enter");
+    await expect(page.getByTestId("bmo-mention-list")).toHaveCount(0);
+    await expect(input).toHaveValue("What does [Internet Banking System] ");
+    await input.pressSequentially("do?");
+    await expect(page.getByTestId("bmo-chat-chip-internet-banking-system")).toBeVisible();
+
+    // Enter: the preview, nothing sent yet.
+    await page.keyboard.press("Enter");
+    await expect(page.getByTestId("bmo-chat-preview")).toBeVisible();
+    await expect(page.getByTestId("bmo-chat-preview-object-internet-banking-system")).toBeVisible();
+    await expect(page.getByTestId("bmo-chat-size")).toContainText("tokens");
+    await page.getByTestId("bmo-chat-prompt").locator("summary").click();
+    await expect(page.getByTestId("bmo-chat-prompt-user")).toContainText('Object: system internet-banking-system "Internet Banking System"');
+    expect(server.bmo!.calls).toHaveLength(0);
+
+    // Editing the message discards the preview; Enter shows a new one, Enter again sends it.
+    await input.press("End");
+    await input.pressSequentially(" ");
+    await expect(page.getByTestId("bmo-chat-preview")).toHaveCount(0);
+    await page.keyboard.press("Backspace");
+    await page.keyboard.press("Enter");
+    await expect(page.getByTestId("bmo-chat-preview")).toBeVisible();
+    await page.keyboard.press("Enter");
+    await expect(page.getByTestId("bmo-chat-answer")).toContainText("lets customers bank online");
+    await expect(page.getByTestId("bmo-chat-answer").locator("strong")).toHaveText("Internet Banking System");
+    await expect(page.getByTestId("bmo-chat-answer").locator("li")).toHaveText("It has a web and a mobile front end.");
+    await expect(input).toHaveValue("");
+    expect(server.bmo!.calls).toHaveLength(1);
+    expect(server.bmo!.calls[0]!.task).toBe("ask");
+    expect(server.bmo!.calls[0]!.user).toContain("What does [Internet Banking System] do?");
+
+    // A referenced object can be shown from the message; the chat stays open while the diagram changes.
+    await page.getByTestId("bmo-chat-msg-ref-internet-banking-system").click();
+    await expect(page.getByTestId("object-panel").getByTestId("field-name")).toHaveValue("Internet Banking System");
+    await expect(chat).toBeVisible();
+    // The second question carries the first turn as earlier conversation.
+    await input.click();
+    await input.pressSequentially("And who uses it?");
+    await page.keyboard.press("Enter");
+    await expect(page.getByTestId("bmo-chat-preview")).toContainText("2 earlier messages sent for context");
+    await page.getByTestId("bmo-chat-send").click();
+    await expect(page.getByTestId("bmo-chat-message")).toHaveCount(4);
+    expect(server.bmo!.calls[1]!.user).toContain('name="earlier-conversation"');
+
+    // Clear forgets the conversation; close and open keep nothing on the server.
+    await page.getByTestId("bmo-chat-clear").click();
+    await expect(page.getByTestId("bmo-chat-message")).toHaveCount(0);
+    await page.getByTestId("bmo-chat-close").click();
+    await expect(chat).toHaveCount(0);
+  });
+
+  test("ask about an object from its right-click menu: its [Name] is filled in, and an unknown [name] is flagged", async ({ page, server }) => {
+    await openDiagram(page, KEY);
+    await node(page, "mobile-app").click({ button: "right" });
+    await page.getByTestId("ctx-ask-bmo").click();
+    const input = page.getByTestId("bmo-chat-input");
+    await expect(input).toHaveValue("[Mobile App] ");
+    await expect(page.getByTestId("bmo-chat-chip-mobile-app")).toBeVisible();
+    await input.pressSequentially("talks to [Nowhere]?");
+    await expect(page.getByTestId("bmo-chat-warning")).toContainText("[Nowhere] not found");
+    await page.keyboard.press("Enter");
+    await expect(page.getByTestId("bmo-chat-preview-object-mobile-app")).toBeVisible();
+    await page.getByTestId("bmo-chat-discard").click();
+    await expect(page.getByTestId("bmo-chat-preview")).toHaveCount(0);
+    expect(server.bmo!.calls).toHaveLength(0);
   });
 });
 

@@ -5,6 +5,7 @@ import path from "node:path";
 import { describe, expect, test } from "vitest";
 import { DEFAULT_CHARACTERISTICS, emptySidecar, makeLens, sidecarData } from "../../src/core/designPerspectivesFile.js";
 import { errors } from "../../src/core/validate.js";
+import { diagramCost } from "../../ui/src/diagramCost.js";
 import { client, Client, demoDir, demoWs, element, ok } from "./helpers.js";
 
 describe("characteristics and cost", () => {
@@ -153,5 +154,37 @@ describe("characteristics and cost", () => {
     const rel2 = (await ok(c.get("/api/state"))).relationships.find((r: any) => r.id === rel.id);
     expect(rel2.work).toEqual([{ type: "update", title: "Move to TLS 1.3", status: "open" }]);
     expect(new Set((await ok(c.get("/api/state"))).enums.workTypes.map((t: any) => t.id))).toEqual(new Set(["security", "pr", "issue", "backlog", "update"]));
+  });
+});
+
+describe("diagram cost", () => {
+  test("a diagram shows the cost of its scope; costly boxes around it get their own figure", async () => {
+    const c = client();
+    const state = await ok(c.get("/api/state"));
+    const land = await ok(c.get("/api/diagrams/landscape"));
+    const ibs = land.nodes.find((n: any) => n.name === "Internet Banking System");
+    const cont = await ok(c.get(`/api/diagrams/${ibs.drillKey}`));
+
+    // The landscape has no scope: the boxes shown add up.
+    const sum = Math.round(land.nodes.reduce((s: number, n: any) => s + (n.costRollup ?? 0), 0) * 100) / 100;
+    expect(diagramCost(land, state.elements)).toEqual({ total: sum, outside: 0, outsideLabel: "" });
+
+    // The containers of Internet Banking System add up to 8,690; the Mainframe's 9,500 is outside, not inside.
+    const own = diagramCost(cont, state.elements);
+    expect(own.total).toBe(8690);
+    expect(own.outside).toBeGreaterThanOrEqual(9500);
+    expect(own.outsideLabel).toBe("Outside this system");
+    expect(cont.nodes.reduce((s: number, n: any) => s + (n.costRollup ?? 0), 0)).toBeGreaterThan(own.total);
+
+    // The context diagram of the same system shows the same figure.
+    const ctx = await ok(c.get(`/api/diagrams/context-${ibs.id}`));
+    expect(diagramCost(ctx, state.elements).total).toBe(8690);
+
+    // Components: a container's own roll-up, with its sibling containers as "outside".
+    const api = cont.nodes.find((n: any) => n.name === "API Application");
+    const comp = await ok(c.get(`/api/diagrams/${api.drillKey}`));
+    const compCost = diagramCost(comp, state.elements);
+    expect(compCost.total).toBe(api.costRollup);
+    expect(compCost.outsideLabel).toBe("Outside this container");
   });
 });

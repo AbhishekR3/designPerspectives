@@ -10,6 +10,21 @@ import type { CharacteristicDef, CostBand, CostSettings, EdgeLayout, Lens, Level
 import { body, HttpError, needStr, num, objBody, optStr, point, strList, type Ctx } from "../routeContext.js";
 
 const ROUTINGS: readonly string[] = LINE_SHAPES;
+/** Most corners a line may have set by hand. */
+const MAX_LINE_POINTS = 50;
+
+/** A line's hand-set corners: a list of at most 50 points with finite numbers (rounded to 0.1 px); an empty list is none. */
+function linePoints(v: unknown): { x: number; y: number }[] | undefined {
+  if (!Array.isArray(v)) throw new HttpError(422, "points must be a list of points.");
+  if (v.length > MAX_LINE_POINTS) throw new HttpError(422, `A line can have at most ${MAX_LINE_POINTS} points.`);
+  const round = (n: number) => Math.round(n * 10) / 10;
+  const out = v.map((p, i) => {
+    if (!isObj(p) || typeof p.x !== "number" || typeof p.y !== "number" || !Number.isFinite(p.x) || !Number.isFinite(p.y))
+      throw new HttpError(422, `points[${i}] must be an object with numbers x and y.`);
+    return { x: round(p.x), y: round(p.y) };
+  });
+  return out.length ? out : undefined;
+}
 
 function edgeLayout(v: unknown): EdgeLayout {
   if (!isObj(v)) throw new HttpError(422, "An edge layout must be an object.");
@@ -18,6 +33,9 @@ function edgeLayout(v: unknown): EdgeLayout {
     if (v[k] === null || v[k] === undefined) delete out[k];
     else out[k] = point(v[k], k);
   }
+  const points = v.points === null || v.points === undefined ? undefined : linePoints(v.points);
+  if (points) out.points = points;
+  else delete out.points;
   for (const k of ["labelT", "labelOffset"]) {
     if (v[k] === null || v[k] === undefined) delete out[k];
     else out[k] = num(v[k], k);

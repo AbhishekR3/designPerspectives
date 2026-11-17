@@ -75,6 +75,13 @@
 .c4-node.external .c4-name {
   color: #c2c8cf;
 }
+/* Code diagram: another part of the model that connects to the files shown. */
+.c4-node.outside {
+  opacity: 0.7;
+}
+.c4-node.outside .card-bg {
+  border-style: dashed !important;
+}
 .c4-badges {
   display: flex;
   gap: 4px;
@@ -389,6 +396,13 @@
   width: 12px;
   height: 12px;
 }
+/* the handle in the middle of a piece of a right-angle line: drag to move that piece */
+.edge-grip.seg {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--amber);
+}
 /* react-flow controls, dark */
 .react-flow__controls {
   box-shadow: var(--shadow);
@@ -580,10 +594,27 @@
   border-radius: 999px;
   cursor: pointer;
 }
-.comment-pin.q,
-.badge.comments.q {
+/* The pin takes the colour of the kind that most needs a look: question, then idea, then comment. */
+.comment-pin.ck-comment,
+.badge.comments.ck-comment {
+  background: var(--link);
+}
+.comment-pin.ck-idea,
+.badge.comments.ck-idea {
+  background: var(--green);
+}
+.comment-pin.ck-question,
+.badge.comments.ck-question {
   background: var(--amber);
-  color: var(--bg);
+}
+.badge.comments.ck-comment {
+  border-color: var(--link);
+}
+.badge.comments.ck-idea {
+  border-color: var(--green);
+}
+.badge.comments.ck-question {
+  border-color: var(--amber);
 }
 .badge.comments {
   display: inline-flex;
@@ -592,4 +623,104 @@
   background: var(--link);
   border-color: var(--link);
   color: var(--bg);
+}
+
+/* Notes on the canvas: open comment threads placed on the diagram. They live in the viewport (they pan and zoom with it)
+   but are not nodes. The kind shows in the border and the header (comment blue, idea green, question amber). */
+.canvas-notes {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  z-index: var(--z-note);
+}
+.canvas-note {
+  --note: var(--link);
+  position: absolute;
+  top: 0;
+  left: 0;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px 7px;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--text);
+  background: var(--float);
+  border: 1px solid var(--note);
+  border-top-width: 4px;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  transform-origin: 0 0;
+  pointer-events: auto;
+  cursor: pointer;
+  user-select: none;
+  touch-action: none;
+}
+.canvas-note[data-kind="idea"] {
+  --note: var(--green);
+}
+.canvas-note[data-kind="question"] {
+  --note: var(--amber);
+}
+.canvas-note.movable {
+  cursor: grab;
+}
+.canvas-note.dragging {
+  cursor: grabbing;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.6);
+}
+.canvas-note:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+.canvas-note-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.canvas-note-author {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 11px;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.canvas-note-text {
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.canvas-note-foot {
+  font-size: 11px;
+  color: var(--muted);
+}
+/* The box for a new note: drawn at one size on screen whatever the zoom, with its top left on the right-clicked point. */
+.canvas-note-composer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 270px;
+  padding: var(--space-3);
+  background: var(--float);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  transform-origin: 0 0;
+  pointer-events: auto;
+  cursor: default;
+  user-select: auto; /* the canvas layer is not selectable, a text box in it must be */
+}
+/* The thread in the panel that a click on its note just opened. */
+.thread.flash {
+  box-shadow: 0 0 0 2px var(--accent);
 }

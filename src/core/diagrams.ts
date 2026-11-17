@@ -420,6 +420,8 @@ export function decorate(d: RawDiagram, sidecar: Sidecar | null): Diagram {
   for (const e of d.edges) {
     const style = sidecar?.styles[e.id];
     e.style = (style ? styleData(style) : {}) as Style;
+    // A code line whose file was guessed (dashed) or is not known (dotted) looks different until a style says otherwise.
+    if (e.codeEnd && e.codeEnd !== "set" && !e.style.strokeStyle) e.style = { ...e.style, strokeStyle: e.codeEnd === "guessed" ? "dashed" : "dotted" };
     const lay = layout?.edges[e.id];
     e.layout = lay ? edgeLayoutData(lay) : {};
   }

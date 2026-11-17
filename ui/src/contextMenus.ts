@@ -121,6 +121,10 @@ export interface MenuContext {
   comment(target: CommentTarget, selectAs: Selection): void;
   /** The server takes comments. */
   canComment: boolean;
+  /** Open the box that writes a new note on the diagram at this point (canvas units). */
+  placeNote(at: Pt): void;
+  /** Open the BMO chat about an element or a relationship. */
+  askBmo?(target: { element?: string; relationship?: string }): void;
 }
 
 /** The items of the open menu (empty when none is open or its box or line is gone). */
@@ -158,6 +162,7 @@ export function menuItems(menu: MenuState | null, c: MenuContext): MenuItem[] {
       n.filePath && { label: "Open file", icon: "file", shortcut: "Double-click", testId: "ctx-open-file", onSelect: () => setOpenFile(n.filePath!) },
       { label: canEditEl ? "Edit details…" : "Show details", icon: "panel", testId: "ctx-details", onSelect: () => (select({ type: "node", id: n.id }), setFocusName(canEditEl)) },
       el && !n.ghost && c.canComment && { label: "Comment…", icon: "comment", testId: "ctx-comment", onSelect: () => c.comment({ type: "element", id: n.id }, { type: "node", id: n.id }) },
+      el && !n.ghost && c.askBmo && { label: "Ask BMO about this…", testId: "ctx-ask-bmo", onSelect: () => c.askBmo!({ element: n.id }) },
       { sep: true },
       canEditEl && { label: "Rename", icon: "edit", shortcut: "F2", testId: "ctx-rename", onSelect: () => setRenameId(n.id) },
       canEditEl &&
@@ -242,6 +247,7 @@ export function menuItems(menu: MenuState | null, c: MenuContext): MenuItem[] {
         onSelect: () => (select({ type: "edge", id: e.id }), setFocusName(!!relId && canEdit)),
       },
       commentTarget && c.canComment && { label: "Comment…", icon: "comment", testId: "ctx-comment", onSelect: () => c.comment(commentTarget, { type: "edge", id: e.id }) },
+      relId && !e.ghost && c.askBmo && { label: "Ask BMO about this…", testId: "ctx-ask-bmo", onSelect: () => c.askBmo!({ relationship: relId }) },
       { sep: true },
       lineEditable && {
         label: "Line shape",
@@ -255,6 +261,8 @@ export function menuItems(menu: MenuState | null, c: MenuContext): MenuItem[] {
             const next = { ...e.layout };
             if (v === "auto") delete next.routing;
             else next.routing = v;
+            // Corners set by hand belong to the shape they were made in (right angles or straight).
+            if (v !== routing) delete next.points;
             setLine(next);
           },
         })),
@@ -268,6 +276,18 @@ export function menuItems(menu: MenuState | null, c: MenuContext): MenuItem[] {
           { sep: true },
           ...ARROW_HEADS.map(([v, label]): MenuItem => ({ label, checked: head === v, testId: `ctx-head-${v}`, onSelect: () => setStyle({ arrowHead: v }) })),
         ],
+      },
+      lineEditable && {
+        label: "Reset line shape",
+        icon: "restart",
+        testId: "ctx-reset-line-shape",
+        disabled: !e.layout.points && !e.layout.control,
+        onSelect: () => {
+          const next = { ...e.layout };
+          delete next.points;
+          delete next.control;
+          setLine(next);
+        },
       },
       lineEditable && { label: "Reset line position", icon: "restart", testId: "ctx-reset-line", disabled: Object.keys(e.layout).length === 0, onSelect: () => setLine({}) },
       { sep: true },
@@ -286,6 +306,7 @@ export function menuItems(menu: MenuState | null, c: MenuContext): MenuItem[] {
     const clipHere = clip && diagram.nodes.some((n) => n.id === clip.id);
     const up = diagram.breadcrumb.length > 1 ? diagram.breadcrumb[diagram.breadcrumb.length - 2] : null;
     return tidy([
+      c.canComment && { label: "Add note here…", icon: "comment", testId: "ctx-add-note", onSelect: () => c.placeNote(at) },
       c.canComment && { label: "Comment on this diagram…", icon: "comment", testId: "ctx-comment", onSelect: () => c.comment({ type: "diagram", id: diagram.key }, null) },
       addable.length > 0 && {
         label: "Add here",

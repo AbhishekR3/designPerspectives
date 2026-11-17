@@ -9,9 +9,12 @@ import { ChangeDetails, ChangeList, GhostPanel } from "./drafts/ChangeList";
 import { DraftDialog, DraftList, VersionStrip } from "./drafts/DraftList";
 import { ImportReview } from "./drafts/ImportReview";
 import { BmoSheet } from "./common/BmoSheet";
-import type { BmoRequest } from "./hooks/useBmo";
+import { BmoChat, type BmoChatSeed } from "./common/BmoChat";
+import { mentionTargets } from "./common/bmoChatText";
+import { useBmoChatLog, type BmoRequest } from "./hooks/useBmo";
 import { ImportPage } from "./pages/ImportPage";
 import { Canvas, type CanvasHandle } from "./canvas/Canvas";
+import { CanvasNotes } from "./canvas/CanvasNotes";
 import { CommentsContext, DiagramComments, useComments } from "./common/comments";
 import { ContextMenu, type MenuItem } from "./canvas/ContextMenu";
 import { Dock } from "./canvas/OverlayDock";
@@ -30,6 +33,7 @@ import type { BacktrackQuery } from "./api";
 import { EmptyStart, emptyHint } from "./common/EmptyState";
 import { Palette, paletteItems } from "./canvas/Palette";
 import { formatMoney, overlayable } from "./colourOverlays";
+import { diagramCost } from "./diagramCost";
 import { FileEditor } from "./panels/CodePickers";
 import { ReadOnlyContext } from "./panels/formParts";
 import { CodeDiagramPanel, ConnectorPanel, EdgePanel, FilePanel, MultiPanel, ObjectPanel, StagePanel } from "./panels";
@@ -104,6 +108,10 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
   const [exportOpen, setExportOpen] = useState(false);
   const [bmoMenuOpen, setBmoMenuOpen] = useState(false);
   const [bmoSheet, setBmoSheet] = useState<BmoOpen | null>(null);
+  // The BMO chat: open or not, what to put in its input when opened from an object, and the conversation (this tab only).
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatSeed, setChatSeed] = useState<BmoChatSeed | null>(null);
+  const chatLog = useBmoChatLog();
   const [modal, setModal] = useState<ModalState>(null);
   const [openFile, setOpenFile] = useState<string | null>(null);
   const [inspectId, setInspectId] = useState<string | null>(null);
@@ -194,6 +202,20 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
     if (!rightOpen) toggleRight();
     if (compose) comments.askFor(target);
   };
+  /** A note being written on a diagram (right-click, "Add note here…"); it belongs to that diagram only. */
+  const [noteDraft, setNoteDraft] = useState<{ key: string; at: Pt } | null>(null);
+  /** A click on a note on the canvas: show its thread in the discussion list of the details panel. */
+  const openNote = (threadId: string) => {
+    setFocusName(false);
+    select(null);
+    if (!rightOpen) toggleRight();
+    window.setTimeout(() => {
+      const el = document.querySelector<HTMLElement>(`[data-testid="thread-${threadId}"]`);
+      el?.scrollIntoView({ block: "nearest" });
+      el?.classList.add("flash");
+      window.setTimeout(() => el?.classList.remove("flash"), 1600);
+    }, 150);
+  };
   const { deleteRelationship, nodeActions, renameElement } = useElementActions({ state, mutate, pasteFrom, open, setSelection, setRenameId, fresh });
 
   // After a move: show the moved box, selected, where it now is (its new parent's diagram).
@@ -268,6 +290,24 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
         ? "Your role cannot change code files on the main model: read-only. Open a draft to plan code edits."
         : "Your role cannot change code files here: read-only.";
   const canDeleteHere = !!nodeActions && diagramEditable(state, diagram);
+  /** Open the BMO chat with "[Name]" of an element or relationship in its input (remembered by ID). */
+  const askAbout = (t: { element?: string; relationship?: string }) => {
+    const id = t.element ?? t.relationship;
+    const target = id ? mentionTargets(state.elements, state.relationships).find((x) => x.id === id) : undefined;
+    if (target) setChatSeed((s) => ({ text: `[${target.name}] `, picks: [{ token: target.name, id: target.id }], n: (s?.n ?? 0) + 1 }));
+    setChatOpen(true);
+  };
+  /** Show an object the chat refers to: an element (on its diagram), or a relationship (its line here, else its source). */
+  const revealRef = (id: string) => {
+    if (state.elements.some((e) => e.id === id)) reveal(id);
+    else {
+      const edge = diagram?.edges.find((e) => e.relationshipIds.includes(id));
+      const rel = state.relationships.find((r) => r.id === id);
+      if (edge) setSelection({ type: "edge", id: edge.id });
+      else if (rel) reveal(rel.sourceId);
+    }
+    if (!rightOpen) toggleRight();
+  };
 
   const shownMenu = menu
     ? menuItems(menu, {
@@ -291,6 +331,8 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
         canvasRef,
         comment: (target, selectAs) => showComments(target, selectAs, true),
         canComment: comments.can,
+        placeNote: (at) => key && setNoteDraft({ key, at }),
+        askBmo: askAbout,
       })
     : [];
 
@@ -313,6 +355,7 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
     onOpenDecision: (id: string) => openDecision(id),
     onExplain: (t: { element?: string; relationship?: string }, name: string) =>
       setBmoSheet({ title: `Explain: ${name}`, request: { task: "explain", ...t, lens: lens.id }, ...(t.element ? { describes: { id: t.element } } : {}) }),
+    onAsk: askAbout,
     catalog,
     focusName,
     onRename: renameElement,
@@ -351,7 +394,7 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
   const multiIds = selection?.type === "nodes" ? selection.ids : null;
   const movingEl = moveId ? state.elements.find((e) => e.id === moveId) : undefined;
 
-  const diagramCost = diagram ? overlayable(diagram).reduce((sum, n) => sum + (n.costRollup ?? 0), 0) : 0;
+  const cost = diagram ? diagramCost(diagram, state.elements) : null;
   const tools = (
     <div className="float bar tools" data-testid="bar-tools">
       {state.me && (
@@ -416,7 +459,7 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
           onClick={() => setBmoMenuOpen(!bmoMenuOpen)}
           aria-haspopup="menu"
           aria-expanded={bmoMenuOpen}
-          title="Ask BMO to explain or challenge this diagram"
+          title="Ask BMO: explain or challenge this diagram, or ask a question"
           data-testid="bmo-menu"
           disabled={!diagram}
         >
@@ -443,6 +486,16 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
               }}
             >
               Challenge this diagram
+            </button>
+            <button
+              role="menuitem"
+              data-testid="bmo-ask"
+              onClick={() => {
+                setBmoMenuOpen(false);
+                setChatOpen(true);
+              }}
+            >
+              Ask BMO…
             </button>
             {draftId && state.can.editThis && (
               <button
@@ -594,7 +647,7 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
                 onDrill={open}
                 onConnect={connect}
                 onPositions={savePositions}
-                onLayout={(patch) => key && !state.readOnly && mutate(() => api.layout(key, patch))}
+                onLayout={(patch, auto) => key && !state.readOnly && mutate(() => api.layout(key, patch, auto))}
                 onOpenFile={setOpenFile}
                 onContextMenu={openMenu}
                 handleRef={canvasRef}
@@ -602,7 +655,15 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
                 onComments={(t) => showComments(t, { type: "node", id: t.id }, false)}
                 readOnly={state.readOnly}
                 version={`${version.model}|${version.compare ?? ""}`}
-              />
+              >
+                <CanvasNotes
+                  diagramKey={diagram.key}
+                  comments={comments}
+                  draft={noteDraft && noteDraft.key === diagram.key ? noteDraft : null}
+                  onDraftDone={() => setNoteDraft(null)}
+                  onOpen={openNote}
+                />
+              </Canvas>
             </ReactFlowProvider>
           )}
 
@@ -714,6 +775,7 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
             </div>
           </div>
           {helpOpen && <HelpCard onClose={() => setHelpOpen(false)} />}
+          {chatOpen && <BmoChat state={state} diagram={diagram} lens={lens} log={chatLog} seed={chatSeed} onReveal={revealRef} onClose={() => setChatOpen(false)} />}
 
           <div className="left-stack">
             {diagram && !state.readOnly && !diagram.compare?.removed && diagram.level !== "flow" && diagram.level !== "code" && (
@@ -791,7 +853,10 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
             {multiIds && diagram && (
               <MultiPanel
                 state={state}
+                lens={lens}
                 ids={multiIds}
+                canEdit={diagramEditable(state, diagram)}
+                mutate={mutate}
                 canDelete={canDeleteHere}
                 onDelete={() => nodeActions?.removeMany(multiIds.filter((id) => state.elements.some((x) => x.id === id) && !diagram.nodes.find((n) => n.id === id)?.ghost))}
               />
@@ -807,7 +872,7 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
             {!showGhost && !selectedElement && selectedNode?.kind === "file" && diagram && <FilePanel key={selectedNode.id} node={selectedNode} {...panelProps} />}
             {!showGhost && selection?.type === "edge" && diagram && <EdgePanel key={selection.id} edgeId={selection.id} {...panelProps} />}
             {!selection && flow && (
-              <FlowPanel flow={flow} state={state} mutate={mutate} onDeleted={() => open("landscape")} flowStep={flowStep} setFlowStep={setFlowStep} onBacktrack={setBacktrackQ} />
+              <FlowPanel flow={flow} state={state} mutate={mutate} onDeleted={() => open("landscape")} flowStep={flowStep} setFlowStep={setFlowStep} onBacktrack={setBacktrackQ} onOpenDiagram={open} />
             )}
             {!selection && diagram?.level === "connector" && <ConnectorPanel {...panelProps} />}
             {!selection && diagram?.level === "code" && <CodeDiagramPanel {...panelProps} />}
@@ -823,10 +888,16 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
                   <dd>{overlayable(diagram).length}</dd>
                   <dt>Connections</dt>
                   <dd>{diagram.edges.length}</dd>
-                  {diagramCost > 0 && (
+                  {cost && cost.total > 0 && (
                     <>
                       <dt>Monthly cost</dt>
-                      <dd>{formatMoney(diagramCost, state.costSettings.currency)}</dd>
+                      <dd>{formatMoney(cost.total, state.costSettings.currency)}</dd>
+                    </>
+                  )}
+                  {cost && cost.outside > 0 && (
+                    <>
+                      <dt>{cost.outsideLabel}</dt>
+                      <dd>{formatMoney(cost.outside, state.costSettings.currency)}</dd>
                     </>
                   )}
                 </dl>

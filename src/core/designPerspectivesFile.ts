@@ -210,7 +210,7 @@ export function parseSidecar(text: string): Sidecar {
 // ------------------------------------------------------------------ writing
 
 export const STYLE_KEYS = ["fill", "text", "stroke", "strokeStyle", "strokeWidth", "fontSize", "arrow", "arrowHead"] as const;
-export const EDGE_LAYOUT_KEYS = ["sourceAnchor", "targetAnchor", "control", "labelT", "labelOffset", "routing"] as const;
+export const EDGE_LAYOUT_KEYS = ["sourceAnchor", "targetAnchor", "control", "points", "labelT", "labelOffset", "routing"] as const;
 const LENS_KEYS = ["id", "name", "visibleLevels", "defaultOverlay", "hiddenTagGroups", "visibleSections", "showTechnology", "showDescriptions"];
 
 export function styleData(s: Style): Obj {
@@ -220,6 +220,7 @@ export function styleData(s: Style): Obj {
 export function edgeLayoutData(e: EdgeLayout): Obj {
   const o: Obj = { ...e };
   for (const k of ["sourceAnchor", "targetAnchor", "control"]) if (isObj(o[k])) o[k] = ordered(o[k] as Obj, ["x", "y"]);
+  if (Array.isArray(o.points)) o.points = o.points.map((p) => (isObj(p) ? ordered(p, ["x", "y"]) : p));
   return ordered(o, EDGE_LAYOUT_KEYS);
 }
 

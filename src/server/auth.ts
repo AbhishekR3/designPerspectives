@@ -82,6 +82,7 @@ export const ROUTE_RULES: Record<string, Action> = {
   "PATCH /api/elements/:id": "edit",
   "POST /api/elements/:id/move": "edit",
   "POST /api/elements/delete": "edit",
+  "POST /api/elements/update": "edit",
   "DELETE /api/elements/:id": "edit",
   "POST /api/elements/:id/duplicate": "edit",
   "POST /api/relationships": "edit",

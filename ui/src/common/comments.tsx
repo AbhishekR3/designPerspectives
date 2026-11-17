@@ -13,13 +13,26 @@ import { dialogOpen, isTyping } from "../panels/formParts";
 import { Icon } from "./icons";
 import { run } from "./notify";
 import { AUTHOR_KEY, storage } from "../preferences";
-import { COMMENT_KIND_LABEL, COMMENT_KINDS, type AppState, type CommentKind, type CommentTarget, type CommentThread, type Diagram, type Selection } from "../types";
+import { COMMENT_KIND_LABEL, COMMENT_KINDS, type AppState, type CommentKind, type CommentTarget, type CommentThread, type Diagram, type Pt, type Selection } from "../types";
 
 export interface CommentCount {
   open: number;
   total: number;
-  /** An open question is among them. */
-  question: boolean;
+  /** Open threads per kind. */
+  kinds: Record<CommentKind, number>;
+}
+
+/** The kind a pin takes its colour from: the one that most needs a look (a question, then an idea, then a plain comment). */
+export function pinKind(c: CommentCount): CommentKind {
+  return c.kinds.question > 0 ? "question" : c.kinds.idea > 0 ? "idea" : "comment";
+}
+
+/** "2 comments, 1 idea, 1 question" (open ones only; kinds that are absent are left out). */
+export function pinSummary(c: CommentCount): string {
+  const noun: Record<CommentKind, [string, string]> = { comment: ["comment", "comments"], idea: ["idea", "ideas"], question: ["question", "questions"] };
+  return COMMENT_KINDS.filter((k) => c.kinds[k] > 0)
+    .map((k) => `${c.kinds[k]} ${noun[k][c.kinds[k] === 1 ? 0 : 1]}`)
+    .join(", ");
 }
 
 /** The thread target of a line on a diagram: its relationship (not for derived lines, imports or ghosts). */
@@ -46,7 +59,11 @@ export interface CommentsApi {
   askFor(t: CommentTarget): void;
   request: { seq: number; key: string } | null;
   claimed: { current: number };
-  add(kind: CommentKind, target: CommentTarget, diagram: string | null, text: string, author: string): Promise<boolean>;
+  add(kind: CommentKind, target: CommentTarget, diagram: string | null, text: string, author: string, position?: Pt): Promise<boolean>;
+  /** Place the note of a diagram thread at a point of that diagram (canvas units), or take it off the diagram (null). */
+  place(id: string, position: Pt | null): Promise<boolean>;
+  /** Set by the notes layer of the diagram on screen: its key and the point that is the centre of the view for a new note. */
+  viewCentre: { current: { key: string; centre(): Pt } | null };
   reply(id: string, text: string, author: string): Promise<boolean>;
   setStatus(id: string, status: "open" | "resolved", author: string): Promise<boolean>;
   edit(id: string, patch: { text?: string; kind?: CommentKind }): Promise<boolean>;
@@ -63,6 +80,7 @@ export function useComments(state: AppState | null): CommentsApi {
   const [threads, setThreads] = useState<CommentThread[]>(EMPTY);
   const [request, setRequest] = useState<{ seq: number; key: string } | null>(null);
   const claimed = useRef(0);
+  const viewCentre = useRef<{ key: string; centre(): Pt } | null>(null);
   const seq = useRef(0);
   const loaded = !!state;
   const version = state?.version;
@@ -101,11 +119,11 @@ export function useComments(state: AppState | null): CommentsApi {
     for (const t of threads) {
       if (t.target.type === "diagram") continue;
       const m = out[t.target.type];
-      const c = (m[t.target.id] ??= { open: 0, total: 0, question: false });
+      const c = (m[t.target.id] ??= { open: 0, total: 0, kinds: { comment: 0, idea: 0, question: 0 } });
       c.total++;
       if (t.status === "open") {
         c.open++;
-        if (t.kind === "question") c.question = true;
+        c.kinds[t.kind]++;
       }
     }
     return out;
@@ -121,8 +139,10 @@ export function useComments(state: AppState | null): CommentsApi {
     openTotal: threads.filter((t) => t.status === "open" && !t.missing).length,
     request,
     claimed,
+    viewCentre,
     askFor: (t) => setRequest((r) => ({ seq: (r?.seq ?? 0) + 1, key: targetKey(t) })),
-    add: (kind, target, diagram, text, author) => act(() => api.addComment({ kind, target, diagram, text, ...(author ? { author } : {}) })),
+    add: (kind, target, diagram, text, author, position) => act(() => api.addComment({ kind, target, diagram, text, ...(position ? { position } : {}), ...(author ? { author } : {}) })),
+    place: (id, position) => act(() => api.updateComment(id, { position })),
     reply: (id, text, author) => act(() => api.replyToComment(id, text, author || undefined)),
     setStatus: (id, status, author) => act(() => api.updateComment(id, { status, ...(author ? { author } : {}) })),
     edit: (id, patch) => act(() => api.updateComment(id, patch)),
@@ -158,7 +178,7 @@ function KindChip({ kind }: { kind: CommentKind }) {
 }
 
 /** The name a person writes under when sign-in is off: remembered in this browser, optional. */
-function useAuthor(me: string | null): [string, (v: string) => void] {
+export function useAuthor(me: string | null): [string, (v: string) => void] {
   const [name, setName] = useState(() => storage.get(AUTHOR_KEY) ?? "");
   const set = (v: string) => {
     setName(v);
@@ -169,7 +189,7 @@ function useAuthor(me: string | null): [string, (v: string) => void] {
 
 // ---------------------------------------------------------------- composer
 
-function Composer({
+export function Composer({
   placeholder,
   submitLabel,
   initial = "",
@@ -276,7 +296,17 @@ function Composer({
 
 // ---------------------------------------------------------------- one thread
 
-function ThreadView({ t, api: c, about }: { t: CommentThread; api: CommentsApi; about?: ReactNode }) {
+function ThreadView({
+  t,
+  api: c,
+  about,
+  placeable,
+}: {
+  t: CommentThread;
+  api: CommentsApi;
+  about?: ReactNode;
+  /** A diagram thread on its own diagram: it can be put on the canvas as a note. */ placeable?: boolean;
+}) {
   const [replying, setReplying] = useState(false);
   const [editing, setEditing] = useState(false);
   const [name, setName] = useAuthor(c.me);
@@ -348,6 +378,23 @@ function ThreadView({ t, api: c, about }: { t: CommentThread; api: CommentsApi; 
           <button className="link small" onClick={() => void c.setStatus(t.id, t.status === "open" ? "resolved" : "open", c.me ? "" : name)} data-testid={`resolve-${t.id}`}>
             {t.status === "open" ? (t.kind === "question" ? "Mark answered" : "Resolve") : "Reopen"}
           </button>
+          {placeable && !t.position && t.status === "open" && (
+            <button
+              className="link small"
+              onClick={() => {
+                const here = c.viewCentre.current;
+                if (here && here.key === t.target.id) void c.place(t.id, here.centre());
+              }}
+              data-testid={`place-${t.id}`}
+            >
+              Place on the diagram
+            </button>
+          )}
+          {placeable && t.position && (
+            <button className="link small" onClick={() => void c.place(t.id, null)} data-testid={`unplace-${t.id}`}>
+              Remove from the diagram
+            </button>
+          )}
           {mine(t.author) && (
             <>
               <button className="link small" onClick={() => setEditing(true)} data-testid={`edit-${t.id}`}>
@@ -384,6 +431,7 @@ export function Discussion({ target, diagramKey, title = "Discussion" }: { targe
   const [showResolved, setShowResolved] = useState(false);
   const [name, setName] = useAuthor(c?.me ?? null);
   const key = targetKey(target);
+  const placeable = target.type === "diagram" && target.id === diagramKey;
   // A request from a menu or a badge ("Add comment…") opens the composer, once.
   useEffect(() => {
     if (c?.request && c.request.key === key && c.request.seq !== c.claimed.current) {
@@ -405,7 +453,7 @@ export function Discussion({ target, diagramKey, title = "Discussion" }: { targe
       {open.length > 0 && (
         <ul className="threads">
           {open.map((t) => (
-            <ThreadView key={t.id} t={t} api={c} />
+            <ThreadView key={t.id} t={t} api={c} placeable={placeable} />
           ))}
         </ul>
       )}
@@ -417,7 +465,7 @@ export function Discussion({ target, diagramKey, title = "Discussion" }: { targe
           {showResolved && (
             <ul className="threads">
               {resolved.map((t) => (
-                <ThreadView key={t.id} t={t} api={c} />
+                <ThreadView key={t.id} t={t} api={c} placeable={placeable} />
               ))}
             </ul>
           )}
@@ -536,7 +584,13 @@ export function DiagramComments({
         </h4>
         <div className="filters" role="group" aria-label="Show">
           {FILTERS.map(([f, label]) => (
-            <button key={f} className={`chip${filter === f ? " on" : ""}`} aria-pressed={filter === f} onClick={() => setFilter(f)} data-testid={`comments-filter-${f}`}>
+            <button
+              key={f}
+              className={`chip${f === "idea" || f === "question" ? ` ck-${f}` : ""}${filter === f ? " on" : ""}`}
+              aria-pressed={filter === f}
+              onClick={() => setFilter(f)}
+              data-testid={`comments-filter-${f}`}
+            >
               {label}
             </button>
           ))}

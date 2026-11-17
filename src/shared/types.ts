@@ -109,6 +109,8 @@ export interface EdgeLayout {
   sourceAnchor?: Pt;
   targetAnchor?: Pt;
   control?: Pt;
+  /** Corners set by hand (canvas units, the inner points of the route, at most 50). When set they win over `control` and the planned route. */
+  points?: Pt[];
   labelT?: number;
   labelOffset?: number;
   routing?: "straight" | "curved" | "smooth" | "orthogonal" | "rounded";
@@ -185,6 +187,8 @@ export interface DiagramNode extends ElementSummary {
   lineCount?: number | null;
   /** Code files: hash of the content, to tell changed files apart when comparing versions. */
   contentHash?: string;
+  /** Code diagram: an element outside the code shown (a neighbour at the other end of a relationship), drawn faded. */
+  outside?: boolean;
   /** Set when the diagram is compared with another version of the model. */
   change?: ChangeKind;
   /** Not in the shown model: drawn from the compared version (read-only). */
@@ -216,6 +220,8 @@ export interface DiagramEdge {
   detailKey: string | null;
   drillTargets: DrillTarget[];
   steps?: number[];
+  /** Code diagram, a relationship to a neighbour: whether the file at the code end was set on the relationship, guessed from imports, or is not known (the line ends at the element's own box). */
+  codeEnd?: "set" | "guessed" | "unknown";
   style: Style;
   layout: EdgeLayout;
   change?: ChangeKind;
@@ -292,6 +298,10 @@ export interface Relationship {
   sensitivityLevel: string | null;
   stages: Stage[];
   codePaths: string[];
+  /** A file in the source element's code where this relationship leaves it (`dp.code.from`), or "". Normally under one of the source's code paths. */
+  codeFrom: string;
+  /** A file in the destination element's code where this relationship arrives (`dp.code.to`), or "". Normally under one of the destination's code paths. */
+  codeTo: string;
   work: WorkItem[];
   /** Sample of the data that travels along this relationship (for a connector with stages: the data entering the first stage). */
   example: string;
@@ -569,6 +579,8 @@ export interface CommentThread {
   target: CommentTarget;
   /** The diagram the author was looking at (a hint for where to open it). */
   diagram: string | null;
+  /** Only for a thread about a diagram: where its note sits on that diagram, in canvas units (not Structurizr units). */
+  position?: { x: number; y: number };
   author: string;
   at: string;
   text: string;
@@ -1494,7 +1506,7 @@ export interface Analysis {
   broken: string[];
 }
 
-export type BmoTaskId = "import-level" | "describe-to-model" | "explain" | "decision-from-draft" | "draft-summary" | "challenge" | "suggest-labels";
+export type BmoTaskId = "import-level" | "describe-to-model" | "explain" | "decision-from-draft" | "draft-summary" | "challenge" | "suggest-labels" | "ask";
 export type BmoTaskOutput = "import-file" | "text" | "decision";
 
 /** `architecture/import/handoff/handoff.json`: which task and prompt the handoff folder is for. */
@@ -1668,6 +1680,40 @@ export interface BmoPreview {
   user: string;
   /** From the prices the person entered, for the input tokens only; null without prices. */
   estCost: BmoCost | null;
+  /** The ask task only: what the question carries besides itself. */
+  ask?: BmoAskInfo;
+}
+
+/** The limits of an `ask` request (the server refuses more; the chat sends the latest turns that fit). */
+export const BMO_ASK_LIMITS = {
+  /** Characters of the question. */
+  questionChars: 4000,
+  /** Objects referenced in one question. */
+  refs: 10,
+  /** Earlier turns sent back. */
+  turns: 6,
+  /** Characters of one earlier turn. */
+  turnChars: 6000,
+  /** Characters of all earlier turns together. */
+  historyChars: 16000,
+} as const;
+
+/** One earlier turn of a chat with BMO, as the person saw it: their own message or BMO's answer. */
+export interface BmoTurn {
+  role: "you" | "bmo";
+  text: string;
+}
+
+/** What an `ask` preview carries besides the question: the objects attached, the context and what was left out. */
+export interface BmoAskInfo {
+  /** The referenced objects whose details are attached, in the order given. */
+  objects: { id: string; name: string; kind: string }[];
+  /** "objects": only the objects; "diagram": no object named, the diagram being viewed is sent; "overview": neither, a short overview of the model. */
+  context: "objects" | "diagram" | "overview";
+  /** Earlier turns sent, of those given. */
+  history: { sent: number; given: number };
+  /** What was left out (to stay within the size limit, or because the rules closed it), in words. */
+  trimmed: string[];
 }
 
 /** What every run result reports besides its output. */

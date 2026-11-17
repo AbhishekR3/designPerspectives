@@ -6,6 +6,7 @@ File paths inside older sections are the paths at the time; see DEC-062 for the 
 
 ## Contents
 
+- [Canvas feedback round: code-level connections, notes, line shaping, BMO chat](#canvas-feedback-round-code-level-connections-notes-line-shaping-bmo-chat)
 - [Repository clean-up: short root, one demo folder, one tests folder, readable names](#repository-clean-up-short-root-one-demo-folder-one-tests-folder-readable-names)
 - [Release 0.5.0: codebase to model and BMO](#release-050-codebase-to-model-and-bmo)
 - [Release 0.4.0: one branch, answers applied, files regrouped, security fixes](#release-040-one-branch-answers-applied-files-regrouped-security-fixes)
@@ -28,6 +29,54 @@ File paths inside older sections are the paths at the time; see DEC-062 for the 
 - [Stage A3 review: canvas-first layout, characteristics and cost](#stage-a3-review-canvas-first-layout-characteristics-and-cost)
 - [Stage A2 review: feature round of 14 November](#stage-a2-review-feature-round-of-14-november)
 - [Stage A review — Model and diagrams (Proof of Concept)](#stage-a-review--model-and-diagrams-proof-of-concept)
+
+## Canvas feedback round: code-level connections, notes, line shaping, BMO chat
+
+Date: 2026-11-17. Branch: `feat/canvas-feedback-round`, from `fix/move-only-what-you-move`. Decisions: DEC-068 to DEC-073.
+
+### What was built
+
+| Owner request | What it does now | Where |
+|---|---|---|
+| 1. The C4 level shows how a C3 part connects | The code diagram of a component shows the parts it talks to as faded boxes. Lines go to the file where a call leaves or arrives: set by hand (solid), guessed from imports (dashed) or not known (dotted, to the component's own box). | `src/core/codeMap.ts`, `modelEdits.ts` (`dp.code.from`, `dp.code.to`), `RelationshipPanel.tsx`, `CodePickers.tsx` |
+| 2. Monthly cost of what is viewed | A scoped diagram shows its scope's cost ($8,690 for the containers of Internet Banking System), plus an "Outside this system" row. | `ui/src/diagramCost.ts`, `App.tsx`, `OverlayDock.tsx` |
+| 3. Comments placed on a diagram and moved | A diagram thread can carry a position and is drawn as a movable note. | `src/core/comments.ts`, `ui/src/canvas/CanvasNotes.tsx` |
+| 4. Tooltips; distinct kind colours | One app-wide tooltip for `title` and `data-tip`. Boxes, symbols, badges, palette and dock carry hover text. Comment blue, idea green, question amber. | `ui/src/common/Tooltip.tsx`, `BoxesAndLines.tsx`, styles |
+| 5. BMO chat with `[Object]` references | The `ask` task, mention autocomplete, a preview card per message. | `src/assistant/*`, `ui/src/common/BmoChat.tsx`, `bmoChatText.ts` |
+| 6. Incoming / Outgoing editable | Rows can be edited in place, deleted and added. | `ui/src/panels/listEditors.tsx` |
+| 7. Near-straight lines become straight | Jogs under 12 px are removed from planned lines. Drags snap within 8 px or 2°. | `ui/src/canvas/routing.ts` (`straightenJogs`), `lineLayout.ts` |
+| 8. Edit a multi-selection | Shared fields for all selected boxes, in one undo step. | `MultiSelectAndFilePanels.tsx`, `multiEdit.ts`, `POST /api/elements/update` |
+| 9. Drag any part of a line | Piece handles and grab-anywhere. Corners are stored as `points`, and reset goes back to automatic. | `BoxesAndLines.tsx` (`C4Edge`), `routing.ts`, `Canvas.tsx`, `makeRoom.ts` |
+| 10. Flow step input / output | Output and Input, where the data came from and where it goes next, the files, and the step's details. A summary line per step. | `ui/src/panels/FlowPanel.tsx`, `flowStepInfo.ts`, `FlowPlayer.tsx` |
+
+### How it was checked
+
+- Typecheck, lint and Prettier pass. 940 unit, API and CLI tests in 49 files pass, and 189 browser tests pass. `npm run make-demo` and `npm run test:list` were run, and their output is committed.
+- New tests: `code-level`, `multi-edit`, `flow-step-info`, `line-editing`, `bmo-ask` and `bmo-chat-text` (unit). Browser tests: `line-editing`, `comment-notes`, `flow-step` and new cases in `bmo.spec.ts`.
+- The browser run found two line-editing bugs, both fixed:
+  - Double-clicking a piece handle also opened the connector detail, because React events bubble through the label layer.
+  - A piece whose handle was redrawn under another key during a drag lost the pointer, so the drop was not saved. A drag now also listens on the window.
+- Piece handles keep clear of the line's label, so the label can still be clicked.
+- No real LLM provider was called. The chat was checked with the fake backend only.
+
+### Limits
+
+- A guessed file can be wrong where components share files. A line with no known file ends at the component's own box, not at a file.
+- A note does not follow a box that moves, and notes are not in image exports.
+- Lines shaped by hand are not put into lanes or routed around boxes, and other lines do not avoid them. Moving boxes saves positions and corners as two requests.
+- The multi-selection panel has no box colours yet: styles are saved per object.
+- The BMO chat has no handoff mode and no `--ref` option in `dp bmo run`. Code excerpts are capped at 24,000 tokens per message.
+- The `.claude/CLAUDE.md` map does not list the new files yet. That file had uncommitted edits from another session, which were left alone.
+
+### Questions for the owner
+
+1. Is a 24,000-token cap on code per chat message right?
+2. Should a note follow a box it is dropped on (attach to the element), or stay on the diagram as now?
+3. Should flow-step chaining link only to the step just before and just after? It now finds the nearest earlier or later step at the same element.
+
+### Owner feedback
+
+(empty)
 
 ## Repository clean-up: short root, one demo folder, one tests folder, readable names
 

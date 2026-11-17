@@ -237,3 +237,78 @@ describe("comments and roles", () => {
     expect((await post(ro, { kind: "comment", target, text: "after" })).status).toBe(403);
   });
 });
+
+describe("notes placed on a diagram", () => {
+  const diagramTarget = { type: "diagram", id: "containers-internet-banking" };
+  const users: TestUser[] = [
+    { name: "architect", role: "architect" },
+    { name: "viewer", role: "viewer" },
+  ];
+
+  it("a diagram thread can be created with a position, moved, and taken off again", async () => {
+    const dir = demoDir();
+    const c = client(dir);
+    const t = await ok(post(c, { kind: "idea", target: diagramTarget, text: "Split this", position: { x: 120.456, y: -40 } }));
+    expect(t.position).toEqual({ x: 120.46, y: -40 });
+    const moved = await ok(c.patch(`/api/comments/${t.id}`, { position: { x: 5, y: 6 } }));
+    expect(moved.position).toEqual({ x: 5, y: 6 });
+    expect(moved).toMatchObject({ author: t.author, at: t.at, text: "Split this", status: "open" });
+    const file = JSON.parse(fs.readFileSync(path.join(dir, "architecture", "comments.json"), "utf-8"));
+    expect(Object.keys(file.threads[0])).toEqual(["id", "kind", "target", "position", "author", "at", "text", "status"]);
+    expect(file.threads[0].position).toEqual({ x: 5, y: 6 });
+    const cleared = await ok(c.patch(`/api/comments/${t.id}`, { position: null }));
+    expect(cleared.position).toBeUndefined();
+    expect((await ok(c.get("/api/comments"))).threads[0].position).toBeUndefined();
+  });
+
+  it("refuses a bad position on write and drops one on read", async () => {
+    const c = client(demoDir());
+    for (const position of [{ x: 1 }, { x: "1", y: 2 }, { x: 2e6, y: 0 }, "here", []]) {
+      expect((await post(c, { kind: "comment", target: diagramTarget, text: "x", position })).status).toBe(422);
+    }
+    const t = await ok(post(c, { kind: "comment", target: diagramTarget, text: "ok" }));
+    expect((await c.patch(`/api/comments/${t.id}`, { position: { x: 0, y: -1e7 } })).status).toBe(422);
+    expect((await c.patch(`/api/comments/${t.id}`, { position: { x: null, y: 0 } })).status).toBe(422);
+    // an element thread has no position, whichever way one is sent
+    expect((await post(c, { kind: "comment", target, text: "x", position: { x: 1, y: 1 } })).status).toBe(422);
+    const el = await ok(post(c, { kind: "comment", target, text: "x" }));
+    expect((await c.patch(`/api/comments/${el.id}`, { position: { x: 1, y: 1 } })).status).toBe(422);
+
+    const base = { kind: "comment", author: "A", at: "2026-01-01T00:00:00Z", text: "hi", status: "open" };
+    const parsed = parseComments(
+      JSON.stringify({
+        threads: [
+          { ...base, id: "a", target: diagramTarget, position: { x: 1, y: "2" } },
+          { ...base, id: "b", target: diagramTarget, position: { x: 3, y: 4 } },
+          { ...base, id: "c", target, position: { x: 3, y: 4 } },
+        ],
+      }),
+    );
+    expect(parsed.map((p) => p.position)).toEqual([undefined, { x: 3, y: 4 }, undefined]);
+  });
+
+  it("every role can move a note, and a read-only server cannot", async () => {
+    const dir = demoDir();
+    const c = client(dir, { users });
+    const arch = await c.as("architect");
+    const t = await ok(post(arch, { kind: "comment", target: diagramTarget, text: "mine", position: { x: 1, y: 1 } }));
+    const view = await c.as("viewer");
+    const moved = await ok(view.patch(`/api/comments/${t.id}`, { position: { x: 9, y: 9 } }));
+    expect(moved).toMatchObject({ position: { x: 9, y: 9 }, author: "architect", text: "mine" });
+    const dir2 = demoDir();
+    const open = client(dir2);
+    const t2 = await ok(post(open, { kind: "comment", target: diagramTarget, text: "x", position: { x: 9, y: 9 } }));
+    const ro = client(dir2, { readOnly: true });
+    expect((await ok(ro.get("/api/comments"))).threads[0].position).toEqual({ x: 9, y: 9 });
+    expect((await ro.patch(`/api/comments/${t2.id}`, { position: { x: 0, y: 0 } })).status).toBe(403);
+  });
+
+  it("a placed note survives edits and replies", async () => {
+    const c = client(demoDir());
+    const t = await ok(post(c, { kind: "question", target: diagramTarget, text: "Why?", position: { x: 10, y: 20 } }));
+    await ok(c.post(`/api/comments/${t.id}/replies`, { text: "Because." }));
+    await ok(c.patch(`/api/comments/${t.id}`, { status: "resolved" }));
+    await ok(c.patch(`/api/comments/${t.id}`, { text: "Why so?" }));
+    expect((await ok(c.get("/api/comments"))).threads[0]).toMatchObject({ position: { x: 10, y: 20 }, text: "Why so?", status: "resolved" });
+  });
+});

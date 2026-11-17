@@ -1,5 +1,5 @@
 import { Icon } from "./icons";
-import type { AppState, DiagramInfo, Lens, Level, TagGroup } from "../types";
+import { LEVEL_LABEL, type AppState, type DiagramInfo, type Lens, type Level, type TagGroup } from "../types";
 
 export function Sidebar({
   state,
@@ -92,7 +92,7 @@ export function Sidebar({
                 data-testid={`diagram-${d.key}`}
                 title={empty ? `${d.title}: nothing inside yet` : d.title}
               >
-                <span className={`level-tag c4-${d.c4}`} data-testid={`level-${d.key}`}>
+                <span className={`level-tag c4-${d.c4}`} data-tip={`${d.c4}: ${LEVEL_LABEL[d.level]} diagram`} data-testid={`level-${d.key}`}>
                   {d.c4}
                 </span>
                 <span className="tree-label">
@@ -117,7 +117,10 @@ export function Sidebar({
         <ul className="tree">
           {state.lenses.map((l) => (
             <li key={l.id} className="tree-row">
-              <span className={`tree-label${l.id === lens.id ? " strong" : ""}`} title={l.name}>
+              <span
+                className={`tree-label${l.id === lens.id ? " strong" : ""}`}
+                title={`${l.name}${l.id === lens.id ? " (in use)" : ""}\nA lens shows the same model for one audience: ${l.visibleLevels.length} levels, ${l.showTechnology ? "with" : "without"} technology.`}
+              >
                 {l.name}
                 {l.builtin && <span className="muted small"> built-in</span>}
               </span>
@@ -136,7 +139,7 @@ export function Sidebar({
           ))}
         </ul>
         {canEdit && (
-          <button className="add" onClick={onNewLens} data-testid="new-lens">
+          <button className="add" onClick={onNewLens} title="A lens shows the same model for one audience" data-testid="new-lens">
             + New lens
           </button>
         )}
@@ -167,7 +170,7 @@ export function Sidebar({
           ))}
         </ul>
         {canEdit && (
-          <button className="add" onClick={onNewTagGroup} data-testid="new-tag-group">
+          <button className="add" onClick={onNewTagGroup} title="A tag group is a set of values to mark objects with, such as Team or Lifecycle" data-testid="new-tag-group">
             + New tag group
           </button>
         )}
@@ -177,10 +180,10 @@ export function Sidebar({
         <h3>Ratings and cost</h3>
         {canEdit ? (
           <>
-            <button className="link" onClick={onEditCharacteristics} data-testid="sidebar-characteristics">
+            <button className="link" onClick={onEditCharacteristics} title="The qualities objects are rated on, such as scalability" data-testid="sidebar-characteristics">
               Characteristics <span className="muted">({state.characteristics.length})</span>
             </button>
-            <button className="link" onClick={onEditCost} data-testid="sidebar-cost">
+            <button className="link" onClick={onEditCost} title="Currency and the bands that colour monthly cost" data-testid="sidebar-cost">
               Cost settings <span className="muted">({state.costSettings.currency})</span>
             </button>
           </>

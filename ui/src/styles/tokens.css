@@ -12,6 +12,7 @@
   --link: #7cc4fa;
   --danger: #f87171;
   --amber: #f59e0b;
+  --green: #4ade80; /* ideas */
   --warn-bg: #2c2412;
   --warn-line: #6b5420;
   --shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
@@ -48,6 +49,7 @@
   --z-handle: 5;
   --z-resize: 8;
   --z-edge-grip: 10;
+  --z-note: 12; /* a comment note on the diagram: above lines and boxes, below every floating control */
   --z-palette: 19;
   --z-hud: 20;
   --z-loading: 25;
@@ -57,4 +59,5 @@
   --z-pop-menu: 40;
   --z-modal: 100;
   --z-ctx-menu: 200;
+  --z-tooltip: 300; /* over everything, including menus and dialogs */
 }

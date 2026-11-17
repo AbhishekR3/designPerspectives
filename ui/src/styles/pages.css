@@ -795,3 +795,178 @@
   background: var(--warn-bg);
   border-radius: var(--radius);
 }
+
+/* The BMO chat: docked over the right of the canvas (like the help card), so the diagram stays usable. */
+.bmo-chat {
+  position: absolute;
+  z-index: var(--z-help);
+  right: var(--gutter);
+  top: calc(var(--inset-top, 100px) - var(--space-1));
+  bottom: var(--gutter);
+  width: min(420px, calc(100% - 2 * var(--gutter)));
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+.bmo-chat-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--line);
+}
+.bmo-chat-log {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.bmo-chat-hint {
+  margin: 0;
+}
+.bmo-msg {
+  max-width: 92%;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  overflow-wrap: anywhere;
+}
+.bmo-msg.you {
+  align-self: flex-end;
+  background: #1e3a4a;
+  border-color: #1e5670;
+}
+.bmo-msg.bmo {
+  align-self: flex-start;
+  background: var(--raise);
+}
+.bmo-msg.note {
+  align-self: center;
+  border-style: dashed;
+  color: var(--muted);
+}
+.bmo-msg p {
+  margin: 0 0 var(--space-2);
+}
+.bmo-msg p:last-child {
+  margin-bottom: 0;
+}
+.bmo-msg-text {
+  white-space: pre-wrap;
+}
+.bmo-md ul,
+.bmo-md ol {
+  margin: 0 0 var(--space-2);
+  padding-left: 18px;
+}
+.bmo-md pre {
+  margin: 0 0 var(--space-2);
+  max-height: 30vh;
+}
+.bmo-chat-compose {
+  border-top: 1px solid var(--line);
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-height: 60%;
+  overflow-y: auto;
+}
+.bmo-chat-card {
+  padding: var(--space-3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--panel);
+  margin: 0 var(--space-4) var(--space-3);
+}
+.bmo-chat-compose .bmo-chat-card {
+  margin: 0;
+}
+.bmo-chat-card > p,
+.bmo-chat-card > details,
+.bmo-chat-card > ul {
+  margin: 0 0 var(--space-2);
+}
+.bmo-chat-card-title {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: baseline;
+}
+.bmo-chat-files,
+.bmo-chat-trimmed {
+  padding-left: 18px;
+}
+.bmo-chat-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  align-items: center;
+}
+.chip.bmo-ref {
+  padding: 1px 8px;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+.chip.bmo-ref:hover {
+  border-color: var(--accent);
+}
+.chip.bmo-ref.over {
+  opacity: 0.55;
+}
+.chip.bmo-ref.warn {
+  cursor: help;
+  color: var(--amber);
+  background: var(--warn-bg);
+  border-color: var(--warn-line);
+}
+.bmo-chat-input {
+  position: relative;
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-end;
+}
+.bmo-chat-input textarea {
+  flex: 1;
+  min-width: 0;
+  min-height: 52px;
+  max-height: 30vh;
+}
+.bmo-chat-keys {
+  margin: 0;
+}
+.bmo-mentions {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + var(--space-1));
+  z-index: var(--z-pop-menu);
+  margin: 0;
+  padding: var(--space-1);
+  list-style: none;
+  max-height: 260px;
+  overflow-y: auto;
+  background: var(--float);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.bmo-mentions li {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.bmo-mentions li.active {
+  background: var(--raise);
+  outline: 1px solid var(--accent);
+}
+.bmo-mention-name {
+  overflow-wrap: anywhere;
+}

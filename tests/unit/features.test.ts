@@ -207,8 +207,8 @@ describe("features", () => {
     const dir = demoDir();
     const c = new Client(dir);
     const d = await ok(c.get("/api/diagrams/code-sign-in-controller"));
-    expect(d.nodes.map((n: any) => n.name)).toEqual(["sign_in.py", "security.py", "store.py"]);
-    const pairs = new Set(d.edges.map((e: any) => `${e.source.split("/").pop()}>${e.target.split("/").pop()}`));
+    expect(d.nodes.filter((n: any) => n.kind === "file").map((n: any) => n.name)).toEqual(["sign_in.py", "security.py", "store.py"]);
+    const pairs = new Set(d.edges.filter((e: any) => e.id.startsWith("file:")).map((e: any) => `${e.source.split("/").pop()}>${e.target.split("/").pop()}`));
     expect(pairs).toEqual(new Set(["sign_in.py>security.py", "security.py>store.py"]));
     const f = await ok(c.get("/api/code/file", { path: "sample_code/api/store.py" }));
     await ok(c.put("/api/code/file", { path: "sample_code/api/store.py", content: f.content + "\n# x\n", mtime: f.mtime }));

@@ -2,7 +2,7 @@ import { api } from "../api";
 import { Discussion } from "../common/comments";
 import { DecisionSection } from "./DecisionSection";
 import { DataAccessSection } from "./DataSections";
-import { CodePaths, OpenCodeDiagram } from "./CodePickers";
+import { CodeEndPicker, CodePaths, OpenCodeDiagram } from "./CodePickers";
 import { Fields, Section, TagInput, TextField } from "./formParts";
 import { openWork } from "../colourOverlays";
 import { StylePanel } from "./StylePanel";
@@ -33,6 +33,8 @@ export function EdgePanel({ edgeId, ...p }: Common & { edgeId: string }) {
             const next = { ...edge.layout };
             if (e.target.value === "auto") delete next.routing;
             else next.routing = e.target.value as EdgeLayout["routing"];
+            // Corners set by hand belong to the shape they were made in (right angles or straight), as in the line's menu.
+            if (e.target.value !== (edge.layout.routing ?? "auto")) delete next.points;
             setLayout(next);
           }}
           data-testid="line-shape"
@@ -125,13 +127,26 @@ export function EdgePanel({ edgeId, ...p }: Common & { edgeId: string }) {
   if (!r) return null;
   const save = (patch: object) => mutate(() => api.updateRelationship(r.id, patch));
   const detailKey = edge.detailKey ?? `connector-${r.id}`;
+  const fromPaths = byId.get(r.sourceId)?.codePaths ?? [];
+  const toPaths = byId.get(r.destinationId)?.codePaths ?? [];
+  const CODE_END_NOTE = {
+    guessed: "On the code diagram this line goes to a file guessed from imports. Choose the file here to set it.",
+    unknown: "On the code diagram this line has no file, so it ends at the element's own box. Choose the file here to set it.",
+  };
   return (
     <div className="panel-body" data-testid="edge-panel">
       <div className="panel-kind panel-kind-row">
         <span>Relationship</span>
-        <button className="ghost tiny" onClick={() => p.onExplain({ relationship: r.id }, r.description || "Relationship")} title="Ask BMO to explain this" data-testid="explain-relationship">
-          Explain
-        </button>
+        <span className="row">
+          {p.onAsk && (
+            <button className="ghost tiny" onClick={() => p.onAsk!({ relationship: r.id })} title="Ask BMO a question about this (opens the chat)" data-testid="ask-relationship">
+              Ask
+            </button>
+          )}
+          <button className="ghost tiny" onClick={() => p.onExplain({ relationship: r.id }, r.description || "Relationship")} title="Ask BMO to explain this" data-testid="explain-relationship">
+            Explain
+          </button>
+        </span>
       </div>
       <p>
         <button className="link" onClick={() => p.onReveal(r.sourceId)}>
@@ -142,6 +157,11 @@ export function EdgePanel({ edgeId, ...p }: Common & { edgeId: string }) {
           {name(r.destinationId)}
         </button>
       </p>
+      {diagram.level === "code" && edge.codeEnd && edge.codeEnd !== "set" && (
+        <p className="small" data-testid="code-end-note">
+          {CODE_END_NOTE[edge.codeEnd]}
+        </p>
+      )}
       <Fields loose>
         <TextField label="Description" value={r.description} onCommit={(v) => save({ description: v })} testId="field-rel-description" autoFocus={p.focusName && !state.readOnly} />
         {has("technology") && (
@@ -209,6 +229,35 @@ export function EdgePanel({ edgeId, ...p }: Common & { edgeId: string }) {
       {has("sensitive") && (
         <Section title="Sensitive information" count={r.sensitive.length}>
           <SensitiveEditor rows={r.sensitive} levels={state.enums.sensitivity} onSave={(v) => save({ sensitive: v })} />
+        </Section>
+      )}
+      {has("code") && (fromPaths.length > 0 || toPaths.length > 0) && (
+        <Section title="Files at the ends" count={(r.codeFrom ? 1 : 0) + (r.codeTo ? 1 : 0)} testId="sec-rel-code-ends" defaultOpen={diagram.level === "code"}>
+          {fromPaths.length > 0 && (
+            <CodeEndPicker
+              label="Leaves from file"
+              ownerId={r.sourceId}
+              paths={fromPaths}
+              value={r.codeFrom}
+              readOnly={state.readOnly}
+              onChange={(v) => save({ codeFrom: v })}
+              testId="field-rel-code-from"
+            />
+          )}
+          {toPaths.length > 0 && (
+            <CodeEndPicker
+              label="Arrives at file"
+              ownerId={r.destinationId}
+              paths={toPaths}
+              value={r.codeTo}
+              readOnly={state.readOnly}
+              onChange={(v) => save({ codeTo: v })}
+              testId="field-rel-code-to"
+            />
+          )}
+          <p className="muted small">
+            The code diagram of {name(r.sourceId)} and of {name(r.destinationId)} draws this line to these files.
+          </p>
         </Section>
       )}
       {has("code") && (

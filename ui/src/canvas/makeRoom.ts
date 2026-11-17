@@ -435,3 +435,45 @@ export function spreadSelected(input: SpreadInput, selected: Iterable<string>, o
   for (const id of Object.keys(second)) out[id] = second[id]!;
   return out;
 }
+
+/**
+ * Corners of a line set by hand (`EdgeLayout.points`), carried along when boxes move apart: each coordinate moves as the
+ * boxes around it on that axis moved. A coordinate within a box's extent on that axis moves with that box (the line's
+ * own boxes, `prefer`, first; else the box whose middle is nearest). A coordinate in a gap moves in proportion between
+ * the boxes on either side of the gap (the nearest edge before it and after it); beyond every box it moves with the
+ * nearest one. So corners stay in the gaps they were in, and a corner straight out from a side of its box stays straight
+ * out from it. `before`: the boxes before the move; `after`: their new top-left corners (boxes not in it did not move).
+ * Pure; new points are rounded to 0.1 px.
+ */
+export function movePoints(before: Box[], after: Record<string, Pt>, pts: Pt[], prefer: string[] = []): Pt[] {
+  const shift = (b: Box, ax: 0 | 1) => {
+    const p = after[b.id];
+    return p ? (ax === 0 ? p.x - b.x : p.y - b.y) : 0;
+  };
+  const along = (c: number, ax: 0 | 1): number => {
+    const lo = (b: Box) => (ax === 0 ? b.x : b.y);
+    const size = (b: Box) => (ax === 0 ? b.w : b.h);
+    const within = before.filter((b) => c >= lo(b) - EPS && c <= lo(b) + size(b) + EPS);
+    if (within.length) {
+      const own = within.find((b) => prefer.includes(b.id));
+      const pick = own ?? within.reduce((m, b) => (Math.abs(lo(b) + size(b) / 2 - c) < Math.abs(lo(m) + size(m) / 2 - c) ? b : m));
+      return c + shift(pick, ax);
+    }
+    let prev: Box | null = null;
+    let next: Box | null = null;
+    for (const b of before) {
+      if (lo(b) + size(b) <= c && (!prev || lo(b) + size(b) > lo(prev) + size(prev))) prev = b;
+      if (lo(b) >= c && (!next || lo(b) < lo(next))) next = b;
+    }
+    if (prev && next) {
+      const a = lo(prev) + size(prev);
+      const z = lo(next);
+      const k = z > a ? (c - a) / (z - a) : 0.5;
+      return c + shift(prev, ax) * (1 - k) + shift(next, ax) * k;
+    }
+    const only = prev ?? next;
+    return c + (only ? shift(only, ax) : 0);
+  };
+  const r = (v: number) => Math.round(v * 10) / 10;
+  return pts.map((p) => ({ x: r(along(p.x, 0)), y: r(along(p.y, 1)) }));
+}

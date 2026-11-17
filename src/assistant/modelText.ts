@@ -227,3 +227,31 @@ export interface LabelCandidate {
   source: LabelEnd;
   target: LabelEnd;
 }
+
+/** A short overview of the model (the ask task's context when no object is named and no diagram is given): people, systems and their containers, names and kinds only. */
+export function overviewText(ws: Workspace): string {
+  const idx = buildIndex(ws);
+  const out = [`Model: ${q(ws.name)}`];
+  if (ws.description) out.push(`Description: ${oneLine(ws.description)}`);
+  out.push("", "People and software systems (containers indented under their system):");
+  const all = [...ws.model.people, ...ws.model.softwareSystems];
+  for (const el of all) {
+    const kind = idx.kindOf(el.id);
+    out.push(`- ${KIND_LABEL[kind]} ${el.id} ${q(el.name)}${el.location === "External" ? " (external)" : ""}`);
+    for (const c of idx.childrenOf(el.id)) out.push(`  - container ${c} ${q(idx.el(c).name)}`);
+  }
+  if (!all.length) out.push("- (none)");
+  out.push("", `Relationships: ${idx.relationships.size} (not listed here).`);
+  return out.join("\n") + "\n";
+}
+
+/** "system x \"X\" > container y \"Y\"": the parents of an element, outermost first (empty for a top-level element). */
+export function parentChain(ws: Workspace, id: string): string {
+  const idx = buildIndex(ws);
+  return idx
+    .ancestors(id)
+    .slice(1)
+    .reverse()
+    .map((a) => `${KIND_LABEL[idx.kindOf(a)]} ${a} ${q(idx.el(a).name)}`)
+    .join(" > ");
+}

@@ -337,6 +337,11 @@ export function build(): [Workspace, Sidecar] {
     [loadC, ["sample_code/pipeline/load_warehouse.py"]],
   ];
   for (const [el, paths] of codeMap) U(el, { codePaths: paths });
+  // Where calls leave and arrive in the code (the C4 code diagrams draw the lines to these files). Two are set
+  // by hand; the others (Accounts Summary Controller -> Mainframe Facade, Reset Password -> E-mail Component, ...)
+  // are guessed from the imports, and a line from a box with no code stays on the element's own box.
+  ops.updateRelationship(ws, signinSec, { codeFrom: "sample_code/api/sign_in.py", codeTo: "sample_code/api/security.py" });
+  ops.updateRelationship(ws, facadeMain, { codeFrom: "sample_code/api/mainframe_facade.py" });
 
   // Architecture characteristics (1-5) and monthly cost. Example values for the demo, not measurements.
   type C = [string, number, boolean, string];

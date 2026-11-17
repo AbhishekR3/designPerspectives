@@ -1,9 +1,9 @@
-/** BMO from the UI (DEC-051): the status of BMO, and one run: preview what would be sent, send it, show the result. */
+/** BMO from the UI (DEC-051): the status of BMO, one run (preview what would be sent, send it, show the result), and the chat's conversation. */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError } from "../api";
 import { errorMessage } from "../common/notify";
-import type { BmoPreview, BmoRunResult, BmoStatus, BmoTaskId, FieldError } from "../types";
+import type { BmoPreview, BmoRunResult, BmoStatus, BmoTaskId, BmoTurn, FieldError } from "../types";
 
 /** What a BMO task is asked to work on: only these selectors are sent; the server builds the prompt and picks the model. */
 export interface BmoRequest {
@@ -15,7 +15,40 @@ export interface BmoRequest {
   lens?: string;
   level?: "c1" | "c2" | "c3";
   text?: string;
+  /** ask: the IDs of the objects the question refers to. */
+  refs?: string[];
+  /** ask: earlier turns of the chat, oldest first. */
+  history?: BmoTurn[];
 }
+
+/** One line of the chat: the person's message, BMO's answer, or a note that is not part of the conversation (never sent back). */
+export interface BmoChatMessage {
+  id: number;
+  role: "you" | "bmo" | "note";
+  text: string;
+  /** Your message: the objects it referred to. */
+  refs?: { id: string; name: string }[];
+  /** BMO's answer: the model and the tokens used. */
+  meta?: string;
+}
+
+/**
+ * The chat's conversation, kept only in this browser tab's memory (App owns it, so closing and opening the chat keeps it;
+ * a reload or "Clear" forgets it). Nothing of it is stored on the server; earlier turns go back only as a question's selectors.
+ */
+export function useBmoChatLog() {
+  const [messages, setMessages] = useState<BmoChatMessage[]>([]);
+  const seq = useRef(0);
+  const add = useCallback((m: Omit<BmoChatMessage, "id">): number => {
+    const id = ++seq.current;
+    setMessages((ms) => [...ms, { ...m, id }]);
+    return id;
+  }, []);
+  const remove = useCallback((id: number) => setMessages((ms) => ms.filter((m) => m.id !== id)), []);
+  const clear = useCallback(() => setMessages([]), []);
+  return { messages, add, remove, clear };
+}
+export type BmoChatLog = ReturnType<typeof useBmoChatLog>;
 
 export function useBmoStatus(): { status: BmoStatus | null; error: string | null; reload(): void } {
   const [status, setStatus] = useState<BmoStatus | null>(null);

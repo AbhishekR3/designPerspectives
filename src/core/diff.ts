@@ -72,6 +72,8 @@ const RELATIONSHIP_FIELDS: [string, string][] = [
   ["endpoints", "Endpoints"],
   ["work", "Linked work"],
   ["codePaths", "Code"],
+  ["codeFrom", "Leaves from file"],
+  ["codeTo", "Arrives at file"],
   ["dataAccess", "Data access"],
 ];
 
@@ -386,7 +388,11 @@ export function compareDiagram(shown: Snapshot, other: Snapshot, key: string, cs
         else if (before.get(n.id) !== n.contentHash) n.change = "changed";
       }
       const oldEdges = new Set(o.edges.map((e) => e.id));
-      for (const e of d.edges) if (!oldEdges.has(e.id)) e.change = "added";
+      const oldEnds = new Map(o.edges.map((e) => [e.id, `${e.source}\u0000${e.target}`]));
+      for (const e of d.edges) {
+        if (!oldEdges.has(e.id)) e.change = "added";
+        else if (oldEnds.get(e.id) !== `${e.source}\u0000${e.target}`) e.change = "changed"; // a relationship line now ends at another file
+      }
     } else if (d) {
       for (const n of d.nodes) n.change = "added";
       for (const e of d.edges) e.change = "added";

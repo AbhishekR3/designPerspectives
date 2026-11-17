@@ -5,7 +5,7 @@ import * as codemod from "../../core/codeMap.js";
 import path from "node:path";
 import { checkSize, codeRel, inProtectedFolder, PROTECTED_MESSAGE } from "../../core/codeFiles.js";
 import { str } from "../../core/util.js";
-import { addCodePath, codePathCovered, ModelError } from "../../core/modelEdits.js";
+import { addCodePath, buildIndex, CODE_KEY, codePathCovered, getJson, ModelError } from "../../core/modelEdits.js";
 import { HttpError, num, objBody, type Ctx } from "../routeContext.js";
 
 export function registerCode(app: Hono, ctx: Ctx): void {
@@ -39,6 +39,16 @@ export function registerCode(app: Hono, ctx: Ctx): void {
   app.get("/api/code/tree", (c) => {
     const v = view();
     return c.json({ entries: codemod.listTree(v.draft || v.git ? v.code : project.codeRoot, c.req.query("path") ?? "") });
+  });
+
+  // The files behind an element's code paths (folders expanded), for the "leaves from / arrives at file" choices.
+  app.get("/api/code/files", (c) => {
+    const id = c.req.query("owner") ?? "";
+    const v = view();
+    const el = buildIndex(sel().src.workspace).elements.get(id);
+    if (!el) throw new HttpError(404, `No element ${id}`);
+    const [files] = codemod.expandPaths(v.code, getJson<string>(el, CODE_KEY));
+    return c.json({ files });
   });
 
   app.get("/api/code/file", (c) => {

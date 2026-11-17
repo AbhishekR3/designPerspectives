@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Icon, iconFor } from "../common/icons";
 import type { AppState, Diagram, Flow } from "../types";
+import { baseName, stepInfo } from "../panels/flowStepInfo";
 
 /** Flows menu and, while a flow is open, the step card: Introduction, the steps, Conclusion. */
 export function FlowCard({
@@ -38,6 +39,10 @@ export function FlowCard({
   const phase = !flow ? null : flowStep === null ? "intro" : flowStep >= n ? "end" : "step";
   const step = phase === "step" ? flow!.steps[flowStep!] : null;
   const edge = step ? diagram?.edges.find((e) => e.id === step.relationshipId) : null;
+  const info = step ? stepInfo(state, flow!, flowStep!) : null;
+  const ioLine = (data: string, file: string) => [data, file && baseName(file)].filter(Boolean).join(" · ");
+  const outLine = info ? ioLine(info.output.summary, info.sender.file) : "";
+  const inLine = info ? ioLine(info.input === info.output ? "" : info.input.summary, info.receiver.file) : "";
   const nodeOf = (id?: string) => diagram?.nodes.find((x) => x.id === id);
   const [from, to] = step?.response ? [nodeOf(edge?.target), nodeOf(edge?.source)] : [nodeOf(edge?.source), nodeOf(edge?.target)];
   const parentKey = diagram && diagram.breadcrumb.length > 1 ? diagram.breadcrumb[diagram.breadcrumb.length - 2].key : "landscape";
@@ -49,7 +54,14 @@ export function FlowCard({
   return (
     <div className="flowbox" ref={ref}>
       <div className="row">
-        <button className={`float-btn${flow ? " on" : ""}`} onClick={() => setOpen(!open)} aria-haspopup="menu" aria-expanded={open} data-testid="flows-menu">
+        <button
+          className={`float-btn${flow ? " on" : ""}`}
+          onClick={() => setOpen(!open)}
+          aria-haspopup="menu"
+          aria-expanded={open}
+          title="Flows: a numbered path of steps through the connections, played one step at a time"
+          data-testid="flows-menu"
+        >
           <Icon name="flows" size={15} />{" "}
           <span className="flow-name" title={flow ? flow.title : undefined}>
             {flow ? flow.title : "Flows"}
@@ -135,10 +147,10 @@ export function FlowCard({
             <button className="ghost" onClick={() => go(null)} title="Back to the introduction">
               <Icon name="restart" size={13} /> Restart
             </button>
-            <button onClick={() => go(flowStep === null ? null : flowStep === 0 ? null : flowStep - 1)} disabled={flowStep === null} data-testid="step-prev">
+            <button onClick={() => go(flowStep === null ? null : flowStep === 0 ? null : flowStep - 1)} disabled={flowStep === null} title="Go back one step" data-testid="step-prev">
               <Icon name="back" size={13} /> Back
             </button>
-            <button onClick={() => go(flowStep === null ? 0 : Math.min(n, flowStep + 1))} disabled={phase === "end" || !n} data-testid="step-next">
+            <button onClick={() => go(flowStep === null ? 0 : Math.min(n, flowStep + 1))} disabled={phase === "end" || !n} title="Go to the next step" data-testid="step-next">
               Next <Icon name="forward" size={13} />
             </button>
           </div>
@@ -175,6 +187,20 @@ export function FlowCard({
                       </span>
                     )}
                     {!edge && <span className="muted">This step's relationship is not drawn on this diagram.</span>}
+                  </div>
+                )}
+                {details && (outLine || inLine) && (
+                  <div className="flow-io small" data-testid="player-io">
+                    {outLine && (
+                      <div title="What leaves the sender">
+                        <span className="muted">Out</span> {outLine}
+                      </div>
+                    )}
+                    {inLine && (
+                      <div title="What reaches the receiver">
+                        <span className="muted">In</span> {inLine}
+                      </div>
+                    )}
                   </div>
                 )}
               </>

@@ -8,6 +8,10 @@
  * - `orthoRoute` draws one line between two ports with horizontal and vertical segments only,
  *   leaving and entering square to the sides and going around the two boxes it connects.
  *
+ * Then `separateRoutes` spreads lines sharing a corridor into lanes and `placeLabels` places the labels. The last
+ * section holds what hand edits use: `straightenJogs` (a route a few px from straight made straight, also used by the
+ * planner), `moveSegment` (one piece of a route dragged), `routeThrough` (the route through corners set by hand) and `snapAxis`.
+ *
  * This file has no imports: the UI (Vite) and the root tests (NodeNext) both load it.
  * Coordinates are diagram coordinates (y grows downwards).
  */
@@ -1442,4 +1446,305 @@ export function placeLabels(items: LabelItem[], boxes: Box[], lines: { id: strin
     placed.push(labelBox(pointAtT(it.pts, best.t), it.size));
   }
   return out;
+}
+
+// ------------------------------------------------------------------ near-straight lines and hand-set routes
+
+/**
+ * A line this close (px) to straight is made straight: a shorter jog between two parallel pieces goes away, and a
+ * dragged piece, end or bend point that comes this close to lining up snaps into line.
+ */
+export const STRAIGHT_TOLERANCE = 8;
+/** A straight line (or a piece of one) within this many degrees of horizontal or vertical is made exactly so when it is dropped. */
+export const STRAIGHT_DEGREES = 2;
+/** Two pieces of different lines are not brought closer than this by straightening (the smallest lane gap). */
+const LINE_KEEP_APART = 6;
+
+/** One end of a route: its box and the side the line leaves from. `fixed`: the port stays (a hand-set anchor); `others`: where the other line ends on that side are (along the side). */
+export interface RouteEnd {
+  box: Box;
+  side: Side;
+  fixed?: boolean;
+  others?: number[];
+}
+
+export interface JogOptions {
+  /** Jogs shorter than this go (default STRAIGHT_TOLERANCE). */
+  tolerance?: number;
+  /** Boxes a moved piece must not cut through (nor come closer to than 5px, or than it was). The line's own boxes may be in the list. */
+  obstacles?: Box[];
+  /** The ends: without one, that end piece never moves. */
+  source?: RouteEnd;
+  target?: RouteEnd;
+  /** Routes of other lines: a moved piece does not come closer to a parallel piece of one of them than 6px (or than it was). */
+  avoid?: Pt[][];
+  /** False: only the end pieces may move (by sliding their port along its side); inner pieces stay. */
+  moveInner?: boolean;
+}
+
+/** Whether a port at `cur` (along its side) may slide to `v`: not a fixed end, inside the corner margins (or no further out than it was), and in the same order as the other ends on that side, no closer to them than MIN_GAP (or than it was). */
+function canSlide(end: RouteEnd, cur: number, v: number): boolean {
+  if (end.fixed) return false;
+  const [lo, hi] = innerRange(end.box, end.side);
+  const outside = (x: number) => Math.max(lo - x, x - hi, 0);
+  if (outside(v) > outside(cur) + 1e-6) return false;
+  for (const q of end.others ?? []) {
+    if (Math.sign(v - q) !== Math.sign(cur - q)) return false;
+    if (Math.abs(v - q) < Math.min(MIN_GAP, Math.abs(cur - q)) - 1e-6) return false;
+  }
+  return true;
+}
+
+/** Whether moving piece `k` of a right-angle route (horizontal or not) to coordinate `v` keeps it and its neighbours clear of boxes and other lines; the neighbour that is not `jog` keeps its direction. */
+function canMovePiece(pts: Pt[], k: number, horizontal: boolean, v: number, jog: number, obstacles: Box[], avoid: Pt[][]): boolean {
+  const moved = (j: number): Pt => (j === k || j === k + 1 ? (horizontal ? { x: pts[j]!.x, y: v } : { x: v, y: pts[j]!.y }) : pts[j]!);
+  for (const j of [k - 1, k, k + 1]) {
+    if (j < 0 || j + 1 >= pts.length) continue;
+    const [oa, ob, na, nb] = [pts[j]!, pts[j + 1]!, moved(j), moved(j + 1)];
+    for (const r of obstacles) {
+      if (hits(na, nb, r) && !hits(oa, ob, r)) return false;
+      if (segClearance(na, nb, r) < Math.min(LANE_CLEARANCE, segClearance(oa, ob, r)) - 1e-6) return false;
+    }
+    if (j !== k && j !== jog) {
+      const [o, w] = horizontal ? [ob.y - oa.y, nb.y - na.y] : [ob.x - oa.x, nb.x - na.x];
+      if (Math.sign(o) !== Math.sign(w) || Math.abs(w) < 1e-6) return false;
+    }
+  }
+  const [a, b] = [pts[k]!, pts[k + 1]!];
+  const old = horizontal ? a.y : a.x;
+  const lo = Math.min(horizontal ? a.x : a.y, horizontal ? b.x : b.y);
+  const hi = Math.max(horizontal ? a.x : a.y, horizontal ? b.x : b.y);
+  for (const route of avoid) {
+    for (let j = 0; j + 1 < route.length; j++) {
+      const [c, d] = [route[j]!, route[j + 1]!];
+      if (horizontal ? Math.abs(c.y - d.y) > 1e-6 : Math.abs(c.x - d.x) > 1e-6) continue;
+      const overlap = Math.min(hi, Math.max(horizontal ? c.x : c.y, horizontal ? d.x : d.y)) - Math.max(lo, Math.min(horizontal ? c.x : c.y, horizontal ? d.x : d.y));
+      if (overlap <= LANE_MIN_OVERLAP) continue;
+      const at = horizontal ? c.y : c.x;
+      if (Math.abs(at - v) < Math.min(LINE_KEEP_APART, Math.abs(at - old)) - 1e-6) return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Make a right-angle route straight where it is only a few px from straight: a jog (a piece shorter than the
+ * tolerance between two parallel pieces that go the same way) goes away when one of those two pieces can slide onto
+ * the other's line. An inner piece is moved rather than an end piece. An end piece moves only by sliding its port
+ * along its box side: never a fixed end, inside the corner margins of the side, and keeping the order of (and
+ * MIN_GAP from) the other line ends on that side. A moved piece and the pieces next to it must not cut through a box
+ * or come closer to one than 5px (or than they were), nor come closer than 6px to a parallel piece of another line in
+ * `avoid` (or than they were): a jog that cannot go without that stays. Repeated and collinear points are dropped after.
+ * Pure: returns a new route.
+ */
+export function straightenJogs(pts: Pt[], opts: JogOptions = {}): Pt[] {
+  const tol = opts.tolerance ?? STRAIGHT_TOLERANCE;
+  const obstacles = opts.obstacles ?? [];
+  const avoid = opts.avoid ?? [];
+  let cur = pts.map((p) => ({ x: p.x, y: p.y }));
+  for (let pass = 0; pass < 8 && cur.length >= 4; pass++) {
+    const n = cur.length;
+    let changed = false;
+    for (let i = 1; i + 2 < n && !changed; i++) {
+      const [p0, a, b, p3] = [cur[i - 1]!, cur[i]!, cur[i + 1]!, cur[i + 2]!];
+      const jogH = Math.abs(a.y - b.y) < 1e-6;
+      if (!jogH && Math.abs(a.x - b.x) > 1e-6) continue; // not a right-angle piece
+      const len = jogH ? Math.abs(a.x - b.x) : Math.abs(a.y - b.y);
+      if (len < 1e-6 || len >= tol) continue;
+      // Both neighbours run across the jog, the same way (a U is not a jog).
+      const across = (p: Pt, q: Pt) => (jogH ? Math.abs(p.x - q.x) < 1e-6 && Math.abs(p.y - q.y) > 1e-6 : Math.abs(p.y - q.y) < 1e-6 && Math.abs(p.x - q.x) > 1e-6);
+      if (!across(p0, a) || !across(b, p3)) continue;
+      if (jogH ? Math.sign(a.y - p0.y) !== Math.sign(p3.y - b.y) : Math.sign(a.x - p0.x) !== Math.sign(p3.x - b.x)) continue;
+      const pieceH = !jogH;
+      const isEnd = (k: number) => k === 0 || k === n - 2;
+      const tries = [
+        { k: i - 1, v: jogH ? b.x : b.y },
+        { k: i + 1, v: jogH ? a.x : a.y },
+      ].sort((p, q) => Number(isEnd(p.k)) - Number(isEnd(q.k)));
+      for (const { k, v } of tries) {
+        if (isEnd(k)) {
+          const end = k === 0 ? opts.source : opts.target;
+          if (!end || horizontalSide(end.side) !== pieceH) continue;
+          if (!canSlide(end, along(k === 0 ? cur[0]! : cur[n - 1]!, end.side), v)) continue;
+        } else if (opts.moveInner === false) continue;
+        if (!canMovePiece(cur, k, pieceH, v, i, obstacles, avoid)) continue;
+        for (const j of [k, k + 1]) {
+          if (pieceH) cur[j]!.y = v;
+          else cur[j]!.x = v;
+        }
+        changed = true;
+        break;
+      }
+    }
+    if (!changed) break;
+    cur = simplify(cur);
+  }
+  return cur;
+}
+
+/** Whether a right-angle route has a jog shorter than `tol` (a cheap test before straightenJogs). */
+export function hasJog(pts: Pt[], tol = STRAIGHT_TOLERANCE): boolean {
+  for (let i = 1; i + 2 < pts.length; i++) {
+    const len = Math.abs(pts[i]!.x - pts[i + 1]!.x) + Math.abs(pts[i]!.y - pts[i + 1]!.y);
+    if (len > 1e-6 && len < tol) return true;
+  }
+  return false;
+}
+
+/** Repeated points and points in the middle of a straight run dropped (a route of two points stays as it is). */
+export function tidyRoute(pts: Pt[]): Pt[] {
+  return pts.length <= 2 ? pts.map((p) => ({ x: p.x, y: p.y })) : simplify(pts);
+}
+
+/**
+ * Move piece `i` of a right-angle route (between `pts[i]` and `pts[i+1]`) to the pointer `to`: a horizontal piece moves
+ * up or down, a vertical one left or right, and the pieces next to it stretch. The new place snaps to another piece of
+ * the same route, to the middle of either box or to a line end when it is within `tolerance` (STRAIGHT_TOLERANCE).
+ * An end piece slides its port along the box side while the port stays inside the corner margins (and the end is not
+ * `fixed`); otherwise the port stays and an elbow is added next to the box (a short piece out of the box, then across),
+ * so the line still leaves square to its side. Pure: returns the new route (not tidied, so the pieces keep their numbers
+ * while dragging); a piece that is not horizontal or vertical, or an index out of range, gives the route unchanged.
+ */
+export function moveSegment(pts: Pt[], i: number, to: Pt, opts: { source?: RouteEnd; target?: RouteEnd; tolerance?: number } = {}): Pt[] {
+  const out = pts.map((p) => ({ x: p.x, y: p.y }));
+  const n = pts.length;
+  if (i < 0 || i + 1 >= n) return out;
+  const [a, b] = [pts[i]!, pts[i + 1]!];
+  const horizontal = Math.abs(a.y - b.y) < 1e-6 && Math.abs(a.x - b.x) > 1e-6;
+  const vertical = Math.abs(a.x - b.x) < 1e-6 && Math.abs(a.y - b.y) > 1e-6;
+  if (!horizontal && !vertical) return out;
+  const coord = (p: Pt) => (horizontal ? p.y : p.x);
+  const tol = opts.tolerance ?? STRAIGHT_TOLERANCE;
+  let v = horizontal ? to.y : to.x;
+  // Snap onto a parallel piece of the same route, the middle of a box or a line end.
+  const targets: number[] = [];
+  for (let j = 0; j + 1 < n; j++) {
+    if (j === i) continue;
+    const [c, d] = [pts[j]!, pts[j + 1]!];
+    if (horizontal ? Math.abs(c.y - d.y) < 1e-6 : Math.abs(c.x - d.x) < 1e-6) targets.push(coord(c));
+  }
+  targets.push(coord(pts[0]!), coord(pts[n - 1]!));
+  for (const e of [opts.source, opts.target]) if (e) targets.push(coord(centre(e.box)));
+  let best = tol + 1e-9;
+  for (const c of targets) if (Math.abs(c - v) < best) [best, v] = [Math.abs(c - v), c];
+  if (best > tol) v = horizontal ? to.y : to.x;
+
+  const set = (p: Pt, c: number) => {
+    if (horizontal) p.y = c;
+    else p.x = c;
+  };
+  set(out[i]!, v);
+  set(out[i + 1]!, v);
+  /** The port of one end stays and an elbow next to the box takes the line across to the moved piece. */
+  const elbow = (port: Pt, next: Pt, end: RouteEnd | undefined): Pt[] => {
+    const len = Math.hypot(next.x - port.x, next.y - port.y);
+    const dir = end ? DIRS[end.side] : { x: Math.sign(next.x - port.x), y: Math.sign(next.y - port.y) };
+    const k = Math.min(STUB, len / 2);
+    const s = { x: port.x + dir.x * k, y: port.y + dir.y * k };
+    const s2 = { ...s };
+    set(s2, v);
+    return [s, s2];
+  };
+  const slides = (end: RouteEnd | undefined, port: Pt) => {
+    if (!end || end.fixed || horizontalSide(end.side) !== horizontal) return false;
+    const [lo, hi] = innerRange(end.box, end.side);
+    const cur = along(port, end.side);
+    const outside = (x: number) => Math.max(lo - x, x - hi, 0);
+    return outside(v) <= Math.max(outside(cur), 0) + 1e-6;
+  };
+  let result = out;
+  if (i === n - 2 && !slides(opts.target, pts[n - 1]!)) {
+    const [s, s2] = elbow(pts[n - 1]!, pts[n - 2]!, opts.target);
+    result = [...result.slice(0, n - 1), s2!, s!, { ...pts[n - 1]! }];
+  }
+  if (i === 0 && !slides(opts.source, pts[0]!)) {
+    const [s, s2] = elbow(pts[0]!, pts[1]!, opts.source);
+    result = [{ ...pts[0]! }, s!, s2!, ...result.slice(1)];
+  }
+  return result;
+}
+
+/**
+ * Where one end of a line with hand-set points meets its box, given the first point `p` after it: the port and any
+ * elbow between them, so the line leaves square to the side. A hand-set anchor is kept; else, when `p` is straight out
+ * from a side (within its length, a little away from the corners), the port is right across from it; else the side
+ * facing `p` is used, with the port as close to `p` as the corner margins allow, and an elbow.
+ */
+function attach(box: Box, p: Pt, anchor?: Pt): { port: Port; extra: Pt[] } {
+  let side: Side;
+  let at: Pt;
+  if (anchor) {
+    side = sideOfAnchor(anchor);
+    at = pointOnFraction(box, anchor);
+  } else {
+    const straight = SIDES.find((s) => {
+      const out = s === "right" ? p.x - (box.x + box.w) : s === "left" ? box.x - p.x : s === "bottom" ? p.y - (box.y + box.h) : box.y - p.y;
+      if (out <= 1e-6) return false;
+      const c = along(p, s);
+      const st = sideStart(box, s);
+      const inset = Math.min(SQUEEZE_INSET, sideLength(box, s) / 2);
+      return c >= st + inset - 1e-6 && c <= st + sideLength(box, s) - inset + 1e-6;
+    });
+    side = straight ?? sideFacingPoint(box, p);
+    const [lo, hi] = innerRange(box, side);
+    const c = straight ? along(p, side) : Math.min(Math.max(along(p, side), lo), hi);
+    at = pointOnSide(box, side, c - sideStart(box, side));
+  }
+  const port: Port = { x: at.x, y: at.y, side };
+  const d = DIRS[side];
+  const out = (p.x - at.x) * d.x + (p.y - at.y) * d.y; // how far `p` lies out from the side
+  if (Math.abs(along(p, side) - along(at, side)) < 1e-6 && out > 1e-6) return { port, extra: [] };
+  if (out > 1e-6) return { port, extra: [horizontalSide(side) ? { x: p.x, y: at.y } : { x: at.x, y: p.y }] };
+  // `p` is beside or behind the side (a hand-set anchor): a short piece out of the box, then across.
+  const s = { x: at.x + d.x * STUB, y: at.y + d.y * STUB };
+  return { port, extra: [s, horizontalSide(side) ? { x: s.x, y: p.y } : { x: p.x, y: s.y }] };
+}
+
+/**
+ * The route of a right-angle line through its hand-set `points` (the inner corners, canvas units). Consecutive points
+ * that are not in line are joined with an elbow (across first). Each end is joined square to its box (see `attach`), so
+ * when a box has moved the end re-attaches, with an elbow where needed. Null when there are no points or one lies inside
+ * either box (the caller routes the line automatically then).
+ */
+export function routeThrough(srcBox: Box, dstBox: Box, points: Pt[] | undefined, srcAnchor?: Pt, dstAnchor?: Pt): { pts: Pt[]; source: Port; target: Port } | null {
+  if (!points?.length) return null;
+  const inside = (b: Box, p: Pt) => p.x > b.x + 1e-6 && p.x < b.x + b.w - 1e-6 && p.y > b.y + 1e-6 && p.y < b.y + b.h - 1e-6;
+  if (points.some((p) => inside(srcBox, p) || inside(dstBox, p))) return null;
+  const chain: Pt[] = [{ x: points[0]!.x, y: points[0]!.y }];
+  for (const q of points.slice(1)) {
+    const last = chain[chain.length - 1]!;
+    if (Math.abs(last.x - q.x) > 1e-6 && Math.abs(last.y - q.y) > 1e-6) chain.push({ x: q.x, y: last.y });
+    chain.push({ x: q.x, y: q.y });
+  }
+  const s = attach(srcBox, chain[0]!, srcAnchor);
+  const t = attach(dstBox, chain[chain.length - 1]!, dstAnchor);
+  const pts = simplify([{ x: s.port.x, y: s.port.y }, ...s.extra, ...chain, ...[...t.extra].reverse(), { x: t.port.x, y: t.port.y }]);
+  return { pts, source: s.port, target: t.port };
+}
+
+/** `p` moved so the line from `q` to it is exactly horizontal or vertical when it is within `deg` degrees of that (else `p`). */
+export function snapAxis(p: Pt, q: Pt, deg = STRAIGHT_DEGREES): Pt {
+  const dx = Math.abs(p.x - q.x);
+  const dy = Math.abs(p.y - q.y);
+  if (dx < 1e-9 && dy < 1e-9) return { ...p };
+  const angle = (Math.atan2(Math.min(dx, dy), Math.max(dx, dy)) * 180) / Math.PI;
+  if (angle > deg) return { ...p };
+  return dx >= dy ? { x: p.x, y: q.y } : { x: q.x, y: p.y };
+}
+
+/**
+ * Where a piece's handle goes: the middle of the piece, unless the line's label sits there (a label is placed on its line,
+ * often at a piece's middle). Then the handle slides along the piece to just outside the label, so the label stays
+ * clickable and double-clickable; null when the label covers the piece.
+ */
+export function handleBesideLabel(a: Pt, b: Pt, label: { x: number; y: number; w: number; h: number }, pad = 8): Pt | null {
+  const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+  const [x0, x1, y0, y1] = [label.x - label.w / 2 - pad, label.x + label.w / 2 + pad, label.y - label.h / 2 - pad, label.y + label.h / 2 + pad];
+  if (mid.x < x0 || mid.x > x1 || mid.y < y0 || mid.y > y1) return mid;
+  const horizontal = Math.abs(a.y - b.y) < 1e-6;
+  const [lo, hi] = horizontal ? [Math.min(a.x, b.x) + 6, Math.max(a.x, b.x) - 6] : [Math.min(a.y, b.y) + 6, Math.max(a.y, b.y) - 6];
+  const along = horizontal ? mid.x : mid.y;
+  const options = (horizontal ? [x0, x1] : [y0, y1]).filter((v) => v >= lo && v <= hi).sort((p, q) => Math.abs(p - along) - Math.abs(q - along));
+  if (!options.length) return null;
+  return horizontal ? { x: options[0]!, y: mid.y } : { x: mid.x, y: options[0]! };
 }

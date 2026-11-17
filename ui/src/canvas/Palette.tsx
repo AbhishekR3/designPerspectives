@@ -27,6 +27,26 @@ const TYPED: { archType: string; label: string }[] = [
   { archType: "document", label: "Document" },
 ];
 
+/** One line on what each thing is, for the hover text (a person new to C4 should not need the book). */
+const WHAT: Record<string, string> = {
+  container: "A part of a system that runs on its own: an application or a data store.",
+  component: "A part inside a container: a group of code with one job.",
+  service: "A service or API that other parts call.",
+  web: "A web application that people use in a browser.",
+  mobile: "A mobile app.",
+  database: "A place where data is stored and queried.",
+  cache: "A fast store for data that is also kept elsewhere.",
+  queue: "A queue or stream that carries messages between parts.",
+  pipeline: "A job or pipeline that moves or transforms data.",
+  storage: "Storage for files or objects.",
+  cloud: "A service run by a cloud provider.",
+  document: "A document or file.",
+  softwareSystem: "Something that delivers value to its users, made of containers.",
+  external: "A system owned by someone else that this one uses or is used by.",
+  person: "A person who uses the system, such as a customer or an operator.",
+  stage: "A step inside a connection, such as a queue, a transform or a gateway.",
+};
+
 /** What can be added on this diagram, most common first. */
 export function paletteItems(d: Diagram): PaletteItem[] {
   const out: PaletteItem[] = [];
@@ -86,7 +106,7 @@ export function Palette({ diagram, open, onToggle, onAdd }: { diagram: Diagram; 
                   onClick={() => onAdd(it)}
                   title={
                     blocked ??
-                    `${it.label}: drag onto the diagram, or click to add${connects ? (diagram.level === "context" ? ". It is connected to the system." : ". It is connected to the selected box.") : ""}`
+                    `${it.label}: ${WHAT[it.external ? "external" : (it.archType ?? it.kind)] ?? ""}\nDrag onto the diagram, or click to add${connects ? (diagram.level === "context" ? ". It is connected to the system." : ". It is connected to the selected box.") : ""}`
                   }
                   data-testid={it.testId}
                 >

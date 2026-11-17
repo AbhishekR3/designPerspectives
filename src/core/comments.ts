@@ -6,13 +6,18 @@
  * step, is not diffed or merged with drafts, and anyone allowed to comment can write to it. It is plain JSON
  * with a stable layout (threads in the order they were started), so it reads well in `git diff`.
  *
+ * A thread about a diagram may also carry `position: {x, y}`: where its note sits on that diagram. These are
+ * canvas units (the flow coordinates the UI draws in, the same as `x`/`y` of a box on screen), not Structurizr
+ * units (which are twice as large). A position is a place to show the note, nothing more: moving it is not an
+ * edit of the comment, so it keeps its author and time, and anyone who may comment may move a note.
+ *
  * A file changed on disk (by `git checkout`, a merge, another process) is picked up on the next read.
  */
 
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { COMMENT_KINDS, type CommentKind, type CommentReply, type CommentTarget, type CommentThread } from "../shared/types.js";
+import { COMMENT_KINDS, type CommentKind, type CommentReply, type CommentTarget, type CommentThread, type Pt } from "../shared/types.js";
 import { atomicWrite, isObj, stableJson, type Obj } from "./util.js";
 import { ModelError } from "./modelEdits.js";
 import { NotFound } from "./project.js";
@@ -23,6 +28,8 @@ export const COMMENT_MAX = 4000;
 export const AUTHOR_MAX = 80;
 export const MAX_THREADS = 5000;
 export const MAX_REPLIES = 200;
+/** Furthest a note may sit from the origin of a diagram, in canvas units (either direction). */
+export const POSITION_MAX = 1e6;
 /** Largest comments file a change may leave (10 MB): the per-item caps alone would allow gigabytes. A file
  *  already larger (written by hand) can still shrink: deleting a thread or a reply is always allowed, and
  *  other changes are refused only when they make the threads larger than they were. */
@@ -62,6 +69,24 @@ export function cleanTarget(v: unknown): CommentTarget {
   return { type: v.type, id: v.id };
 }
 
+/** A note position from a request: `{x, y}` of finite numbers within ±POSITION_MAX (rounded to 0.01), or null for "no position". */
+export function cleanPosition(v: unknown): Pt | null {
+  if (v === null) return null;
+  if (!isObj(v) || typeof v.x !== "number" || typeof v.y !== "number" || !Number.isFinite(v.x) || !Number.isFinite(v.y) || Math.abs(v.x) > POSITION_MAX || Math.abs(v.y) > POSITION_MAX) {
+    throw new ModelError(`A position needs numbers x and y, each within ±${POSITION_MAX}.`);
+  }
+  return { x: Math.round(v.x * 100) / 100 + 0, y: Math.round(v.y * 100) / 100 + 0 };
+}
+
+/** The same, read from a file: a bad one is dropped instead of refused. */
+function parsePosition(v: unknown): Pt | null {
+  try {
+    return cleanPosition(v);
+  } catch {
+    return null;
+  }
+}
+
 export function cleanAuthor(v: unknown): string {
   const a = typeof v === "string" ? v.replace(/\s+/g, " ").trim() : "";
   if (a.length > AUTHOR_MAX) throw new ModelError(`The author name can be at most ${AUTHOR_MAX} characters.`);
@@ -87,6 +112,10 @@ function parseThread(v: unknown): CommentThread | null {
     status: v.status === "resolved" ? "resolved" : "open",
     replies: (Array.isArray(v.replies) ? v.replies : []).map(parseReply).filter((r): r is CommentReply => r !== null),
   };
+  if (t.target.type === "diagram") {
+    const position = parsePosition(v.position);
+    if (position) t.position = position;
+  }
   if (t.status === "resolved") {
     if (typeof v.resolvedBy === "string") t.resolvedBy = v.resolvedBy.slice(0, AUTHOR_MAX);
     if (isTime(v.resolvedAt)) t.resolvedAt = v.resolvedAt;
@@ -118,6 +147,7 @@ export function parseComments(text: string): CommentThread[] {
 /** Keys in a fixed order, optional fields left out when empty. */
 function threadData(t: CommentThread): Obj {
   const o: Obj = { id: t.id, kind: t.kind, target: { type: t.target.type, id: t.target.id } };
+  if (t.position) o.position = { x: t.position.x, y: t.position.y };
   if (t.diagram) o.diagram = t.diagram;
   Object.assign(o, { author: t.author, at: t.at, text: t.text, status: t.status });
   if (t.status === "resolved") {
@@ -192,7 +222,7 @@ export class CommentStore {
     return t;
   }
 
-  add(p: { kind: unknown; target: unknown; diagram?: unknown; text: unknown; author: string }): CommentThread {
+  add(p: { kind: unknown; target: unknown; diagram?: unknown; position?: unknown; text: unknown; author: string }): CommentThread {
     this.reload();
     if (this.threads.length >= MAX_THREADS) throw new ModelError(`This project already has ${MAX_THREADS} comment threads. Resolve and delete some first.`);
     const t: CommentThread = {
@@ -206,6 +236,11 @@ export class CommentStore {
       status: "open",
       replies: [],
     };
+    const position = p.position === undefined ? null : cleanPosition(p.position);
+    if (position) {
+      if (t.target.type !== "diagram") throw new ModelError("Only a comment about a diagram can be placed on it.");
+      t.position = position;
+    }
     this.threads.push(t);
     this.save();
     return structuredClone(t);
@@ -241,6 +276,17 @@ export class CommentStore {
     const kind = p.kind === undefined ? t.kind : cleanKind(p.kind);
     t.text = text;
     t.kind = kind;
+    this.save();
+    return structuredClone(t);
+  }
+
+  /** Place the note of a diagram thread (or take it off the diagram with null). Author and time stay. */
+  setPosition(id: string, position: unknown): CommentThread {
+    const t = this.need(id);
+    const pos = cleanPosition(position);
+    if (pos && t.target.type !== "diagram") throw new ModelError("Only a comment about a diagram can be placed on it.");
+    if (pos) t.position = pos;
+    else delete t.position;
     this.save();
     return structuredClone(t);
   }

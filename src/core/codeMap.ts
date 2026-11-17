@@ -7,6 +7,12 @@
  * and strings are skipped), JavaScript/TypeScript via a regex over import/require statements.
  * Only imports that resolve to another file in the same diagram are drawn.
  *
+ * The diagram of an element also shows how its parent level connects to it: every relationship between the
+ * element (or something inside it) and an element outside is drawn as a line between that outside element's
+ * box (faded) and the FILE where the call leaves, or arrives. The file is `dp.code.from` / `dp.code.to` on the
+ * relationship when set (a solid line), else guessed from imports (a file only of one element that imports
+ * a file of the other; a dashed line), else not known: the line ends at the element's own box (dotted).
+ *
  * Files are read through a `CodeSource` (codeFiles.ts): the code folder on disk, a draft's planned edits
  * over it, or a git commit. Disk read/write is restricted to the code root: paths are resolved
  * (symlinks included) and must stay inside it, and hidden paths (a segment starting with ".") are
@@ -16,9 +22,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import { blankNode } from "./connectors.js";
-import { scopeName, titleOf, type DiagramRef, type RawDiagram, type RawEdge, type RawNode } from "./diagrams.js";
+import { drillKey, keyFor, scopeName, titleOf, type DiagramRef, type RawDiagram, type RawEdge, type RawNode } from "./diagrams.js";
 import { checkSize, cleanRel, codeRel, DiskCode, MAX_BYTES, safePath, sha1, type CodeSource } from "./codeFiles.js";
-import { CODE_KEY, getJson, ModelError, normpath, type Index } from "./modelEdits.js";
+import { CODE_FROM_KEY, CODE_KEY, CODE_TO_KEY, elementSummary, getJson, getProps, ModelError, normpath, relationshipSummary, type Index } from "./modelEdits.js";
 
 export { MAX_BYTES, safePath };
 
@@ -267,6 +273,117 @@ export function fileNode(rel: string, code: CodeInput): RawNode {
   };
 }
 
+const edgeBase = () => ({
+  technology: "",
+  technologies: [] as string[],
+  kind: "",
+  sensitivityLevel: null,
+  hasNotes: false,
+  stageCount: 0,
+  derived: false,
+  relationshipIds: [] as string[],
+  detailKey: null,
+  drillTargets: [],
+});
+
+/** The file of `files` that `wanted` names: the file itself, or the first file under it when it is a folder. */
+function fileFor(files: string[], wanted: string | undefined): string | null {
+  if (!wanted) return null;
+  const w = wanted.replace(/\/+$/, "");
+  return files.find((f) => f === w) ?? files.find((f) => f.startsWith(`${w}/`)) ?? null;
+}
+
+/**
+ * Guess the file at the code end (E) of a relationship from imports. `outgoing`: E is the caller, so a file only E
+ * has imports a file O has, and the line leaves from the importing file. Otherwise O calls E, and the line arrives
+ * at the imported file of E. Files both elements map count only when O's (or E's) own files do not use them
+ * (a shared helper such as a types file is used by both sides and tells nothing). `hint`: the file set on the other
+ * end, which narrows the choice. Returns null when no import links the two.
+ */
+function guessFile(edges: [string, string][], eFiles: string[], oFiles: string[], outgoing: boolean, hint: string | undefined): string | null {
+  const eSet = new Set(eFiles);
+  const oSet = new Set(oFiles);
+  const caller = outgoing ? eSet : oSet;
+  const callee = outgoing ? oSet : eSet;
+  const other = outgoing ? oSet : eSet; // the side that is not E
+  const calleeOnly = new Set([...callee].filter((f) => !caller.has(f)));
+  const callerOnly = new Set([...caller].filter((f) => !callee.has(f)));
+  const linked = edges.filter(([a, b]) => callerOnly.has(a) && callee.has(b));
+  let found = linked.filter(([, b]) => calleeOnly.has(b));
+  if (!found.length) {
+    // The called file is mapped by both: accept it when none of the callee's other files imports it (a helper used inside is not the way in).
+    found = linked.filter(([, b]) => !edges.some(([x, y]) => y === b && callee.has(x)));
+  }
+  if (!found.length) return null;
+  const hintFile = fileFor([...other], hint);
+  const pick = (hintFile && found.find(([a, b]) => (outgoing ? b : a) === hintFile)) || found[0]!;
+  return outgoing ? pick[0] : pick[1];
+}
+
+/** Boxes and lines for the relationships between the element (or what is inside it) and the elements outside it. */
+function neighbourParts(idx: Index, scope: string, files: string[], src: CodeSource): { nodes: RawNode[]; edges: RawEdge[] } {
+  const inside = new Set([scope, ...idx.descendants(scope)]);
+  const rels = [...idx.relationships.values()].filter((r) => inside.has(r.sourceId) !== inside.has(r.destinationId));
+  const out: { nodes: RawNode[]; edges: RawEdge[] } = { nodes: [], edges: [] };
+  if (!rels.length) return out;
+
+  const fileSet = new Set(files);
+  const cache = new Map<string, string[]>();
+  const filesOf = (id: string): string[] => {
+    if (!cache.has(id)) cache.set(id, expandPaths(src, getJson<string>(idx.el(id), CODE_KEY))[0]);
+    return cache.get(id)!;
+  };
+  // One scan over the files of the diagram and of every neighbour; guesses read the result.
+  const all = new Set(files);
+  for (const r of rels) for (const f of filesOf(inside.has(r.sourceId) ? r.destinationId : r.sourceId)) all.add(f);
+  const imports = scanImports(src, [...all]);
+
+  const nodeIds = new Set<string>();
+  let needScopeBox = false;
+  for (const r of rels) {
+    const outgoing = inside.has(r.sourceId);
+    const near = outgoing ? r.sourceId : r.destinationId; // the end inside
+    const far = outgoing ? r.destinationId : r.sourceId; // the end outside
+    const props = getProps(r);
+    const nearFiles = filesOf(near).filter((f) => fileSet.has(f));
+    const farFiles = filesOf(far);
+    let file = fileFor(nearFiles, outgoing ? props[CODE_FROM_KEY] : props[CODE_TO_KEY]);
+    let codeEnd: NonNullable<RawEdge["codeEnd"]> = "set";
+    if (!file) {
+      file = guessFile(imports, nearFiles, farFiles, outgoing, outgoing ? props[CODE_TO_KEY] : props[CODE_FROM_KEY]);
+      codeEnd = file ? "guessed" : "unknown";
+    }
+    if (!file) needScopeBox = true;
+    const here = file ? `file:${file}` : scope;
+    if (!nodeIds.has(far)) {
+      nodeIds.add(far);
+      out.nodes.push({ ...elementSummary(idx, far), inScope: false, outside: true, position: null, drillKey: drillKey(idx, far) });
+    }
+    const summ = relationshipSummary(r);
+    out.edges.push({
+      ...edgeBase(),
+      id: r.id,
+      source: outgoing ? here : far,
+      target: outgoing ? far : here,
+      description: r.description || "",
+      technology: summ.technology,
+      technologies: summ.technologies,
+      kind: summ.kind,
+      sensitivityLevel: summ.sensitivityLevel,
+      hasNotes: Boolean(summ.notes),
+      stageCount: summ.stages.length,
+      relationshipIds: [r.id],
+      detailKey: keyFor("connector", r.id),
+      codeEnd,
+    });
+  }
+  // A line with no file ends at the element's own box (a boundary around the files cannot take a line).
+  if (needScopeBox) {
+    out.nodes.push({ ...elementSummary(idx, scope), description: "File not set: lines that end here have no file chosen yet.", inScope: true, position: null, drillKey: null });
+  }
+  return out;
+}
+
 export function codeDiagram(idx: Index, ref: DiagramRef, code: CodeInput): RawDiagram {
   const src = asSource(code);
   const owner = idx.elements.get(ref.scope!) ?? idx.relationships.get(ref.scope!);
@@ -276,23 +393,14 @@ export function codeDiagram(idx: Index, ref: DiagramRef, code: CodeInput): RawDi
   const edges: RawEdge[] = [];
   if (src.hasRoot) {
     for (const [a, b] of scanImports(src, files)) {
-      edges.push({
-        id: `file:${a}->${b}`,
-        source: `file:${a}`,
-        target: `file:${b}`,
-        description: "imports",
-        technology: "",
-        technologies: [],
-        kind: "",
-        sensitivityLevel: null,
-        hasNotes: false,
-        stageCount: 0,
-        derived: false,
-        relationshipIds: [],
-        detailKey: null,
-        drillTargets: [],
-      });
+      edges.push({ ...edgeBase(), id: `file:${a}->${b}`, source: `file:${a}`, target: `file:${b}`, description: "imports" });
     }
+  }
+  // Relationships to what is outside the element: only for an element, and only when it has files to attach them to.
+  if (idx.elements.has(ref.scope!) && files.length) {
+    const around = neighbourParts(idx, ref.scope!, files, src);
+    nodes.push(...around.nodes);
+    edges.push(...around.edges);
   }
   return {
     key: ref.key,

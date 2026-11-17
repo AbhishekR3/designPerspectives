@@ -12,17 +12,47 @@
  * Only opening a diagram (or another version of the model) and the layout actions a person asks for (Auto-layout,
  * Make room, Spread out) plan every line together with `layoutLines`.
  *
+ * After lanes, every planned line goes through `straightenJogs`: a route that is only a few px from straight (a jog shorter
+ * than 12px, often a lane piece next to the piece at a port) is made straight, by moving an inner piece or by sliding a
+ * port along its side, before labels are placed. A line with hand-set `points` is not planned: its route goes through
+ * them (`routeThrough`), its ends count as hand-set anchors for the other lines' ends, and its label is placed as usual.
+ *
  * No React or DOM imports. It imports routing.ts with a ".js" suffix because the root tests (NodeNext) load it too; Vite maps it to the .ts file.
  */
-import { defaultLabelT, labelBox, orthoRoute, placeLabels, planPorts, pointAtT, separateRoutes, type Box, type LabelItem, type Port, type PortPair, type Pt, type RouteEdge } from "./routing.js";
+import {
+  defaultLabelT,
+  hasJog,
+  labelBox,
+  orthoRoute,
+  placeLabels,
+  planPorts,
+  pointAtT,
+  routeThrough,
+  separateRoutes,
+  straightenJogs,
+  type Box,
+  type LabelItem,
+  type Port,
+  type PortPair,
+  type Pt,
+  type RouteEdge,
+  type Side,
+} from "./routing.js";
+
+/** Jogs shorter than this are made straight by the planner: the same 12px as the near-straight rule of planPorts and separateRoutes (DEC-061). */
+const PLANNED_JOG = 12;
 
 export interface LineInput extends RouteEdge {
   /** Label position set by hand (fraction along the line). */
   fixedT?: number;
+  /** Inner corners set by hand (canvas units): the line goes through them and is not planned. */
+  points?: Pt[];
 }
 
 export interface LineLayout {
   ports: Record<string, PortPair>;
+  /** The ends as planPorts gave them, before straightening slid some along their side (what a later pass compares with). */
+  planned: Record<string, PortPair>;
   routes: Record<string, Pt[]>;
   /** Where each line's label sits (fraction along the line). */
   labelTs: Record<string, number>;
@@ -42,6 +72,7 @@ export interface LinePrevious {
 const sameBox = (a: Box | undefined, b: Box | undefined) => !!a && !!b && a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h;
 const samePt = (a: Pt | undefined, b: Pt | undefined) => (!a && !b) || (!!a && !!b && a.x === b.x && a.y === b.y);
 const samePort = (a: Port, b: Port) => a.x === b.x && a.y === b.y && a.side === b.side;
+const samePts = (a: Pt[] | undefined, b: Pt[] | undefined) => (!a && !b) || (!!a && !!b && a.length === b.length && a.every((p, i) => samePt(p, b[i])));
 
 function sameLine(e: LineInput, o: LineInput | undefined): boolean {
   return (
@@ -52,7 +83,8 @@ function sameLine(e: LineInput, o: LineInput | undefined): boolean {
     e.fixedT === o.fixedT &&
     samePt(e.sourceAnchor, o.sourceAnchor) &&
     samePt(e.targetAnchor, o.targetAnchor) &&
-    samePt(e.control, o.control)
+    samePt(e.control, o.control) &&
+    samePts(e.points, o.points)
   );
 }
 
@@ -68,6 +100,102 @@ export function reusable(prev: LinePrevious, boxes: Record<string, Box>, lines: 
   return ids.every((id) => dragged.has(id) || sameBox(prev.boxes[id], boxes[id]));
 }
 
+/** The routes of the lines with hand-set points (null for a line whose points cannot be used: it is planned as usual). */
+function manualRoutes(boxes: Record<string, Box>, lines: LineInput[]): Map<string, { pts: Pt[]; source: Port; target: Port }> {
+  const out = new Map<string, { pts: Pt[]; source: Port; target: Port }>();
+  for (const e of lines) {
+    const [bs, bt] = [boxes[e.source], boxes[e.target]];
+    if (!e.points?.length || !bs || !bt) continue;
+    const m = routeThrough(bs, bt, e.points, e.sourceAnchor, e.targetAnchor);
+    if (m) out.set(e.id, m);
+  }
+  return out;
+}
+
+/**
+ * The lines, with the hand-set corners of each line whose two boxes are both being dragged by the same distance moved
+ * by that distance (`before`: where the boxes were when the drag started).
+ */
+export function carryLines(lines: LineInput[], before: Record<string, Pt>, boxes: Record<string, Box>, dragged: ReadonlySet<string>): LineInput[] {
+  return lines.map((e) => {
+    if (!e.points?.length || !dragged.has(e.source) || !dragged.has(e.target)) return e;
+    const [a0, a1, b0, b1] = [before[e.source], boxes[e.source], before[e.target], boxes[e.target]];
+    if (!a0 || !a1 || !b0 || !b1) return e;
+    const [dx, dy] = [a1.x - a0.x, a1.y - a0.y];
+    if (Math.abs(b1.x - b0.x - dx) > 0.5 || Math.abs(b1.y - b0.y - dy) > 0.5 || (dx === 0 && dy === 0)) return e;
+    return { ...e, points: e.points.map((p) => ({ x: p.x + dx, y: p.y + dy })) };
+  });
+}
+
+/** The fraction of a box a port is at (what a hand-set anchor holds), exact. */
+const fractionOf = (b: Box, p: Pt): Pt => ({ x: b.w ? (p.x - b.x) / b.w : 0, y: b.h ? (p.y - b.y) / b.h : 0 });
+
+/** The lines as planPorts sees them: a line with hand-set points has both ends set by hand (where its route meets its boxes). */
+function portInput(boxes: Record<string, Box>, lines: LineInput[], manual: Map<string, { source: Port; target: Port }>): RouteEdge[] {
+  return lines.map((e) => {
+    const m = manual.get(e.id);
+    if (!m) return e;
+    return { id: e.id, source: e.source, target: e.target, sourceAnchor: fractionOf(boxes[e.source]!, m.source), targetAnchor: fractionOf(boxes[e.target]!, m.target) };
+  });
+}
+
+/**
+ * Make the planned routes of `ids` straight where they are only a few px from it (straightenJogs), in id order. A port
+ * slides only when it is not hand-set, keeping clear of the other ends on its side; a piece does not move onto another
+ * line. `routes` and `ports` are updated in place.
+ */
+function straightenPlanned(ids: string[], lines: Map<string, LineInput>, boxes: Record<string, Box>, routes: Record<string, Pt[]>, ports: Record<string, PortPair>, obstacles: Box[]): void {
+  const key = (box: string, side: Side) => `${box}\u0000${side}`;
+  const coord = (p: Port) => (p.side === "left" || p.side === "right" ? p.y : p.x);
+  let onSide: Map<string, { id: string; end: "source" | "target"; at: number }[]> | null = null;
+  const sideIndex = () => {
+    if (onSide) return onSide;
+    onSide = new Map();
+    for (const [id, pp] of Object.entries(ports)) {
+      const e = lines.get(id);
+      if (!e) continue;
+      for (const end of ["source", "target"] as const) {
+        const k = key(e[end], pp[end].side);
+        onSide.set(k, [...(onSide.get(k) ?? []), { id, end, at: coord(pp[end]) }]);
+      }
+    }
+    return onSide;
+  };
+  for (const id of [...ids].sort()) {
+    const e = lines.get(id);
+    const pts = routes[id];
+    const pp = ports[id];
+    if (!e || !pts || !pp || e.source === e.target || !hasJog(pts, PLANNED_JOG)) continue;
+    const idx = sideIndex();
+    const end = (which: "source" | "target", fixed: boolean) => ({
+      box: boxes[e[which]]!,
+      side: pp[which].side,
+      fixed,
+      others: (idx.get(key(e[which], pp[which].side)) ?? []).filter((o) => !(o.id === id && o.end === which)).map((o) => o.at),
+    });
+    const avoid = Object.entries(routes)
+      .filter(([other]) => other !== id)
+      .map(([, r]) => r);
+    const next = straightenJogs(pts, {
+      tolerance: PLANNED_JOG,
+      obstacles,
+      source: end("source", !!e.sourceAnchor),
+      target: end("target", !!e.targetAnchor),
+      avoid,
+      moveInner: !e.control,
+    });
+    routes[id] = next;
+    const [s, t] = [next[0]!, next[next.length - 1]!];
+    if (s.x !== pp.source.x || s.y !== pp.source.y || t.x !== pp.target.x || t.y !== pp.target.y) {
+      ports[id] = { source: { x: s.x, y: s.y, side: pp.source.side }, target: { x: t.x, y: t.y, side: pp.target.side } };
+      for (const which of ["source", "target"] as const) {
+        const entry = idx.get(key(e[which], pp[which].side))?.find((o) => o.id === id && o.end === which);
+        if (entry) entry.at = coord(ports[id]![which]);
+      }
+    }
+  }
+}
+
 /**
  * Plans every line. `labelSize` is only asked for in a full pass. With `drag` (the previous full result and the dragged
  * box ids) and nothing else changed, the result is partial (see above).
@@ -76,54 +204,74 @@ export function layoutLines(
   boxes: Record<string, Box>,
   lines: LineInput[],
   labelSize: (id: string) => { w: number; h: number },
-  drag?: { prev: LinePrevious; dragged: ReadonlySet<string> },
+  drag?: { prev: LinePrevious; dragged: ReadonlySet<string>; from?: Record<string, Pt> },
 ): LineLayout {
-  const ports = planPorts(boxes, lines, { avoidBoxes: true });
+  const reuse = !!drag && reusable(drag.prev, boxes, lines, drag.dragged);
+  // While both boxes of a line with hand-set corners are dragged together, its corners go along (the canvas saves them so on release).
+  const live = reuse ? carryLines(lines, drag!.from ?? drag!.prev.boxes, boxes, drag!.dragged) : lines;
+  const manual = manualRoutes(boxes, live);
+  const planned = planPorts(boxes, portInput(boxes, live, manual), { avoidBoxes: true });
+  const ports: Record<string, PortPair> = { ...planned };
   // Every box is an obstacle for the lines that do not connect it (orthoRoute leaves out the two it is given).
   const obstacles = Object.values(boxes);
+  const byId = new Map(lines.map((e) => [e.id, e]));
+  const routeOf = (e: LineInput, pp: PortPair) => manual.get(e.id)?.pts ?? orthoRoute(pp.source, pp.target, boxes[e.source]!, boxes[e.target]!, e.control, obstacles);
 
-  if (drag && reusable(drag.prev, boxes, lines, drag.dragged)) {
+  if (drag && reuse) {
     const old = drag.prev.layout;
     const routes: Record<string, Pt[]> = {};
     const labelTs: Record<string, number> = {};
+    const fresh: string[] = [];
     for (const e of lines) {
-      const pp = ports[e.id];
+      const pp = planned[e.id];
       if (!pp) continue;
-      const before = old.ports[e.id];
+      const before = old.planned[e.id];
       const touched = drag.dragged.has(e.source) || drag.dragged.has(e.target) || !before || !samePort(before.source, pp.source) || !samePort(before.target, pp.target);
       const kept = old.routes[e.id];
       if (touched || !kept) {
-        const pts = orthoRoute(pp.source, pp.target, boxes[e.source]!, boxes[e.target]!, e.control, obstacles);
+        const pts = routeOf(e, pp);
         routes[e.id] = pts;
         labelTs[e.id] = e.fixedT ?? old.labelTs[e.id] ?? defaultLabelT(pts);
+        if (!manual.has(e.id)) fresh.push(e.id);
       } else {
         routes[e.id] = kept;
+        ports[e.id] = old.ports[e.id] ?? pp;
         labelTs[e.id] = old.labelTs[e.id] ?? defaultLabelT(kept);
       }
     }
-    return { ports, routes, labelTs, items: [], partial: true };
+    straightenPlanned(fresh, byId, boxes, routes, ports, obstacles);
+    return { ports, planned, routes, labelTs, items: [], partial: true };
   }
 
   const routes: Record<string, Pt[]> = {};
-  const lanes: Record<string, Pt[]> = {}; // the lines free to move sideways (a line through a bend point the user set stays on it)
+  const lanes: Record<string, Pt[]> = {}; // the lines free to move sideways (a line through a bend point or hand-set points stays on them)
   const items: LabelItem[] = [];
   for (const e of lines) {
-    const pp = ports[e.id];
+    const pp = planned[e.id];
     if (!pp) continue;
-    const pts = orthoRoute(pp.source, pp.target, boxes[e.source]!, boxes[e.target]!, e.control, obstacles);
+    const pts = routeOf(e, pp);
     routes[e.id] = pts;
-    if (!e.control) lanes[e.id] = pts;
+    if (!e.control && !manual.has(e.id)) lanes[e.id] = pts;
     items.push({ id: e.id, pts, size: labelSize(e.id), fixedT: e.fixedT });
   }
-  // Lines that share a corridor are spread into lanes; labels are placed on the final routes and keep off other lines.
+  // Lines that share a corridor are spread into lanes; near-straight routes are made straight; labels are placed on the
+  // final routes and keep off other lines.
   Object.assign(routes, separateRoutes(lanes, obstacles));
+  straightenPlanned(
+    lines.filter((e) => !manual.has(e.id)).map((e) => e.id),
+    byId,
+    boxes,
+    routes,
+    ports,
+    obstacles,
+  );
   for (const it of items) it.pts = routes[it.id]!;
   const labelTs = placeLabels(
     items,
     obstacles,
     items.map((it) => ({ id: it.id, pts: it.pts })),
   );
-  return { ports, routes, labelTs, items: items.map((it) => ({ id: it.id, pts: it.pts, size: it.size })), partial: false };
+  return { ports, planned, routes, labelTs, items: items.map((it) => ({ id: it.id, pts: it.pts, size: it.size })), partial: false };
 }
 
 /**
@@ -148,27 +296,40 @@ export function updateLines(prev: LinePrevious, boxes: Record<string, Box>, line
   const redo = lines.filter((e) => !keeps(e));
   if (!redo.length && kept.length === prev.lines.length) return old;
 
-  const planned = redo.length ? planPorts(boxes, lines, { avoidBoxes: true }) : {};
+  const manual = redo.length ? manualRoutes(boxes, lines) : new Map<string, { pts: Pt[]; source: Port; target: Port }>();
+  const fromPlan = redo.length ? planPorts(boxes, portInput(boxes, lines, manual), { avoidBoxes: true }) : {};
   const obstacles = Object.values(boxes);
   const ports: Record<string, PortPair> = {};
+  const planned: Record<string, PortPair> = {};
   const routes: Record<string, Pt[]> = {};
   const labelTs: Record<string, number> = {};
   for (const e of kept) {
     ports[e.id] = old.ports[e.id]!;
+    planned[e.id] = old.planned[e.id] ?? old.ports[e.id]!;
     routes[e.id] = old.routes[e.id]!;
     const t = old.labelTs[e.id];
     if (t !== undefined) labelTs[e.id] = t;
   }
   const lanes: Record<string, Pt[]> = {};
   for (const e of redo) {
-    const pp = planned[e.id];
+    const pp = fromPlan[e.id];
     if (!pp) continue;
     ports[e.id] = pp;
-    routes[e.id] = orthoRoute(pp.source, pp.target, boxes[e.source]!, boxes[e.target]!, e.control, obstacles);
-    if (!e.control) lanes[e.id] = routes[e.id]!;
+    planned[e.id] = pp;
+    routes[e.id] = manual.get(e.id)?.pts ?? orthoRoute(pp.source, pp.target, boxes[e.source]!, boxes[e.target]!, e.control, obstacles);
+    if (!e.control && !manual.has(e.id)) lanes[e.id] = routes[e.id]!;
   }
-  // The new lines are spread into lanes among themselves; the lines that stay are not moved to make room.
+  // The new lines are spread into lanes among themselves and made straight where they nearly are; the lines that stay
+  // are not moved to make room.
   Object.assign(routes, separateRoutes(lanes, obstacles));
+  straightenPlanned(
+    redo.filter((e) => routes[e.id] && !manual.has(e.id)).map((e) => e.id),
+    new Map(lines.map((e) => [e.id, e])),
+    boxes,
+    routes,
+    ports,
+    obstacles,
+  );
   // Labels that stay are obstacles for the new ones, like the boxes.
   const keptLabels = kept.flatMap((e) => (labelTs[e.id] === undefined ? [] : [labelBox(pointAtT(routes[e.id]!, labelTs[e.id]!), sizes.get(e.id)!)]));
   const fresh: LabelItem[] = redo.filter((e) => routes[e.id]).map((e) => ({ id: e.id, pts: routes[e.id]!, size: sizes.get(e.id)!, fixedT: e.fixedT }));
@@ -181,5 +342,5 @@ export function updateLines(prev: LinePrevious, boxes: Record<string, Box>, line
     ),
   );
   const items = lines.filter((e) => routes[e.id]).map((e) => ({ id: e.id, pts: routes[e.id]!, size: sizes.get(e.id)! }));
-  return { ports, routes, labelTs, items, partial: false };
+  return { ports, planned, routes, labelTs, items, partial: false };
 }

@@ -44,7 +44,7 @@ export function registerComments(app: Hono, ctx: Ctx): void {
 
   app.post("/api/comments", async (c) => {
     const b = await objBody(c);
-    const thread = comments.add({ kind: b.kind, target: b.target, diagram: b.diagram, text: b.text, author: authorOf(c, optStr(b, "author")) });
+    const thread = comments.add({ kind: b.kind, target: b.target, diagram: b.diagram, position: b.position, text: b.text, author: authorOf(c, optStr(b, "author")) });
     return c.json(one(thread));
   });
 
@@ -53,19 +53,21 @@ export function registerComments(app: Hono, ctx: Ctx): void {
     return c.json(one(comments.reply(c.req.param("id"), { text: b.text, author: authorOf(c, optStr(b, "author")) })));
   });
 
-  /** Resolve or reopen (anyone who can comment), or change the wording or kind (its author, or an architect). */
+  /** Resolve or reopen, or place a diagram note (anyone who can comment), or change the wording or kind (its author, or an architect). */
   app.patch("/api/comments/:id", async (c) => {
     const id = c.req.param("id");
     const b = await objBody(c);
     const t = comments.get(id);
     if (!t) return c.json({ detail: "That comment no longer exists. It may have been deleted by someone else." }, 404);
     const wording = b.text !== undefined || b.kind !== undefined;
-    if (b.status === undefined && !wording) throw new ModelError("Nothing to change: send status, text or kind.");
+    if (b.status === undefined && !wording && b.position === undefined) throw new ModelError("Nothing to change: send status, text, kind or position.");
     if (b.status !== undefined && b.status !== "open" && b.status !== "resolved") throw new ModelError('The status must be "open" or "resolved".');
     if (wording) {
       needOwner(c, t.author, "change this comment");
       comments.edit(id, { text: b.text === undefined ? undefined : cleanText(b.text), kind: b.kind });
     }
+    // Moving a note is not an edit of its wording: anyone who may comment may place it.
+    if (b.position !== undefined) comments.setPosition(id, b.position);
     if (b.status !== undefined) comments.setStatus(id, b.status, authorOf(c, optStr(b, "author")));
     return c.json(one(comments.get(id)!));
   });

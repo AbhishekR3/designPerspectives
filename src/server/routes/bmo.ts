@@ -10,7 +10,8 @@
  * - `bmo.run` is open to every role, on a read-only server too (auth.ts). Whether BMO may run at all is the settings:
  *   enabled, backend "direct", a credential (not Ollama), and the caller's role in `allowedRoles` (per hub project);
  *   without sign-in the one local user is an architect.
- * - A text task (explain, challenge, draft-summary) changes nothing, so the role in `allowedRoles` is all it needs.
+ * - A text task (explain, challenge, draft-summary, ask) changes nothing, so the role in `allowedRoles` is all it needs.
+ *   `ask` (the chat) takes the question, the IDs it refers to and the earlier turns as selectors; the server builds the prompt from them.
  * - A task that makes a draft (describe-to-model, import-level, suggest-labels) needs the right to create one
  *   (`decide("draft.create")`: not a viewer, not a read-only server); the refusal points to the handoff text instead.
  * - decision-from-draft writes into the draft the request selects (`X-DP-Model: draft:<id>`), so it needs the right to edit

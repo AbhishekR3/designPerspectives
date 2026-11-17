@@ -26,6 +26,7 @@ import { asBmoError, BmoError, estimateTokens, promptHash, type Backend } from "
 import type { Digest, Sent } from "./codeExcerpts.js";
 import { changesText, type LabelCandidate } from "./modelText.js";
 import {
+  askSystem,
   challengeSystem,
   dataBlock,
   DECISION_FIELDS,
@@ -161,6 +162,28 @@ export interface SuggestLabelsInput {
   digest?: Digest;
 }
 
+/** One earlier turn of a chat, as the person saw it (their message, or BMO's answer). Plain text typed or shown, never instructions. */
+export interface AskTurn {
+  role: "you" | "bmo";
+  text: string;
+}
+
+export interface AskInput {
+  /** The person's question. */
+  question: string;
+  lens: { name: string; sections: readonly string[] };
+  /** One text per referenced object: the object, its parents, what it contains, its relationships. */
+  objects: string[];
+  /** When no object is referenced: the viewed diagram's text, or a short overview of the model. */
+  context?: string;
+  /** When objects are referenced and a diagram is being viewed: one line naming it. */
+  viewing?: string;
+  /** Earlier turns, oldest first. */
+  history: AskTurn[];
+  /** Excerpts of the referenced objects' code (already redacted), and the text of the code block. */
+  code?: { text: string; attachments: Sent[] };
+}
+
 export interface TaskInputs {
   "import-level": ImportLevelInput;
   "describe-to-model": DescribeInput;
@@ -169,6 +192,7 @@ export interface TaskInputs {
   "draft-summary": DraftChangesInput;
   challenge: ChallengeInput;
   "suggest-labels": SuggestLabelsInput;
+  ask: AskInput;
 }
 export type TaskId = keyof TaskInputs;
 
@@ -495,6 +519,28 @@ const challenge: Task<ChallengeInput> = {
   validate: (raw, ctx) => validateText("challenge", raw, ctx),
 };
 
+const turnsText = (turns: AskTurn[]): string => turns.map((t) => `${t.role === "you" ? "The person wrote:" : "BMO answered:"}\n${t.text.replace(/\r\n/g, "\n").trim()}`).join("\n\n---\n\n") + "\n";
+
+const ask: Task<AskInput> = {
+  id: "ask",
+  title: "Ask",
+  promptVersion: PROMPT_VERSION,
+  output: "text",
+  maxOutputTokens: 3_000,
+  build(i, ctx) {
+    if (!i.question.trim()) throw new BmoError("refused", "The question is empty.");
+    const lens = `Lens: ${i.lens.name}\nSections this audience sees: ${i.lens.sections.length ? i.lens.sections.join(", ") : "(none beyond names and descriptions)"}\n`;
+    const blocks = [dataBlock("lens", lens)];
+    if (i.history.length) blocks.push(dataBlock("earlier-conversation", turnsText(i.history)));
+    if (i.objects.length) blocks.push(dataBlock("objects", (i.viewing ? `${i.viewing}\n\n` : "") + i.objects.join("\n")));
+    if (i.context) blocks.push(dataBlock("context", i.context));
+    if (i.code) blocks.push(dataBlock("code", i.code.text));
+    blocks.push(dataBlock("question", i.question.trim() + "\n"));
+    return built(askSystem(ctx.variant ?? "direct"), blocks, i.code?.attachments ?? []);
+  },
+  validate: (raw, ctx) => validateText("ask", raw, ctx),
+};
+
 /** Every task, by ID. */
 export const TASKS: { [K in TaskId]: Task<TaskInputs[K]> } = {
   "import-level": importLevel,
@@ -504,6 +550,7 @@ export const TASKS: { [K in TaskId]: Task<TaskInputs[K]> } = {
   "draft-summary": draftSummary,
   challenge,
   "suggest-labels": suggestLabels,
+  ask,
 };
 export const TASK_IDS = Object.keys(TASKS) as TaskId[];
 

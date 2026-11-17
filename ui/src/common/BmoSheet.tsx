@@ -117,7 +117,7 @@ export function BmoSheet({ title, request, onClose, handoffNote, textActions, on
   );
 }
 
-function Explainer({ status, reason, handoffNote }: { status: BmoStatus; reason: string; handoffNote?: ReactNode }) {
+export function Explainer({ status, reason, handoffNote }: { status: BmoStatus; reason: string; handoffNote?: ReactNode }) {
   return (
     <div data-testid="bmo-explainer">
       <p>

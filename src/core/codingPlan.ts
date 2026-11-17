@@ -15,7 +15,7 @@
 import { expandPaths, scanImports } from "./codeMap.js";
 import { sha1, type CodePlan, type CodeSource } from "./codeFiles.js";
 import type { Snapshot } from "./diff.js";
-import { buildIndex, CODE_KEY, getJson, splitTech, type Index } from "./modelEdits.js";
+import { buildIndex, CODE_KEY, getJson, relationshipSummary, splitTech, type Index } from "./modelEdits.js";
 import type { ChangeSet, CodingPlan, DraftInfo, PlanItem } from "../shared/types.js";
 
 const KIND: Record<string, string> = { person: "person", softwareSystem: "software system", container: "container", component: "component" };
@@ -158,7 +158,11 @@ export function buildPlanItems(base: Snapshot, draft: Snapshot, cs: ChangeSet, p
       section: sectionOf(idx, r.sourceId),
       kind: add ? "connect" : "disconnect",
       title: `${add ? "Connect" : "Disconnect"} ${a.name} → ${b.name}${r.description ? `: ${r.description}` : ""}${tech ? ` [${tech}]` : ""}`,
-      details: mapped ? [`Checked by imports from ${code(pa)} to ${code(pb)}.`] : ["Not checked automatically: both ends need code paths."],
+      details: [
+        ...(mapped ? [`Checked by imports from ${code(pa)} to ${code(pb)}.`] : ["Not checked automatically: both ends need code paths."]),
+        ...(add && relationshipSummary(r).codeFrom ? [`Leaves ${a.name} from ${relationshipSummary(r).codeFrom}.`] : []),
+        ...(add && relationshipSummary(r).codeTo ? [`Arrives at ${b.name} in ${relationshipSummary(r).codeTo}.`] : []),
+      ],
       check: mapped ? { type: "imports", from: pa, to: pb, want: add } : { type: "manual", why: "an end has no code paths" },
     });
   }

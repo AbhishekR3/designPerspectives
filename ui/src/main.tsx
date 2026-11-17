@@ -12,11 +12,13 @@ import "./styles/pages.css";
 import "./styles/home.css";
 import { AuthGate } from "./pages/SignIn";
 import { ErrorBoundary } from "./common/ErrorBoundary";
+import { Tooltip } from "./common/Tooltip";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ErrorBoundary>
       <AuthGate />
     </ErrorBoundary>
+    <Tooltip />
   </StrictMode>,
 );

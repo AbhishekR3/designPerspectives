@@ -2,11 +2,14 @@
  *  usage, sensitive data, connections, examples) and the value lists (characteristics, cost, linked work). */
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
+import { confirmDeleteRelationship } from "../common/dialogs";
+import { Icon } from "../common/icons";
 import { errorMessage, notify } from "../common/notify";
 import { RATING_COLORS, formatMoney } from "../colourOverlays";
-import { TextField } from "./formParts";
+import { TagInput, TextField, useBusy } from "./formParts";
 import {
   type AppState,
+  KIND_LABEL,
   type CharacteristicDef,
   type CostItem,
   type DetailTable,
@@ -261,27 +264,42 @@ export function SensitiveEditor({ rows, levels, onSave }: { rows: SensitiveItem[
   );
 }
 
-/** Ratings 1-5 of the architecture characteristics that matter for this object. */
+/**
+ * The relationships coming into or going out of an element. Clicking a name reveals that element.
+ * When the shown version can be changed, a row's description and technology are edited in place, a row can be
+ * deleted, and a new relationship can be added from here. The other end of an existing relationship cannot be
+ * changed (the model has no such edit): delete the row and add a new one instead.
+ */
 export function ConnectionList({
   title,
+  direction,
   rels,
   other,
   inside,
-  selfId,
+  self,
   state,
   onReveal,
   testId,
+  editable = false,
+  showTechnology = true,
+  mutate,
 }: {
   title: string;
+  direction: "incoming" | "outgoing";
   rels: Relationship[];
   other(r: Relationship): string;
   inside(r: Relationship): string;
-  selfId: string;
+  self: ElementSummary;
   state: AppState;
   onReveal(id: string): void;
   testId: string;
+  /** The shown version can be changed (not `state.readOnly`). */
+  editable?: boolean;
+  showTechnology?: boolean;
+  mutate?: Common["mutate"];
 }) {
   const byId = new Map(state.elements.map((e) => [e.id, e]));
+  const canEdit = editable && !!mutate;
   return (
     <div className="connections" data-testid={testId}>
       <h4>
@@ -289,22 +307,192 @@ export function ConnectionList({
       </h4>
       {rels.length === 0 && <div className="empty-note">None</div>}
       <ul>
-        {rels.map((r) => {
-          const o = byId.get(other(r));
-          return (
-            <li key={r.id}>
-              <button className="link" onClick={() => onReveal(other(r))} title="Show this element">
-                {o?.name ?? other(r)}
-              </button>
-              <div className="muted small">
-                {r.description}
-                {r.technologies.length > 0 && ` [${r.technologies.join(", ")}]`}
-                {inside(r) !== selfId && <> · via {byId.get(inside(r))?.name ?? inside(r)}</>}
-              </div>
-            </li>
-          );
-        })}
+        {rels.map((r) => (
+          <ConnectionRow
+            key={r.id}
+            r={r}
+            otherId={other(r)}
+            via={inside(r) !== self.id ? (byId.get(inside(r))?.name ?? inside(r)) : null}
+            state={state}
+            onReveal={onReveal}
+            editable={canEdit}
+            showTechnology={showTechnology}
+            mutate={mutate}
+          />
+        ))}
       </ul>
+      {canEdit && <AddConnection direction={direction} self={self} state={state} mutate={mutate} />}
+    </div>
+  );
+}
+
+function ConnectionRow({
+  r,
+  otherId,
+  via,
+  state,
+  onReveal,
+  editable,
+  showTechnology,
+  mutate,
+}: {
+  r: Relationship;
+  otherId: string;
+  via: string | null;
+  state: AppState;
+  onReveal(id: string): void;
+  editable: boolean;
+  showTechnology: boolean;
+  mutate?: Common["mutate"];
+}) {
+  const [editing, setEditing] = useState(false);
+  const o = state.elements.find((e) => e.id === otherId);
+  const save = (patch: object) => mutate?.(() => api.updateRelationship(r.id, patch));
+  return (
+    <li>
+      <div className="connection-head">
+        <button className="link" onClick={() => onReveal(otherId)} title="Show this element">
+          {o?.name ?? otherId}
+        </button>
+        {editable && (
+          <span className="connection-tools">
+            <button
+              className="ghost icon"
+              onClick={() => setEditing(!editing)}
+              aria-pressed={editing}
+              title={editing ? "Done editing" : "Edit this relationship"}
+              aria-label={`Edit the relationship with ${o?.name ?? otherId}`}
+              data-testid={`edit-connection-${r.id}`}
+            >
+              ✎
+            </button>
+            <button
+              className="ghost icon danger-text"
+              onClick={() => {
+                void confirmDeleteRelationship().then((yes) => yes && mutate?.(() => api.deleteRelationship(r.id)));
+              }}
+              title="Delete this relationship"
+              aria-label={`Delete the relationship with ${o?.name ?? otherId}`}
+              data-testid={`delete-connection-${r.id}`}
+            >
+              <Icon name="close" size={13} />
+            </button>
+          </span>
+        )}
+      </div>
+      {editing && editable ? (
+        <div className="connection-edit">
+          <TextField label="Description" value={r.description} onCommit={(v) => void save({ description: v })} testId={`connection-description-${r.id}`} />
+          {showTechnology && (
+            <TagInput label="Technology / protocol" value={r.technologies} suggestions={state.technologies} onChange={(v) => void save({ technology: v })} testId={`connection-technology-${r.id}`} />
+          )}
+          {via && <div className="muted small">via {via}</div>}
+          <button className="ghost small" onClick={() => setEditing(false)} data-testid={`connection-done-${r.id}`}>
+            Done
+          </button>
+        </div>
+      ) : (
+        <div className="muted small">
+          {r.description}
+          {r.technologies.length > 0 && ` [${r.technologies.join(", ")}]`}
+          {via && <> · via {via}</>}
+        </div>
+      )}
+    </li>
+  );
+}
+
+/** "Add incoming" / "Add outgoing": pick the other element (type to filter) and say what the relationship does. */
+function AddConnection({ direction, self, state, mutate }: { direction: "incoming" | "outgoing"; self: ElementSummary; state: AppState; mutate: Common["mutate"] }) {
+  const [open, setOpen] = useState(false);
+  const [filter, setFilter] = useState("");
+  const [picked, setPicked] = useState("");
+  const [description, setDescription] = useState("");
+  const [busy, run] = useBusy();
+  // The model refuses a relationship between an element and its own parent or child, so those are not offered.
+  const blocked = new Set([self.id]);
+  for (let id: string | null | undefined = self.parentId; id; id = state.elements.find((e) => e.id === id)?.parentId) blocked.add(id);
+  const inside = new Set([self.id]);
+  for (let grew = true; grew;) {
+    grew = false;
+    for (const e of state.elements)
+      if (e.parentId && inside.has(e.parentId) && !inside.has(e.id)) {
+        inside.add(e.id);
+        grew = true;
+      }
+  }
+  for (const id of inside) blocked.add(id);
+  const byId = new Map(state.elements.map((e) => [e.id, e]));
+  const label = (e: ElementSummary) => {
+    const parent = e.parentId ? byId.get(e.parentId) : null;
+    return `${e.name} · ${KIND_LABEL[e.kind]}${parent ? ` in ${parent.name}` : ""}`;
+  };
+  const q = filter.trim().toLowerCase();
+  const options = state.elements
+    .filter((e) => !blocked.has(e.id) && (e.kind === "person" || e.kind === "softwareSystem" || e.kind === "container" || e.kind === "component"))
+    .filter((e) => !q || label(e).toLowerCase().includes(q))
+    .sort((a, b) => label(a).localeCompare(label(b)));
+  const chosen = options.some((e) => e.id === picked) ? picked : (options[0]?.id ?? "");
+  const word = direction === "incoming" ? "Add incoming" : "Add outgoing";
+  const close = () => {
+    setOpen(false);
+    setFilter("");
+    setPicked("");
+    setDescription("");
+  };
+  if (!open)
+    return (
+      <button
+        className="ghost small add-connection"
+        onClick={() => setOpen(true)}
+        title={direction === "incoming" ? "Add a relationship from another element to this one" : "Add a relationship from this element to another one"}
+        data-testid={`add-${direction}`}
+      >
+        + {word}
+      </button>
+    );
+  return (
+    <div className="connection-add" data-testid={`add-${direction}-form`}>
+      <label className="field">
+        <span>{direction === "incoming" ? "From" : "To"}</span>
+        <input type="text" value={filter} placeholder="Type to filter…" onChange={(e) => setFilter(e.target.value)} data-testid={`add-${direction}-filter`} autoFocus />
+        <select
+          value={chosen}
+          onChange={(e) => setPicked(e.target.value)}
+          size={Math.min(5, Math.max(2, options.length))}
+          aria-label={direction === "incoming" ? "Element it comes from" : "Element it goes to"}
+          data-testid={`add-${direction}-other`}
+        >
+          {options.map((e) => (
+            <option key={e.id} value={e.id}>
+              {label(e)}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="field">
+        <span>Description</span>
+        <input type="text" value={description} placeholder="Uses" onChange={(e) => setDescription(e.target.value)} data-testid={`add-${direction}-description`} />
+      </label>
+      <div className="row">
+        <button
+          className="primary small"
+          disabled={!chosen || busy}
+          aria-busy={busy}
+          onClick={() =>
+            void run(async () => {
+              const body = direction === "incoming" ? { sourceId: chosen, destinationId: self.id, description } : { sourceId: self.id, destinationId: chosen, description };
+              if (await mutate(() => api.createRelationship(body))) close();
+            })
+          }
+          data-testid={`add-${direction}-submit`}
+        >
+          Add
+        </button>
+        <button className="ghost small" onClick={close} data-testid={`add-${direction}-cancel`}>
+          Cancel
+        </button>
+      </div>
     </div>
   );
 }

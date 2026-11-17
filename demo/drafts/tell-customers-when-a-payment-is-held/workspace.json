@@ -355,7 +355,11 @@
                     "sourceId": "sign-in-controller",
                     "destinationId": "security-component",
                     "description": "Uses",
-                    "tags": "Relationship"
+                    "tags": "Relationship",
+                    "properties": {
+                      "dp.code.from": "sample_code/api/sign_in.py",
+                      "dp.code.to": "sample_code/api/security.py"
+                    }
                   }
                 ],
                 "technology": "Spring MVC Rest Controller"
@@ -464,7 +468,10 @@
                     "destinationId": "mainframe-banking-system",
                     "description": "Makes API calls to",
                     "technology": "XML/HTTPS",
-                    "tags": "Relationship"
+                    "tags": "Relationship",
+                    "properties": {
+                      "dp.code.from": "sample_code/api/mainframe_facade.py"
+                    }
                   }
                 ],
                 "technology": "Spring Bean"

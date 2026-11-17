@@ -2,7 +2,20 @@
 
 ## Unreleased
 
+### Added
+- **The code level shows connections** (DEC-069). A component's C4 code diagram also shows the parts it talks to, as faded boxes, with each line going to the file where a call leaves or arrives. Set the files on a relationship (**Files at the ends**: *Leaves from file*, *Arrives at file*; `dp.code.from` / `dp.code.to`), or let the tool guess them from imports. A set file is drawn solid, a guess dashed, and an unknown file dotted. `GET /api/code/files?owner=<id>` lists an element's files.
+- **Notes on a diagram** (DEC-070). Right-click empty canvas and choose **Add note here…** for a comment, idea or question placed on the diagram. Drag it to move it, and click it to open the thread.
+- **Shape lines by hand** (DEC-071). Select a line and drag any piece of it. A straight line gets a corner where you drag it, and a curved line bends from there. **Reset line shape** (line menu, or double-click a handle) goes back to automatic. Corners move with the line when both boxes move.
+- **Edit several boxes at once** (DEC-072). With two or more boxes selected, the panel edits owner, symbol, technology and tag groups for all of them in one undo step (`POST /api/elements/update`).
+- **Edit connections from the element panel.** Incoming and Outgoing rows can be edited in place (description, technology) or deleted, and a connection can be added from there.
+- **BMO chat** (DEC-073). **Ask BMO…** opens a chat beside the diagram. Type `[` to refer to an object (`[Internet Banking System]`). Each message shows what will be sent and goes only when you confirm it.
+- **Flow steps show input and output.** The current step shows what the sender sends and what the receiver gets, where the data came from and where it goes next, the files at both ends, endpoints, data read or written, stages, sensitive data and open work. Each step in the list has a one-line summary.
+- **Tooltips.** Hovering a box, a symbol, a badge or an icon button shows what it is.
+
 ### Changed
+- **A diagram's cost is the cost of what it is about** (DEC-068). A container diagram shows the system's own monthly cost (for example $8,690 for Internet Banking System, not the $33K of everything drawn), with costly boxes around it in an "Outside this system" row.
+- **Comment kinds have their own colours:** comment blue, idea green, question amber, on the canvas pins as well.
+- **Near-straight lines are straight** (DEC-071). A jog of a few pixels in a planned line is removed, and a line dragged to within a few pixels (or 2°) of straight snaps straight.
 - **A change by hand moves only what it touches** (DEC-067). Dragging or nudging a box, or adding or removing a line, redraws only the lines at the boxes that changed; every other line and label stays where it was. Every line is planned again only when a diagram opens and when you choose Auto-layout, Make room or Spread out.
 - **Repository layout** (DEC-066). The root holds only `README.md`, `LICENSE`, `package.json`, `package-lock.json` and `.gitignore`; tool settings are in `config/`; the changelog and the one contributing, conduct and security guide are in `docs/`. The demo tour, example CI jobs and the demo credits (formerly `NOTICE`) are in `demo/`. Tests are in `tests/unit/` and `tests/browser/` (`npm run test:browser`, formerly `test:e2e`), and `tests/TESTS.csv` lists every test (`npm run test:list`).
 - **Readable file names.** The built UI is `app.js`, `app.css` and `diagram-layout.js`, revalidated with an ETag instead of cached for a year. Unclear source files are renamed (for example `ops.ts` → `modelEdits.ts`, `src/bmo/` → `src/assistant/`).

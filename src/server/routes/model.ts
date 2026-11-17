@@ -94,6 +94,30 @@ export function registerModel(app: Hono, ctx: Ctx): void {
     return c.json({ ok: true, id: elementId, parentId });
   });
 
+  /**
+   * Change several elements as one edit (one undo step): `{updates: [{id, patch}, ...]}`, each patch as in PATCH /api/elements/:id.
+   * An error on any element (a name in use, a technology on a person) refuses the whole request: nothing is changed.
+   * Never re-slugs: that is only for the first rename of a new element.
+   */
+  app.post("/api/elements/update", async (c) => {
+    const b = await objBody(c);
+    const list = b.updates;
+    if (!Array.isArray(list) || list.length === 0 || list.length > 1000) throw new HttpError(422, '"updates" must be a list of 1 to 1000 changes: {id, patch}.');
+    const seen = new Set<string>();
+    const updates = list.map((u, i) => {
+      if (!isObj(u) || Object.keys(u).some((k) => k !== "id" && k !== "patch")) throw new HttpError(422, `updates[${i}] must be an object with only "id" and "patch".`);
+      if (typeof u.id !== "string" || u.id === "") throw new HttpError(422, `updates[${i}].id must be an element ID.`);
+      if (!isObj(u.patch)) throw new HttpError(422, `updates[${i}].patch must be an object.`);
+      if (seen.has(u.id)) throw new HttpError(422, `The element "${u.id}" is listed twice.`);
+      seen.add(u.id);
+      return { id: u.id, patch: u.patch as Obj };
+    });
+    edit((ws, sc) => {
+      for (const u of updates) ops.updateElement(ws, sc, u.id, u.patch);
+    });
+    return c.json({ ok: true, updated: updates.map((u) => u.id) });
+  });
+
   /** Delete several elements as one edit (one undo step). An id that went with an earlier one (a child) is skipped. */
   app.post("/api/elements/delete", async (c) => {
     const b = await objBody(c);

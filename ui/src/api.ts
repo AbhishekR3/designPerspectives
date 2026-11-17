@@ -158,6 +158,8 @@ export const api = {
   undo: () => request<{ ok: boolean }>("POST", "/undo"),
   redo: () => request<{ ok: boolean }>("POST", "/redo"),
   codeTree: (path = "") => request<{ entries: { name: string; path: string; type: "dir" | "file" }[] }>("GET", `/code/tree?path=${enc(path)}`),
+  /** The files behind an element's code paths (folders expanded). */
+  codeFiles: (owner: string) => request<{ files: string[] }>("GET", `/code/files?owner=${enc(owner)}`),
   codeFile: (path: string) => request<CodeFile>("GET", `/code/file?path=${enc(path)}`),
   /** Plan a new file in the draft; with `mapTo` (an element or relationship id) its path is added to that object's code paths in the same step. */
   newCodeFile: (path: string, content = "", mapTo?: string) => request<{ path: string }>("POST", "/code/file", { path, content, ...(mapTo ? { mapTo } : {}) }),
@@ -170,6 +172,8 @@ export const api = {
   /** `reslug` (with a rename): the first rename of a new element also makes its ID from the new name; the answer has the ID, which may be new. */
   updateElement: (id: string, patch: object) => request<{ ok: boolean; id: string }>("PATCH", `/elements/${enc(id)}`, patch),
   deleteElement: (id: string) => request("DELETE", `/elements/${enc(id)}`),
+  /** Change several elements as one undo step (one patch each, as in `updateElement`); an error on any of them changes none. */
+  updateElements: (updates: { id: string; patch: object }[]) => request<{ ok: boolean; updated: string[] }>("POST", "/elements/update", { updates }),
   /** Delete several elements as one undo step. */
   deleteElements: (ids: string[]) => request<{ deleted: string[] }>("POST", "/elements/delete", { ids }),
   /** Move a container to another software system, or a component to another container. */
@@ -186,9 +190,10 @@ export const api = {
       `/backtrack?${new URLSearchParams("connector" in q ? { connector: q.connector, stage: String(q.stage), days: String(days) } : { flow: q.flow, step: String(q.step), days: String(days) })}`,
     ),
   comments: () => request<CommentList>("GET", "/comments"),
-  addComment: (body: { kind: CommentKind; target: CommentTarget; diagram: string | null; text: string; author?: string }) => request<CommentThread>("POST", "/comments", body),
+  addComment: (body: { kind: CommentKind; target: CommentTarget; diagram: string | null; position?: Pt; text: string; author?: string }) => request<CommentThread>("POST", "/comments", body),
   replyToComment: (id: string, text: string, author?: string) => request<CommentThread>("POST", `/comments/${enc(id)}/replies`, { text, ...(author ? { author } : {}) }),
-  updateComment: (id: string, patch: { status?: "open" | "resolved"; text?: string; kind?: CommentKind; author?: string }) => request<CommentThread>("PATCH", `/comments/${enc(id)}`, patch),
+  updateComment: (id: string, patch: { status?: "open" | "resolved"; text?: string; kind?: CommentKind; position?: Pt | null; author?: string }) =>
+    request<CommentThread>("PATCH", `/comments/${enc(id)}`, patch),
   deleteComment: (id: string) => request("DELETE", `/comments/${enc(id)}`),
   deleteReply: (id: string, replyId: string) => request<CommentThread>("DELETE", `/comments/${enc(id)}/replies/${enc(replyId)}`),
   deleteRelationship: (id: string) => request("DELETE", `/relationships/${enc(id)}`),

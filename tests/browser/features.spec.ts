@@ -53,12 +53,12 @@ test("connect any side and line editing", async ({ page, server }) => {
   let edge = await edgeOf(server, "landscape", rid);
   expect(edge.layout.sourceAnchor).toEqual({ x: 0.5, y: 1 });
   expect(edge.layout.targetAnchor).toEqual({ x: 0.5, y: 0 });
-  // drag the bend grip: the control point is stored
-  const grip = (await page.getByTestId("grip-bend").boundingBox())!;
+  // drag a piece of the (right-angle) line: its corners are stored
+  const grip = (await page.locator('[data-testid^="grip-seg-"]').first().boundingBox())!;
   await dragBy(page, grip.x + grip.width / 2, grip.y + grip.height / 2, 80, 40);
   await page.waitForTimeout(600);
   edge = await edgeOf(server, "landscape", rid);
-  expect(edge.layout).toHaveProperty("control");
+  expect(edge.layout).toHaveProperty("points");
   // line shape and reset
   await page.getByTestId("line-shape").selectOption("orthogonal");
   await page.waitForTimeout(500);

@@ -101,6 +101,40 @@
   min-width: 0;
   overflow-wrap: anywhere;
 }
+.connection-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.connection-head .link {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+.connection-tools {
+  display: inline-flex;
+  gap: 2px;
+}
+.connection-edit,
+.connection-add {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-top: 4px;
+}
+.connection-add {
+  margin-top: 6px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+.connection-add select {
+  width: 100%;
+}
+.add-connection {
+  margin-top: 6px;
+  align-self: flex-start;
+}
 .panel-actions {
   display: flex;
   gap: 6px;
@@ -319,6 +353,62 @@
   margin-top: 8px;
   border-top: 1px solid var(--line);
   padding-top: 8px;
+}
+/* The step view: Input and Output side by side (stacked when the panel is narrow), files, then the details. */
+.step-io {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-3);
+  margin: var(--space-3) 0;
+}
+.step-io-col {
+  min-width: 0;
+}
+.step-io-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin-bottom: 2px;
+}
+.step-chain {
+  margin-top: var(--space-1);
+  padding-left: var(--space-2);
+  border-left: 2px solid var(--line-strong);
+}
+.step-files ul {
+  margin: 0;
+  padding-left: 16px;
+}
+.step-files li {
+  margin: 2px 0;
+}
+.step-files code {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.step-details {
+  margin: var(--space-3) 0;
+  font-size: 12px;
+}
+.step-details > div {
+  display: flex;
+  gap: var(--space-3);
+  padding: 2px 0;
+}
+.step-details dt {
+  flex: 0 0 76px;
+  color: var(--muted);
+}
+.step-details dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.step-summary {
+  margin-top: 2px;
+  overflow-wrap: anywhere;
 }
 .example {
   background: #0b0d10;
@@ -689,7 +779,7 @@ button.change-item:disabled {
   color: var(--link);
 }
 .ck-idea {
-  color: var(--accent);
+  color: var(--green);
 }
 .ck-question {
   color: var(--amber);
@@ -730,7 +820,7 @@ button.change-item:disabled {
   background: var(--link);
 }
 .ck-btn.ck-idea.on {
-  background: var(--accent);
+  background: var(--green);
 }
 .ck-btn.ck-question.on {
   background: var(--amber);
@@ -739,9 +829,46 @@ button.change-item:disabled {
   color: var(--text);
   border-color: var(--accent);
 }
+/* Each kind keeps its colour in the picker and the filters, so the three read apart at a glance. */
+.ck-btn.ck-comment:not(.on),
+.ck-btn.ck-idea:not(.on),
+.ck-btn.ck-question:not(.on),
+.discussion .filters .chip.ck-idea,
+.discussion .filters .chip.ck-question {
+  border-color: currentColor;
+}
+.ck-btn.ck-comment:not(.on) {
+  color: var(--link);
+}
+.ck-btn.ck-idea:not(.on),
+.discussion .filters .chip.ck-idea {
+  color: var(--green);
+}
+.ck-btn.ck-question:not(.on),
+.discussion .filters .chip.ck-question {
+  color: var(--amber);
+}
+.discussion .filters .chip.ck-idea.on {
+  border-color: var(--green);
+  background: color-mix(in srgb, var(--green) 18%, transparent);
+}
+.discussion .filters .chip.ck-question.on {
+  border-color: var(--amber);
+  background: color-mix(in srgb, var(--amber) 18%, transparent);
+}
 .add-comment {
   align-self: flex-start;
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
+}
+
+/* Editing several objects: a chip only some of them have is faded; clicking its name gives it to all of them. */
+.chip.some {
+  opacity: 0.7;
+  border-style: dashed;
+}
+.chip.some:hover,
+.chip.some:focus-within {
+  opacity: 1;
 }

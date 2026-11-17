@@ -261,3 +261,81 @@ describe("API", () => {
     expect((await c.put("/api/diagrams/landscape/positions", { positions: { atm: { x: "a", y: 1 } } })).status).toBe(422);
   });
 });
+
+describe("changing several elements at once", () => {
+  const body = (updates: unknown) => ({ updates });
+  const patches = [
+    { id: "api-application", patch: { owner: "Platform team", technology: ["Java", "Spring"] } },
+    { id: "web-application", patch: { owner: "Platform team", archType: "web" } },
+    { id: "mainframe-banking-system", patch: { owner: "Platform team" } },
+  ];
+
+  test("applies every patch, and one undo step reverts all of them", async () => {
+    const c = client();
+    const before = await ok(c.get("/api/state"));
+    const r = await ok(c.post("/api/elements/update", body(patches)));
+    expect(r.updated).toEqual(patches.map((p) => p.id));
+    const after = await ok(c.get("/api/state"));
+    const el = (id: string) => after.elements.find((e: any) => e.id === id);
+    for (const p of patches) expect(el(p.id).owner).toBe("Platform team");
+    expect(el("api-application").technologies).toEqual(["Java", "Spring"]);
+    expect(el("web-application").archType).toBe("web");
+
+    await ok(c.post("/api/undo"));
+    const undone = await ok(c.get("/api/state"));
+    expect(undone.elements).toEqual(before.elements);
+    expect(undone.canUndo).toBe(false);
+  });
+
+  test("a model error on one element changes none and leaves no undo step", async () => {
+    const c = client();
+    const before = await ok(c.get("/api/state"));
+    // A person has no technology: the first, valid patch must not be kept.
+    const bad = await c.post(
+      "/api/elements/update",
+      body([
+        { id: "api-application", patch: { owner: "X" } },
+        { id: "personal-banking-customer", patch: { technology: ["Java"] } },
+      ]),
+    );
+    expect(bad.status).toBe(422);
+    expect(bad.json().detail).toMatch(/Only containers and components have a technology/);
+    const after = await ok(c.get("/api/state"));
+    expect(after.elements).toEqual(before.elements);
+    expect(after.canUndo).toBe(false);
+  });
+
+  test("a bad body is 422 and changes nothing", async () => {
+    const c = client();
+    for (const b of [
+      {},
+      { updates: [] },
+      { updates: "x" },
+      { updates: [{ id: "api-application" }] },
+      { updates: [{ id: "", patch: {} }] },
+      { updates: [{ id: "api-application", patch: [] }] },
+      { updates: [{ id: "api-application", patch: {}, extra: 1 }] },
+      { updates: [{ id: "nope", patch: { owner: "X" } }] },
+    ]) {
+      expect((await c.post("/api/elements/update", b)).status, JSON.stringify(b)).toBe(422);
+    }
+    // The same element twice is refused instead of one patch silently winning.
+    const twice = await c.post(
+      "/api/elements/update",
+      body([
+        { id: "api-application", patch: { owner: "A" } },
+        { id: "api-application", patch: { owner: "B" } },
+      ]),
+    );
+    expect(twice.status).toBe(422);
+    expect((await ok(c.get("/api/state"))).canUndo).toBe(false);
+  });
+
+  test("never re-slugs the ID of a renamed element", async () => {
+    const c = client();
+    const made = await ok(c.post("/api/elements", { kind: "container", parentId: "internet-banking-system", name: "New container" }));
+    await ok(c.post("/api/elements/update", body([{ id: made.id, patch: { name: "Renamed", reslug: true } }])));
+    const st = await ok(c.get("/api/state"));
+    expect(st.elements.some((e: any) => e.id === made.id && e.name === "Renamed")).toBe(true);
+  });
+});

@@ -1,12 +1,14 @@
 /**
  * BMO as the server routes and the CLI run it (DEC-051): from a few selectors (a task, a level, a diagram, an
- * object, a lens, a pasted description) the server itself assembles the task's inputs from the model, the code and the
+ * object, a lens, a pasted description, a chat question with the IDs it refers to and the earlier turns) the server itself assembles the task's inputs from the model, the code and the
  * drafts, builds the prompt, shows it (`previewOf`), and, when the person confirms its hash, sends it through the
  * backend the server chose and takes the answer (`runBmo`). Nothing a client sends is ever prompt text, an endpoint,
  * a provider, a model or a file to read; the selectors are checked strictly and unknown fields are refused.
  *
  * Where the answers go:
  * - "text": returned to the caller only. Not stored in a file and not in the run log.
+ *   The chat (`ask`) is the same: the conversation lives in the browser tab; earlier turns come back as selectors, are
+ *   checked and capped, and are placed in a data block marked as earlier conversation, never in the system text.
  * - "import-file": `importToDraft` makes a draft (credited to the caller); the file's `source` is set by the server.
  * - "decision": `createDecision` in the selected draft, status proposed, one undo step.
  * An answer that cannot be used is `BmoInvalid` (errors and the text to paste back); nothing is repaired.
@@ -20,18 +22,36 @@ import type { CodeSource } from "../core/codeFiles.js";
 import { diagramOf, diffModels } from "../core/diff.js";
 import * as decisions from "../core/decisions.js";
 import type { Drafts } from "../core/drafts.js";
-import { buildIndex, ModelError, relationshipSummary } from "../core/modelEdits.js";
+import { buildIndex, elementSummary, ModelError, relationshipSummary } from "../core/modelEdits.js";
 import { NotFound, type ModelSource, type Project } from "../core/project.js";
 import { checkProject, diffMarkdown } from "../core/cliReports.js";
-import { BUILTIN_LENSES, SECTIONS } from "../core/designPerspectivesFile.js";
+import { ARCHITECT, BUILTIN_LENSES, SECTIONS } from "../core/designPerspectivesFile.js";
+import { readState } from "../import/analysis.js";
+import { readIntake } from "../import/intake.js";
 import { ImportRejected, importToDraft } from "../import/importer.js";
-import type { BmoPreview, BmoRunResult, Diagram, FieldError, ImportFile, Lens } from "../shared/types.js";
+import { BMO_ASK_LIMITS, type BmoAskInfo, type BmoPreview, type BmoRunResult, type Diagram, type FieldError, type ImportFile, type Lens } from "../shared/types.js";
 import { asBmoError, BmoError, type Backend } from "./backend.js";
 import { buildInputs, parseHandoffRequest } from "./importTasks.js";
 import { logRun } from "./providerBackend.js";
-import { diagramText, objectText } from "./modelText.js";
+import { objectExcerpts, objectExcerptText, type ObjectExcerpts } from "./codeExcerpts.js";
+import { diagramText, objectText, overviewText, parentChain } from "./modelText.js";
 import { estimateCost, effectiveModel, runTokenLimit, destination as settingsBase, type BmoSettings } from "./settings.js";
-import { getTask, pasteBackText, preview, runTask, TASK_IDS, TASKS, type ChallengeInput, type DraftChangesInput, type ExplainInput, type Task, type TaskContext, type TaskId } from "./tasks.js";
+import {
+  getTask,
+  pasteBackText,
+  preview,
+  runTask,
+  TASK_IDS,
+  TASKS,
+  type AskInput,
+  type AskTurn,
+  type ChallengeInput,
+  type DraftChangesInput,
+  type ExplainInput,
+  type Task,
+  type TaskContext,
+  type TaskId,
+} from "./tasks.js";
 
 // ------------------------------------------------------------------ selectors
 
@@ -50,11 +70,15 @@ export interface Selectors {
   element?: string;
   /** explain: a relationship ID. */
   relationship?: string;
-  /** explain: a lens, by ID or name. */
+  /** explain, ask: a lens, by ID or name (ask: the Architect lens when not given). */
   lens?: string;
+  /** ask: the IDs of the elements and relationships the person referred to (at most BMO_ASK_LIMITS.refs). */
+  refs?: string[];
+  /** ask: earlier turns of the chat, oldest first (at most BMO_ASK_LIMITS.turns). */
+  history?: AskTurn[];
 }
 
-const SELECTOR_KEYS = ["task", "level", "container", "text", "diagram", "element", "relationship", "lens"] as const;
+const SELECTOR_KEYS = ["task", "level", "container", "text", "diagram", "element", "relationship", "lens", "refs", "history"] as const;
 const MAX_SELECTOR = 500;
 
 const isObject = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
@@ -84,7 +108,39 @@ export function parseSelectors(b: unknown, extra: readonly string[] = []): Selec
     if (typeof b.text !== "string") throw new ModelError('"text" must be text.');
     out.text = b.text;
   }
+  if ((b.refs !== undefined || b.history !== undefined) && task !== "ask") throw new ModelError('"refs" and "history" are only for the task "ask".');
+  if (b.refs !== undefined) out.refs = parseRefs(b.refs);
+  if (b.history !== undefined) out.history = parseHistory(b.history);
   return out;
+}
+
+function parseRefs(v: unknown): string[] {
+  const L = BMO_ASK_LIMITS;
+  if (!Array.isArray(v)) throw new ModelError('"refs" must be a list of element or relationship IDs.');
+  if (v.length > L.refs) throw new ModelError(`"refs" holds ${v.length} IDs; at most ${L.refs} objects can be referenced in one question.`);
+  const out: string[] = [];
+  for (const x of v) {
+    if (typeof x !== "string" || !x.trim() || x.length > MAX_SELECTOR) throw new ModelError(`Every entry of "refs" must be an ID (text up to ${MAX_SELECTOR} characters).`);
+    if (!out.includes(x.trim())) out.push(x.trim());
+  }
+  return out;
+}
+
+function parseHistory(v: unknown): AskTurn[] {
+  const L = BMO_ASK_LIMITS;
+  if (!Array.isArray(v)) throw new ModelError('"history" must be a list of earlier turns, {"role": "you" or "bmo", "text": ...}.');
+  if (v.length > L.turns) throw new ModelError(`"history" holds ${v.length} turns; at most ${L.turns} earlier turns are sent.`);
+  let total = 0;
+  return v.map((t, i) => {
+    if (!isObject(t)) throw new ModelError(`"history" entry ${i + 1} must be {"role": "you" or "bmo", "text": ...}.`);
+    for (const k of Object.keys(t)) if (k !== "role" && k !== "text") throw new ModelError(`"history" entry ${i + 1}: unknown field "${k}"; only "role" and "text".`);
+    if (t.role !== "you" && t.role !== "bmo") throw new ModelError(`"history" entry ${i + 1}: "role" must be "you" or "bmo".`);
+    if (typeof t.text !== "string" || !t.text.trim()) throw new ModelError(`"history" entry ${i + 1}: "text" must be text.`);
+    if (t.text.length > L.turnChars) throw new ModelError(`"history" entry ${i + 1} has ${t.text.length} characters; at most ${L.turnChars}.`);
+    total += t.text.length;
+    if (total > L.historyChars) throw new ModelError(`The earlier turns have more than ${L.historyChars} characters together; send fewer.`);
+    return { role: t.role, text: t.text };
+  });
 }
 
 // ------------------------------------------------------------------ planning a task
@@ -101,6 +157,7 @@ export const EFFECT: Record<TaskId, Effect> = {
   challenge: "none",
   "draft-summary": "none",
   "decision-from-draft": "edit-draft",
+  ask: "none",
 };
 
 /** The model version a task reads (explain, challenge, the draft tasks): `ref` is `main` or `draft:<id>`. */
@@ -124,6 +181,8 @@ export interface Planned {
   effect: Effect;
   /** The draft a draft task works on. */
   draftId?: string;
+  /** ask: what the question carries besides itself (shown in the preview). */
+  ask?: BmoAskInfo;
 }
 
 const draftOf = (env: BmoEnv): string => {
@@ -256,6 +315,170 @@ export function planTask(env: BmoEnv, sel: Selectors, passBudgetTokens?: number)
       const id = draftOf(env);
       return { task, inputs: draftChanges(env, id), context: viewContext(), effect, draftId: id };
     }
+    case "ask":
+      return planAsk(env, sel, { ...(passBudgetTokens === undefined ? {} : { passBudgetTokens }), ...(maxInputTokens === undefined ? {} : { maxInputTokens }) });
+  }
+}
+
+/** The ask task's code excerpts use at most this many tokens (and at most the settings' and the intake's budget): one question, not a whole level. */
+export const ASK_CODE_TOKENS = 24_000;
+
+const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
+const MAX_PART_RELATIONSHIPS = 80;
+
+/**
+ * One referenced element as text: `objectText`, the chain of its parents, and (for a system or container) the
+ * relationships of what it contains with objects outside it, since those are often where its connections are recorded.
+ */
+function askElementText(src: ModelSource, id: string, sections: readonly string[]): string {
+  const idx = buildIndex(src.workspace);
+  const chain = parentChain(src.workspace, id);
+  const out = [objectText(src.workspace, src.sidecar, id, sections).trimEnd()];
+  if (chain) out.push(`Parents (outermost first): ${chain}`);
+  const inside = new Set(idx.descendants(id));
+  const name = (e: string) => JSON.stringify(idx.elements.get(e)?.name ?? e);
+  const lines: string[] = [];
+  for (const r of idx.relationships.values()) {
+    const fromInside = inside.has(r.sourceId);
+    if (fromInside === inside.has(r.destinationId)) continue;
+    const part = fromInside ? r.sourceId : r.destinationId;
+    const other = fromInside ? r.destinationId : r.sourceId;
+    if (other === id) continue;
+    lines.push(`- ${r.id}: ${name(part)} ${fromInside ? "->" : "<-"} ${other} ${name(other)} ${JSON.stringify(r.description || "")}`);
+  }
+  if (lines.length) {
+    out.push("Relationships of what it contains with objects outside it:", ...lines.slice(0, MAX_PART_RELATIONSHIPS));
+    if (lines.length > MAX_PART_RELATIONSHIPS) out.push(`- (and ${lines.length - MAX_PART_RELATIONSHIPS} more)`);
+  }
+  return out.join("\n") + "\n";
+}
+
+/** One referenced relationship as text: `relationshipText`, and where each end sits. */
+function askRelationshipText(src: ModelSource, id: string, sections: readonly string[]): string {
+  const idx = buildIndex(src.workspace);
+  const r = idx.relationships.get(id)!;
+  const end = (label: string, e: string) => {
+    const chain = parentChain(src.workspace, e);
+    const el = idx.elements.get(e);
+    return `${label}: ${el ? `${idx.kindOf(e)} ${e} ${JSON.stringify(el.name)}` : e}${chain ? ` inside ${chain}` : ""}`;
+  };
+  return relationshipText(src, id, sections) + `${end("Source", r.sourceId)}\n${end("Destination", r.destinationId)}\n`;
+}
+
+/**
+ * The ask task: the question, the objects referred to (each with its neighbourhood), the context when none is,
+ * the code excerpts of those objects when the lens shows code, and the earlier turns. When the prompt is over the
+ * run size limit (`maxInputTokens`), the oldest turns go first, then the last-ranked excerpts; the preview says what went.
+ * `passBudgetTokens`: the settings' budget, which (with the intake's and ASK_CODE_TOKENS) caps the excerpts.
+ */
+export function planAsk(env: BmoEnv, sel: Selectors, opts: { passBudgetTokens?: number; maxInputTokens?: number } = {}): Planned {
+  const L = BMO_ASK_LIMITS;
+  const task = getTask("ask") as Task<unknown>;
+  const { passBudgetTokens } = opts;
+  const context: TaskContext = {
+    model: { workspace: env.view.src.workspace, sidecar: env.view.src.sidecar, decisions: env.view.src.decisions },
+    code: env.view.code,
+    variant: "direct",
+    ...(opts.maxInputTokens === undefined ? {} : { maxInputTokens: opts.maxInputTokens }),
+  };
+  const question = (sel.text ?? "").trim();
+  if (!question) throw new ModelError('Type a question ("text").');
+  if (question.length > L.questionChars) throw new ModelError(`The question has ${question.length} characters; at most ${L.questionChars}. Shorten it or ask in parts.`);
+  for (const k of ["element", "relationship", "container", "level"] as const) {
+    if (sel[k] !== undefined) throw new ModelError(`"${k}" is not used by "ask": refer to objects with "refs".`);
+  }
+  const src = env.view.src;
+  const lens = sel.lens ? lensOf(src, sel.lens) : ARCHITECT;
+  const sections = lens.visibleSections;
+  const idx = buildIndex(src.workspace);
+  const refs = sel.refs ?? [];
+  const objects: BmoAskInfo["objects"] = [];
+  const texts: string[] = [];
+  const codePaths: string[] = [];
+  for (const id of refs) {
+    if (idx.elements.has(id)) {
+      const s = elementSummary(idx, id);
+      objects.push({ id, name: s.name, kind: idx.kindOf(id) });
+      texts.push(askElementText(src, id, sections));
+      codePaths.push(...s.codePaths);
+    } else if (idx.relationships.has(id)) {
+      const s = relationshipSummary(idx.relationships.get(id)!);
+      const name = (e: string) => idx.elements.get(e)?.name ?? e;
+      objects.push({ id, name: `${name(s.sourceId)} → ${name(s.destinationId)}${s.description ? `: ${s.description}` : ""}`, kind: "relationship" });
+      texts.push(askRelationshipText(src, id, sections));
+      codePaths.push(...s.codePaths);
+    } else throw new ModelError(`There is no element or relationship "${id}" in this version of the model.`);
+  }
+  const d = sel.diagram ? diagramFor(env, sel.diagram) : null;
+  const trimmed: string[] = [];
+  let ctxText: string | undefined;
+  let kind: BmoAskInfo["context"] = "objects";
+  if (!objects.length) {
+    if (d) {
+      ctxText = diagramText(d, { sections, showTechnology: lens.showTechnology, showDescriptions: lens.showDescriptions });
+      kind = "diagram";
+    } else {
+      ctxText = overviewText(src.workspace);
+      kind = "overview";
+    }
+  }
+  const viewing = objects.length && d ? `The person is looking at the diagram ${JSON.stringify(d.title)} (key ${d.key}).` : undefined;
+
+  // Code excerpts: only when the lens shows code, and only through the same gate and redaction as the import digest.
+  let excerpts: ObjectExcerpts | null = null;
+  if (sections.includes("code") && codePaths.length) {
+    const { intake, errors } = readIntake(env.project.root);
+    let ignore: string[] | null;
+    try {
+      ignore = readState(env.project.root).ignore;
+    } catch {
+      ignore = null;
+    }
+    if (errors.length || ignore === null) trimmed.push("No code excerpts: the import intake or ignore list has problems, so dp cannot tell which files are closed. Fix them on the Import page.");
+    else if (!env.view.code.hasRoot) trimmed.push(`No code excerpts: there is no code to read in ${env.view.code.label}.`);
+    else {
+      const budgetTokens = Math.min(ASK_CODE_TOKENS, intake.settings.passBudgetTokens, passBudgetTokens ?? Infinity);
+      excerpts = objectExcerpts(env.view.code, intake, codePaths, { budgetTokens, ignore });
+      const closed = excerpts.leftOut.filter((l) => l.reason.startsWith("not opened")).length;
+      const over = excerpts.leftOut.length - closed;
+      if (closed) trimmed.push(`${plural(closed, "file")} under the code paths ${closed === 1 ? "was" : "were"} not opened (hidden, closed by the intake, or likely to hold secrets).`);
+      if (over) trimmed.push(`${plural(over, "file")} under the code paths did not fit in the code budget of ${budgetTokens.toLocaleString("en-US")} tokens.`);
+    }
+  } else if (codePaths.length) trimmed.push(`No code excerpts: the lens "${lens.name}" does not show code.`);
+
+  const given = sel.history ?? [];
+  let history = [...given];
+  let entries = excerpts?.entries ?? [];
+  const inputsOf = (): AskInput => ({
+    question,
+    lens: { name: lens.name, sections },
+    objects: texts,
+    ...(ctxText !== undefined ? { context: ctxText } : {}),
+    ...(viewing ? { viewing } : {}),
+    history,
+    ...(excerpts && entries.length ? { code: { text: objectExcerptText(entries, excerpts.leftOut), attachments: entries.map((e) => e.sent) } } : {}),
+  });
+  const max = context.maxInputTokens;
+  const tokens = () => buildSafeTokens(task, inputsOf(), context);
+  if (max !== undefined && tokens() > max) {
+    while (history.length && tokens() > max) history = history.slice(1);
+    const droppedTurns = given.length - history.length;
+    if (droppedTurns) trimmed.push(`${plural(droppedTurns, "earlier turn")} left out to stay within the size limit.`);
+    const had = entries.length;
+    while (entries.length && tokens() > max) entries = entries.slice(0, -1);
+    if (had > entries.length) trimmed.push(`${plural(had - entries.length, "code excerpt")} left out to stay within the size limit.`);
+  }
+  const ask: BmoAskInfo = { objects, context: kind, history: { sent: history.length, given: given.length }, trimmed };
+  return { task, inputs: inputsOf(), context, effect: EFFECT.ask, ask };
+}
+
+/** The estimated tokens of a task's prompt (0 when it cannot be built: the preview then says why). */
+function buildSafeTokens(task: Task<unknown>, inputs: unknown, ctx: TaskContext): number {
+  try {
+    return task.build(inputs, ctx).estTokens;
+  } catch {
+    return 0;
   }
 }
 
@@ -298,6 +521,7 @@ export function previewOf(plan: Planned, s: BmoSettings, dest: Destination): Bmo
     system: p.system,
     user: p.user,
     estCost: estimateCost(s, p.estTokens),
+    ...(plan.ask ? { ask: plan.ask } : {}),
   };
 }
 

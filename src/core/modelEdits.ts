@@ -32,6 +32,8 @@
  *   dp.work          JSON [{"type","title","url","status","severity","note"}]  elements, relationships;
  *                    linked work: security issues, pull requests, issues, backlog items, required updates
  *   dp.code.paths    JSON ["path/relative/to/code/root", ...]    elements, relationships
+ *   dp.code.from     a path in the SOURCE element's code paths: where the call leaves it    relationships (C4 code
+ *   dp.code.to       a path in the DESTINATION element's code paths: where it arrives       diagrams draw the line to it)
  *   dp.kind          connector kind (data-pipeline, ...)         relationships
  *   dp.stages        JSON [{"id","name","technologies",...,"example","format"}]  relationships;
  *                    a stage's example is the data leaving that stage
@@ -63,6 +65,9 @@ export const TRADEOFFS_KEY = "dp.tradeoffs";
 export const USAGE_KEY = "dp.usage";
 export const SENSITIVE_KEY = "dp.sensitive";
 export const CODE_KEY = "dp.code.paths";
+/** The file in the source element's code where a relationship leaves it, and the file in the destination's where it arrives. */
+export const CODE_FROM_KEY = "dp.code.from";
+export const CODE_TO_KEY = "dp.code.to";
 export const KIND_KEY = "dp.kind";
 export const STAGES_KEY = "dp.stages";
 export const EXAMPLE_KEY = "dp.example";
@@ -740,6 +745,8 @@ export function relationshipSummary(r: Relationship): RelationshipSummary {
     stages: getJson<Stage>(r, STAGES_KEY),
     work: getJson<WorkItem>(r, WORK_KEY),
     codePaths: getJson<string>(r, CODE_KEY),
+    codeFrom: props[CODE_FROM_KEY] ?? "",
+    codeTo: props[CODE_TO_KEY] ?? "",
     example: props[EXAMPLE_KEY] ?? "",
     format: props[FORMAT_KEY] ?? "",
     endpoints: getJson<Endpoint>(r, ENDPOINTS_KEY),
@@ -1211,6 +1218,26 @@ function setKind(r: Relationship, kind: unknown): void {
   setProp(r, KIND_KEY, k);
 }
 
+/**
+ * The file where a relationship leaves its source element or arrives at its destination (`dp.code.from` /
+ * `dp.code.to`): a clean path inside the code folder that is, or lies under, one of that element's code paths.
+ * Checked on the model alone (the code folder is not needed). An empty value clears it.
+ */
+export function cleanCodeEnd(value: unknown, end: Element, verb: "leaves" | "arrives", role: "source" | "destination"): string {
+  const raw = str(value).trim().replace(/\\/g, "/");
+  if (!raw) return "";
+  const p = normpath(raw);
+  if (p === "." || p.startsWith("/") || p === ".." || p.startsWith("../") || /^[A-Za-z]:/.test(p) || p.split("/").some((seg) => seg.startsWith("."))) {
+    throw new ModelError(`"${raw}" is not a file inside the code folder.`);
+  }
+  const paths = getJson<string>(end, CODE_KEY).map((x) => normpath(String(x).replace(/\\/g, "/")));
+  if (paths.length === 0) throw new ModelError(`"${end.name}" has no code paths yet. Map its code first, then choose the file where the call ${verb} it.`);
+  if (!paths.some((x) => x === "." || p === x || p.startsWith(x.replace(/\/+$/, "") + "/"))) {
+    throw new ModelError(`"${raw}" is not in the code of "${end.name}" (the ${role} of this relationship). Choose a file under: ${paths.join(", ")}.`);
+  }
+  return p;
+}
+
 export function updateRelationship(ws: Workspace, relId: string, patch: Obj): void {
   const idx = buildIndex(ws);
   const r = idx.rel(relId);
@@ -1225,6 +1252,8 @@ export function updateRelationship(ws: Workspace, relId: string, patch: Obj): vo
   if ("notes" in patch) setProp(r, NOTES_KEY, str(patch.notes).replace(/^\n+|\n+$/g, "") || null);
   if ("sensitive" in patch) setJson(r, SENSITIVE_KEY, cleanSensitive(patch.sensitive));
   if ("codePaths" in patch) setJson(r, CODE_KEY, cleanPaths(patch.codePaths, getJson<string>(r, CODE_KEY)));
+  if ("codeFrom" in patch) setProp(r, CODE_FROM_KEY, cleanCodeEnd(patch.codeFrom, idx.el(r.sourceId), "leaves", "source") || null);
+  if ("codeTo" in patch) setProp(r, CODE_TO_KEY, cleanCodeEnd(patch.codeTo, idx.el(r.destinationId), "arrives", "destination") || null);
   if ("stages" in patch) setJson(r, STAGES_KEY, cleanStages(patch.stages, idx));
   if ("work" in patch) setJson(r, WORK_KEY, cleanWork(patch.work));
   if ("example" in patch) setProp(r, EXAMPLE_KEY, cleanExample(patch.example, "this relationship") || null);
