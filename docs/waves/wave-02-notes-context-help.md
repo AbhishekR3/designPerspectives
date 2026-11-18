@@ -66,7 +66,7 @@ Notes are easy to write, read and find for three audiences: people, BMO and codi
    - generated CLI help (`dp <command> --help`);
    - the help card's hints.
 7. **Help without an LLM.**
-   - A word index (BM25) over the sections.
+   - A word index (BM25) over the sections, written as a small reusable module with no file or network access in the ranking code, because Wave 14 reuses it for code and docs.
    - `dp help <words>`.
    - A search box in the help card, through `GET /api/help/search?q=`.
 8. **BMO help task.** "Ask about dp" in the chat, with a fixed template.

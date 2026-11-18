@@ -176,7 +176,7 @@ Every BMO text answer says what it is based on, and dp checks those citations. T
 ## Out of scope
 
 - Help about dp and the "include notes" switch (Wave 2).
-- Retrieval and embeddings (Wave 14).
+- Retrieval by word index (Wave 14). No embeddings are planned.
 - Anti-pattern review, proposed ratings and suggested risks (Wave 11).
 - Multi-pass runs for very large repositories (future_tasks 1.3).
 

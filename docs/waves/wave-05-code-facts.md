@@ -141,7 +141,7 @@ The explanation of how config files and `tools.py` show up today is in [question
 | 1 | Re-anchor | Explore · Haiku | The files above | Anchors confirmed |
 | 2 | Language modules (no behaviour change) and the JS tokenizer | general-purpose · Sonnet | `src/core/languages/*` (new), `codeMap.ts`, `scan.ts` | The demo evidence is unchanged, apart from the JS fixes, which are noted |
 | 3 | Config facts and redaction | general-purpose · Opus | `scan.ts`, `src/assistant/redact.ts` (reuse), `review.ts` (`factRelates`) | No value ever reaches `evidence.json`; secret-looking fixtures are masked |
-| 4 | File roles, intake overrides, badges, walker, cache, language mix | general-purpose · Sonnet | `scan.ts`, `intake.ts`, `unmappedCode.ts`, `codeMap.ts`, `ui/src/panels/MultiSelectAndFilePanels.tsx`, the Import page intake form | Roles and toggles work; overrides validated |
+| 4 | File roles, intake overrides, badges, walker, cache, language mix | general-purpose · Sonnet | `scan.ts`, `intake.ts`, `unmappedCode.ts`, `codeMap.ts`, `ui/src/panels/MultiSelectAndFilePanels.tsx`, the Import page intake form (Wave 15 later asks the role overrides as interview questions; the intake file stays the store) | Roles and toggles work; overrides validated |
 | 5 | Java and Kotlin (5b) | general-purpose · Sonnet | `languages/java.ts`, `kotlin.ts`, `scan.ts` readers, `knownServices.ts`, `analysis.ts`, `review.ts`, `codeExcerpts.ts` | The fixtures pass |
 | 6 | Fixture tests (not the authors of steps 2–5) | general-purpose · Sonnet | `tests/unit/lang-*.test.ts`, `tests/fixtures/java/` | Tests as listed below |
 | 7 | Docs | general-purpose · Haiku | CHANGELOG, decisions.md, reviews.md, README (languages, roles), CLAUDE.md | All docs updated |

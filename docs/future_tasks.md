@@ -34,7 +34,8 @@ The owner's list of 22 things to build is planned as 14 waves in [waves/](waves/
 | 11 | BMO reviews: the anti-pattern button, proposed ratings, suggested risks | M |
 | 12 | Runtime: telemetry anti-patterns, runtime drift, A/B split | M |
 | 13 | Contracts: tell consumers when a producer's output changes | M–L |
-| 14 | Retrieval and local models (gated): word index, optional local embeddings, GPU status | M |
+| 14 | Local runtimes and the word index: OpenAI-compatible local servers, GPU status, bounded settings, BM25 for choosing context (no embeddings) | M |
+| 15 | Guided import interview: deterministic scan first, then "question x of y" cards the user approves or answers, then a draft | L |
 
 ### 1.1 Order already decided by the owner
 
@@ -112,7 +113,7 @@ None of these has an agreed scope. Each line says what is open.
 |---|---|---|
 | **Product vision** | The owner calls this the most important open item: "What is this tool for? Who is it for? When developing a product, what do you think about? This can't be for everyone, it needs a product vision." Open: the users dp is for, the few jobs it must do well, what it will not do, and how success is seen. Several planned waves depend on the answer (waves question ★A1). | [Owner, 2026-11-17] |
 | **A checklist for release 1.0.0** | What must be true before 1.0.0: features, docs, a security review, the checks only the owner can run (1.5), installing on Windows. It could be a third starter list in the in-app checklist (DEC-084). | [Owner, 2026-11-17] |
-| **Is creating C4 from a codebase a job only an LLM can do?** | Facts (waves questions, 0.3): containers, technology, known external services, import lines and the code level come from files without an LLM. People, the system boundary, component boundaries and all names and labels need judgment, from a person or an LLM. Open: whether a skeleton import without BMO should be offered on its own. Wave 6 builds the mechanism, for fixing drift. | [Owner, 2026-11-17] |
+| **Is creating C4 from a codebase a job only an LLM can do?** | Facts (waves questions, 0.3): containers, technology, known external services, import lines and the code level come from files without an LLM. People, the system boundary, component boundaries and all names and labels need judgment, from a person or an LLM. Owner's answer [2026-11-18]: make all deterministic calls first, then ask the user, in a UI with "question x of y" (Wave 15). The skeleton import without BMO is that path. Wave 6 builds the mechanism for fixing drift. | [Owner, 2026-11-17] |
 | **TOGAF** | The owner does not expect to need it ("I don't think so") but wants it kept for a later analysis. Open: whether any part of it fits dp (an architecture repository, building blocks, the phases of its development method), or whether it stays out of scope. | [Owner, 2026-11-17] |
 
 ### 2.1 Model and diagrams

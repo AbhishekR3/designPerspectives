@@ -9,12 +9,12 @@
 - **Part 0. Answers to the questions you asked me**
   - 0.1 A/B tests, feature flags and conditional services in C4
   - 0.2 Config files and shared helpers such as `tools.py`
-  - 0.3 Where LLM false positives and negatives appear, by C4 level
-  - 0.4 GPU acceleration
-  - 0.5 A vector DB
+  - 0.3 Where LLM false positives and negatives appear, by C4 level *(answered: Wave 15)*
+  - 0.4 GPU acceleration *(answered: local runtimes, Wave 14)*
+  - 0.5 A vector DB *(answered: word index only, Wave 14)*
   - 0.6 Better fixed context prompts
 - **Part A. Cross-cutting questions:** ★A1 to A10
-- **Part B. Questions per wave:** Q1.x to Q14.x
+- **Part B. Questions per wave:** Q1.x to Q15.x
 
 ---
 
@@ -149,7 +149,9 @@ A **false positive** is something in the model that isn't true. A **false negati
 - These need judgment, from a person or an LLM: people, the boundary, component boundaries and every name.
 - A skeleton import without BMO is possible. Wave 6 builds one to fix drift.
 
-**Your thinking (optional):**
+**Your thinking (optional):** For importing a codebase, people don't want to create diagrams by hand. When importing, make all the deterministic calls first, then ask the user questions. Show it as a UI with x/y questions: for example, show what dp was thinking of labelling certain items, and the user approves or disapproves. Questions can be grouped. Asking more questions is better than fewer, to get the right answer. Start with a few preliminary questions, either text answers or a choice between options: whatever gets the most context out of the user for this codebase. Assume the user knows the basics of the project, may know more, but probably doesn't.
+
+**Applied [2026-11-18].** This becomes a new wave, [Wave 15: Guided import interview](wave-15-guided-import-interview.md). It replaces "an intake form, then BMO" as the way a codebase comes in. The scan decides everything it can; the interview asks the rest, a few questions at a time, as "question x of y".
 
 ### 0.4 What can GPU acceleration speed up here?
 
@@ -173,7 +175,9 @@ dp's own work is scanning files, import graphs, metrics, diffs and layout. That 
 | A model in the browser on WebGPU | Large downloads, slower than a local runtime, a heavy dependency. Not now |
 | **Make local runtimes first-class** | Show whether the model sits on the GPU. Offer bounded runtime settings (context size, how long a model stays loaded). Add a provider for local servers that speak the OpenAI chat API, loopback only by default as DEC-065 pins hosts. Write setup notes per platform. **Recommended (Wave 14)** |
 
-**Your thinking (optional):**
+**Your thinking (optional):** Make local runtimes first-class.
+
+**Applied [2026-11-18].** The third option, as recommended. No CUDA or MPS code in dp. [Wave 14](wave-14-retrieval-local-models.md) is now about local runtimes and the word index; Q14.4 is answered by this. It is no longer gated on Wave 1's evaluation.
 
 ### 0.5 What would a vector DB speed up?
 
@@ -199,7 +203,9 @@ dp's own work is scanning files, import graphs, metrics, diffs and layout. That 
 - No database server.
 - Build it only if Wave 1's evaluation shows that choosing context is what holds answers back.
 
-**Your thinking (optional):**
+**Your thinking (optional):** Do only the word indexing.
+
+**Applied [2026-11-18].** The word index (BM25) only. Dropped from Wave 14: local embeddings, the flat vector file, fusion, and the embeddings call to Ollama. Nothing else changes: no database server, no cloud calls. Embeddings can come back later as their own task if Wave 1's evaluation shows the word index misses what BMO needs (the evaluation comparison stays in Wave 14). This also answers Q14.1 (go), Q14.2, Q14.3 and Q14.5.
 
 ### 0.6 What makes a better fixed context prompt?
 
@@ -1210,19 +1216,19 @@ Anything else is "changed, impact unknown".
 
 **Recommended.** Build this wave only if Wave 1's evaluation shows BMO missing context it needed, or if you say go.
 
-**Your thinking:**
+**Your thinking:** Answered by 0.4 and 0.5: go, for local runtimes and the word index. No gate.
 
 #### ★Q14.2 A vector DB, or a flat index?
 
 **Recommended.** A flat index in `.dp/index/`, with no database server (see 0.5).
 
-**Your thinking:**
+**Your thinking:** Answered by 0.5: only the word index. No vector file at all for now. The word index still lives in `.dp/index/`, with no database server.
 
 #### ★Q14.3 Embeddings
 
 **Recommended.** Local only (Ollama). Cloud embeddings would send the whole index past the preview.
 
-**Your thinking:**
+**Your thinking:** Answered by 0.5: no embeddings, local or cloud, in this wave.
 
 #### ★Q14.4 GPU
 
@@ -1232,10 +1238,56 @@ Anything else is "changed, impact unknown".
 - bounded runtime settings;
 - setup notes.
 
-**Your thinking:**
+**Your thinking:** Answered by 0.4: make local runtimes first-class, as recommended.
 
 #### Q14.5 Word index first
 
 **Recommended.** BM25 first. Add embeddings on top only if the evaluation shows they help.
+
+**Your thinking:** Answered by 0.5: BM25 only. Embeddings are not planned.
+
+### Wave 15: Guided import interview
+
+*New: it comes from your answer to 0.3. These have recommendations and none changes the direction you set.*
+
+#### ★Q15.1 One interview, or one per level?
+
+**Analysis.** DEC-051 brings a codebase in one C4 level at a time, with a draft per level. Your answer asks for one flow with "x of y" questions.
+
+**Options**
+1. **One interview, a draft per level.** Steps 1 and 2 are asked once. Then each level is answered and imported on its own, so the model stays reviewable (DEC-051). "x of y" counts the current level, with the later levels listed as "still to come".
+2. **One interview, one draft.** Faster to click through, but one very large draft to review.
+
+**Recommended.** Option 1.
+
+**Your thinking:**
+
+#### ★Q15.2 Is a click in the interview the final accept?
+
+**Analysis.** Today an unverified item needs an explicit accept in the review (`review.ts:754`). If the user has already approved the card, asking again is noise; but a card approved quickly with "Approve all" is a weaker check than the review.
+
+**Options**
+1. **The card approval is the accept** and is recorded with who made it. The review screen still shows every item and its level.
+2. **The interview only proposes.** Everything is reviewed again afterwards.
+
+**Recommended.** Option 1, but "Approve all of these" never covers items the scan could not back with evidence. Those need their own click.
+
+**Your thinking:**
+
+#### Q15.3 Where the answers live
+
+**Recommended.** `architecture/import/interview.json`, next to the intake, outside the model and with a fixed key order. BMO's questions stay in the checklist and appear in the interview as one group.
+
+**Your thinking:**
+
+#### Q15.4 Where it sits on the Import page
+
+**Recommended.** A "Guide me" button at the top that opens the interview full width. The current sections (scan, readiness, bring in a level, labels) stay under "Advanced" for people who want the manual route and for the handoff file.
+
+**Your thinking:**
+
+#### Q15.5 BMO's part
+
+**Recommended.** Build 15a first: the interview and the draft without BMO. Then 15b: BMO adds name, description and label cards marked "BMO suggests", never pre-approved, and BMO's own questions appear last.
 
 **Your thinking:**

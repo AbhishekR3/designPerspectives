@@ -1,6 +1,6 @@
 # Waves: the owner's list of 2026-11-17
 
-Status: **planning**. Waiting for the owner's answers in [questions.md](questions.md). Nothing in this folder is built yet.
+Status: **planning**. Part 0 of [questions.md](questions.md) is answered and applied (2026-11-18); the rest is waiting for the owner's answers. Nothing in this folder is built yet.
 
 This folder turns the owner's list of 2026-11-17 into **waves**. A wave is one branch of work that one agent runs from start to finish, handing parts to subagents. Each wave has its own file. This file is the index: the order, the rules every wave follows, who does what, and where each item of the list went.
 
@@ -31,7 +31,7 @@ Recommended order. You can change it in questions.md (★A3). Sizes compare the 
 | 4 | [Roles, data and variants](wave-04-roles-data-variants.md) | CRUD letters on data access, people as roles, a role × data matrix; conditions on lines and A/B variants as grouped flows | 20, 5 | — | M | Waiting for answers |
 | 5 | [Code facts](wave-05-code-facts.md) | One module per language, Java (and Kotlin imports), Maven and Gradle, a role for every file (config, test, shared helper…), facts from config files, language mix per object | 14, 8 | — | L (split point: Java as 5b) | Waiting for answers |
 | 6 | [Drift and findings](wave-06-drift-and-findings.md) | Model ↔ code drift in both directions (found / not found / not checkable), one Finding shape and acknowledgements for every later check, "update the model from code" through the import review, `dp drift` | 1 | 5 | M–L | Waiting for answers |
-| 7 | [Metrics](wave-07-metrics.md) | Ca, Ce, instability, cycles, abstractness, distance (computed); complexity and LCOM (approximate, labelled); computed off the request path with a cache | 6 | 5, 6 | M | Waiting for answers |
+| 15 | [Guided import interview](wave-15-guided-import-interview.md) | Importing a codebase: the scan makes every deterministic call, then a "question x of y" interview asks the rest: first a few plain questions, then grouped approve/disapprove cards for what dp would label, then the draft. Many questions are fine. Number 15 is an id, not a place in the order | 11 (answer 0.3) | 5, 1 | L (split point: interview 15a, BMO-proposed cards 15b) | Answers applied; ready after Waves 5 and 1 || 7 | [Metrics](wave-07-metrics.md) | Ca, Ce, instability, cycles, abstractness, distance (computed); complexity and LCOM (approximate, labelled); computed off the request path with a cache | 6 | 5, 6 | M | Waiting for answers |
 | 8 | [Rules and presets](wave-08-rules-and-presets.md) | One rule registry (the checklist's rules move into it), presets a team switches on, anti-pattern detectors dp runs itself; never blocks a save | 18, 21 (from the model and code) | 3, 6, 7 | L | Waiting for answers |
 | 9 | [Characteristics table](wave-09-characteristics-table.md) | Needed vs current stars per system and container, compared across main, drafts, git versions and decisions | 7 | 7 | M | Waiting for answers |
 | 10 | [Risk and risk storming](wave-10-risk-storming.md) | Risks per part and characteristic, the assessment grid, a computed risk overlay, sessions where people score privately before agreeing | 10 | 9 | M | Waiting for answers |
@@ -39,7 +39,7 @@ Recommended order. You can change it in questions.md (★A3). Sizes compare the 
 | — | *Deployment diagrams* | *Already decided (DEC-019, DEC-022). Goes here if ★A2 says interleave.* | — | — | L | — |
 | 12 | [Runtime](wave-12-runtime-telemetry.md) | Traces and System Testing runs added up: busy, slow and failing lines, chatty and repeated calls, cycles, deep chains, calls the model lacks, A/B split from flag events | 21 (from telemetry) | 4, 6, 8 | M | Waiting for answers |
 | 13 | [Contracts and consumer notifications](wave-13-contracts.md) | A contract on what a service sends, fingerprints, who consumes it, breaking changes by direction, "needs a look" for the consumer, `dp contracts` | 19 | 4, 6 | M–L | Waiting for answers |
-| 14 | [Retrieval and local models](wave-14-retrieval-local-models.md) | A word index (and optional local embeddings) for picking context, local model servers, GPU status. **Gated:** only if Wave 1's evaluation shows missing context, or you say go | 16, 15 | 1, 2 | M | Waiting for answers (gated) |
+| 14 | [Local runtimes and the word index](wave-14-retrieval-local-models.md) | Local runtimes first-class (OpenAI-compatible local servers, GPU share as Ollama reports it, bounded runtime settings, setup notes) and a BM25 word index for choosing context. No embeddings, no vector file, no native GPU code. Not gated (owner answers 0.4, 0.5). Depends only on Waves 1 and 2, so it can move earlier | 16, 15 | 1, 2 | M | Answers applied; ready after Waves 1 and 2 |
 
 ```mermaid
 graph LR
@@ -52,6 +52,7 @@ graph LR
   W4 & W6 & W8 --> W12
   W4 & W6 --> W13
   W1 & W2 --> W14
+  W5 & W1 --> W15
 ```
 
 Wave 4 and Wave 5 depend on nothing in this list and can move earlier or later.
@@ -105,8 +106,8 @@ The owner asked (2026-11-14, 2026-11-16) to split work across models to save usa
 | Building | general-purpose | Sonnet | Well-specified implementation, UI and tests. Fixture tests are written by a different subagent from the one that wrote the code |
 | Paperwork | general-purpose | Haiku | CHANGELOG, README feature list, CLAUDE.md map, the reviews.md skeleton, the TESTS.csv check |
 
-- Run **one Opus agent at a time**: two in parallel used up the five-hour limit fastest.
-- Run **one agent at a time that builds the UI or runs browser tests**, because parallel builds overwrite `static/`.
+- Run **up to 3 agents at once** (owner, 2026-11-18, replacing the earlier one-at-a-time rule). Give parallel agents separate files. Keep an eye on usage when several are Opus.
+- Only **one agent at a time builds the UI or runs browser tests**, because parallel builds overwrite `static/`. This is a technical limit, not a usage rule.
 - When an agent is cut off, resume it with SendMessage rather than starting again. Give follow-up fixes, with precise briefs, to Sonnet.
 - Fable is used only if the owner asks for it.
 
@@ -139,12 +140,12 @@ The owner's list of things to build (2026-11-17):
 | 8 | How config files and common functions such as `tools.py` show up | Explained in questions 0.2. Wave 5 (file roles, config facts) |
 | 9 | Better fixed context prompts, never written by an LLM | Wave 1 · questions 0.6 |
 | 10 | Risk analysis such as risk storming | Wave 10. BMO suggestions in Wave 11 |
-| 11 | Where LLM false positives and negatives appear; which levels are guesses | Explained in questions 0.3. `docs/determinism.md` in Wave 1 |
+| 11 | Where LLM false positives and negatives appear; which levels are guesses | Explained in questions 0.3. `docs/determinism.md` in Wave 1. The owner's answer to 0.3 (deterministic first, then ask the user) is Wave 15 |
 | 12 | LLM use is fine where determinism is impossible, but called out | The determinism classes (★A4) and BMO's labels (Wave 1), followed by every wave |
 | 13 | An ADR section where each decision can have files or info attached | Wave 3 · Q3.4–Q3.6 |
 | 14 | More languages, such as Java | Wave 5 · Q5.1–Q5.4 |
-| 15 | GPU acceleration (CUDA, MPS) where it applies | Explained in questions 0.4. Wave 14 · Q14.4 |
-| 16 | A vector DB for faster LLM processing | Explained in questions 0.5. Wave 14 · Q14.1–Q14.3 |
+| 15 | GPU acceleration (CUDA, MPS) where it applies | Explained in questions 0.4; owner chose local runtimes first-class. Wave 14 (no native GPU code) |
+| 16 | A vector DB for faster LLM processing | Explained in questions 0.5; owner chose the word index only. Wave 14 (no vectors) |
 | 17 | BMO answers questions about designPerspectives itself | Wave 2 (help corpus, search, help task) |
 | 18 | Architecture validation and presets | Wave 8 |
 | 19 | When A's output changes, tell B (which reads it), in the UI | Wave 13 |
@@ -164,7 +165,7 @@ The owner's list of things to think about later, all in [../future_tasks.md](../
 | Code reviews and test coverage through the tool | 2.4 |
 | Debugging through dp compared with an editor's debugger | 2.7 |
 | Risk analysis | 2.3 (first cut: Wave 10) |
-| Is creating C4 from a codebase an LLM-only job? | 2.0 (facts in questions 0.3) |
+| Is creating C4 from a codebase an LLM-only job? | 2.0 (facts in questions 0.3). Owner's answer: make all deterministic calls, then ask the user (Wave 15) |
 | A checklist for release 1.0.0 | 2.0 |
 | Data drift | 2.2 |
 | **Product vision (most important)** | 2.0, and questions ★A1 |
