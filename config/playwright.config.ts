@@ -12,7 +12,7 @@ export default defineConfig({
   expect: { timeout: 7_000 },
   fullyParallel: true,
   workers: process.env.CI ? 2 : undefined,
-  reporter: process.env.CI ? [["list"], ["github"]] : "list",
+  reporter: process.env.GITHUB_ACTIONS ? [["list"], ["github"]] : "list",
   use: {
     viewport: { width: 1500, height: 950 },
     launchOptions: exe ? { executablePath: exe } : {},

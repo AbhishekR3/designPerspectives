@@ -1,0 +1,68 @@
+# CI for designPerspectives (DEC-089). Runs the same steps as `npm run ci` (scripts/ci-local.ts), on Linux with Node 20 and 22.
+# The format, test list, built-UI, demo and package checks run on Node 22 only.
+#
+# NOT RUN YET: this file was written without access to a GitLab project. The first pipeline is its real test.
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+default:
+  interruptible: true
+
+test:
+  stage: test
+  image: node:$NODE
+  parallel:
+    matrix:
+      - NODE: ["20", "22"]
+  variables:
+    npm_config_cache: $CI_PROJECT_DIR/.npm
+    npm_config_audit: "false"
+    npm_config_fund: "false"
+  cache:
+    key:
+      files:
+        - package-lock.json
+        - ui/package-lock.json
+      prefix: node-$NODE
+    paths:
+      - .npm/
+  script:
+    - node --version
+    # Install (builds dist/)
+    - npm ci --prefer-offline
+    - npm run typecheck
+    - npm run lint
+    - '[ "$NODE" != "22" ] || npm run format:check'
+    - npm test
+    - '[ "$NODE" != "22" ] || npm run test:list -- --check'
+    # Build UI
+    - npm --prefix ui ci --prefer-offline
+    - npm --prefix ui run build
+    # Built UI is committed
+    - '[ "$NODE" != "22" ] || { git diff --exit-code --stat static/ && test -z "$(git status --porcelain static/)"; }'
+    # Browser tests
+    - npx playwright install --with-deps chromium
+    - npm run test:browser
+    # Demo model is up to date
+    - '[ "$NODE" != "22" ] || { npm run make-demo && git diff --exit-code demo/; }'
+    # Demo model, its sample draft and its code mapping check clean
+    - '[ "$NODE" != "22" ] || { npm run dp -- init --demo /tmp/demo-check && npm run dp -- check --strict /tmp/demo-check; }'
+    # Package installs and runs
+    - |
+      if [ "$NODE" = "22" ]; then
+        set -e
+        npm pack
+        npm install -g ./designperspectives-*.tgz
+        dp --version
+        mkdir /tmp/dp-smoke
+        dp init /tmp/dp-smoke
+        dp validate /tmp/dp-smoke
+      fi
+  artifacts:
+    when: on_failure
+    expire_in: 1 week
+    paths:
+      - test-results/

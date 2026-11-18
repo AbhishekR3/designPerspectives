@@ -832,3 +832,15 @@ Entry format: **ID — title** · date · status · who decided · what was deci
   - Main models only: drafts are not included.
   - The list is built from every project on each request. It is reloaded when the window gets the focus back, not live.
   - No refresh from this page, so a status is as fresh as each project's last refresh.
+
+## DEC-089 — CI runs on GitLab, on Linux
+
+- Decision: the pipeline is `.gitlab-ci.yml` (Linux, Node 20 and 22). `.github/workflows/ci.yml` is removed. GitHub stays the main remote; the GitLab project is a second remote that only runs CI. `npm run ci` (`scripts/ci-local.ts`) runs the same steps on the owner's machine, and `npm run hooks:install` can run it before every push.
+- Why: every GitHub Actions job since 14 Nov was refused with "your account is locked due to a billing issue", before any step ran. The code was not at fault: all steps pass locally. The owner does not want to pay for CI.
+- Trade-offs:
+  - No macOS job: free shared runners on GitLab are Linux only (as far as we know; not checked against GitLab's current terms). macOS-only breakage is no longer caught by CI.
+  - Free minutes are limited, so pipelines run only for merge requests and the default branch, with an npm cache, and an old pipeline is cancelled when a newer one starts.
+  - GitLab may ask for identity verification before its shared runners start.
+  - A push to GitHub alone triggers no checks. The pre-push hook (owner-installed) covers that.
+  - The pipeline was written without a GitLab project to run it on, so its first run may need fixes.
+- Kept: `.github/` pull request and issue templates, and `demo/ci-examples/github-actions.yml` (a product example, not this repository's CI).

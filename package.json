@@ -33,6 +33,8 @@
     "test": "vitest run --config config/vitest.config.ts",
     "test:browser": "playwright test -c config/playwright.config.ts",
     "test:list": "tsx scripts/list-tests.ts",
+    "ci": "tsx scripts/ci-local.ts",
+    "hooks:install": "tsx scripts/install-hooks.ts",
     "dp": "tsx src/cli.ts",
     "make-demo": "tsx scripts/make-demo.ts",
     "ui:install": "npm --prefix ui ci",

@@ -12,10 +12,6 @@ labels: enhancement
 
 <!-- What the tool should do. A short example helps. -->
 
-## Alternatives
-
-<!-- Other ways to solve it that you considered, including doing it by hand today. -->
-
 ## Who it is for
 
 <!-- For example: architects, engineers, viewers, or a role you have in mind. -->

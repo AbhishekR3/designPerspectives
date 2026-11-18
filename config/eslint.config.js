@@ -7,7 +7,7 @@ import globals from "globals";
 // relative to the repo root, not to this folder.
 export default tseslint.config(
   {
-    ignores: ["dist/", "static/", "demo/", "node_modules/", "ui/node_modules/", "test-results/", "local/"],
+    ignores: ["dist/", "static/", "demo/", "node_modules/", "ui/node_modules/", "test-results/", "local/", ".npm/"],
   },
   js.configs.recommended,
   tseslint.configs.recommended,

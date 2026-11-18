@@ -69,8 +69,15 @@ Run these from the repository root unless a line says otherwise.
 - [ ] `npm run make-demo` (then commit any change in `demo/`)
 - [ ] `npm run dp -- check --strict` on the demo (`npm run dp -- init --demo my-check`, then `npm run dp -- check --strict my-check`)
 
-CI runs the same checks on Ubuntu and macOS with Node 20 and 22. The format, built-UI, test list, demo and
-package checks run on Ubuntu with Node 22 only.
+`npm run ci` runs all of the above, plus the package install test, in one go on this machine (about two minutes);
+`npm run ci -- --quick` skips the browser tests and the package test. `npm run hooks:install` makes `git push`
+run it first (skip once with `git push --no-verify`). It uses this machine's Node only, so it does not replace CI
+on other Node versions or systems.
+
+CI is `.gitlab-ci.yml`: the same checks on Linux with Node 20 and 22 (there is no macOS job). The format,
+built-UI, test list, demo and package checks run with Node 22 only. To run it, add the GitLab project as a second
+remote and push to it (`git remote add gitlab <url>`, then `git push gitlab <branch>`); GitHub stays the main
+remote and runs no checks.
 
 ## Git process
 
