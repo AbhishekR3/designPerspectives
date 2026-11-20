@@ -19,7 +19,7 @@ Show coupling numbers for every system, container and component: who depends on 
 
 > - Consider metrics such as LCOM, Instability, etc
 
-**What was dropped, and why.** LCOM, complexity, abstractness and distance from the main sequence need function bodies, field use and type kinds. Wave 5's generic regex reader finds imports and definition names well enough to call them approximate, but it reads bodies and fields badly, so these would be wrong too often to show as numbers. They are not built. Revisit after Wave 5's reader (part C) has shown how good it is; or import a report from a tool that already measures them (future_tasks 2.5).
+**What was dropped, and why.** LCOM, complexity, abstractness and distance from the main sequence need function bodies, field use and type kinds. Wave 5's generic regex reader finds imports and definition names well enough to call them approximate, but it reads bodies and fields badly, so these would be wrong too often to show as numbers. They are not built. Revisit after Wave 5's reader (part C) has shown how good it is; or import a report from a tool that already measures them (ideas list I2.5).
 
 ## What exists today [Fact]
 
@@ -99,15 +99,15 @@ Show coupling numbers for every system, container and component: who depends on 
 
 - **New DEC:** metrics are computed from the model, not from code; which ones, with the coverage note; limits live in Wave 8. (DEC-096 records the decision not to parse code.)
 - **README:** metrics. **CLAUDE.md:** `metrics.ts`. **CHANGELOG** and **reviews.md:** this wave's entries.
-- **future_tasks:** the brownfield-metrics line in 2.2 is closed for coupling and cycles; abstractness, complexity and cohesion stay as report-import ideas.
+- **planned_features.md:** the brownfield-metrics line in 2.2 is closed for coupling and cycles; abstractness, complexity and cohesion stay as report-import ideas.
 - **`docs/determinism.md`:** rows for this wave.
 
 ## Out of scope
 
 - Complexity, LCOM, abstractness, distance, and a main-sequence chart.
 - Anything read from code.
-- Trends over time (future_tasks: architecture vitality).
-- Importing metric reports (future_tasks 2.5). Coverage (future_tasks 1.4).
+- Trends over time (the ideas list: architecture vitality).
+- Importing metric reports (ideas list I2.5). Coverage (planned_features B5).
 
 ## Start prompt
 

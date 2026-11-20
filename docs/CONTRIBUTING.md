@@ -91,6 +91,24 @@ Decided for this repository in DEC-063.
 - The owner merges.
 - A release is a `vX.Y.Z` tag on `main`, with a GitHub release that names the changes from `docs/CHANGELOG.md`.
 
+## Changelog standard
+
+Proposed 2026-11-20 for the owner's review; not yet decided, and `docs/CHANGELOG.md` has not been changed to match.
+
+- One file, `docs/CHANGELOG.md`, newest version first, with an `Unreleased` block on top. Every change that a user or contributor can notice gets a line there in the same pull request.
+- Headings follow the Keep a Changelog layout (1.1.0): `## [x.y.z] - YYYY-MM-DD`, with the sections `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed` and `Security`, in that order, and only the ones that are used.
+- A line says what a person can now do or what changed for them, in one or two sentences. Keep the decision number in brackets (for example "(DEC-069)"), as the file does today.
+- At the bottom, one link per version to the comparison on the code host (`[x.y.z]: <compare URL>`), so a version heading is clickable.
+- Today's file already follows most of this. It writes the date with an em dash ("0.5.0 — 2026-11-16"), has no square brackets around versions and has no comparison links.
+- The scrollable list of releases that people know from GitHub is **GitHub Releases**, not this file: each release is a `vX.Y.Z` tag with notes. This repository has no tags yet, so that list is empty. The Git process above already says a release carries the notes from this file; whether to copy them into a GitHub release for each version is open.
+
+## Ideas and planned features
+
+- [planned_features.md](planned_features.md) lists work with a clear scope; the long entries (A1 to A5) use a fixed format (status, why, what exists, what is missing, proposal, trade-offs, open questions, size, links). Pick one up, or open an issue to propose a new entry.
+- [planned_features.md](planned_features.md) also holds the scheduled work in compact tables (section B), grouped by area, with source markers and rough sizes.
+- An idea that is not yet scoped can be raised in an issue. The maintainer keeps a private list of ideas that are still being thought through; it is not part of the repository.
+- To see how the code is laid out before you start, read the architecture section of [../.claude/CLAUDE.md](../.claude/CLAUDE.md) and the draft overview in [architecture.md](architecture.md).
+
 ## Rules that surprise people
 
 - The built UI in `static/` is committed. After a UI change, run `cd ui && npm run build` and commit the new `static/` files. The file names are fixed (`app.js`, `app.css`, `diagram-layout.js`). CI fails if `static/` is out of date.
@@ -116,7 +134,7 @@ The pull request template lists these items.
 
 ## Where things are
 
-`.claude/CLAUDE.md` has an Architecture section that maps each source folder and file to its job. `docs/README.md` indexes the rest of the documentation, including the decisions, the future tasks and backlog, and the stage reviews in `docs/reviews.md`. `demo/README.md` explains the demo and sample files.
+`.claude/CLAUDE.md` has an Architecture section that maps each source folder and file to its job. `docs/README.md` indexes the rest of the documentation, including the decisions, the future tasks, and the stage reviews in `docs/reviews.md`. `demo/README.md` explains the demo and sample files.
 
 # Code of conduct
 

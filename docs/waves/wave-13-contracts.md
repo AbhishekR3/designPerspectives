@@ -101,7 +101,7 @@ Consumers are told on the diagram, on the home page, in the bell, in CI and, if 
 
 Applied 2026-11-19: the owner answered Part A and left Part B blank, so every Q below uses its recommendation ([questions.md](questions.md)).
 
-- **Q13.1 (best thinking, 2026-11-20):** JSON only (OpenAPI and JSON Schema). No YAML dependency now; the server keeps three runtime dependencies. Trade-off: most real OpenAPI files are YAML, so those teams need the JSON export step. "Read YAML contracts" is a line in future_tasks 2.1.
+- **Q13.1 (best thinking, 2026-11-20):** JSON only (OpenAPI and JSON Schema). No YAML dependency now; the server keeps three runtime dependencies. Trade-off: most real OpenAPI files are YAML, so those teams need the JSON export step. "Read YAML contracts" is a line in ideas list I2.1.
 - **Q13.2 to Q13.5 (best thinking, 2026-11-20):** hold as recommended, below.
 - **Q13.2:** a service's output is its endpoint responses, the messages it publishes and the data it writes; impact is found through endpoints and data, not line direction. The "data it writes" part depends on the data access built in DEC-055; Wave 4's CRUD letters are not needed.
 - **Q13.3:** the consumer's line stores the fingerprint it has checked (`dp.contract.seen`); marking it is an ordinary edit.
@@ -161,7 +161,7 @@ Applied 2026-11-19: the owner answered Part A and left Part B blank, so every Q 
 - YAML, AsyncAPI and protobuf.
 - Consumers across hub projects.
 - Email, chat and webhooks.
-- Comparing nested JSON in live calls (future_tasks 2.7).
+- Comparing nested JSON in live calls (ideas list I2.7).
 
 ## Start prompt
 

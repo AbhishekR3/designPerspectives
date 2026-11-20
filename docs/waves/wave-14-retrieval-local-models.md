@@ -74,7 +74,7 @@ Owner answers [2026-11-18]: "Make local runtimes first-class" (0.4) and "Do only
 4. **Filtered at every query** by the current intake rules and file gate, so a file closed after indexing is never returned. Excerpts are redacted like all BMO context (`redact.ts`).
 5. **Using it.** `ask`, `explain` and `antipattern-review` add ranked excerpts within the code budget. The Wave 1 manifest lists each one as "found by search for …" with its rank and the terms that matched. Ties break by path, then line, so the order is stable.
    - **Offline BMO too** (DEC-093). With the LLM off, a free-text question runs as `find` (Wave 2). Once the index exists, `find` also returns matching code chunks, shown as file chips that open the viewer at the line. Wave 5's exact `where <name>` stays separate: it needs no index and always gives every match.
-6. **Measuring it is deferred.** Wave 1's evaluation set was deferred by the owner (Q1.3), so there is nothing to measure against yet. The index ships; whether it helps is part of "Testing and evaluating BMO" in [../future_tasks.md](../future_tasks.md) 2.0. If that shows the index does not help, a next step (embeddings) is a separate plan.
+6. **Measuring it is deferred.** Wave 1's evaluation set was deferred by the owner (Q1.3), so there is nothing to measure against yet. The index ships; whether it helps is part of "Testing and evaluating BMO" in ideas list I2.0. If that shows the index does not help, a next step (embeddings) is a separate plan.
 
 ## Determinism
 
@@ -143,7 +143,7 @@ Part A and Part B touch different files; they can run as two agents in parallel 
 - **CLAUDE.md:** `retrieval/`.
 - **CHANGELOG** and **reviews.md:** this wave's entries.
 - **`docs/determinism.md`:** rows for this wave.
-- **future_tasks:** row 14 done; add "embeddings on top of the word index" as an idea, only if the later evaluation shows a gap.
+- **planned_features.md:** row 14 done; add "embeddings on top of the word index" as an idea, only if the later evaluation shows a gap.
 
 ## Out of scope
 
@@ -151,7 +151,7 @@ Part A and Part B touch different files; they can run as two agents in parallel 
 - CUDA or MPS code in dp.
 - Models running in the browser on WebGPU.
 - Database servers.
-- Multi-pass summarising (future_tasks 1.3).
+- Multi-pass summarising (planned_features B4).
 
 ## Start prompt
 

@@ -854,7 +854,7 @@ Entry format: **ID — title** · date · status · who decided · what was deci
   - **The twelve features:** C4 modelling; a single source of truth; architecture change proposals; lenses (architect, DevOps, other SDLC roles); collaboration and notes with images and files from different accounts; contracts between services; an ADR page; codebase importing; git-style commits for architecture; links to GitHub, SonarQube and Jira; a catalog shared between projects; and BMO, the architecture-intelligence agent.
   - **What falls outside** is listed in [waves/v1-scope-review.md](waves/v1-scope-review.md) for the owner to decide item by item. Nothing built is removed without that decision.
   - **Order.** The waves of `docs/waves/` run interleaved (answer A2), not behind deployment diagrams. This amends the order in DEC-028: deployment diagrams (infrastructure) leave the pre-1.0.0 order pending the review, and the small batch no longer waits for them.
-  - **Parked.** Wave 10 (risk storming) and Wave 12 (runtime telemetry) are moved to `docs/future_tasks.md` (answer A7). They are not among the twelve features.
+  - **Parked.** Wave 10 (risk storming) and Wave 12 (runtime telemetry) are moved to the owner's ideas list (answer A7; the old `docs/future_tasks.md` was split on 2026-11-20). They are not among the twelve features.
   - **New waves from the vision.** Wave 16 (images and files, feature E), Wave 17 (architecture commits, feature I), Wave 18 (drafts that keep up, feature C), Wave 19 (lenses for roles, feature D) and Wave 20 (a back-and-forth about an existing system, feature H).
   - **Releases.** All releases before 1.0.0 are 0.5.x: 0.5.1 (Waves 1, 2, 3, 16, 4), 0.5.2 (5, 6, 15, 7, 8), 0.5.3 (9, 11, 17, 18, 19), 0.5.4 (13, 14, 20), then 1.0.0.
   - **Planning files stay** in `docs/` (including `docs/waves/`); the owner deletes them before 1.0.0. This is a standing exception to CLAUDE.md's "do not commit superseded plans" for that folder.
@@ -970,7 +970,7 @@ Entry format: **ID — title** · date · status · who decided · what was deci
 
 - Date: 2026-11-20 · Status: Accepted (planned in [waves/wave-06-findings.md](waves/wave-06-findings.md)) · Decided by: Owner ("Push architecture drift to future_tasks.md for me to review later").
 - Decision:
-  - Drift detection (model ↔ code, `dp drift`, "update the model from code", a Drift page) is not built for 1.0.0. Its design is kept in `docs/future_tasks.md` 2.2 for the owner to review.
+  - Drift detection (model ↔ code, `dp drift`, "update the model from code", a Drift page) is not built for 1.0.0. Its design is kept in the owner's ideas list (I2.2; the old `docs/future_tasks.md` was split on 2026-11-20) for the owner to review.
   - Wave 6 keeps the part other waves need: one Finding shape and acknowledgements stored as model data (`dp.acks`, answer A5, 2026-11-19). The warnings dp already makes become the first findings, so the wave is useful alone. An acknowledged warning no longer counts under `dp check --strict`.
   - Waves 8, 11 and 13 build on the Finding shape. Wave 11's packs no longer carry drift.
 - Why: with code no longer read by language (DEC-096), most drift checks have nothing to compare, and the owner wants to review what is left before it is built.

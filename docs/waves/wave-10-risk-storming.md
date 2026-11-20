@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Parked** (owner, answer A7, 2026-11-19): risk analysis moved to [../future_tasks.md](../future_tasks.md) 2.3. The wave is not in a release and not in the vision's twelve features. Kept for when it returns |
+| **Status** | **Parked** (owner, answer A7, 2026-11-19): risk analysis moved to ideas list I2.3. The wave is not in a release and not in the vision's twelve features. Kept for when it returns |
 | **Branch** | `feat/w10-risk-storming`, from `main` after Wave 9 is merged |
 | **Size** | M |
 | **Release** | — |
@@ -153,7 +153,7 @@ Applied 2026-11-19: the owner answered Part A and left Part B blank, so every Q 
 - **README:** risk.
 - **CLAUDE.md:** the new files.
 - **CHANGELOG** and **reviews.md:** this wave's entries.
-- **future_tasks:** 2.3 risk done for the first cut; continuous tracking stays.
+- **ideas list:** I2.3 risk done for the first cut; continuous tracking stays.
 - **`docs/determinism.md`:** rows for this wave.
 
 ## Out of scope

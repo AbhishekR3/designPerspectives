@@ -6,7 +6,7 @@
 
 **Update [2026-11-20].** You answered Part B for Waves 4 to 15; each answer is filled in below with an "Applied [2026-11-20]" line, and Waves 4 to 9, 11, 13, 14, 15 and 20 are changed to match. Three of your answers reach beyond their own wave:
 - **dp reads code by search and by one generic regex reader, not per language** (Q5.1, Q5.2, Q5.5, then Q5.8). [Wave 5](wave-05-code-search.md) becomes "Code search, key code and one generic code reader": offline name search that marks definitions, a component's main files and functions, and a table of patterns for the major languages that replaces the Python and JS/TS readers. File roles, config facts, Maven and Gradle reading are not built, and [Wave 7](wave-07-metrics.md) measures the model. Recorded as DEC-096.
-- **Architecture drift moved to [future_tasks.md](../future_tasks.md) 2.2.** [Wave 6](wave-06-findings.md) keeps only the Finding shape and acknowledgements that Waves 8, 11 and 13 need. Recorded as DEC-097.
+- **Architecture drift moved to ideas list I2.2.** [Wave 6](wave-06-findings.md) keeps only the Finding shape and acknowledgements that Waves 8, 11 and 13 need. Recorded as DEC-097.
 - **Wave 4's data half is kept**: you answered Q4.1 to Q4.3, and that is read as overruling the scope review's "later" for P4. An old `write` now becomes C, U and D at once.
 
 **How to read the analysis.** Facts carry a source: a `file:line`, a DEC in [../decisions.md](../decisions.md), a line of the book notes in [../notes/](../notes/), or a web page checked on 2026-11-17. [Proposal] marks our interpretation or recommendation. [Training] marks model knowledge that was not re-checked.
@@ -257,7 +257,7 @@ The list pulls toward at least four products:
 
 Waves 1 to 6 help all four. Waves 12 to 14 depend on the vision most.
 
-One candidate sentence: "dp is a modelling tool with deterministic checks; data dp doesn't own (complexity, coverage, runtime) arrives as report files." The backlog's project direction already says "Target own system first" [Owner] (`docs/backlog.md:19`).
+One candidate sentence: "dp is a modelling tool with deterministic checks; data dp doesn't own (complexity, coverage, runtime) arrives as report files." The backlog's project direction already says "Target own system first" [Owner] (the old `docs/backlog.md`, deleted 2026-11-20).
 
 **Recommended.** Write a one-page vision before Wave 7: who it's for, the three jobs it must do well, what it won't do, and how you'll know it works. Waves 1 to 6 go ahead meanwhile. Claude can give you a template of questions to fill in.
 
@@ -271,7 +271,7 @@ One candidate sentence: "dp is a modelling tool with deterministic checks; data 
 
 ### ★A2. Where do the waves go relative to the order you decided earlier?
 
-**Why it matters.** future_tasks.md 1.1 holds an order you decided: deployment diagrams, then the small batch, then the static HTML export (DEC-019, DEC-022, DEC-024, DEC-028).
+**Why it matters.** planned_features B2 holds an order you decided: deployment diagrams, then the small batch, then the static HTML export (DEC-019, DEC-022, DEC-024, DEC-028).
 
 **Analysis**
 - Canary and blue/green releases (Waves 4 and 12) need deployment diagrams, and so does drift per environment.
@@ -339,7 +339,7 @@ The cost of building BMO features before Wave 1 is redoing their prompts later.
   - they go through drafts, undo and `dp diff`;
   - only people who may edit the model can silence a finding.
 
-  future_tasks 2.2 warns against "a way to hide real problems"; this keeps silencing reviewable.
+  ideas list I2.2 warns against "a way to hide real problems"; this keeps silencing reviewable.
 - **The cost:** acknowledgements show up in model diffs, which is the point.
 
 **The alternative** is a side file like `checklist.json`. Anyone with checklist rights could then silence drift on main without a review.
@@ -367,11 +367,11 @@ The cost of building BMO features before Wave 1 is redoing their prompts later.
 
 **Recommended**
 - The waves build a first cut: risk storming in Wave 10, telemetry rules in Wave 12.
-- future_tasks.md keeps the wider questions: continuous risk tracking; logs and metrics as well as traces.
+- the ideas list keeps the wider questions: continuous risk tracking; logs and metrics as well as traces.
 
 **Your thinking:** Push these to future_tasks.md.
 
-**Applied [2026-11-19].** Read as: risk analysis and anti-patterns through telemetry are not built in this plan. So **[Wave 10 (risk storming)](wave-10-risk-storming.md) and [Wave 12 (runtime)](wave-12-runtime-telemetry.md) are parked**: their files stay in this folder, marked "Parked", and their ideas are in [../future_tasks.md](../future_tasks.md) (2.3 and 2.7, and section 1.0). Knock-on changes: Wave 11 loses "add as a risk" and the `suggest-risks` task; Wave 4's note about the observed A/B split goes to future_tasks; the Risk tag group and trade-off risks stay as they are. The owner confirmed this reading on 2026-11-19 (C6b: do not build either for 1.0).
+**Applied [2026-11-19].** Read as: risk analysis and anti-patterns through telemetry are not built in this plan. So **[Wave 10 (risk storming)](wave-10-risk-storming.md) and [Wave 12 (runtime)](wave-12-runtime-telemetry.md) are parked**: their files stay in this folder, marked "Parked", and their ideas are in ideas list (I2.3 and 2.7, and section 1.0). Knock-on changes: Wave 11 loses "add as a risk" and the `suggest-risks` task; Wave 4's note about the observed A/B split goes to the ideas list; the Risk tag group and trade-off risks stay as they are. The owner confirmed this reading on 2026-11-19 (C6b: do not build either for 1.0).
 
 ### A8. Releases
 
@@ -385,7 +385,7 @@ The cost of building BMO features before Wave 1 is redoing their prompts later.
    | 0.7.0 | Waves 5–8 |
    | 0.8.0 | Waves 9–11 |
    | 0.9.0 | Waves 12–14 |
-   | 1.0.0 | The 1.0 checklist (future_tasks 2.0) |
+   | 1.0.0 | The 1.0 checklist (ideas list I2.0) |
 
 Fewer releases mean fewer release chores, but longer waits for an installable version.
 
@@ -393,7 +393,7 @@ Fewer releases mean fewer release chores, but longer waits for an installable ve
 
 **Your thinking:** Releases should all be within 0.5.x.
 
-**Applied [2026-11-19].** Grouped releases, numbered inside 0.5.x until 1.0.0: **0.5.1** (Waves 1, 2, 3, 16, 4), **0.5.2** (Waves 5, 6, 15, 7, 8), **0.5.3** (Waves 9, 11), **0.5.4** (Waves 13, 14), then **1.0.0** when the 1.0 checklist (future_tasks 2.0) is met. If more waves join after your review (Part C, the scope review), they add a 0.5.x number, not a 0.6. The table is in [README.md](README.md#releases).
+**Applied [2026-11-19].** Grouped releases, numbered inside 0.5.x until 1.0.0: **0.5.1** (Waves 1, 2, 3, 16, 4), **0.5.2** (Waves 5, 6, 15, 7, 8), **0.5.3** (Waves 9, 11), **0.5.4** (Waves 13, 14), then **1.0.0** when the 1.0 checklist (ideas list I2.0) is met. If more waves join after your review (Part C, the scope review), they add a 0.5.x number, not a 0.6. The table is in [README.md](README.md#releases).
 
 ### A9. Agent models
 
@@ -426,7 +426,7 @@ Each wave file names the model for each step. Fable is used only if you ask.
 **Status [2026-11-19].** **Waves 1 to 3 are answered and applied** (Q1.1 to Q3.5, below). For the other waves, a blank question uses its recommendation. The exceptions, all from the vision or your answers:
 
 - **Wave 1 to 3 answers that changed the plan:**
-  - **Q1.3:** the evaluation set leaves Wave 1 for future_tasks.
+  - **Q1.3:** the evaluation set leaves Wave 1 for the ideas list.
   - **Q2.1:** sticky notes become architecture data that BMO reads.
   - **Q2.2:** BMO always sees notes.
   - **Q2.5:** BMO works without an LLM, behind a setting.
@@ -442,7 +442,7 @@ Each wave file names the model for each step. Fable is used only if you ask.
 - **Q4.1:** an old `write` becomes C, U and D at once; no `W`.
 - **Q4.1 to Q4.3 answered:** the data half of Wave 4 is kept.
 - **Q5.1, Q5.2, Q5.5, Q5.8:** code is searched, and read by one generic regex reader for the major languages; key code instead of file roles. Q5.3, Q5.4, Q5.6, Q5.7 follow (no Maven or Gradle, no Java samples, no config facts, no hash cache).
-- **Wave 6:** drift parked (future_tasks 2.2); Findings and acknowledgements stay.
+- **Wave 6:** drift parked (ideas list I2.2); Findings and acknowledgements stay.
 - **Wave 7:** model coupling only (Q7.1 to Q7.4).
 - **Q8.x, Q9.x, Q11.x, Q13.x, Q14.x:** your best-thinking answers hold the recommendations, with the follow-on changes noted per question. **Q13.1:** JSON only, no YAML dependency.
 - **Q10.x, Q12.x:** the waves are parked.
@@ -515,10 +515,10 @@ Each wave file names the model for each step. Fable is used only if you ask.
 
 **Applied [2026-11-19].** The evaluation set is out of Wave 1 and is now an idea to think through.
 - **Removed from Wave 1:** the fixtures with known right answers, the scorer, `dp bmo eval`, `eval.ts`.
-- **Added to [../future_tasks.md](../future_tasks.md) 2.0:** "Testing and evaluating BMO", with the open points listed.
+- **Added to ideas list I2.0:** "Testing and evaluating BMO", with the open points listed.
 - **Kept in Wave 1:** ordinary unit tests of dp's own code. These are the context packs, the citation checker (with canned answers from the fake backend) and the providers' answer handling. They test our code, not how good a model is, so they are not the evaluation you deferred.
 - **Wave 1 shrinks** from L to M–L.
-- **Knock-on:** [Wave 14](wave-14-retrieval-local-models.md) planned to measure the word index with Wave 1's evaluation, with and without the index. That measurement moves to the same future_tasks item. The index still ships.
+- **Knock-on:** [Wave 14](wave-14-retrieval-local-models.md) planned to measure the word index with Wave 1's evaluation, with and without the index. That measurement moves to the same the ideas list item. The index still ships.
 
 #### Q1.4 Temperature and seed
 
@@ -696,7 +696,7 @@ Each wave file names the model for each step. Fable is used only if you ask.
 
 **Your thinking:** Yes, that works for now, but still add this into future_tasks.md so I can review these later.
 
-**Applied [2026-11-19].** As recommended: an opt-in starter set of about 10 anti-patterns and 5 patterns, in our own words, with book and page references, and an Opus copy check. Added to [../future_tasks.md](../future_tasks.md) 1.5 ("Checks that only the owner can run"): review the starter entries and curate them.
+**Applied [2026-11-19].** As recommended: an opt-in starter set of about 10 anti-patterns and 5 patterns, in our own words, with book and page references, and an Opus copy check. Added to ideas list O ("Checks that only the owner can run"): review the starter entries and curate them.
 
 #### Q3.3 The entry template
 
@@ -1039,7 +1039,7 @@ This depends on who dp is for (★A1).
 
 **Your thinking:** Push architecture drift to future_tasks.md for me to review later.
 
-**Applied [2026-11-20].** Not built. Kept in future_tasks 2.2 for your review.
+**Applied [2026-11-20].** Not built. Kept in ideas list I2.2 for your review.
 
 #### ★Q6.4 How drift is fixed
 
@@ -1053,7 +1053,7 @@ This depends on who dp is for (★A1).
 
 **Your thinking:** Push architecture drift to future_tasks.md for me to review later.
 
-**Applied [2026-11-20].** Not built. 'Update the model from code' is kept in future_tasks 2.2 as part of the drift design.
+**Applied [2026-11-20].** Not built. 'Update the model from code' is kept in ideas list I2.2 as part of the drift design.
 
 #### Q6.5 Drift in CI
 
@@ -1061,7 +1061,7 @@ This depends on who dp is for (★A1).
 
 **Your thinking:** Push architecture drift to future_tasks.md for me to review later.
 
-**Applied [2026-11-20].** Not built. `dp drift` and its CI example are in future_tasks 2.2.
+**Applied [2026-11-20].** Not built. `dp drift` and its CI example are in ideas list I2.2.
 
 ### Wave 7: Model metrics (the questions below were asked about code metrics)
 
@@ -1092,7 +1092,7 @@ This depends on who dp is for (★A1).
 
 **Your thinking:** Go with what you think is best.
 
-**Applied [2026-11-20].** Changed by Q5.1 and Q5.2. Ca, Ce, instability and cycles are **computed from the model's own lines**, per level, so they work for any language. LCOM, complexity, abstractness and distance need a per-language parser, so they are not built; importing a report from a tool that already measures them is an idea (future_tasks 2.5). [Wave 7](wave-07-metrics.md) is rewritten as 'Model metrics'.
+**Applied [2026-11-20].** Changed by Q5.1 and Q5.2. Ca, Ce, instability and cycles are **computed from the model's own lines**, per level, so they work for any language. LCOM, complexity, abstractness and distance need a per-language parser, so they are not built; importing a report from a tool that already measures them is an idea (ideas list I2.5). [Wave 7](wave-07-metrics.md) is rewritten as 'Model metrics'.
 
 #### Q7.2 Where metrics show
 
@@ -1158,7 +1158,7 @@ A chart of abstractness against instability (the "main sequence") comes later.
 
 | Preset | Rules |
 |---|---|
-| **C4 basics** | Descriptions, technology, labels that aren't "Uses", no mixed levels (from the C4 checklist ideas, future_tasks 2.2) |
+| **C4 basics** | Descriptions, technology, labels that aren't "Uses", no mixed levels (from the C4 checklist ideas, ideas list I2.2) |
 | **Structure** | Cycles, layers by tag group, caps on dependencies |
 | **Data** | Several writers, a shared database, paths to sensitive data |
 | **Microservices** | A shared database, chatty pairs, long synchronous chains, too many services |
@@ -1197,11 +1197,11 @@ The sidecar holds which presets are on, plus the severity and settings of each r
 
 **Analysis.** Style templates would be starter models for a style, such as "layered" or "microservices".
 
-**Recommended.** Later (future_tasks).
+**Recommended.** Later (the ideas list).
 
 **Your thinking:** Go with what you think is best.
 
-**Applied [2026-11-20].** As recommended: style templates later (future_tasks).
+**Applied [2026-11-20].** As recommended: style templates later (the ideas list).
 
 ### Wave 9: Characteristics table
 
@@ -1216,7 +1216,7 @@ The sidecar holds which presets are on, plus the severity and settings of each r
 - Add "needed" stars beside "current", per element.
 - A container without its own target shows its system's, labelled "from the system".
 - Gap = needed − current.
-- Ratings on lines and flows come later (future_tasks 1.4).
+- Ratings on lines and flows come later (planned_features B5).
 
 **Recommended.** Yes.
 
@@ -1316,7 +1316,7 @@ The sidecar holds which presets are on, plus the severity and settings of each r
 
 #### Q10.4 The grid's columns
 
-**Recommended.** Containers for now. The book prefers domains, and groups come later (future_tasks 2.1).
+**Recommended.** Containers for now. The book prefers domains, and groups come later (ideas list I2.1).
 
 **Your thinking:** (Wave 10 is pushed to future_tasks.md.)
 
@@ -1371,7 +1371,7 @@ The sidecar holds which presets are on, plus the severity and settings of each r
 - trace files (OTLP JSON) from a folder, keeping the newest 2,000 traces (`src/core/traces.ts:31-32`);
 - System Testing's run log: 200 calls, in memory only (`src/server/testSession.ts:44-50`).
 
-**Recommended.** These two only. A live collector (OTLP over HTTP) stays in future_tasks 2.7.
+**Recommended.** These two only. A live collector (OTLP over HTTP) stays in ideas list I2.7.
 
 **Your thinking:** Go with what you think is best. (Wave 12 is parked.)
 
@@ -1416,7 +1416,7 @@ The sidecar holds which presets are on, plus the severity and settings of each r
 
 **Your thinking:** Go with what you think is best.
 
-**Applied [2026-11-20].** JSON only (OpenAPI and JSON Schema); no YAML dependency in this wave, so the server keeps three runtime dependencies. **Trade-off:** most real OpenAPI files are YAML, so those teams export to JSON in CI first. Reading YAML directly is a line in future_tasks 2.1, and the dependency is then your decision. The earlier question 'are your OpenAPI files YAML?' no longer blocks the wave.
+**Applied [2026-11-20].** JSON only (OpenAPI and JSON Schema); no YAML dependency in this wave, so the server keeps three runtime dependencies. **Trade-off:** most real OpenAPI files are YAML, so those teams export to JSON in CI first. Reading YAML directly is a line in ideas list I2.1, and the dependency is then your decision. The earlier question 'are your OpenAPI files YAML?' no longer blocks the wave.
 
 #### ★Q13.2 What "the output of service A" means
 
@@ -1529,7 +1529,7 @@ Anything else is "changed, impact unknown".
 
 **Your thinking:** The interview should be dependent on the codebase. Tend to lean towards more questions than less. Definitely need at least a few questions per interview.
 
-**Applied [2026-11-20].** Questions come from what the scan finds, so a codebase with a broker gets broker questions and one without gets none. When a fact could be asked or assumed, dp asks, and dp asks about every object it would create. **A floor of 6 questions per level's interview**: if the scan yields fewer, dp fills up from a fixed bank of standing questions (at least 8 per level, worded in code, never generated), and the screen says it did. The wording of the bank is added to future_tasks 1.5 for your review. I kept 'one interview, a draft per level' (option 1), reading 'per interview' that way and because DEC-051 wants one level at a time. [Wave 15](wave-15-guided-import-interview.md) is updated.
+**Applied [2026-11-20].** Questions come from what the scan finds, so a codebase with a broker gets broker questions and one without gets none. When a fact could be asked or assumed, dp asks, and dp asks about every object it would create. **A floor of 6 questions per level's interview**: if the scan yields fewer, dp fills up from a fixed bank of standing questions (at least 8 per level, worded in code, never generated), and the screen says it did. The wording of the bank is added to ideas list O for your review. I kept 'one interview, a draft per level' (option 1), reading 'per interview' that way and because DEC-051 wants one level at a time. [Wave 15](wave-15-guided-import-interview.md) is updated.
 
 #### ★Q15.2 Is a click in the interview the final accept?
 
@@ -1595,7 +1595,7 @@ Anything else is "changed, impact unknown".
 
 #### ★C2. Which gaps in the change-proposal feature (C) go into 1.0.0?
 
-**Analysis** [Fact]. [future_tasks.md](../future_tasks.md) 1.2 lists what drafts cannot do yet:
+**Analysis** [Fact]. [planned_features.md](../planned_features.md) B3 lists what drafts cannot do yet:
 - rebase a draft onto a main that has moved, and a merge editor for conflicts (today a conflict is reported only when the draft is applied) [Medium];
 - undo of an apply restores the model but not the code files it wrote nor the deleted draft [Small–medium];
 - compare a draft's planned code edits with the code as it was when the draft started [Medium].
@@ -1614,7 +1614,7 @@ With several accounts working in drafts (feature E), the first is the one people
 
 **Analysis** [Fact]
 - A lens is a default view: it picks levels, sections and a default overlay, and hides no data (DEC-008, DEC-063). Three ship: Engineer, Architect, Overview (DEC-008, DEC-038).
-- Business and Security presets are in the backlog (future_tasks 1.4, small). There is no DevOps lens.
+- Business and Security presets are in the backlog (planned_features B5, small). There is no DevOps lens.
 
 **Proposal.** Ship presets for the roles your vision names. A DevOps lens would show containers and technology, run addresses, endpoints, linked work and contracts, and hide cost and trade-offs. The other presets (Business, Security, and Developer if Engineer is not that) follow the same pattern.
 
@@ -1662,14 +1662,14 @@ With several accounts working in drafts (feature E), the first is the one people
 Options: (1) **notes are model data, written by those who edit the model; every other account uses comments** (with images and files from Wave 16); (2) every account writes notes, kept in a side file like comments, never sent to BMO.
 **Recommended.** Option 1.
 
-**(b) Pushing risk and telemetry to future_tasks (A7).** I read "push these to future_tasks.md" as parking Wave 10 (risk storming) and Wave 12 (runtime telemetry). Waves 11 and 13 do not depend on Wave 12. Wave 11 loses its risk parts. If you meant only the wider questions, not the first cuts, say so and the two waves return to the plan.
+**(b) Pushing risk and telemetry to the ideas list (A7).** I read "push these to the ideas list" as parking Wave 10 (risk storming) and Wave 12 (runtime telemetry). Waves 11 and 13 do not depend on Wave 12. Wave 11 loses its risk parts. If you meant only the wider questions, not the first cuts, say so and the two waves return to the plan.
 **Recommended.** Keep both parked: neither is among the twelve features, and runtime telemetry is outside the software-architecture line (see [v1-scope-review.md](v1-scope-review.md)).
 
 **Your thinking:** (a) Yes. (b) The owner did not understand the question; it was asked again in plain words, and the answer was: **do not build either for 1.0** (stay parked).
 
 **Later change [2026-11-19].** You then said comments should be reachable by BMO ("everything a person can visualize on screen"). So the reasoning in (a) that kept comments away from BMO no longer holds: comments reach BMO as labelled data (see the follow-up under Q2.2, DEC-094). Who may write what is unchanged: model notes and stickies by those who edit the model, comments by every account.
 
-**Applied [2026-11-19].** (a) Notes are model data, written by those who edit the model; every other account uses comments with images and files. (b) Waves 10 and 12 stay parked in future_tasks; nothing changes from last time.
+**Applied [2026-11-19].** (a) Notes are model data, written by those who edit the model; every other account uses comments with images and files. (b) Waves 10 and 12 stay parked in the ideas list; nothing changes from last time.
 
 #### ★C7. How does BMO tell that a decision is "broken or violated"?
 
@@ -1691,7 +1691,7 @@ Options: (1) **notes are model data, written by those who edit the model; every 
 
 #### C8. Does "understanding an existing system" need more than the import and the explain tasks?
 
-**Analysis** [Fact]. The vision's first problem is understanding an existing system. What dp has or plans: the scan and the guided interview build the model (Waves 5, 6, 15); BMO explains an object, a diagram or a draft from the model and code excerpts (Wave 1 makes them cited); `dp context` prints the same pack for coding agents (Wave 2). A run over the token limit is refused, and multi-pass summarising for a whole large repository is not built (DEC-065, future_tasks 1.3, Large).
+**Analysis** [Fact]. The vision's first problem is understanding an existing system. What dp has or plans: the scan and the guided interview build the model (Waves 5, 6, 15); BMO explains an object, a diagram or a draft from the model and code excerpts (Wave 1 makes them cited); `dp context` prints the same pack for coding agents (Wave 2). A run over the token limit is refused, and multi-pass summarising for a whole large repository is not built (DEC-065, planned_features B4, Large).
 
 **Options**
 1. As planned: explain one scope at a time.
@@ -1702,4 +1702,4 @@ Options: (1) **notes are model data, written by those who edit the model; every 
 
 **Your thinking:** Have a true back and forth, not just one scope at a time. As code becomes larger or more complex, you can ask more questions to the user. Add this to the checklist.
 
-**Applied [2026-11-19].** A new wave, [Wave 20: a real back-and-forth about an existing system](wave-20-system-conversation.md). dp plans rounds from facts about the system (containers, components, files, cycles, unmapped code); each round is one previewed BMO run on one scope that returns cited statements and questions for the person; the number of questions allowed grows with size and tangle, and the person can ask for more, go deeper or stop; the person's answers carry into later rounds. Nothing is written until a button is pressed. "Add this to the checklist" is applied twice: an item on the in-app "Importing a codebase" list that ticks itself when every round is answered, skipped or ended, and a line on the 1.0.0 release checklist in [../future_tasks.md](../future_tasks.md) 2.0.
+**Applied [2026-11-19].** A new wave, [Wave 20: a real back-and-forth about an existing system](wave-20-system-conversation.md). dp plans rounds from facts about the system (containers, components, files, cycles, unmapped code); each round is one previewed BMO run on one scope that returns cited statements and questions for the person; the number of questions allowed grows with size and tangle, and the person can ask for more, go deeper or stop; the person's answers carry into later rounds. Nothing is written until a button is pressed. "Add this to the checklist" is applied twice: an item on the in-app "Importing a codebase" list that ticks itself when every round is answered, skipped or ended, and a line on the 1.0.0 release checklist in ideas list I2.0.

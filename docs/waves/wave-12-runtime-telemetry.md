@@ -2,11 +2,11 @@
 
 | | |
 |---|---|
-| **Status** | **Parked** (owner, answer A7, 2026-11-19): anti-patterns through telemetry moved to [../future_tasks.md](../future_tasks.md) 2.7. Runtime is outside the software-architecture line (scope review P5) and not among the twelve features. Kept for when it returns |
+| **Status** | **Parked** (owner, answer A7, 2026-11-19): anti-patterns through telemetry moved to ideas list I2.7. Runtime is outside the software-architecture line (scope review P5) and not among the twelve features. Kept for when it returns |
 | **Branch** | `feat/w12-runtime-telemetry`, from `main` (when the wave returns) |
 | **Size** | M |
 | **Release** | — |
-| **Depends on** | Wave 4 (variants), Wave 6 (Findings; drift is parked in future_tasks), Wave 8 (rule registry) |
+| **Depends on** | Wave 4 (variants), Wave 6 (Findings; drift is parked in the ideas list), Wave 8 (rule registry) |
 | **Owner items** | 21, from telemetry ([README.md](README.md#where-each-item-went)) |
 
 Read [README.md](README.md) first: its rules, agents and checks apply to this wave.
@@ -138,7 +138,7 @@ Applied 2026-11-19: the owner answered Part A and left Part B blank, so every Q 
 - **README:** runtime views.
 - **CLAUDE.md:** `runtime.ts`.
 - **CHANGELOG** and **reviews.md:** this wave's entries.
-- **future_tasks:**
+- **planned_features.md:**
   - 2.7: telemetry anti-patterns, first cut done.
   - What stays: live collectors, logs and metrics, trends.
 - **`docs/determinism.md`:** rows for this wave.

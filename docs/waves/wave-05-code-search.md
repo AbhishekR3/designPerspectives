@@ -193,7 +193,7 @@ Only one agent builds the UI or runs `cd ui && npm run build` at a time.
 - **DEC-096** records the decision (search, key code, one generic reader). Add a new DEC for key code (`dp.code.key`), its checks, the hints and the BMO proposal task.
 - **README:** find code, key code, the languages the pattern table covers. **CLAUDE.md:** `codeSearch.ts`, `keyCode.ts`, `codeReader.ts`, `codePatterns.ts`, and the revised description of `codeMap.ts`.
 - **CHANGELOG** and **reviews.md:** this wave's entries, including the list of differences from the old readers. **`docs/determinism.md`:** rows.
-- **future_tasks:** 1.3's "Scan languages beyond Python and JS/TS" is done for the languages in the table.
+- **planned_features.md:** B4's "Scan languages beyond Python and JS/TS" is done for the languages in the table.
 
 ## Out of scope
 

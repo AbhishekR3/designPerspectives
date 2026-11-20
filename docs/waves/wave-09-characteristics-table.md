@@ -136,14 +136,14 @@ Applied 2026-11-19: the owner answered Part A and left Part B blank, so every Q 
 - **README:** the table.
 - **CLAUDE.md:** `CharacteristicsPage.tsx`.
 - **CHANGELOG** and **reviews.md:** this wave's entries.
-- **future_tasks:** 1.4 ("rating targets") done; ratings on relationships and flows stay.
+- **planned_features.md:** B5 ("rating targets") done; ratings on relationships and flows stay.
 - **`docs/determinism.md`:** rows for this wave.
 
 ## Out of scope
 
 - BMO's proposed ratings (Wave 11).
 - Ratings on relationships and flows.
-- Weighted trade-off tables for decisions (future_tasks 2.3).
+- Weighted trade-off tables for decisions (ideas list I2.3).
 
 ## Start prompt
 

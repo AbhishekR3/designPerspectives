@@ -1,6 +1,6 @@
 # Waves: the owner's list of 2026-11-17
 
-Status: **planning**. All parts of [questions.md](questions.md) are answered and applied: Parts 0, A and C (2026-11-18 and 2026-11-19) and Part B (Waves 1 to 3 on 2026-11-19; Waves 4 to 15 on 2026-11-20). On 2026-11-20 the owner decided that dp reads code by search, pinned key code and one generic regex reader for the major languages, not per language, and moved architecture drift to future_tasks; Waves 5, 6 and 7 were rewritten and Waves 4, 8, 9, 11, 13, 14, 15 and 20 adjusted. Waves 1 to 9, 11 to 20 are planned; 10 and 12 are parked. Waves 17 to 20 were added from the product vision. The owner still has to fill the "Your decision" column of [v1-scope-review.md](v1-scope-review.md). Nothing in this folder is built yet.
+Status: **planning**. All parts of [questions.md](questions.md) are answered and applied: Parts 0, A and C (2026-11-18 and 2026-11-19) and Part B (Waves 1 to 3 on 2026-11-19; Waves 4 to 15 on 2026-11-20). On 2026-11-20 the owner decided that dp reads code by search, pinned key code and one generic regex reader for the major languages, not per language, and moved architecture drift to the ideas list; Waves 5, 6 and 7 were rewritten and Waves 4, 8, 9, 11, 13, 14, 15 and 20 adjusted. Waves 1 to 9, 11 to 20 are planned; 10 and 12 are parked. Waves 17 to 20 were added from the product vision. The owner still has to fill the "Your decision" column of [v1-scope-review.md](v1-scope-review.md). Nothing in this folder is built yet.
 
 **Read first:** [../product-vision.md](../product-vision.md) (what 1.0.0 is: software architecture only, twelve features, not an IDE) and [v1-scope-review.md](v1-scope-review.md) (what is built or planned outside that line, for the owner to decide).
 
@@ -27,14 +27,14 @@ The order below is the owner's accepted order (answer A3, 2026-11-19), grouped b
 
 | # | Wave | What it builds | Feature (vision) | Depends on | Size | Release | Status |
 |---|---|---|---|---|---|---|---|
-| 1 | [Grounded BMO answers](wave-01-grounded-bmo.md) | Fixed prompt templates per situation, fixed context packs, citations that dp checks, labels on everything BMO writes, `docs/determinism.md`. The evaluation set is deferred (future_tasks 2.0) | L | none | M–L | 0.5.1 | Answers applied; ready |
+| 1 | [Grounded BMO answers](wave-01-grounded-bmo.md) | Fixed prompt templates per situation, fixed context packs, citations that dp checks, labels on everything BMO writes, `docs/determinism.md`. The evaluation set is deferred (ideas list I2.0) | L | none | M–L | 0.5.1 | Answers applied; ready |
 | 2 | [Notes, context and help](wave-02-notes-context-help.md) | Sticky notes stored in the model (stuck to objects or diagrams), a Notes page, safe Markdown, BMO always reads notes and comments, BMO without an LLM (search and fixed commands, behind a setting), `dp context` for coding agents, help about dp | E, L | 1 | M–L | 0.5.1 | Answers applied; ready after Wave 1 |
 | 3 | [Reference library and ADRs](wave-03-reference-and-adrs.md) | The owner's curated library of patterns and anti-patterns (project and hub), an opt-in starter set, decision links (web, repository, a file on your own computer) and a Compliance section; the page stays "Decisions" | G, K | 2 | M | 0.5.1 | Answers applied; ready after Wave 2 |
 | 16 | [Images and files](wave-16-attachments.md) | A content-addressed attachment store; images and files on notes, comments, decisions and diagrams; type allowlist; BMO gets a list and redacted text files, never the contents of images, PDFs or Office files; or a reference to a file on your own computer (opens in the default app) instead of a copy | E | 2, 3 | M–L | 0.5.1 | Answers applied (C4, C5, Q3.5) |
 | 4 | [Roles, data and variants](wave-04-roles-data-variants.md) | Conditions on lines and A/B variants as grouped flows (C4 modelling). **The data half** (CRUD letters, role × data matrix) is on the scope review as P4 | A (data half: outside the vision's line, kept by the owner's answers) | none | M | 0.5.1 | Answers applied (2026-11-20): CRUD letters (an old write becomes C, U and D), matrix, variants; ready |
 | 5 | [Code search, key code and one generic reader](wave-05-code-search.md) | Find a function, class or file name in the code with no LLM (offline BMO `where`, `dp find --code`), with definitions marked; a component's **key code** (main files and functions) pinned by a person, checked by dp, or proposed by BMO and verified; **one generic regex reader** (a pattern table for the major languages) replaces the Python and JS/TS readers. No per-language code, no Maven or Gradle, no file roles | H, L | 1, 2 | M–L (split point: search and key code 5a, generic reader 5b) | 0.5.2 | Rewritten 2026-11-20 (revised the same day); ready after Waves 1 and 2 |
 | 15 | [Guided import interview](wave-15-guided-import-interview.md) | Importing a codebase: the scan makes every deterministic call, then a "question x of y" interview asks the rest. The questions depend on the codebase, there are always at least 6 per level, and the person can add notes, context and file references. Includes the "main files and functions" card per component. Number 15 is an id, not a place in the order | H | 5, 1 | L (split point: interview 15a, BMO-proposed cards 15b) | 0.5.2 | Answers applied (2026-11-20); ready after Waves 5 and 1 |
-| 6 | [Findings and acknowledgements](wave-06-findings.md) | One Finding shape, acknowledgements stored in the model, the warnings dp already makes as the first findings, a Findings page. **Drift is parked in future_tasks** | L, B | none | M | 0.5.2 | Rewritten 2026-11-20; ready |
+| 6 | [Findings and acknowledgements](wave-06-findings.md) | One Finding shape, acknowledgements stored in the model, the warnings dp already makes as the first findings, a Findings page. **Drift is parked in the ideas list** | L, B | none | M | 0.5.2 | Rewritten 2026-11-20; ready |
 | 7 | [Model metrics](wave-07-metrics.md) | Ca, Ce, instability and cycles computed from the model's own lines, per level, for main, a draft or a git version; a panel section, an overlay, `dp metrics`. No code is read; LCOM, complexity, abstractness and distance are not built | L | none | S–M | 0.5.2 | Rewritten 2026-11-20; ready |
 | 8 | [Rules and presets](wave-08-rules-and-presets.md) | One rule registry (the checklist's rules move into it), presets a team switches on, anti-pattern detectors dp runs itself on the model; never blocks a save | L | 3, 6, 7 | L | 0.5.2 | Answers applied; ready after Waves 3, 6 and 7 |
 | 9 | [Characteristics table](wave-09-characteristics-table.md) | Needed vs current stars per system and container, compared across main, drafts, git versions and decisions (the "-ilities") | L | 7 (hints only) | M | 0.5.3 | Answers applied; ready after Wave 7 |
@@ -45,9 +45,9 @@ The order below is the owner's accepted order (answer A3, 2026-11-19), grouped b
 | 18 | [Drafts that keep up with main](wave-18-drafts-keep-up.md) | Rebase a draft onto the current main, a merge editor for conflicts, undo of an apply that brings the draft back | C | none | M–L (split: 18a rebase and editor, 18b undo) | 0.5.3 | Answers applied; ready |
 | 19 | [Lenses for the roles around an architect](wave-19-lenses-for-roles.md) | Built-in DevOps, Security and Business lenses next to Engineer, Architect and Overview | D | none (better after 9 and 13) | S–M | 0.5.3 | Answers applied; ready |
 | 20 | [A real back-and-forth about an existing system](wave-20-system-conversation.md) | BMO and the person talk in rounds: dp plans rounds from the size and tangle of the model and code folders, each round is previewed and returns cited statements and questions, more questions as the code grows, the person's answers carry forward; plus a checklist item | H, L | 1, 5, 15 | L (split: 20a loop, 20b actions) | 0.5.4 | Answers applied; ready after Wave 15 |
-| 10 | [Risk and risk storming](wave-10-risk-storming.md) | Risks per part and characteristic, the assessment grid, a computed risk overlay, private scoring sessions | none | 9 | M | — | **Parked** (owner, A7): moved to future_tasks |
-| 12 | [Runtime](wave-12-runtime-telemetry.md) | Traces and System Testing runs added up: busy, slow and failing lines, chatty and repeated calls, cycles, deep chains, A/B split from flag events | none (runtime) | 4, 6, 8 | M | — | **Parked** (owner, A7): moved to future_tasks |
-| — | *Architecture drift* | Model ↔ code comparison, found / not found / not checkable, "update the model from code", `dp drift`. **Moved to [../future_tasks.md](../future_tasks.md) 2.2 for the owner to review later** (2026-11-20) | H | — | M–L | — | Parked (owner) |
+| 10 | [Risk and risk storming](wave-10-risk-storming.md) | Risks per part and characteristic, the assessment grid, a computed risk overlay, private scoring sessions | none | 9 | M | — | **Parked** (owner, A7): moved to the ideas list |
+| 12 | [Runtime](wave-12-runtime-telemetry.md) | Traces and System Testing runs added up: busy, slow and failing lines, chatty and repeated calls, cycles, deep chains, A/B split from flag events | none (runtime) | 4, 6, 8 | M | — | **Parked** (owner, A7): moved to the ideas list |
+| — | *Architecture drift* | Model ↔ code comparison, found / not found / not checkable, "update the model from code", `dp drift`. **Moved to ideas list I2.2 for the owner to review later** (2026-11-20) | H | — | M–L | — | Parked (owner) |
 | — | *Deployment diagrams* | *Decided earlier (DEC-019, DEC-022) but infrastructure: not scheduled before 1.0.0 unless the owner says so (scope review P1)* | none | — | L | — | Waiting for the owner |
 
 "Feature" is the letter of the twelve features in [../product-vision.md](../product-vision.md). Waves 10 and 12 map to none of them.
@@ -82,7 +82,7 @@ Owner, 2026-11-19: every release before 1.0.0 stays inside 0.5.x. Grouped releas
 | 0.5.2 | Waves 5, 15, 6, 7, 8 | Code search and key code, the guided import interview, findings and acknowledgements, model metrics, rules and presets |
 | 0.5.3 | Waves 9, 11, 17, 18, 19 | The characteristics table, BMO reviews (anti-patterns, decisions), architecture commits, rebase and merge editor, DevOps, Security and Business lenses |
 | 0.5.4 | Waves 13, 14, 20 | Contracts, local runtimes and the word index, the back-and-forth about an existing system |
-| 1.0.0 | The 1.0 checklist (future_tasks 2.0) | The twelve features |
+| 1.0.0 | The 1.0 checklist (ideas list I2.0) | The twelve features |
 
 - A wave agent does not bump the version. The release is its own small change after the last wave of its group: version in `package.json`, README, CHANGELOG heading.
 - If the owner's review adds waves (the scope review), each joins the group it fits or adds the next 0.5.x number. There is no 0.6.
@@ -114,7 +114,7 @@ Owner, 2026-11-19: every release before 1.0.0 stays inside 0.5.x. Grouped releas
 - A new DEC at the bottom of `docs/decisions.md`, numbered with the next free number. Never reuse a number written in these plans.
 - An "Unreleased" entry in `docs/CHANGELOG.md`.
 - A section at the top of `docs/reviews.md` (what was built, how it was checked, limits, questions, an empty owner-feedback part).
-- The code map in `.claude/CLAUDE.md`, the feature list in `README.md`, and `docs/future_tasks.md`.
+- The code map in `.claude/CLAUDE.md`, the feature list in `README.md`, and `docs/planned_features.md` and the ideas list.
 - Rows for the wave's outputs in `docs/determinism.md` (from Wave 1 on).
 - Do not delete `questions.md`, a wave file or any other planning file (owner, 2026-11-19).
 
@@ -162,16 +162,16 @@ The owner's list of things to build (2026-11-17):
 
 | # | Item (shortened) | Where |
 |---|---|---|
-| 1 | Architecture drift detection | **Parked** (owner, 2026-11-20): future_tasks 2.2. Wave 6 builds only the Finding shape and acknowledgements. Contract changes are Wave 13; runtime drift was Wave 12 (parked) |
+| 1 | Architecture drift detection | **Parked** (owner, 2026-11-20): ideas list I2.2. Wave 6 builds only the Finding shape and acknowledgements. Contract changes are Wave 13; runtime drift was Wave 12 (parked) |
 | 2 | LLM explanations grounded in actual code and docs | Wave 1 |
 | 3 | A note for each object at each level, easy to see | Wave 2 (sticky notes in the model, Notes page, `dp context`) · Q2.1–Q2.3; images and files in Wave 16 |
 | 4 | A reference notes section curated by the owner (patterns, anti-patterns) | Wave 3 · Q3.1–Q3.3 |
 | 5 | How A/B testing and conditional services work in C4 | Explained in questions 0.1. Modelled in Wave 4; the observed split would have been Wave 12 (parked) |
-| 6 | Metrics such as LCOM and instability | Wave 7 · Q7.1: instability, coupling and cycles from the model. LCOM, complexity, abstractness need function bodies and field use that regexes read badly, so they are not built (report import is an idea, future_tasks 2.5) |
+| 6 | Metrics such as LCOM and instability | Wave 7 · Q7.1: instability, coupling and cycles from the model. LCOM, complexity, abstractness need function bodies and field use that regexes read badly, so they are not built (report import is an idea, ideas list I2.5) |
 | 7 | Characteristics star table: current vs needed, by a person or an LLM, compared across planned changes | Wave 9 (table, comparisons). BMO proposals in Wave 11 |
 | 8 | How config files and common functions such as `tools.py` show up | Explained in questions 0.2. Owner, 2026-11-20: dp does not map `tools.py` and similar; a C3 component shows its **main files and functions** (Wave 5, key code) |
 | 9 | Better fixed context prompts, never written by an LLM | Wave 1 · questions 0.6 |
-| 10 | Risk analysis such as risk storming | Wave 10 (**parked**, answer A7; future_tasks 2.3) |
+| 10 | Risk analysis such as risk storming | Wave 10 (**parked**, answer A7; ideas list I2.3) |
 | 11 | Where LLM false positives and negatives appear; which levels are guesses | Explained in questions 0.3. `docs/determinism.md` in Wave 1. The owner's answer to 0.3 (deterministic first, then ask the user) is Wave 15 |
 | 12 | LLM use is fine where determinism is impossible, but called out | The determinism classes (★A4) and BMO's labels (Wave 1), followed by every wave |
 | 13 | An ADR section where each decision can have files or info attached | Wave 3 (Decisions page keeps its name; links, Compliance) · Q3.4–Q3.6; files and local-file references in Wave 16 |
@@ -182,7 +182,7 @@ The owner's list of things to build (2026-11-17):
 | 18 | Architecture validation and presets | Wave 8 |
 | 19 | When A's output changes, tell B (which reads it), in the UI | Wave 13 |
 | 20 | Roles and actions such as CRUD per role, and what each role sees | Wave 4 (roles in the modelled system, as the owner chose) |
-| 21 | Anti-patterns tracked through telemetry or other ways | Wave 8 (from the model; code-level checks are BMO, Wave 11). Telemetry: Wave 12 (**parked**, answer A7; future_tasks 2.7) |
+| 21 | Anti-patterns tracked through telemetry or other ways | Wave 8 (from the model; code-level checks are BMO, Wave 11). Telemetry: Wave 12 (**parked**, answer A7; ideas list I2.7) |
 | 22 | A button that asks BMO to test the codebase or design against the chosen anti-patterns | Wave 11 |
 
 The product vision of 2026-11-19 adds twelve features. Where each is built or planned:
@@ -202,22 +202,22 @@ The product vision of 2026-11-19 adds twelve features. Where each is built or pl
 | K | Shared catalog | Built (DEC-054 to DEC-057); Wave 3 for the library |
 | L | BMO | Built; Waves 1, 2, 5 (find code, key code), 6, 7, 8, 9, 11, 14, 20 |
 
-The owner's list of things to think about later, all in [../future_tasks.md](../future_tasks.md):
+The owner's list of things to think about later, all in the ideas list:
 
-| Idea | Where in future_tasks.md |
+| Idea | Where in the ideas list |
 |---|---|
-| Importing draw.io and Lucidchart diagrams | 2.1 |
-| A UI redesign, drawn by hand | 2.8 |
-| Trade-offs that change over time | 2.3 |
-| Extensibility, architecture vitality | 2.3 |
-| How system design reviews are done | 2.4 |
-| Code reviews and test coverage through the tool | 2.4 |
-| Debugging through dp compared with an editor's debugger | 2.7 |
-| Risk analysis | 2.3 (the first cut, Wave 10, is parked) |
-| Is creating C4 from a codebase an LLM-only job? | 2.0 (facts in questions 0.3). Owner's answer: make all deterministic calls, then ask the user (Wave 15) |
-| A checklist for release 1.0.0 | 2.0 |
-| Data drift | 2.2 |
+| Importing draw.io and Lucidchart diagrams | I2.1 |
+| A UI redesign, drawn by hand | I2.8 |
+| Trade-offs that change over time | I2.3 |
+| Extensibility, architecture vitality | I2.3 |
+| How system design reviews are done | I2.4 |
+| Code reviews and test coverage through the tool | I2.4 |
+| Debugging through dp compared with an editor's debugger | I2.7 |
+| Risk analysis | I2.3 (the first cut, Wave 10, is parked) |
+| Is creating C4 from a codebase an LLM-only job? | I2.0 (facts in questions 0.3). Owner's answer: make all deterministic calls, then ask the user (Wave 15) |
+| A checklist for release 1.0.0 | I2.0 |
+| Data drift | I2.2 |
 | **Product vision (most important)** | Answered 2026-11-19: [../product-vision.md](../product-vision.md), DEC-090 |
-| Anti-patterns from telemetry | 2.7 (the first cut, Wave 12, is parked) |
-| Where to put people (language mix, compliance) | 2.4 (language mix per object is no longer built) |
-| TOGAF | 2.0 |
+| Anti-patterns from telemetry | I2.7 (the first cut, Wave 12, is parked) |
+| Where to put people (language mix, compliance) | I2.4 (language mix per object is no longer built) |
+| TOGAF | I2.0 |

@@ -70,7 +70,7 @@ Accounts can attach images and files to a diagram, a box or line, a decision, a 
       - the path is resolved first (symlinks followed) and the **real** file's type is checked, and it must be a regular file that exists;
       - the opener is started with an argument list and never a shell;
       - the cross-site rule of item 3 applies: a custom header, no preflight;
-      - the Windows path is written and not run, like the rest of the CLI's Windows code (future_tasks 1.5), and needs extra care with quoting.
+      - the Windows path is written and not run, like the rest of the CLI's Windows code (ideas list O), and needs extra care with quoting.
     - **Roles.** Anyone who can see the project may open (the server is on their own machine); whoever may edit the thing may add or remove a reference. Same as uploads for who may attach.
 13. **UI.** An attach button in the comment composer, the note editor, the sticky note editor, the decision editor and the diagram and object panels; paste an image from the clipboard; a thumbnail strip; click opens an image in a dialog; other files download; a referenced local file has Open (with the path dialog) and Copy path. Reachable by keyboard; every image has a name used as alt text.
 
@@ -141,7 +141,7 @@ Accounts can attach images and files to a diagram, a box or line, a decision, a 
 - **CLAUDE.md:** `attachments.ts` and its route module.
 - **README:** the collaboration paragraph.
 - **docs/determinism.md:** a row.
-- **future_tasks.md:** note what is left (files over 10 MB, video, per-file permissions).
+- **planned_features.md:** note what is left (files over 10 MB, video, per-file permissions).
 
 ## Out of scope
 

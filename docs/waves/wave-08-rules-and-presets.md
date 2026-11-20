@@ -99,13 +99,18 @@ This wave covers "other ways": the model and the code. Telemetry was Wave 12, wh
    - **heuristic, shown as hints** (Q8.5):
      - an Entity Trap name (ends in Manager, Supervisor, Controller, Handler, Engine or Processor);
      - architecture by implication (containers with no decision).
+   - **More candidates from the old backlog (2026-11-20), each a [Proposal] for this wave to take or leave:**
+     - *Into `c4-basics`:* a container with no technology; a line with no protocol or technology; a label that ends in a preposition (heuristic); an acronym with no explanation (heuristic); a container diagram that uses deployment words (heuristic).
+     - *Into `structure`:* a container whose technology names runtimes that cannot share a process (heuristic).
+     - *Into `microservices`:* synchronous lines between containers whose scalability characteristics differ a lot (computed from Wave 9's ratings, when present). The backlog's "about 12 services sharing one database" is a starting value for the shared-database parameter, not a measured figure.
+     - *Not computable from the model, so not built here:* cross-service transactions and business logic on a gateway. They need code or a person, so they stay with BMO's review (Wave 11) and ideas list I2.2.
 5. **Silencing** (★Q8.4). A finding is silenced by acknowledging it (Wave 6), and `dp check` counts the acknowledged ones. Nothing blocks a save (★Q8.1).
 6. **Surfaces.**
    - A Rules page (`p=rules`): preset switches; rules with their counts and severities; the Findings list, each linked to its reference entry.
    - A "findings" overlay.
    - `dp check --preset <name> --fail-on warn|error`.
    - A CI example.
-7. **Fitness-function export** (generating architecture tests for other tools) stays in future_tasks 2.4.
+7. **Fitness-function export** (generating architecture tests for other tools) stays in ideas list I2.4.
 
 ## Determinism
 
@@ -120,7 +125,7 @@ Applied 2026-11-19: the owner answered Part A and left Part B blank, so every Q 
 - **Q8.3:** C4 basics on by default; the other presets opt-in.
 - **Q8.4:** silencing is acknowledging with a reason; `dp check` counts acknowledged findings.
 - **Q8.5:** heuristic detectors shown as hints only.
-- **Q8.6:** style templates later (future_tasks).
+- **Q8.6:** style templates later (the ideas list).
 - **2026-11-20 (best thinking, after the code-reading answers):** Q8.1 to Q8.6 hold as recommended. Two changes follow from the other answers: the "zone of pain or uselessness" detector is gone (it needs abstractness, which needs a per-language parser), and the thresholds for coupling that Wave 7 no longer carries become parameters of rules here.
 - **Vision:** feature L (anti-pattern detection). The Security basics and Data presets touch data and infrastructure; the owner's review (scope review) may move them out.
 
@@ -166,13 +171,13 @@ Applied 2026-11-19: the owner answered Part A and left Part B blank, so every Q 
 - **README:** rules and presets.
 - **CLAUDE.md:** `src/core/rules/`.
 - **CHANGELOG** and **reviews.md:** this wave's entries.
-- **future_tasks:** 2.2 (checks and lints) done in part; fitness functions stay.
+- **ideas list:** I2.2 (checks and lints) done in part; fitness functions stay.
 - **`docs/determinism.md`:** rows for this wave.
 
 ## Out of scope
 
 - BMO's anti-pattern review (Wave 11).
-- Telemetry rules (Wave 12, parked; future_tasks 2.7).
+- Telemetry rules (Wave 12, parked; ideas list I2.7).
 - Starter models per architecture style (Q8.6).
 - Exporting fitness functions.
 

@@ -22,7 +22,7 @@ Understanding an existing system is a conversation, not one question about one s
 ## What exists today [Fact]
 
 - **BMO chat** (DEC-073): ask about named objects; every message is previewed (the exact prompt and its hash) and sent only when confirmed (DEC-064). A chat message gets at most 24,000 tokens of code (`src/assistant/runTask.ts:324`).
-- **A run over the size limit is refused**; there is no multi-pass (`src/assistant/settings.ts:100-103`, DEC-065, future_tasks 1.3).
+- **A run over the size limit is refused**; there is no multi-pass (`src/assistant/settings.ts:100-103`, DEC-065, planned_features B4).
 - **Import tasks** work one C4 level at a time, with a scan that decides what it can without a model (`src/import/scan.ts`, `analysis.ts`).
 - **The checklist** (DEC-084) already holds BMO's questions from an import (`checklist.ts` `addFromImport`).
 - **Wave 15 (planned)** is the deterministic interview: plain questions, then approve/disapprove cards; BMO's cards come last (15b). It is one pass, per level.
@@ -47,7 +47,7 @@ Understanding an existing system is a conversation, not one question about one s
 9. **State.** `architecture/import/conversation.json`, next to `interview.json`, outside the model, fixed key order: the plan, each round's selectors and hash, the person's answers and who gave them, and what was saved where. It never holds a prompt, a code excerpt or a secret (the prompt is rebuilt from selectors and answers).
 10. **Both backends.** With the handoff backend, a round is a prompt file and a `result.json` brought back, and the loop reads the same answer shape. With a direct backend, it is one call per round.
 11. **Where it lives in the UI.** "Talk it through" on the Import page and in a diagram's menu: a column of rounds, the current round's statements with chips, its questions as cards ("question 2 of 5 in this round"), and buttons: answer, skip, more questions, go deeper, enough.
-12. **The checklist.** The in-app "Importing a codebase" starter list gets an item "Talk through the system with BMO until you're satisfied" that dp ticks itself when every planned round is answered, skipped or marked enough. It is a checklist item, not a model change. The 1.0.0 release checklist in future_tasks 2.0 gets the same wording.
+12. **The checklist.** The in-app "Importing a codebase" starter list gets an item "Talk through the system with BMO until you're satisfied" that dp ticks itself when every planned round is answered, skipped or marked enough. It is a checklist item, not a model change. The 1.0.0 release checklist in ideas list I2.0 gets the same wording.
 
 ## Determinism
 
@@ -65,7 +65,7 @@ Understanding an existing system is a conversation, not one question about one s
 
 ## Stop and ask if
 
-- A round would need more code than the run limit allows even for the smallest scope. That is the multi-pass design (future_tasks 1.3), a separate decision.
+- A round would need more code than the run limit allows even for the smallest scope. That is the multi-pass design (planned_features B4), a separate decision.
 - The conversation file would need to hold a prompt, an excerpt or a secret.
 - A question's answer would be written into the model without a button press, or labelled in the model as BMO's (DEC-051, DEC-064 forbid it).
 - The person asks for the plan to run without a preview per round.
@@ -81,7 +81,7 @@ Understanding an existing system is a conversation, not one question about one s
 | 5 | Actions that write: note, import file, decision, checklist | general-purpose · Opus | `modelEdits.ts`, `src/import/importer.ts` path, `decisions` path, `checklist.ts` | Each writes only on a press; drafts for engineers |
 | 6 | UI | general-purpose · Sonnet | `ui/src/pages/ImportPage.tsx`, `ui/src/common/` (a `Conversation.tsx`), `hooks/useBmo.ts` | Keyboard reachable; every round previewed |
 | 7 | Tests (not the authors of 3 to 6) | general-purpose · Sonnet | `tests/unit/conversation*.test.ts`, `tests/browser/conversation.spec.ts` | As listed below |
-| 8 | Docs and checklist item | general-purpose · Sonnet | decisions.md, CHANGELOG, reviews.md, CLAUDE.md, README, `checklist.ts` `STARTERS`, future_tasks 2.0 | Docs and both checklists updated |
+| 8 | Docs and checklist item | general-purpose · Sonnet | decisions.md, CHANGELOG, reviews.md, CLAUDE.md, README, `checklist.ts` `STARTERS`, ideas list I2.0 | Docs and both checklists updated |
 | 9 | Review | main session | — | `/code-review` (high) and `/security-review` findings fixed |
 
 ## Required in this wave
@@ -106,11 +106,11 @@ Understanding an existing system is a conversation, not one question about one s
 ## Docs
 
 - **New DEC:** the conversation (rounds, question cap, memory, actions, state file). **CHANGELOG**, **reviews.md**, **CLAUDE.md** (`conversation.ts`, `Conversation.tsx`), **README** (BMO section).
-- **docs/determinism.md:** rows. **checklist.ts** `STARTERS` and **future_tasks.md** 2.0: the checklist items.
+- **docs/determinism.md:** rows. **checklist.ts** `STARTERS` and ideas list I2.0: the checklist items.
 
 ## Out of scope
 
-- Multi-pass summarising of a whole repository in one run (future_tasks 1.3).
+- Multi-pass summarising of a whole repository in one run (planned_features B4).
 - Questions asked without a preview.
 - Voice or email.
 - Keeping BMO's chat history across sessions beyond this file.

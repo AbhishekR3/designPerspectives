@@ -115,7 +115,7 @@ Applied 2026-11-19: the owner answered Part A and Q1.1 to Q1.5 ([questions.md](q
 - **A4:** the four determinism classes are accepted; this wave writes `docs/determinism.md` and the DEC.
 - **Q1.1:** "Every statement needs a citation when referring to things." A statement that refers to a thing (an object, file, decision, note, doc section or number in the pack) must carry a valid cite, or it is held back under "N claims without a valid citation". General statements are shown, marked "general". Hidden-by-default is the assistant's reading of "needs"; showing them inline, marked, is the milder alternative.
 - **Q1.2:** templates live in code only, never per project, never written by an LLM.
-- **Q1.3:** **deferred.** The evaluation set (fixtures, scorer, `dp bmo eval`) is not in this wave. It is an idea in [../future_tasks.md](../future_tasks.md) 2.0 ("Testing and evaluating BMO"). The wave still has ordinary unit tests of its own code, using canned answers from the fake backend.
+- **Q1.3:** **deferred.** The evaluation set (fixtures, scorer, `dp bmo eval`) is not in this wave. It is an idea in ideas list I2.0 ("Testing and evaluating BMO"). The wave still has ordinary unit tests of its own code, using canned answers from the fake backend.
 - **Q1.4:** temperature 0 everywhere, a seed where the API has one; both go in the run log; no claim of exact repeatability.
 - **Q1.5:** yes, the repository's Markdown docs are citable through the same file gate.
 - **Vision (2026-11-19):** this wave is the base of feature L, BMO. Wave 11 adds the check of decisions ("ADR broken or violated") on top of its templates and citations.
@@ -177,15 +177,15 @@ Applied 2026-11-19: the owner answered Part A and Q1.1 to Q1.5 ([questions.md](q
 - **CLAUDE.md:** `contextPack.ts` and `citations.ts` in the BMO paragraph.
 - **README:** the BMO section.
 - **`docs/determinism.md`:** new, and indexed in `docs/README.md`.
-- **future_tasks.md:** mark items 2, 9, 11 and 12 as built.
+- **planned_features.md:** mark items 2, 9, 11 and 12 as built.
 
 ## Out of scope
 
 - Help about dp, sticky notes, and BMO always reading notes (Wave 2).
 - Retrieval by word index (Wave 14). No embeddings are planned.
 - Anti-pattern review, proposed ratings and suggested risks (Wave 11).
-- Multi-pass runs for very large repositories (future_tasks 1.3).
-- **The evaluation set** (fixtures with known answers, a scorer, `dp bmo eval`): deferred by the owner to future_tasks 2.0.
+- Multi-pass runs for very large repositories (planned_features B4).
+- **The evaluation set** (fixtures with known answers, a scorer, `dp bmo eval`): deferred by the owner to ideas list I2.0.
 
 ## Start prompt
 

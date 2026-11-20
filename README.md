@@ -470,7 +470,7 @@ hub, and not against a draft.
   with the error shown.
 - **Read-only**: `dp serve --read-only` gives a viewer role: nothing can be changed.
 
-Plan and limits: [docs/planned-change.md](docs/planned-change.md). Future work: [docs/future_tasks.md](docs/future_tasks.md) (the short list) and [docs/backlog.md](docs/backlog.md) (the full list).
+Plan and limits: [docs/planned-change.md](docs/planned-change.md). Future work: [docs/planned_features.md](docs/planned_features.md) (planned work in a fixed format and in compact tables; the old `docs/future_tasks.md` was split into it and a private ideas list).
 
 ## Develop
 
@@ -513,7 +513,7 @@ Layout:
 | `scripts/` | `make-demo.ts` and `make-demo-hub.ts` (regenerate `demo/`), `list-tests.ts` (writes `tests/TESTS.csv`) |
 | `tests/` | `unit/` (Vitest: logic, API, CLI; no browser) and `browser/` (Playwright: the real UI in Chromium); `TESTS.csv` lists every test ([tests/README.md](tests/README.md)) |
 | `config/` | tool settings: TypeScript, ESLint, Prettier, Vitest, Playwright |
-| `docs/` | decisions, future tasks and backlog, planned-change guide, reviews, changelog, contributing guide, notes |
+| `docs/` | decisions, future tasks, planned-change guide, reviews, changelog, contributing guide, notes |
 
 ## Credits
 

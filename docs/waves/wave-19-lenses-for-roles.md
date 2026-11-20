@@ -7,7 +7,7 @@
 | **Size** | S–M |
 | **Release** | 0.5.3 (with Waves 9, 11, 17, 18) |
 | **Depends on** | Nothing required. Better after Wave 9 (characteristics) and Wave 13 (contracts) so the lenses can show them; without them the lenses still work |
-| **Owner items** | Feature D of [../product-vision.md](../product-vision.md): "Architecture Lenses (Architect, DevOps, other members involved during SDLC)". [../future_tasks.md](../future_tasks.md) 1.4 |
+| **Owner items** | Feature D of [../product-vision.md](../product-vision.md): "Architecture Lenses (Architect, DevOps, other members involved during SDLC)". [../planned_features.md](../planned_features.md) B5 |
 
 Read [README.md](README.md) first: its rules, agents and checks apply to this wave.
 
@@ -65,7 +65,7 @@ The same model reads right for the people who work with an architect: DevOps, se
 | 1 | Re-anchor | Explore · Haiku | The files in "What exists today" | Anchors confirmed |
 | 2 | Three built-in lenses, picker, help table | general-purpose · Sonnet | `src/core/designPerspectivesFile.ts`, `ui/src/hooks/useLens.ts`, `ui/src/common/HelpCard.tsx`, settings dialog | Six lenses listed; defaults unchanged; no stored data |
 | 3 | Tests (a different agent) | general-purpose · Sonnet | `tests/unit/lenses*.test.ts`, a browser test | As listed below |
-| 4 | Docs | general-purpose · Haiku | decisions.md, CHANGELOG, reviews.md, CLAUDE.md, README (lenses), future_tasks 1.4 | Docs updated |
+| 4 | Docs | general-purpose · Haiku | decisions.md, CHANGELOG, reviews.md, CLAUDE.md, README (lenses), planned_features B5 | Docs updated |
 | 5 | Review | main session | — | `/code-review` (high) fixed |
 
 ## Required in this wave
@@ -85,7 +85,7 @@ The same model reads right for the people who work with an architect: DevOps, se
 
 ## Docs
 
-- **New DEC:** the three lenses (amends DEC-038's list of built-ins). **CHANGELOG**, **reviews.md**, **CLAUDE.md**, **README**. **future_tasks.md** 1.4: mark built; Compliance and QA lenses stay ideas.
+- **New DEC:** the three lenses (amends DEC-038's list of built-ins). **CHANGELOG**, **reviews.md**, **CLAUDE.md**, **README**. **planned_features.md** B5: mark built; Compliance and QA lenses stay ideas.
 
 ## Out of scope
 

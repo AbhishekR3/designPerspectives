@@ -7,7 +7,7 @@
 | **Size** | M–L. Split point: 18a is rebase and the merge editor (steps 2 to 4); 18b is undo that restores the draft (step 5) |
 | **Release** | 0.5.3 (with Waves 9, 11, 17, 19) |
 | **Depends on** | Nothing in this plan |
-| **Owner items** | Feature C of [../product-vision.md](../product-vision.md): architecture change proposals. [../future_tasks.md](../future_tasks.md) 1.2 |
+| **Owner items** | Feature C of [../product-vision.md](../product-vision.md): architecture change proposals. [../planned_features.md](../planned_features.md) B3 |
 
 Read [README.md](README.md) first: its rules, agents and checks apply to this wave.
 
@@ -43,7 +43,7 @@ With several accounts proposing changes in drafts, main moves while a draft is o
    - Undoing that apply restores the model, brings the draft back, and restores a code file **only if it still holds what the apply wrote**; if someone changed it since, dp leaves it and says which file.
    - Redo applies again and removes the recovery copy again.
    - The recovery copy is dropped after a limit (the last 5 applies) and on `dp` start if older than 30 days.
-6. **Not in this wave:** comparing a draft's planned code edits with the code as it was when the draft started (future_tasks 1.2, later).
+6. **Not in this wave:** comparing a draft's planned code edits with the code as it was when the draft started (planned_features B3, later).
 
 ## Determinism
 
@@ -100,11 +100,11 @@ With several accounts proposing changes in drafts, main moves while a draft is o
 - **New DEC:** rebase and the merge editor; the recovery copy for undo; limits.
 - **`docs/planned-change.md`:** update "what it cannot do yet".
 - **CHANGELOG**, **reviews.md**, **CLAUDE.md** (`MergeEditor.tsx`), **README**.
-- **future_tasks.md:** mark the rebase and undo rows built; keep the code comparison.
+- **planned_features.md:** mark the rebase and undo rows built; keep the code comparison.
 
 ## Out of scope
 
-- Two people editing one draft at once, and real-time collaboration (future_tasks 2.6).
+- Two people editing one draft at once, and real-time collaboration (ideas list I2.6).
 - Comparing planned code edits with the code at the draft's start.
 
 ## Start prompt

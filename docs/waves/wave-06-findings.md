@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Rewritten 2026-11-20: the owner moved architecture drift to [../future_tasks.md](../future_tasks.md) (2.2). This wave keeps the part that Waves 8, 11 and 13 need: one Finding shape and acknowledgements. Ready to run |
+| **Status** | Rewritten 2026-11-20: the owner moved architecture drift to ideas list (I2.2). This wave keeps the part that Waves 8, 11 and 13 need: one Finding shape and acknowledgements. Ready to run |
 | **Branch** | `feat/w06-findings`, from `main` |
 | **Size** | M (was M–L) |
 | **Release** | 0.5.2 |
@@ -19,7 +19,7 @@ Every check in dp says "something about object X needs a look" in the same shape
 
 > Wave 6: Push architecture drift to future_tasks.md for me to review later [2026-11-20]
 
-The drift design (model ↔ code in both directions, found / not found / not checkable, "update the model from code", `dp drift`, a CI example) is written up in future_tasks 2.2 for review. It is not built here. With dp no longer reading code by language (Wave 5), the comparisons that remain possible are listed there too.
+The drift design (model ↔ code in both directions, found / not found / not checkable, "update the model from code", `dp drift`, a CI example) is written up in ideas list I2.2 for review. It is not built here. With dp no longer reading code by language (Wave 5), the comparisons that remain possible are listed there too.
 
 The Finding shape and acknowledgements come from answer A5 (2026-11-19) and stay.
 
@@ -75,7 +75,7 @@ The Finding shape and acknowledgements come from answer A5 (2026-11-19) and stay
 
 - **A5 (2026-11-19):** yes. One Finding shape; acknowledgements are model data, stored as `dp.acks`.
 - **Q6.1:** `dp.acks` on the object the finding is about. **Q6.2:** the three outcomes stay in the shape for the later waves.
-- **Drift (2026-11-20):** pushed to future_tasks. Q6.3 (what drift compares against), Q6.4 (fixing drift through the import review) and Q6.5 (drift in CI) are not built; their designs are kept there.
+- **Drift (2026-11-20):** pushed to the ideas list. Q6.3 (what drift compares against), Q6.4 (fixing drift through the import review) and Q6.5 (drift in CI) are not built; their designs are kept there.
 - **Vision:** feature L (the base for BMO's checks) and the single source of truth (B).
 
 ## Stop and ask if
@@ -121,7 +121,7 @@ The Finding shape and acknowledgements come from answer A5 (2026-11-19) and stay
 
 ## Out of scope
 
-- Drift of any kind (future_tasks 2.2).
+- Drift of any kind (ideas list I2.2).
 - Rules, presets and detectors (Wave 8).
 - Contract changes (Wave 13). Runtime findings (Wave 12, parked).
 - Watching files for changes.

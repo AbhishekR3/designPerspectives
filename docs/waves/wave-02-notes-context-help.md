@@ -218,7 +218,7 @@ Applied 2026-11-19 ([questions.md](questions.md)).
 - **CLAUDE.md:** the new files (`commands.ts`, `help.ts`, `Markdown.tsx`, the Notes page) and a line that placed notes are comments while stickies are model data.
 - **CHANGELOG** and **reviews.md:** this wave's entries.
 - **`docs/determinism.md`:** rows for this wave.
-- **future_tasks:** the MCP row gets a pointer to `dp context`.
+- **planned_features.md:** the MCP row gets a pointer to `dp context`.
 
 ## Out of scope
 

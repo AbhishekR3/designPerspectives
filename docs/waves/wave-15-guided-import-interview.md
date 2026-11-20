@@ -123,7 +123,7 @@ Questions that come from the guesses in questions 0.3, asked as choices or text:
 
 - **Dependent on the codebase** (Q15.1). A card exists only because the scan found something to ask about: no broker found, no broker question; folders that look like layers, the layers question. The list is computed from the scan, as before.
 - **Lean toward asking** (Q15.1). When a fact could be asked about or assumed, dp asks. dp also asks about every object it would create: a name check, a one-line description and, for each line, a label. "Approve all" stays, per group, and still records one decision per item.
-- **A floor of 6 questions per level's interview** (Q15.1: "definitely at least a few"). If the scan yields fewer, dp fills up to the floor from a **fixed bank of standing questions** per level, worded in code, never generated: for example, at C1 "Which outside systems or services does it talk to that the code does not show?", "Who runs or supports it (admins, support, on-call)?", "Does anything call into it from outside?"; at C2 "Is there a database, queue or cache the code does not show?", "Do the web part and the background workers run from one deployable?"; at C3 "Which folders are layers rather than features?", "What is not part of this container?". The bank has at least 8 questions per level, each shown only when no card already asks it. Step 2 writes the bank; the owner reviews its wording (future_tasks 1.5).
+- **A floor of 6 questions per level's interview** (Q15.1: "definitely at least a few"). If the scan yields fewer, dp fills up to the floor from a **fixed bank of standing questions** per level, worded in code, never generated: for example, at C1 "Which outside systems or services does it talk to that the code does not show?", "Who runs or supports it (admins, support, on-call)?", "Does anything call into it from outside?"; at C2 "Is there a database, queue or cache the code does not show?", "Do the web part and the background workers run from one deployable?"; at C3 "Which folders are layers rather than features?", "What is not part of this container?". The bank has at least 8 questions per level, each shown only when no card already asks it. Step 2 writes the bank; the owner reviews its wording (ideas list O).
 - **The count is honest.** The screen says "Question 7 of 23" and, when the floor added questions, "6 standing questions added because the scan found little to ask about".
 
 ### Adding context (owner, 2026-11-20, Q15.2)
@@ -135,6 +135,21 @@ The card approval is the final accept. Beside it the person can add context:
 - **File references**, on a card or in the general context. Two kinds:
   - **A file inside the code root.** Stored as a path. Text files up to 100 KB are read through the file gate (hidden-path rule, the intake's closed paths, redaction) and can go to BMO as data. Other types are listed by name only.
   - **A file anywhere else on this computer** (`local:`, Wave 3's link kind; DEC-095). dp keeps the path text only. It never reads, copies or sends the file. It shows the name with Copy path, and Open where DEC-095 allows.
+
+### Parts the code only hints at (moved from backlog.md, 2026-11-20) [Proposal]
+
+Code shows outside parts only as clients, URLs and settings, so the interview asks about them directly and checks the answers against the scan. These are candidates for the Step 3 cards and for the standing-question bank; the owner reviews the wording with the rest of the bank (ideas list O).
+
+- **Kinds to ask about:**
+  - third-party services and APIs (payments, identity and login, email and SMS, analytics, search, maps, LLM providers, feature flags, monitoring and error tracking);
+  - cloud-managed services the team configures and a provider runs (databases, queues, object storage, CDN, DNS), modelled as the team's own containers, tagged as managed, with the provider noted;
+  - other teams' internal services and shared platforms, modelled as separate systems (DEC-023);
+  - inbound parties: customers' systems calling the API, webhook senders, partner file drops, browsers and mobile apps as people or systems;
+  - things outside any repository: jobs set up in a console, manual steps, spreadsheets, people in the loop.
+- **For each one, ask:** direction; what flows ("Sends payment requests", not "Uses"); protocol; who owns it; whether the team controls the contract; and the evidence (an SDK dependency, a host or variable name in configuration, a route for a webhook, an infrastructure resource).
+- **Ownership has three answers, not one:** owned by this team, owned by another team in the company, or a vendor. Step 1's "Which team owns it?" gets a follow-up per external part.
+- **Existing material.** Ask for READMEs, ADRs, older diagrams (Mermaid, PlantUML, Structurizr DSL), wiki or ticket links the scan cannot reach, and the team's own names for things against the names in code. These become file references (Adding context, above). ADRs found in the repository could be offered as proposed decisions; that is a new import-file field, so it needs a decision before it is built.
+- **Names only for settings.** Environment variable **names** are written, never values.
 
 ### How answers become a draft
 
@@ -238,15 +253,15 @@ Only one agent builds the UI or runs `cd ui && npm run build` at a time, because
 - **CLAUDE.md:** the new files in `src/import/` and the UI.
 - **CHANGELOG** and **reviews.md:** this wave's entries, including what was asked of a real codebase (the owner runs one).
 - **`docs/determinism.md`:** rows for this wave.
-- **future_tasks:** row 15 done; the "skeleton import without BMO" idea (2.0) is answered.
+- **planned_features.md:** row 15 done; the "skeleton import without BMO" idea (2.0) is answered.
 
 ## Out of scope
 
-- Importing from drawings or other tools (future_tasks 2.1).
+- Importing from drawings or other tools (ideas list I2.1).
 - A command-line interview.
 - Scanning more than one repository at a time.
 - Models that ask the questions on their own: BMO adds cards; it never chooses the questions.
-- Changes to what the scan reads, and drift (parked in future_tasks).
+- Changes to what the scan reads, and drift (parked in the ideas list).
 
 ## Start prompt
 
