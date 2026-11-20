@@ -2,9 +2,10 @@
 
 | | |
 |---|---|
-| **Status** | Waiting for owner answers: ★Q10.1, Q10.2, ★Q10.3, Q10.4 ([questions.md](questions.md)) |
+| **Status** | **Parked** (owner, answer A7, 2026-11-19): risk analysis moved to [../future_tasks.md](../future_tasks.md) 2.3. The wave is not in a release and not in the vision's twelve features. Kept for when it returns |
 | **Branch** | `feat/w10-risk-storming`, from `main` after Wave 9 is merged |
 | **Size** | M |
+| **Release** | — |
 | **Depends on** | Wave 9: the risk criteria are the characteristics |
 | **Owner items** | 10 ([README.md](README.md#where-each-item-went)) |
 
@@ -96,7 +97,12 @@ Run risk-storming sessions in which people score privately first, then agree, th
 
 ## Owner answers
 
-*Filled in when the answers are applied.*
+Applied 2026-11-19: the owner answered Part A and left Part B blank, so every Q below uses its recommendation ([questions.md](questions.md)).
+
+- **A7:** "Push these to future_tasks.md". This wave is parked, not deleted (owner, A10).
+- **Q10.1 to Q10.4:** their recommendations stand for when the wave returns (`dp.risks`, 3×3, private scores with sign-in, containers as columns).
+- **Effect on other waves:** Wave 11 loses "add as a risk" and `suggest-risks`. The Risk tag group and the trade-off risks stay as built.
+- **Confirmed** by the owner on 2026-11-19 ([questions.md](questions.md) C6b): do not build either for 1.0.
 
 ## Stop and ask if
 

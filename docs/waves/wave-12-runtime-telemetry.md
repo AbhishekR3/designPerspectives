@@ -2,10 +2,11 @@
 
 | | |
 |---|---|
-| **Status** | Waiting for owner answers: ★A2, ★Q12.1, Q12.2, Q12.3 ([questions.md](questions.md)) |
-| **Branch** | `feat/w12-runtime-telemetry`, from `main` after Wave 11 (and deployment diagrams, if ★A2 says interleave) |
+| **Status** | **Parked** (owner, answer A7, 2026-11-19): anti-patterns through telemetry moved to [../future_tasks.md](../future_tasks.md) 2.7. Runtime is outside the software-architecture line (scope review P5) and not among the twelve features. Kept for when it returns |
+| **Branch** | `feat/w12-runtime-telemetry`, from `main` (when the wave returns) |
 | **Size** | M |
-| **Depends on** | Wave 4 (variants), Wave 6 (Findings, drift), Wave 8 (rule registry) |
+| **Release** | — |
+| **Depends on** | Wave 4 (variants), Wave 6 (Findings; drift is parked in future_tasks), Wave 8 (rule registry) |
 | **Owner items** | 21, from telemetry ([README.md](README.md#where-each-item-went)) |
 
 Read [README.md](README.md) first: its rules, agents and checks apply to this wave.
@@ -54,7 +55,7 @@ Wave 8 covers the model and code side of this.
 - The event carries `feature_flag.key` and `feature_flag.result.variant`.
 - dp reads trace files only, so it sees these only when an app also puts them on its spans, as attributes or span events.
 
-**From earlier waves:** the Finding shape and drift outcomes (Wave 6), the rule registry (Wave 8), and variant flows (Wave 4).
+**From earlier waves:** the Finding shape (Wave 6), the rule registry (Wave 8), and variant flows (Wave 4).
 
 ## Design [Proposal; rewritten after the owner answers]
 
@@ -91,7 +92,12 @@ Wave 8 covers the model and code side of this.
 
 ## Owner answers
 
-*Filled in when the answers are applied.*
+Applied 2026-11-19: the owner answered Part A and left Part B blank, so every Q below uses its recommendation ([questions.md](questions.md)).
+
+- **A7:** "Push these to future_tasks.md". This wave is parked, not deleted (owner, A10).
+- **Q12.1 to Q12.3:** their recommendations stand for when the wave returns (trace files and System Testing runs only; settings in the rule registry; flag attributes on span events).
+- **Effect on other waves:** none depend on it. Wave 4's observed A/B split and Wave 6's runtime drift note point here and stay unbuilt.
+- **Confirmed** by the owner on 2026-11-19 ([questions.md](questions.md) C6b): do not build either for 1.0.
 
 ## Stop and ask if
 

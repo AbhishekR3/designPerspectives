@@ -2,10 +2,11 @@
 
 | | |
 |---|---|
-| **Status** | Owner answers applied (questions 0.4 and 0.5, 2026-11-18). No gate. Part B questions Q14.1 to Q14.5 are answered by them. Ready to run after Waves 1 and 2 |
+| **Status** | Owner answers applied (questions 0.4 and 0.5, 2026-11-18). No gate. Part B questions Q14.1 to Q14.5 are answered by them. The with-and-without-index measurement left this wave on 2026-11-19, with Wave 1's evaluation set (see Q1.3). Ready to run after Waves 1 and 2 |
 | **Branch** | `feat/w14-local-runtimes-word-index`, from `main` after the previous wave is merged |
 | **Size** | M |
-| **Depends on** | Wave 1 (packs, evaluation), Wave 2 (the BM25 module built for help search). Wave 5 is optional: its language modules give better code chunks; without them, code is split by blank-line blocks and function-looking lines |
+| **Release** | 0.5.4 (with Wave 13) |
+| **Depends on** | Wave 1 (packs), Wave 2 (the BM25 module built for help search). Wave 5's code search and file gate are reused if merged. Code is split into chunks the same way for every language (no language modules exist) |
 | **Owner items** | 16, 15 ([README.md](README.md#where-each-item-went)) |
 
 Read [README.md](README.md) first: its rules, agents and checks apply to this wave.
@@ -47,9 +48,9 @@ Owner answers [2026-11-18]: "Make local runtimes first-class" (0.4) and "Do only
 - On some recent builds the value is reported too low.
 
 **From earlier waves**
-- Wave 1: context packs with a manifest, and the evaluation set.
+- Wave 1: context packs with a manifest. (The evaluation set was deferred by the owner, Q1.3.)
 - Wave 2: a BM25 search over help sections (`src/help/`, or wherever Wave 2 put it). This wave moves the BM25 code to a shared place and reuses it.
-- Wave 5, if merged: `functions()` and `types()` per language.
+- Wave 5, if merged: `src/core/codeSearch.ts` (exact name search on the file gate) and key code. Wave 5 has no per-language functions or types, by the owner's answer of 2026-11-20; it has a generic regex reader (part C) whose definition patterns Wave 14 can reuse.
 
 ## Design [Proposal; rewritten after the owner answers]
 
@@ -67,19 +68,20 @@ Owner answers [2026-11-18]: "Make local runtimes first-class" (0.4) and "Do only
 
 1. **Chunks** (`src/assistant/retrieval/`):
    - docs sections, notes, decisions and library entries;
-   - code, split by function and class using the Wave 5 language modules when they exist, otherwise by blocks.
+   - code, split the same way for every language: at the definition lines of Wave 5's generic pattern table when that wave is merged (a definition starts a chunk), otherwise at blank-line blocks; a size cap per chunk; each chunk keeps its path and first line number. No language is parsed.
 2. **BM25.** Identifiers are split at camelCase and snake_case, and the original identifier is kept as a term too, so a search for `parseOrder` finds both. Fixed parameters (k1, b) are written in code and recorded in the manifest.
 3. **Stored** in `.dp/index/`, mode 0600, git-ignored, and rebuilt when content hashes change. A missing or stale index is rebuilt on demand.
 4. **Filtered at every query** by the current intake rules and file gate, so a file closed after indexing is never returned. Excerpts are redacted like all BMO context (`redact.ts`).
 5. **Using it.** `ask`, `explain` and `antipattern-review` add ranked excerpts within the code budget. The Wave 1 manifest lists each one as "found by search for …" with its rank and the terms that matched. Ties break by path, then line, so the order is stable.
-6. **Measure it.** Run Wave 1's evaluation with the index and without it, and put both results in reviews.md. If the index does not help, say so; a next step (embeddings) is a separate plan.
+   - **Offline BMO too** (DEC-093). With the LLM off, a free-text question runs as `find` (Wave 2). Once the index exists, `find` also returns matching code chunks, shown as file chips that open the viewer at the line. Wave 5's exact `where <name>` stays separate: it needs no index and always gives every match.
+6. **Measuring it is deferred.** Wave 1's evaluation set was deferred by the owner (Q1.3), so there is nothing to measure against yet. The index ships; whether it helps is part of "Testing and evaluating BMO" in [../future_tasks.md](../future_tasks.md) 2.0. If that shows the index does not help, a next step (embeddings) is a separate plan.
 
 ## Determinism
 
 | Output | Class |
 |---|---|
 | BM25 ranking | computed |
-| Chunk boundaries from language modules | computed; block-based chunks are approximate |
+| Chunk boundaries (blank-line blocks, size cap) | computed; a chunk can split a function, so chunks are approximate |
 | Answers | proposed |
 | GPU share | as reported by Ollama |
 
@@ -88,6 +90,7 @@ Owner answers [2026-11-18]: "Make local runtimes first-class" (0.4) and "Do only
 - **0.4:** Make local runtimes first-class. No native GPU code.
 - **0.5:** Do only the word indexing. No embeddings, vector file or fusion.
 - **Gate (Q14.1):** lifted by the two answers above.
+- **2026-11-20 (best thinking):** Q14.1 to Q14.5 stand. Two changes from the code-reading answers: chunks are language-neutral, and the index also serves offline BMO's free-text search.
 - Still open, with their recommendation as the default: nothing in this wave. (The route rule for building the index is decided in step 3 and recorded in the DEC.)
 
 ## Stop and ask if
@@ -105,8 +108,8 @@ Part A and Part B touch different files; they can run as two agents in parallel 
 | 1 | Re-anchor | Explore · Haiku | The files above | Anchors confirmed |
 | 2 | Part A: OpenAI-compatible provider, `/api/ps`, runtime settings, BMO settings UI | general-purpose · Opus | `src/assistant/settings.ts`, `providerBackend.ts`, `src/core/hosts.ts`, `ui/src/pages/BmoSettings.tsx` | Host rules hold; the preview and hash cover the new provider |
 | 3 | Part B: word index, chunks, query-time filter, use in tasks | general-purpose · Sonnet | `src/assistant/retrieval/` (new), `contextPack.ts`, `runTask.ts` | Deterministic ranking; a closed file is never returned |
-| 4 | Tests (not the authors of steps 2 and 3), and the evaluation comparison | general-purpose · Sonnet | `tests/unit/retrieval*.test.ts`, `tests/unit/bmo-provider*.test.ts` | Tests as listed below |
-| 5 | Docs | general-purpose · Haiku | CHANGELOG, decisions.md, reviews.md (with the measurements), README (local models, GPU notes), CONTRIBUTING (security model), CLAUDE.md | All docs updated |
+| 4 | Tests (not the authors of steps 2 and 3) | general-purpose · Sonnet | `tests/unit/retrieval*.test.ts`, `tests/unit/bmo-provider*.test.ts` | Tests as listed below |
+| 5 | Docs | general-purpose · Haiku | CHANGELOG, decisions.md, reviews.md, README (local models, GPU notes), CONTRIBUTING (security model), CLAUDE.md | All docs updated |
 | 6 | Review | main session | — | `/code-review` (high) and `/security-review` findings fixed |
 
 ## Required in this wave
@@ -131,7 +134,6 @@ Part A and Part B touch different files; they can run as two agents in parallel 
   - A model with `size_vram` 0.
   - A malformed reply.
 - **Runtime settings.** Out-of-range values are refused; the values appear in the preview and the run log.
-- **The evaluation.** It runs with the index and without it.
 
 ## Docs
 
@@ -139,9 +141,9 @@ Part A and Part B touch different files; they can run as two agents in parallel 
 - **README:** local models and GPU notes.
 - **CONTRIBUTING:** the outbound path.
 - **CLAUDE.md:** `retrieval/`.
-- **CHANGELOG** and **reviews.md:** this wave's entries, including the measurements.
+- **CHANGELOG** and **reviews.md:** this wave's entries.
 - **`docs/determinism.md`:** rows for this wave.
-- **future_tasks:** row 14 done; add "embeddings on top of the word index" as an idea, only if the evaluation shows a gap.
+- **future_tasks:** row 14 done; add "embeddings on top of the word index" as an idea, only if the later evaluation shows a gap.
 
 ## Out of scope
 

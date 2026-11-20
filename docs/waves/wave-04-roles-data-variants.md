@@ -2,9 +2,10 @@
 
 | | |
 |---|---|
-| **Status** | Waiting for owner answers: ★Q4.1, ★Q4.2, Q4.3, ★Q4.4, Q4.5, Q4.6 ([questions.md](questions.md)) |
+| **Status** | Owner answers applied (2026-11-19 for the variants, 2026-11-20 for the data half). The owner answered Q4.1 to Q4.3, so the data half (CRUD letters, role × data matrix) is **kept**; the scope review's P4 is marked keep on that basis. Ready to run |
 | **Branch** | `feat/w04-roles-data-variants`, from `main` after the previous wave is merged |
 | **Size** | M |
+| **Release** | 0.5.1 |
 | **Depends on** | Nothing in this plan; can move earlier or later |
 | **Owner items** | 20, 5 ([README.md](README.md#where-each-item-went)) |
 
@@ -58,11 +59,12 @@ The explanation of A/B testing in C4 is in [questions.md](questions.md), section
 
 ### A. Roles and CRUD
 
-1. **Letters** (★Q4.1). An access entry becomes `{asset, ops}`, where `ops` holds the letters C, R, U and D.
-   - `W` means "changes it, letters not chosen yet".
-   - Old values stay valid: `read` maps to R and `write` to W.
-   - dp also writes the old `mode` (`write` if any of C, U, D or W, otherwise `read`), so an older dp keeps the meaning.
-   - "Several writers" counts C, U, D and W, and the hub flags keep working.
+1. **Letters** (★Q4.1). An access entry becomes `{asset, ops}`, where `ops` holds the letters C, R, U and D. There is no `W`.
+   - **An old `write` is read as C, U and D, right away** (owner, 2026-11-20: "W should change to C U D right now"). An old `read` is R. The person then narrows the letters by choosing: a checkbox per letter.
+   - An old file that nobody edits is not rewritten: the old `mode` stays on disk until the entry is edited, so untouched files stay byte-identical. The letters are expanded when the file is read.
+   - When an entry is saved, dp writes `ops` and also the old `mode` (`write` if any of C, U, D is present, otherwise `read`), so an older dp keeps the meaning.
+   - "Several writers" counts C, U and D, and the hub flags keep working.
+   - **Trade-off:** an old `write` that really meant "updates only" shows all three letters until someone narrows it. So the matrix shows too much (a person who "can delete" because of an old write), and the check "data nobody creates" cannot fire for such data. The wave says so in the matrix legend ("legacy write, not yet narrowed" marker on those cells) so the person knows which letters were never chosen.
 2. **Roles.** A role is a C4 person (★Q4.2). The Data access section shows on a person's own relationships.
 3. **Matrix page** (`p=access`).
    - Rows are people, with a second tab for containers. Columns are data assets, grouped by the element that holds them.
@@ -73,7 +75,7 @@ The explanation of A/B testing in C4 is in [questions.md](questions.md), section
    - Filters: sensitive data only, and one holder. The table exports as CSV.
 4. **Checks.** These are `dp check` warnings for now; they become Findings in Wave 6 and Wave 8.
    - Sensitive data that a person can delete, explicitly or through reach.
-   - An asset nobody creates.
+   - An asset nobody creates (not for an entry still marked "legacy write": its letters were never chosen).
    - The existing check for access to data neither end holds.
 5. **dp's own roles** (Q4.3). A table in the help card, generated from the action table: what Architect, Engineer and Viewer can see and do.
 
@@ -98,7 +100,16 @@ The explanation of A/B testing in C4 is in [questions.md](questions.md), section
 
 ## Owner answers
 
-*Filled in when the answers are applied.*
+Applied 2026-11-19 (Part A) and 2026-11-20 (Part B, [questions.md](questions.md)).
+
+- **Split by the vision (2026-11-19).** Half of this wave is C4 modelling: conditions on lines and A/B variants as grouped flows (Q4.4, Q4.5). The other half is data architecture: CRUD letters (Q4.1), people as roles and the matrix (Q4.2). The scope review recommended **later** for the data half; the owner then answered Q4.1 to Q4.3 (2026-11-20), which is read as **keep**. The owner can still overrule this in the scope review.
+- **Q4.1 (2026-11-20):** "W should change to C U D right now. CRUD choosing works." Applied: no `W`; an old `write` reads as C, U and D, and the person narrows it by choosing letters.
+- **Q4.2 (best thinking):** as proposed. A role is a C4 person; a matrix page with the letters set on the person's own lines and, greyed, the letters they can reach through their containers; the checks as `dp check` warnings. No policy letters ("allowed"); that stays a stop-and-ask.
+- **Q4.3:** yes. A table of Architect, Engineer and Viewer in the help card, generated from `src/server/auth.ts`.
+- **Q4.4:** option 1. Each variant is its own flow; variants share a key and show as tabs in the flow player.
+- **Q4.5:** yes, an optional condition on a line, shown as a chip, with a diagram filter.
+- **Q4.6 (best thinking):** wait for deployment diagrams, which are infrastructure and not scheduled before 1.0.0 (scope review P1).
+- **The observed A/B split** was Wave 12's; that wave is parked (answer A7).
 
 ## Stop and ask if
 
@@ -130,10 +141,12 @@ The explanation of A/B testing in C4 is in [questions.md](questions.md), section
 ## Tests
 
 - **Access compatibility**
-  - Old read and write values round-trip unchanged.
-  - Letters are cleaned (`W` only alone; duplicates removed).
-  - `mode` is written alongside `ops`.
-  - The several-writers flag counts letters.
+  - An untouched old file with `read` and `write` values round-trips byte-identically.
+  - An old `write` reads as C, U and D, and an old `read` as R. A `W` in a file is refused.
+  - Letters are cleaned (only C, R, U, D; duplicates removed).
+  - `mode` is written alongside `ops` once an entry is saved.
+  - The several-writers flag counts C, U and D.
+  - The legacy-write marker shows on a cell until the letters are chosen.
 - **Reach**
   - A path through two containers.
   - A cycle.
@@ -161,7 +174,7 @@ The explanation of A/B testing in C4 is in [questions.md](questions.md), section
 
 - Policy letters ("allowed").
 - Canary and blue/green, which need deployment diagrams.
-- Variant splits seen in telemetry (Wave 12).
+- Variant splits seen in telemetry (Wave 12, parked).
 - Findings and acknowledgements (Wave 6).
 
 ## Start prompt

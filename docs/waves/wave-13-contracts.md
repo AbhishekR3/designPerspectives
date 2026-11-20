@@ -2,9 +2,10 @@
 
 | | |
 |---|---|
-| **Status** | Waiting for owner answers: ★Q13.1, ★Q13.2, ★Q13.3, Q13.4, Q13.5 ([questions.md](questions.md)) |
-| **Branch** | `feat/w13-contracts`, from `main` after Wave 12 is merged |
+| **Status** | Owner answers applied (2026-11-19; decided 2026-11-20: JSON only, no YAML dependency in this wave). Ready to run after Waves 4 and 6 |
+| **Branch** | `feat/w13-contracts`, from `main` after Waves 4 and 6 are merged (Wave 12 is parked and not needed) |
 | **Size** | M–L |
+| **Release** | 0.5.4 (with Wave 14) |
 | **Depends on** | Wave 4 (data access letters), Wave 6 (Findings, acknowledgements) |
 | **Owner items** | 19 ([README.md](README.md#where-each-item-went)) |
 
@@ -50,7 +51,7 @@ Consumers are told on the diagram, on the home page, in the bell, in CI and, if 
 
 **Other facts this wave relies on**
 - There is no YAML library; the scan reads YAML line by line.
-- Wave 5 adds a cache of content hashes in `.dp/cache/`.
+- Fingerprints are computed when asked, from the contract file's text. A contract file is a small JSON document, so no cache is needed (Wave 5 no longer builds one).
 
 ## Design [Proposal; rewritten after the owner answers]
 
@@ -60,7 +61,7 @@ Consumers are told on the diagram, on the home page, in the bell, in CI and, if 
    - `pointer`: a JSON pointer to the operation or schema;
    - `direction`: `response`, `request`, `message` or `data`.
 
-   Files are read as JSON first. A YAML dependency waits for the owner's answer.
+   Files are read as JSON only in this wave. A team whose specs are YAML exports them to JSON in CI (one command in most spec tools) and points the contract at the JSON file; the weak fallback, the top-level shape of samples, still works. Reading YAML directly is a future task (a new dependency, so the owner decides it then).
 2. **Fingerprint.**
    - Resolve local `$ref`s, sort the keys, write canonical JSON, and take its sha256.
    - It is computed from the code at a version: the working tree, or a git ref.
@@ -98,11 +99,19 @@ Consumers are told on the diagram, on the home page, in the bell, in CI and, if 
 
 ## Owner answers
 
-*Filled in when the answers are applied.*
+Applied 2026-11-19: the owner answered Part A and left Part B blank, so every Q below uses its recommendation ([questions.md](questions.md)).
+
+- **Q13.1 (best thinking, 2026-11-20):** JSON only (OpenAPI and JSON Schema). No YAML dependency now; the server keeps three runtime dependencies. Trade-off: most real OpenAPI files are YAML, so those teams need the JSON export step. "Read YAML contracts" is a line in future_tasks 2.1.
+- **Q13.2 to Q13.5 (best thinking, 2026-11-20):** hold as recommended, below.
+- **Q13.2:** a service's output is its endpoint responses, the messages it publishes and the data it writes; impact is found through endpoints and data, not line direction. The "data it writes" part depends on the data access built in DEC-055; Wave 4's CRUD letters are not needed.
+- **Q13.3:** the consumer's line stores the fingerprint it has checked (`dp.contract.seen`); marking it is an ordinary edit.
+- **Q13.4:** a computed "needs a look" item, a badge, optional linked work, `dp contracts --fail-on breaking`; no email or webhooks.
+- **Q13.5:** dp computes removed fields, type changes, new required request fields and removed endpoints; anything else is "changed, impact unknown".
+- **Vision:** this wave is feature F.
 
 ## Stop and ask if
 
-- ★Q13.1 needs YAML, which means a new dependency.
+- Anyone asks for YAML, AsyncAPI or protobuf now. Each is a new reader, and YAML a new dependency.
 - ★Q13.2 means something other than responses, published messages and written data.
 
 ## Steps and agents

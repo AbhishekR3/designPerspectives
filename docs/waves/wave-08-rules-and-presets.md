@@ -2,10 +2,11 @@
 
 | | |
 |---|---|
-| **Status** | Waiting for owner answers: ★Q8.1, ★Q8.2, ★Q8.3, ★Q8.4, Q8.5, Q8.6 ([questions.md](questions.md)) |
+| **Status** | Owner answers applied (2026-11-19; reshaped 2026-11-20: detectors run on the model, not on code). Ready to run after Waves 3, 6 and 7 |
 | **Branch** | `feat/w08-rules-and-presets`, from `main` after Wave 7 is merged |
 | **Size** | L |
-| **Depends on** | Wave 3 (reference entries to link), Wave 6 (Findings, acknowledgements), Wave 7 (metrics) |
+| **Release** | 0.5.2 |
+| **Depends on** | Wave 3 (reference entries to link), Wave 6 (Findings, acknowledgements), Wave 7 (coupling numbers and cycles from the model) |
 | **Owner items** | 18, and 21 for anti-patterns found from the model and the code ([README.md](README.md#where-each-item-went)) |
 
 Read [README.md](README.md) first: its rules, agents and checks apply to this wave.
@@ -24,7 +25,7 @@ No rule ever blocks a save.
 > - Any implementations of architecture validation and pre-sets.
 > - Think if you can think through ways to track if any anti-patterns is occuring with telemetry or other ways?
 
-This wave covers "other ways": the model and the code. Telemetry is Wave 12.
+This wave covers "other ways": the model and the code. Telemetry was Wave 12, which is parked.
 
 ## What exists today [Fact]
 
@@ -44,7 +45,7 @@ This wave covers "other ways": the model and the code. Telemetry is Wave 12.
 - The several-writers flag (`src/core/catalog.ts:139-144`).
 - From earlier waves:
   - the Finding shape, acknowledgements and the Findings UI (Wave 6);
-  - metrics (Wave 7);
+  - coupling numbers and cycles, computed from the model (Wave 7);
   - CRUD letters (Wave 4);
   - the reference library (Wave 3).
 
@@ -69,7 +70,7 @@ This wave covers "other ways": the model and the code. Telemetry is Wave 12.
    - an `explain` text, and a `referenceSlug` linking to its library entry;
    - a `check(ctx)` that returns Findings.
 
-   `ctx` gives the rule the model index, the sidecar, the metrics (if computed), the evidence and data usage.
+   `ctx` gives the rule the model index, the sidecar, the coupling numbers, the scan evidence and data usage. **No rule reads source code**: they run on the model, so they work for any language (owner, 2026-11-20). Checking the code against an anti-pattern is BMO's job (Wave 11), with the LLM on.
 2. **Migration** (★Q8.2). The 16 checklist rules move into the registry under the same ids, so checklist items keep working. This amends DEC-084 in a new DEC.
 3. **Presets** (★Q8.3), written in code:
 
@@ -86,14 +87,13 @@ This wave covers "other ways": the model and the code. Telemetry is Wave 12.
    - Turning a rule off is an edit, so it shows in diffs. `c4-basics` is on by default.
 4. **Detectors**, each with its class. Every detector reports what it could not check.
    - **computed:**
-     - cycles between containers or components;
+     - cycles between containers or components (Wave 7's cycles; the limits for Ca and Ce also live here, as rule parameters);
      - a shared database (two or more containers write the same store or asset);
      - a god component (fan-in and fan-out both above their thresholds);
      - a chatty pair (N or more relationships between two containers);
      - a long synchronous chain in a flow;
      - a UI → database line;
      - too many services in one system;
-     - the zone of pain or of uselessness (D above the threshold);
      - an event loop (topic writes and reads that form a cycle);
      - a topic nobody reads.
    - **heuristic, shown as hints** (Q8.5):
@@ -113,7 +113,16 @@ Each rule states its class: computed or heuristic. Heuristic findings are shown 
 
 ## Owner answers
 
-*Filled in when the answers are applied.*
+Applied 2026-11-19: the owner answered Part A and left Part B blank, so every Q below uses its recommendation ([questions.md](questions.md)).
+
+- **Q8.1:** no. Rules make findings for the UI and `dp check`; they never block a save.
+- **Q8.2:** yes. The checklist's 16 rules move into one registry with the same ids; a new DEC amends DEC-084.
+- **Q8.3:** C4 basics on by default; the other presets opt-in.
+- **Q8.4:** silencing is acknowledging with a reason; `dp check` counts acknowledged findings.
+- **Q8.5:** heuristic detectors shown as hints only.
+- **Q8.6:** style templates later (future_tasks).
+- **2026-11-20 (best thinking, after the code-reading answers):** Q8.1 to Q8.6 hold as recommended. Two changes follow from the other answers: the "zone of pain or uselessness" detector is gone (it needs abstractness, which needs a per-language parser), and the thresholds for coupling that Wave 7 no longer carries become parameters of rules here.
+- **Vision:** feature L (anti-pattern detection). The Security basics and Data presets touch data and infrastructure; the owner's review (scope review) may move them out.
 
 ## Stop and ask if
 
@@ -163,7 +172,7 @@ Each rule states its class: computed or heuristic. Heuristic findings are shown 
 ## Out of scope
 
 - BMO's anti-pattern review (Wave 11).
-- Telemetry rules (Wave 12).
+- Telemetry rules (Wave 12, parked; future_tasks 2.7).
 - Starter models per architecture style (Q8.6).
 - Exporting fitness functions.
 

@@ -2,6 +2,13 @@
 
 **How to answer.** Type your thinking under each "Your thinking:" line. ★ marks the questions whose answer changes what gets built. A question you leave blank uses its recommendation. When you're done, tell Claude "apply my answers in docs/waves/questions.md" (see [README.md](README.md)).
 
+**Status [2026-11-19].** Parts 0, A and C are answered and applied (each "Your thinking" is filled and followed by an "Applied" line). Part B was left blank at first. **Waves 1 to 3 of Part B were answered on 2026-11-19 and applied** (see the "Applied" lines under Q1.1 to Q3.5); the other waves' questions are still blank, so each uses its recommendation, with the exceptions listed at the top of Part B. **Part C (questions raised by the product vision) was answered on 2026-11-19 and applied.** This file stays in `docs/` until you delete it before 1.0.0 (answer A10).
+
+**Update [2026-11-20].** You answered Part B for Waves 4 to 15; each answer is filled in below with an "Applied [2026-11-20]" line, and Waves 4 to 9, 11, 13, 14, 15 and 20 are changed to match. Three of your answers reach beyond their own wave:
+- **dp reads code by search and by one generic regex reader, not per language** (Q5.1, Q5.2, Q5.5, then Q5.8). [Wave 5](wave-05-code-search.md) becomes "Code search, key code and one generic code reader": offline name search that marks definitions, a component's main files and functions, and a table of patterns for the major languages that replaces the Python and JS/TS readers. File roles, config facts, Maven and Gradle reading are not built, and [Wave 7](wave-07-metrics.md) measures the model. Recorded as DEC-096.
+- **Architecture drift moved to [future_tasks.md](../future_tasks.md) 2.2.** [Wave 6](wave-06-findings.md) keeps only the Finding shape and acknowledgements that Waves 8, 11 and 13 need. Recorded as DEC-097.
+- **Wave 4's data half is kept**: you answered Q4.1 to Q4.3, and that is read as overruling the scope review's "later" for P4. An old `write` now becomes C, U and D at once.
+
 **How to read the analysis.** Facts carry a source: a `file:line`, a DEC in [../decisions.md](../decisions.md), a line of the book notes in [../notes/](../notes/), or a web page checked on 2026-11-17. [Proposal] marks our interpretation or recommendation. [Training] marks model knowledge that was not re-checked.
 
 ## Contents
@@ -13,8 +20,9 @@
   - 0.4 GPU acceleration *(answered: local runtimes, Wave 14)*
   - 0.5 A vector DB *(answered: word index only, Wave 14)*
   - 0.6 Better fixed context prompts
-- **Part A. Cross-cutting questions:** ★A1 to A10
-- **Part B. Questions per wave:** Q1.x to Q15.x
+- **Part A. Cross-cutting questions:** ★A1 to A10 *(answered and applied)*
+- **Part B. Questions per wave:** Q1.x to Q15.x *(answered and applied: Waves 1 to 3 on 2026-11-19, the rest on 2026-11-20; Q5.8 answered later the same day)*
+- **Part C. Questions from the product vision:** ★C1 to C8 *(answered and applied)*
 
 ---
 
@@ -92,6 +100,8 @@ See Q4.4 to Q4.6 and Q12.3.
 See Q5.5 and Q5.6.
 
 **Your thinking (optional):**
+
+**Applied [2026-11-20].** Withdrawn: you do not want `tools.py` and similar mapped (Q5.5). File roles, hidden shared helpers and config facts are not built. A C3 component shows its main files and functions instead (key code, [Wave 5](wave-05-code-search.md)). The facts above about what the scan does today are still true; the proposals are not.
 
 ### 0.3 Where do LLM false positives and negatives appear, and which levels are guesses?
 
@@ -251,7 +261,13 @@ One candidate sentence: "dp is a modelling tool with deterministic checks; data 
 
 **Recommended.** Write a one-page vision before Wave 7: who it's for, the three jobs it must do well, what it won't do, and how you'll know it works. Waves 1 to 6 go ahead meanwhile. Claude can give you a template of questions to fill in.
 
-**Your thinking:**
+**Your thinking:** As developers move away from hand-coding each function and file, because LLMs write more of it, software architects are needed more. But understanding an existing system, its codebase, and the decisions behind a design (ADRs and similar) is hard. That is the opening. Version 1.0.0 is for software architecture only; data architecture and infrastructure come later. Twelve features (A to L): C4 modelling; a single source of truth; architecture change proposals; lenses (architect, DevOps, other SDLC members); collaboration and notes with different accounts adding notes, images and files; contracts between services; an ADR page; codebase importing; git-style commits for architecture; links to GitHub, SonarQube and Jira; a catalog shared between projects; and BMO, the architecture-intelligence agent (the "-ilities", metrics, anti-pattern detection, explaining components, code and context, and ADRs that are broken or violated). Call out anything planned or built outside software architecture in a .md file for manual review. Non-goal: this is not an IDE.
+
+**Applied [2026-11-19].**
+- The vision is written up in [../product-vision.md](../product-vision.md), with the twelve features checked against what is built and planned. It is recorded as DEC-090.
+- Everything built or planned outside software architecture is in [v1-scope-review.md](v1-scope-review.md), one row per item, with a column for your decision.
+- Gaps the twelve features exposed: **E** (images and files: new [Wave 16](wave-16-attachments.md)); **L** ("ADR broken or violated": added to [Wave 11](wave-11-bmo-reviews.md)); **D** (a DevOps lens), **C** (rebase and merge editor) and **I** (git-style commits) are in no wave. They are Part C questions.
+- The earlier recommendation, "write a vision before Wave 7", is done.
 
 ### ★A2. Where do the waves go relative to the order you decided earlier?
 
@@ -268,7 +284,9 @@ One candidate sentence: "dp is a modelling tool with deterministic checks; data 
 
 **Recommended.** Option 3, recorded in a new DEC that amends DEC-028's order.
 
-**Your thinking:**
+**Your thinking:** Go with whatever you think is best.
+
+**Applied [2026-11-19].** Option 3 (interleave), adjusted by the vision. Deployment diagrams are infrastructure, so they leave the order for now and wait for your decision on item P1 in [v1-scope-review.md](v1-scope-review.md) (recommended: after 1.0.0). The small batch (P2) no longer waits behind them. The static export (P3) is recommended for after 1.0.0 too. This amends the order in DEC-028; DEC-090 records it.
 
 ### ★A3. Is this wave order right?
 
@@ -287,7 +305,9 @@ The cost of building BMO features before Wave 1 is redoing their prompts later.
 
 **Recommended.** The order in [README.md](README.md).
 
-**Your thinking:**
+**Your thinking:** Go with whatever you think is best.
+
+**Applied [2026-11-19].** The order in [README.md](README.md), with three changes from your other answers: Wave 16 (images and files) goes after Wave 3; Waves 10 and 12 are parked (A7); and Wave 15 sits with Waves 5 to 8, after 5. The README has the release each wave belongs to.
 
 ### ★A4. Determinism classes on every result?
 
@@ -304,7 +324,9 @@ The cost of building BMO features before Wave 1 is redoing their prompts later.
 
 **Recommended.** Yes, recorded in a DEC.
 
-**Your thinking:**
+**Your thinking:** Go with whatever you think is best.
+
+**Applied [2026-11-19].** Yes. The four classes are in [README.md](README.md#determinism-classes). Wave 1 writes `docs/determinism.md` and the DEC that records them, as its file says.
 
 ### ★A5. One Finding and one way to acknowledge it, for every check?
 
@@ -324,7 +346,9 @@ The cost of building BMO features before Wave 1 is redoing their prompts later.
 
 **Recommended.** Yes.
 
-**Your thinking:**
+**Your thinking:** Go with whatever you think is best.
+
+**Applied [2026-11-19].** Yes. One Finding shape, and acknowledgements stored as model data (`dp.acks`). Wave 6 builds it and records the DEC. Waves 8, 11 and 13 reuse it. Wave 12 would have too; it is parked.
 
 ### A6. How BMO's output is labelled
 
@@ -333,7 +357,9 @@ The cost of building BMO features before Wave 1 is redoing their prompts later.
 - Nothing is stored as a label in the model (DEC-051, DEC-064).
 - Once you accept something, it is yours.
 
-**Your thinking:**
+**Your thinking:** Go with whatever you think is best.
+
+**Applied [2026-11-19].** As recommended: labels in the UI and review files only; nothing stored in the model (DEC-051, DEC-064).
 
 ### A7. Items that are in both of your lists
 
@@ -343,7 +369,9 @@ The cost of building BMO features before Wave 1 is redoing their prompts later.
 - The waves build a first cut: risk storming in Wave 10, telemetry rules in Wave 12.
 - future_tasks.md keeps the wider questions: continuous risk tracking; logs and metrics as well as traces.
 
-**Your thinking:**
+**Your thinking:** Push these to future_tasks.md.
+
+**Applied [2026-11-19].** Read as: risk analysis and anti-patterns through telemetry are not built in this plan. So **[Wave 10 (risk storming)](wave-10-risk-storming.md) and [Wave 12 (runtime)](wave-12-runtime-telemetry.md) are parked**: their files stay in this folder, marked "Parked", and their ideas are in [../future_tasks.md](../future_tasks.md) (2.3 and 2.7, and section 1.0). Knock-on changes: Wave 11 loses "add as a risk" and the `suggest-risks` task; Wave 4's note about the observed A/B split goes to future_tasks; the Risk tag group and trade-off risks stay as they are. The owner confirmed this reading on 2026-11-19 (C6b: do not build either for 1.0).
 
 ### A8. Releases
 
@@ -363,7 +391,9 @@ Fewer releases mean fewer release chores, but longer waits for an installable ve
 
 **Recommended.** Option 2.
 
-**Your thinking:**
+**Your thinking:** Releases should all be within 0.5.x.
+
+**Applied [2026-11-19].** Grouped releases, numbered inside 0.5.x until 1.0.0: **0.5.1** (Waves 1, 2, 3, 16, 4), **0.5.2** (Waves 5, 6, 15, 7, 8), **0.5.3** (Waves 9, 11), **0.5.4** (Waves 13, 14), then **1.0.0** when the 1.0 checklist (future_tasks 2.0) is met. If more waves join after your review (Part C, the scope review), they add a 0.5.x number, not a 0.6. The table is in [README.md](README.md#releases).
 
 ### A9. Agent models
 
@@ -374,7 +404,9 @@ Fewer releases mean fewer release chores, but longer waits for an installable ve
 
 Each wave file names the model for each step. Fable is used only if you ask.
 
-**Your thinking:**
+**Your thinking:** Fable will not be used; the rest is fine. Choose the bigger model rather than the smaller if on the fence.
+
+**Applied [2026-11-19].** Fable is never used (it was "only if asked"; now not at all). When a step could go to either of two models, it goes to the larger: Sonnet becomes Opus, Haiku becomes Sonnet. Steps in the wave files keep their listed model; the rule in [README.md](README.md#agents-and-models) applies when a step is in doubt.
 
 ### A10. Deleting these planning files
 
@@ -383,11 +415,38 @@ Each wave file names the model for each step. Fable is used only if you ask.
 - Each wave file is deleted when its reviews.md section lands. CLAUDE.md says not to commit superseded plans, and commit 47b33a2 did the same with the earlier questions file.
 - The alternative is to keep these files in the git-ignored `local/`.
 
-**Your thinking:**
+**Your thinking:** Keep questions.md for now, and the relevant .md files in docs/. I will choose what to delete before the 1.0 release.
+
+**Applied [2026-11-19].** Nothing is deleted when a wave ships or when answers are applied. [README.md](README.md) no longer says to delete `questions.md` or each wave file. The owner deletes planning files before 1.0.0. (CLAUDE.md's "do not commit superseded plans" is left as it is; this is a standing owner exception for `docs/waves/` until then.)
 
 ---
 
 ## Part B. Questions per wave
+
+**Status [2026-11-19].** **Waves 1 to 3 are answered and applied** (Q1.1 to Q3.5, below). For the other waves, a blank question uses its recommendation. The exceptions, all from the vision or your answers:
+
+- **Wave 1 to 3 answers that changed the plan:**
+  - **Q1.3:** the evaluation set leaves Wave 1 for future_tasks.
+  - **Q2.1:** sticky notes become architecture data that BMO reads.
+  - **Q2.2:** BMO always sees notes.
+  - **Q2.5:** BMO works without an LLM, behind a setting.
+  - **Q3.4:** the page stays "Decisions".
+  - **Q3.5:** links in Wave 3; files in [Wave 16](wave-16-attachments.md); and a reference to a file on your own computer instead of a copy.
+- **Q4.1 to Q4.3:** the data half of Wave 4 (CRUD letters, the role × data matrix) is on the review list (P4). Their recommendations hold if you keep it. **Answered 2026-11-20: kept.**
+- **Q10.x and Q12.x:** the waves are parked (A7); their recommendations are kept for when they return.
+- **Q11.2:** "add as a risk" is dropped while Wave 10 is parked. Q11.1 gains a decisions review (feature L, "ADR violated").
+- **Q13.1:** still asks you before a YAML dependency is added.
+- **Q5.4:** option 1 (Java as test fixtures only), as recommended. **Superseded 2026-11-20:** no Java at all (Q5.1, Q5.2).
+
+**Answered 2026-11-20 (Waves 4 to 15).** Every question below now has your thinking and an "Applied" line. What changed the plan:
+- **Q4.1:** an old `write` becomes C, U and D at once; no `W`.
+- **Q4.1 to Q4.3 answered:** the data half of Wave 4 is kept.
+- **Q5.1, Q5.2, Q5.5, Q5.8:** code is searched, and read by one generic regex reader for the major languages; key code instead of file roles. Q5.3, Q5.4, Q5.6, Q5.7 follow (no Maven or Gradle, no Java samples, no config facts, no hash cache).
+- **Wave 6:** drift parked (future_tasks 2.2); Findings and acknowledgements stay.
+- **Wave 7:** model coupling only (Q7.1 to Q7.4).
+- **Q8.x, Q9.x, Q11.x, Q13.x, Q14.x:** your best-thinking answers hold the recommendations, with the follow-on changes noted per question. **Q13.1:** JSON only, no YAML dependency.
+- **Q10.x, Q12.x:** the waves are parked.
+- **Q15.1 to Q15.5:** the interview depends on the codebase, has a floor of 6 questions per level, adds notes, context and file references, and saves locally.
 
 ### Wave 1: Grounded BMO answers
 
@@ -414,7 +473,14 @@ Each wave file names the model for each step. Fable is used only if you ask.
 
 **Recommended.** Option 2. The answer comes back as a list of statements, so dp never needs an LLM to split sentences.
 
-**Your thinking:**
+**Your thinking:** Every statement needs a citation when referring to things.
+
+**Applied [2026-11-19].** Read as option 2 with a wide meaning of "things", plus the strict half of option 1.
+- **What counts as referring to a thing:** the statement names an object, a relationship, a file or path, a decision, a note, a doc section or a number that was in what was sent. dp finds this by matching the names, ids, paths and numbers of the pack in the statement's text, so no LLM is involved.
+- **What happens:** such a statement must carry a cite that dp verifies. One without a valid cite is **not shown in the answer**. The answer ends with "N claims without a valid citation", which opens to list them, each marked "no citation" or "bad cite".
+- **General statements** that refer to nothing in the pack (a definition, advice) are shown and marked "general".
+- **My reading, [Proposal]:** I took "needs" to mean hidden until the person asks. Showing them inline, marked, is the milder alternative and a one-line change.
+- [Wave 1](wave-01-grounded-bmo.md) is updated.
 
 #### ★Q1.2 Where do the prompt templates live, and who can change them?
 
@@ -429,7 +495,9 @@ Each wave file names the model for each step. Fable is used only if you ask.
 
 **Recommended.** In code only.
 
-**Your thinking:**
+**Your thinking:** In code.
+
+**Applied [2026-11-19].** As recommended: templates live in code only, never per project, never written by an LLM.
 
 #### ★Q1.3 Who builds the evaluation set, and who runs it with real models?
 
@@ -443,19 +511,30 @@ Each wave file names the model for each step. Fable is used only if you ask.
 
 **Recommended.** As proposed. Your thinking could add which providers you will run; each real run costs money.
 
-**Your thinking:**
+**Your thinking:** Delay this to future_tasks.md. I need to think through testing and evaluation much more deeply.
+
+**Applied [2026-11-19].** The evaluation set is out of Wave 1 and is now an idea to think through.
+- **Removed from Wave 1:** the fixtures with known right answers, the scorer, `dp bmo eval`, `eval.ts`.
+- **Added to [../future_tasks.md](../future_tasks.md) 2.0:** "Testing and evaluating BMO", with the open points listed.
+- **Kept in Wave 1:** ordinary unit tests of dp's own code. These are the context packs, the citation checker (with canned answers from the fake backend) and the providers' answer handling. They test our code, not how good a model is, so they are not the evaluation you deferred.
+- **Wave 1 shrinks** from L to M–L.
+- **Knock-on:** [Wave 14](wave-14-retrieval-local-models.md) planned to measure the word index with Wave 1's evaluation, with and without the index. That measurement moves to the same future_tasks item. The index still ships.
 
 #### Q1.4 Temperature and seed
 
 **Recommended.** Temperature 0 everywhere, and a seed where the API has one (OpenAI and Ollama do; the Anthropic API has none [Training]). Both go into the run log. dp never claims a run can be repeated exactly.
 
-**Your thinking:**
+**Your thinking:** Yes, that works.
+
+**Applied [2026-11-19].** As recommended.
 
 #### Q1.5 Can BMO cite the repository's own docs?
 
 **Recommended.** Yes. Markdown files under the code root (README, docs, ADRs kept in the repo) can be quoted and cited. They go through the same file gate as code: redaction, must-not-open, and DEC-064.
 
-**Your thinking:**
+**Your thinking:** Yes.
+
+**Applied [2026-11-19].** As recommended.
 
 ### Wave 2: Notes, context and help
 
@@ -476,7 +555,18 @@ Each wave file names the model for each step. Fable is used only if you ask.
 
 **Recommended.** Option 1. Did you mean option 2?
 
-**Your thinking:**
+**Your thinking:** Sticky notes on diagrams need to be stored as well, as part of the architecture. They need to be analyzed by BMO as well. Notes can be stuck to objects or diagrams as sticky notes.
+
+**Applied [2026-11-19].** The separate "one note per diagram" field is dropped. A **sticky note** is now how a note goes on a diagram, and it is architecture data.
+- **What it is:** a short Markdown card with a position on one diagram. It is either **stuck to an object** (a box or a line on that diagram; it keeps its offset and moves with the object) or **stuck to the diagram** (free). A diagram can have any number.
+- **Where it is stored:** in the model, as `dp.stickies` on the diagram's view, the way linked work is stored (`dp.work`). It is not in `comments.json`. So stickies go through drafts, undo, `dp diff`, merge and the static export. A computed diagram gets a stored view when its first sticky is added.
+- **BMO reads them** (see Q2.2): a diagram's stickies go in that diagram's pack, and an object's stickies go in that object's pack.
+- **Object notes stay as they are.** `dp.notes` is one note per box or line, the same on every diagram, with a badge. [Proposal] A sticky is for a remark you want to see on one diagram.
+- **Two consequences** [Proposal]. The owner confirmed the first and changed the second on 2026-11-19 (see the follow-up below):
+  1. **Who writes them.** Stickies are model data, so only those who edit the model write them: architects on main, engineers in a draft. This follows your C6a answer ("notes are model data; every other account uses comments"). Viewers keep comments. **Confirmed.**
+  2. **Placed comments (DEC-070) stay.** Comments placed on a diagram remain conversation, open to every role. The right-click menu offers both "Add sticky note here" and "Add comment here". An architect can turn a placed comment into a sticky. **They now reach BMO too** (follow-up below).
+- **A cost:** moving a sticky is a model edit, so it shows in a draft's change list. Moving a comment pin never did.
+- [Wave 2](wave-02-notes-context-help.md) and [Wave 16](wave-16-attachments.md) are updated. DEC-092 amends DEC-070.
 
 #### ★Q2.2 Should BMO always see the notes?
 
@@ -492,7 +582,20 @@ Each wave file names the model for each step. Fable is used only if you ask.
 
 **Recommended.** Option 3, with the switch on by default for the Engineer and Architect lenses. Keep the notes' line breaks.
 
-**Your thinking:**
+**Your thinking:** Always.
+
+**Applied [2026-11-19].** Option 1. BMO sees every note, object notes and sticky notes, whatever the lens shows. There is no "include notes" switch.
+- **Lenses:** the Overview lens still hides notes in the UI, but not from BMO.
+- **How notes go in:** notes are text from people who edit the model, so they go in data blocks like all repository text, through redaction.
+- **Budget:** notes get a share of the pack budget. Whole notes are dropped, never cut, and the manifest lists any left out. Line breaks are kept.
+- **Amends** DEC-073 ("BMO's context follows the lens") for notes only (DEC-092).
+
+**Follow-up [2026-11-19].** You said: "Comments should be reachable by BMO; everything a person can visualize on screen should be reachable by BMO." Applied as a general rule, **screen parity** (DEC-094).
+- **The rule:** every kind of thing the UI shows about a scope has a place in that scope's pack, by default or through the lens and preview choices. The manifest says what was left out and why. A computed test walks the fields the panels show and checks each is in the pack or named in the manifest. [Wave 1](wave-01-grounded-bmo.md) builds the pack so a new kind of data is added in one place, and its first step lists the panel data no pack carries today.
+- **Comments now go to BMO:** the threads on the object or diagram in scope, with kind, author, time, status and replies. Placed comments are included with their diagram. Resolved threads come last and are dropped first under budget.
+- **How they go in:** each in a data block labelled "comment by <author>, not reviewed", after redaction. The author can be "Anonymous". New cite kinds `comment:<id>` and `sticky:<id>` are checked by the verifier.
+- **Why this is safe enough** [Proposal]: the worry behind C6a was text from any account steering BMO. dp already treats all repository text as data and never as instructions (DEC-064). BMO's output is only a proposal, the preview shows the exact prompt before anything is sent, and citations are checked. A comment is more data of the same kind. What remains is that a comment can mislead an answer, which the label and the cites make visible.
+- **One exception I kept** [Proposal; overrule it if you want]: attachments (Wave 16) are always listed to BMO with name, type, size and who added them, and a text file's content goes in after redaction. The contents of images, PDFs and Office files are not sent, because dp cannot scan them for secrets (DEC-064). Sending them would need a vision-capable model and a decision about unscannable content.
 
 #### Q2.3 What `dp context` prints
 
@@ -503,7 +606,9 @@ Each wave file names the model for each step. Fable is used only if you ask.
 
 **Recommended.** Yes, as Markdown, with `--json` as an option.
 
-**Your thinking:**
+**Your thinking:** Do what you think is best.
+
+**Applied [2026-11-19].** As recommended: Markdown, with `--json` as an option.
 
 #### ★Q2.4 Which docs ship so BMO can answer questions about dp?
 
@@ -521,13 +626,23 @@ Each wave file names the model for each step. Fable is used only if you ask.
   - generated CLI help and the UI's help hints.
 - **Leave out:** the backlog, the reviews and the book notes.
 
-**Your thinking:**
+**Your thinking:** Yes, that works.
+
+**Applied [2026-11-19].** As recommended.
 
 #### Q2.5 Help without an LLM
 
 **Recommended.** Yes. A search box in the help card, and `dp help <words>`, show the matching sections of the docs. BMO writes an answer only when it is set up.
 
-**Your thinking:**
+**Your thinking:** Yes. It should support non-LLM usage as well, and this can be turned on and off in the settings. If turned off, BMO can just be a simple search, or whatever deterministic commands you want to do.
+
+**Applied [2026-11-19].** Yes, and it reaches beyond help: BMO gets an LLM switch (DEC-093).
+- **The switch:** the existing `enabled` flag in the BMO settings (`src/assistant/settings.ts`), relabelled "Use an LLM". It stays off by default, and architects change it.
+- **Switch off:** BMO is still there, as a deterministic assistant. No prompt is built, nothing is sent, no handoff file is written. It answers a fixed list of commands from the model, notes, decisions, reference notes and docs: `find`, `help`, `show`, `notes`, `decisions about`. A free-text question is run as a search, and the chat says it searched and did not answer.
+- **Switch on:** handoff or direct, as today.
+- **Later waves** add their own deterministic commands to the same list (drift, findings and so on).
+- **Class:** computed.
+- [Wave 2](wave-02-notes-context-help.md) is updated.
 
 ### Wave 3: Reference library and ADRs
 
@@ -550,7 +665,17 @@ Each wave file names the model for each step. Fable is used only if you ask.
 - **Who edits:** architects only, through a new permission (engineers' checklist rights don't cover it). Everyone can read it.
 - **A DEC** adds it to CLAUDE.md's list of files outside the workspace.
 
-**Your thinking:**
+**Your thinking:** What is a library?
+
+**Applied [2026-11-19].** The word was unclear, so here it is in plain words.
+- **"The library" is the reference library:** your curated set of write-ups on patterns and anti-patterns that architects fall into (Entity Trap, Big Ball of Mud, and so on). It is what you asked for as "a reference notes section curated by me". Each entry is one Markdown page inside dp: a summary, signs to look for, why it hurts, what to do instead. It is a small built-in wiki that everyone can read and architects edit.
+- **"Where does it live" means which folder the entry files are in, and who may edit them:**
+  1. Per project, in `architecture/reference/`. It travels with the project's git repository.
+  2. Per hub, shared by every project on a hub.
+  3. Per person, outside git.
+  4. Both 1 and 2, where a project entry beats a hub entry of the same name.
+- **No change to the plan.** Option 4 still holds, since the question was about the word and not about the options. Tell me if the explanation changes your mind.
+- **The label:** I'll call the page "Reference notes", your own words, and not "library".
 
 #### ★Q3.2 Should dp ship starter entries?
 
@@ -569,7 +694,9 @@ Each wave file names the model for each step. Fable is used only if you ask.
 - You then curate: edit, delete, add.
 - The alternative is to start empty.
 
-**Your thinking:**
+**Your thinking:** Yes, that works for now, but still add this into future_tasks.md so I can review these later.
+
+**Applied [2026-11-19].** As recommended: an opt-in starter set of about 10 anti-patterns and 5 patterns, in our own words, with book and page references, and an Opus copy check. Added to [../future_tasks.md](../future_tasks.md) 1.5 ("Checks that only the owner can run"): review the starter entries and curate them.
 
 #### Q3.3 The entry template
 
@@ -584,7 +711,9 @@ Each wave file names the model for each step. Fable is used only if you ask.
 - **Sections:** Summary · Signs to look for · Why it hurts (or why it helps) · What to do instead · Example · My notes.
 - "Signs to look for" is what Wave 8's detectors and Wave 11's BMO review use.
 
-**Your thinking:**
+**Your thinking:** Do whatever you think is best.
+
+**Applied [2026-11-19].** As proposed.
 
 #### ★Q3.4 Should the section be called "ADRs"?
 
@@ -601,7 +730,9 @@ Each wave file names the model for each step. Fable is used only if you ask.
 
 **Recommended.** Option 1. It is what you asked for, and the people who write decisions are architects.
 
-**Your thinking:**
+**Your thinking:** Leave it as the Decisions page.
+
+**Applied [2026-11-19].** Option 2. The button and the page stay "Decisions". Searching for "ADR" or "architecture decision record" finds the page. The help card and the README say "Decisions (architecture decision records, ADRs)", and paths and API names stay. The vision's feature G ("an ADR page") is the Decisions page. [Wave 3](wave-03-reference-and-adrs.md), Wave 11 and the vision file are updated.
 
 #### ★Q3.5 Attachments: links, or files too?
 
@@ -622,7 +753,27 @@ Each wave file names the model for each step. Fable is used only if you ask.
 
 **Recommended.** Option 1 now, option 2 later if links aren't enough. Your thinking could say what you expect to attach (whiteboard photos, PDFs, spreadsheets).
 
-**Your thinking:**
+**Your thinking:** Options 1 and 2, but also allow users to just reference another file on their local machine, so they don't need duplicates.
+
+**Applied [2026-11-19].** Both options, plus a third way to attach.
+- **Links:** built in Wave 3, as planned.
+- **Files:** built in [Wave 16](wave-16-attachments.md), as planned (up to 10 MB, anyone can attach, stored in the project).
+- **New: a reference to a file on your own computer,** so a large file need not be copied into the project. [Proposal, how]
+  - It is a `local:` link kind that holds a path (`~/specs/design.pdf` or an absolute path).
+  - dp stores the path text only. It never reads, copies, uploads or sends the file to BMO.
+  - It shows the file name and a Copy path button.
+  - `dp check` gives an info line if the file does not exist on the machine running the check.
+  - Wave 3 builds the link kind for decisions. Wave 16 adds "Reference a file on this computer" beside "Upload" wherever you can attach.
+- **Opening it (follow-up, 2026-11-19):** you asked that a click open the file in the system's default app, such as a PDF in Acrobat or a spreadsheet in Excel. Yes, in [Wave 16](wave-16-attachments.md) (item 12, DEC-095), with limits.
+  - A web page cannot open `file:` links [Training], so dp's server asks the operating system to open it, the way the CLI already opens the browser (`src/cli.ts:57-60`).
+  - **The danger:** a decision from a cloned repository could point at a program or script, and "open" would start it. So:
+    - only a short list of document types opens (PDF, Word, Excel, PowerPoint, CSV, text, Markdown, common images). Programs, scripts, shortcuts, `.app` bundles, `.html`, `.svg` and macro-enabled Office files are refused;
+    - the path is resolved first, symlinks included, and the real file's type is checked;
+    - a dialog shows the full path before it opens, because a link's label can say anything;
+    - it works only on a server running on your own machine. On a hub or remote server the button is Copy path, because "open" would open the file on the server's computer;
+    - the same cross-site rule as uploads applies.
+  - The Windows path is written and not run, like the rest of the CLI's Windows code. If the security review finds the route unsafe, Wave 16 ships Copy path only and tells you.
+- **Trade-off:** a path in git is only useful on that machine. It shows your user name unless written as `~/`. Teammates see a path they cannot open.
 
 #### Q3.6 A "Compliance" section in decisions
 
@@ -650,7 +801,9 @@ Each wave file names the model for each step. Fable is used only if you ask.
 
 **Recommended.** Yes.
 
-**Your thinking:**
+**Your thinking:** W should change to C U D right now. CRUD choosing works.
+
+**Applied [2026-11-20].** No `W`. An old `write` is read as C, U and D from the start, and the person narrows it by choosing letters; an old `read` is R. An untouched file is not rewritten (it stays byte-identical); once an entry is saved, dp writes the letters and the old read/write value so an older dp still reads it. **Trade-off:** until someone narrows it, an old write shows all three letters, so the matrix over-reports deletes and the check 'data nobody creates' cannot fire for that data. The matrix marks such cells 'legacy write, not yet narrowed'. [Wave 4](wave-04-roles-data-variants.md) is updated.
 
 #### ★Q4.2 People as roles, and "can reach"
 
@@ -676,13 +829,17 @@ Each wave file names the model for each step. Fable is used only if you ask.
 
 **Recommended.** Yes to the proposal; no policy letters for now.
 
-**Your thinking:**
+**Your thinking:** Go with your best thinking.
+
+**Applied [2026-11-20].** As proposed: a role is a C4 person; a matrix page with the letters set on the person's own lines and, greyed, the letters they can reach through the containers they use; the three checks as `dp check` warnings. No policy letters ('allowed'): a second set of letters per person would be a second thing to keep true, and the model can say what a path permits, not what a role may do. Answering Q4.1 to Q4.3 is read as keeping the data half of Wave 4 (scope review P4 is marked keep; overrule it there if that is wrong).
 
 #### Q4.3 dp's own roles
 
 **Recommended.** A table in the help card, generated from `src/server/auth.ts`, showing what Architect, Engineer and Viewer can see and do. Nothing more.
 
-**Your thinking:**
+**Your thinking:** Yes.
+
+**Applied [2026-11-20].** A table in the help card, generated from `src/server/auth.ts`: what Architect, Engineer and Viewer can see and do.
 
 #### ★Q4.4 A/B variants as separate flows?
 
@@ -696,7 +853,9 @@ Each wave file names the model for each step. Fable is used only if you ask.
 
 **Recommended.** Option 1.
 
-**Your thinking:**
+**Your thinking:** Option 1.
+
+**Applied [2026-11-20].** Each variant is its own flow. Variants share a key, are labelled A, B or control, and show as tabs in the flow player with the differing steps marked.
 
 #### Q4.5 Conditions on lines
 
@@ -704,15 +863,19 @@ Each wave file names the model for each step. Fable is used only if you ask.
 
 **Recommended.** Yes.
 
-**Your thinking:**
+**Your thinking:** Yes.
+
+**Applied [2026-11-20].** An optional condition on a line, shown as a chip, with a diagram filter.
 
 #### Q4.6 Canary and blue/green
 
 **Recommended.** Wait for deployment diagrams (see ★A2).
 
-**Your thinking:**
+**Your thinking:** Go with your best thinking.
 
-### Wave 5: Code facts
+**Applied [2026-11-20].** Wait for deployment diagrams, which are infrastructure and not scheduled before 1.0.0 (scope review P1). Until then a canary or blue/green split is modelled with the condition on a line (Q4.5) and a note.
+
+### Wave 5: Code search and key code (the questions below were asked about code facts)
 
 #### ★Q5.1 How should dp read code?
 
@@ -727,7 +890,9 @@ Each wave file names the model for each step. Fable is used only if you ask.
 
 **Recommended.** Option 1, including a JS/TS tokenizer that drops comments and strings, as the Python one does. Every approximate result is labelled. Revisit option 2 if Wave 7's complexity and LCOM numbers need it.
 
-**Your thinking:**
+**Your thinking:** Remove non-LLM reading of code. It can search and show you specific searches like if I search the name of a function in BMO offline (no-LLM) it'll show me the file for it. Much more simple for no-LLM code reading
+
+**Applied [2026-11-20].** **Revised later the same day (see Q5.8).** The first reading was 'dp reads no language at all'; your follow-up says regexes generalised to the major languages are wanted. Final: remove the per-language readers (tokenizers and resolvers) and replace them with **one generic regex reader**, a table of patterns for the major languages run the same way on every code file, with every result labelled approximate. Plain-text search comes first (offline BMO `where <name>`, `dp find <name> --code`), shows files and lines, and marks hits that look like a definition. Recorded as DEC-096. [Wave 5](wave-05-code-search.md) is rewritten as 'Code search, key code and one generic code reader'.
 
 #### ★Q5.2 Which languages after Java?
 
@@ -738,7 +903,9 @@ Each wave file names the model for each step. Fable is used only if you ask.
 
 This depends on who dp is for (★A1).
 
-**Your thinking:**
+**Your thinking:** The above should be applicable to any programming language, nothing should be programming language specific.
+
+**Applied [2026-11-20].** 'Any programming language' is met by one pattern table for the major languages (Python, JavaScript and TypeScript, Java, Kotlin, Scala, C#, Go, Rust, C and C++, Ruby, PHP, Swift) and no module, file or branch per language. A language that is not in the table still gets search. Adding a language means adding patterns and a test string. The earlier 'Java now, Go next, C# later' becomes 'all of those at once, approximately'.
 
 #### Q5.3 Java builds
 
@@ -752,7 +919,9 @@ This depends on who dp is for (★A1).
 
 **Recommended.** Yes.
 
-**Your thinking:**
+**Your thinking:** Do we still need Java builds/sample code with the above in mind? (asked once for Q5.3 and Q5.4)
+
+**Applied [2026-11-20].** No Maven or Gradle reading for now: they are build manifests, not source code, and your later answer was about reading code with regexes. Java source is read by the generic reader. Say so if you want `pom.xml` and Gradle files read as well; that would be a small manifest reader like the one for `package.json`.
 
 #### ★Q5.4 Java sample code
 
@@ -767,7 +936,9 @@ This depends on who dp is for (★A1).
 
 **Recommended.** Option 1. Choose option 2 if you want the demo to show Java.
 
-**Your thinking:**
+**Your thinking:** (Answered with Q5.3: do we still need Java sample code?)
+
+**Applied [2026-11-20].** No Java sample code and no Java fixtures, and CLAUDE.md's 'everything is TypeScript' needs no exception. Tests write small plain-text fixtures from strings into a temporary folder, in no particular language.
 
 #### ★Q5.5 How `tools.py` and other shared helpers are treated
 
@@ -784,7 +955,9 @@ This depends on who dp is for (★A1).
 
 **Recommended.** Yes. Your thinking could set N (we suggest 3) and the folder names.
 
-**Your thinking:**
+**Your thinking:** Since I no longer care about how the code specific things work, i dont think we should be mapping tools.py and such. I only want to see the main files and functions related to a C3 object with that in mind (asked once for Q5.5, Q5.6 and Q5.7)
+
+**Applied [2026-11-20].** The shared-helper rule (folder names, N = 3, intake overrides), the file roles and the badges are dropped. A component instead shows **key code**: its main files and functions, stored as `dp.code.key`. A person pins them (from a search result or the file picker); dp checks each file still exists and holds the name; dp offers hints without an LLM (a file named like the component, mentioned by several of its files, the longest); BMO can propose entries, and dp verifies the path and the name before they can be pinned. `tools.py` is a code file like any other: no box, no role, and no special line. If it matters to a component, someone pins it.
 
 #### Q5.6 Config files as evidence
 
@@ -793,7 +966,9 @@ This depends on who dp is for (★A1).
 - `.env` and `.github/` stay closed (DEC-031).
 - This covers Java's `application.yml` and `.properties` files, and Python settings modules.
 
-**Your thinking:**
+**Your thinking:** (Answered with Q5.5.)
+
+**Applied [2026-11-20].** Config facts are dropped with the language readers. The scan's existing reading of env samples and compose stays as it is; `.env` and `.github/` stay closed (DEC-031).
 
 #### Q5.7 Content hashes
 
@@ -807,9 +982,31 @@ This depends on who dp is for (★A1).
 
 **Recommended.** Option 2. Wave 13 stores the contract fingerprints it needs in the model instead.
 
-**Your thinking:**
+**Your thinking:** (Answered with Q5.5.)
 
-### Wave 6: Drift and findings
+**Applied [2026-11-20].** No content-hash cache in Wave 5: search needs none. Wave 14 hashes what it indexes, and Wave 13 computes a fingerprint from a small JSON file when asked.
+
+#### ★Q5.8 What happens to the code reading that is already built?
+
+*New on 2026-11-20. It comes from "remove non-LLM reading of code" (Q5.1).*
+
+**Analysis** [Fact]
+- Built today and language-specific: Python and JS/TS imports and function lookup (`src/core/codeMap.ts`), the component-to-component import lines in the scan, the code level diagram, the unmapped-code warning, and the import check in the coding plan.
+- Not language-specific and not affected: code paths on elements (`dp.code.paths`), the file viewer, the scan of manifests, compose and Dockerfiles.
+- We read Q5.1 as "do not build more of this, and do not rely on it". It could also be read as "take it out".
+
+**Options**
+1. **Freeze.** Keep what exists, label it "Python and JS/TS only" in the UI and docs, add nothing, fix bugs only. New work (search, key code, model metrics, the interview) does not depend on it; the interview uses the import lines where they exist.
+2. **Remove the import reading and function lookup.** Keep code paths, the viewer and search. The code diagram would show files without import lines; the scan's component lines and the coding plan's import check go.
+3. **Remove all of it,** including the code level diagram.
+
+**Recommended.** Option 1 now, and look again before 1.0.0. Removing built features is a bigger step than not building more (the scope review makes the same point), and the import lines are the only evidence dp has for lines between components. **Trade-off:** two ways of reading code live side by side, one of them language-specific, and the docs must say so.
+
+**Your thinking:** Remove the non-LLM reading of code, just do the regex expressions and things can be generalized to all types of major coding languages
+
+**Applied [2026-11-20].** Option 2 in spirit, with a replacement. The per-language tokenizers, resolvers and function lookup (Python, JS/TS) are removed. **One generic regex reader** (a pattern table plus one engine, no code per language) takes over `scanImports` and `findFunctions`, so the code diagram, the scan's component lines, the unmapped-code warning and the coding plan's import check keep working and now cover the major languages, not only Python and JS/TS. Everything it returns is approximate and says so. The demo's results may change slightly; step 1 of Wave 5 records the old results as a baseline, step 6 lists every difference, and the demo is regenerated. **Trade-off:** regexes without a tokenizer can read a commented-out or string-embedded import as real (a generic comment cut helps but is not exact), and the resolver matches a specifier to files by path, so two files with the same path tail are ambiguous (dp draws no line then, and says so). The old Python tokenizer was exact for Python; that exactness is traded for breadth. [Wave 5](wave-05-code-search.md) part C.
+
+### Wave 6: Findings and acknowledgements (drift parked)
 
 #### ★Q6.1 Acknowledgements as model data
 
@@ -817,7 +1014,9 @@ This depends on who dp is for (★A1).
 
 **Recommended.** Yes: `dp.acks` on the object the finding is about.
 
-**Your thinking:**
+**Your thinking:** (Answered by A5: yes.) Wave 6: Push architecture drift to future_tasks.md for me to review later.
+
+**Applied [2026-11-20].** Kept: `dp.acks` stay model data. [Wave 6](wave-06-findings.md) is now 'Findings and acknowledgements'.
 
 #### ★Q6.2 Three outcomes: found, not found, not checkable
 
@@ -830,13 +1029,17 @@ This depends on who dp is for (★A1).
 
 **Recommended.** Yes.
 
-**Your thinking:**
+**Your thinking:** Push architecture drift to future_tasks.md for me to review later.
+
+**Applied [2026-11-20].** The three outcomes (found, not found, not checkable) stay in the Finding shape for the later waves. Wave 6's own checks are the warnings dp already makes, so they are always 'found'.
 
 #### Q6.3 What drift compares against
 
 **Recommended.** A fresh scan of the working tree by default. `--ref <git ref>` compares against a branch instead, using the existing git reader.
 
-**Your thinking:**
+**Your thinking:** Push architecture drift to future_tasks.md for me to review later.
+
+**Applied [2026-11-20].** Not built. Kept in future_tasks 2.2 for your review.
 
 #### ★Q6.4 How drift is fixed
 
@@ -848,15 +1051,19 @@ This depends on who dp is for (★A1).
 
 **Recommended.** Yes.
 
-**Your thinking:**
+**Your thinking:** Push architecture drift to future_tasks.md for me to review later.
+
+**Applied [2026-11-20].** Not built. 'Update the model from code' is kept in future_tasks 2.2 as part of the drift design.
 
 #### Q6.5 Drift in CI
 
 **Recommended.** `dp drift --fail-on new` exits 1 only for findings that aren't acknowledged. A CI example goes in `demo/ci-examples/`.
 
-**Your thinking:**
+**Your thinking:** Push architecture drift to future_tasks.md for me to review later.
 
-### Wave 7: Metrics
+**Applied [2026-11-20].** Not built. `dp drift` and its CI example are in future_tasks 2.2.
+
+### Wave 7: Model metrics (the questions below were asked about code metrics)
 
 #### ★Q7.1 Which metrics are computed, approximate or imported?
 
@@ -883,7 +1090,9 @@ This depends on who dp is for (★A1).
 
 **Recommended.** Compute Ca, Ce, I, cycles, A and D. Compute complexity and LCOM4 as approximate, with labels. Import from reports later, if teams have them.
 
-**Your thinking:**
+**Your thinking:** Go with what you think is best.
+
+**Applied [2026-11-20].** Changed by Q5.1 and Q5.2. Ca, Ce, instability and cycles are **computed from the model's own lines**, per level, so they work for any language. LCOM, complexity, abstractness and distance need a per-language parser, so they are not built; importing a report from a tool that already measures them is an idea (future_tasks 2.5). [Wave 7](wave-07-metrics.md) is rewritten as 'Model metrics'.
 
 #### Q7.2 Where metrics show
 
@@ -894,7 +1103,9 @@ This depends on who dp is for (★A1).
 
 A chart of abstractness against instability (the "main sequence") comes later.
 
-**Your thinking:**
+**Your thinking:** Go with what you think is best.
+
+**Applied [2026-11-20].** As recommended, renamed 'Coupling': a panel section, an overlay and `dp metrics --json|--csv`.
 
 #### Q7.3 Speed on large repositories
 
@@ -902,7 +1113,9 @@ A chart of abstractness against instability (the "main sequence") comes later.
 - Heavy work runs in the CLI or a worker thread, with a cache. It never runs inside a web request.
 - A test on a generated repository of 20,000 files.
 
-**Your thinking:**
+**Your thinking:** Go with what you think is best.
+
+**Applied [2026-11-20].** No worker thread, cache or 20,000-file test: the work is linear in the model, which is small. A test with a generated model of 5,000 elements and 20,000 lines under a written time budget replaces them.
 
 #### Q7.4 Thresholds
 
@@ -911,7 +1124,9 @@ A chart of abstractness against instability (the "main sequence") comes later.
 - D warns at 0.7 [Proposal];
 - cycles are always reported.
 
-**Your thinking:**
+**Your thinking:** Go with what you think is best.
+
+**Applied [2026-11-20].** Thresholds move to Wave 8's rules as rule parameters, so the limits live in one place. The complexity and distance thresholds are gone with those metrics.
 
 ### Wave 8: Rules and presets
 
@@ -921,7 +1136,9 @@ A chart of abstractness against instability (the "main sequence") comes later.
 
 **Recommended.** No. Rules make findings for the UI and `dp check` only. CI fails through `dp check --strict` or `--fail-on`.
 
-**Your thinking:**
+**Your thinking:** Go with what you think is best.
+
+**Applied [2026-11-20].** As recommended: rules never block a save.
 
 #### ★Q8.2 Move the checklist's rules into the registry?
 
@@ -931,7 +1148,9 @@ A chart of abstractness against instability (the "main sequence") comes later.
 
 **Recommended.** Yes. One registry with the same ids, so checklist items keep working. This amends DEC-084 in a new DEC.
 
-**Your thinking:**
+**Your thinking:** Go with what you think is best.
+
+**Applied [2026-11-20].** As recommended: the checklist's 16 rules move into one registry with the same ids, and a new DEC amends DEC-084.
 
 #### ★Q8.3 Presets, and which are on by default
 
@@ -950,7 +1169,9 @@ The sidecar holds which presets are on, plus the severity and settings of each r
 
 **Recommended.** C4 basics on by default; the others opt-in.
 
-**Your thinking:**
+**Your thinking:** Go with what you think is best.
+
+**Applied [2026-11-20].** As recommended: C4 basics on by default, the others opt-in. The 'zone of pain or uselessness' detector is gone (it needs abstractness). The Data and Security basics presets touch data and infrastructure, which the scope review may move out.
 
 #### ★Q8.4 Silencing a finding
 
@@ -958,7 +1179,9 @@ The sidecar holds which presets are on, plus the severity and settings of each r
 - Anyone who may edit the model can do it. Engineers do it in drafts.
 - `dp check` output counts acknowledged findings, for example "3 acknowledged".
 
-**Your thinking:**
+**Your thinking:** Go with what you think is best.
+
+**Applied [2026-11-20].** As recommended: silencing is acknowledging with a reason; `dp check` counts acknowledged findings.
 
 #### Q8.5 Heuristic detectors
 
@@ -966,7 +1189,9 @@ The sidecar holds which presets are on, plus the severity and settings of each r
 - names that look like the Entity Trap;
 - "architecture by implication": containers with no decision.
 
-**Your thinking:**
+**Your thinking:** Go with what you think is best.
+
+**Applied [2026-11-20].** As recommended: heuristic detectors show as hints only.
 
 #### Q8.6 Style templates
 
@@ -974,7 +1199,9 @@ The sidecar holds which presets are on, plus the severity and settings of each r
 
 **Recommended.** Later (future_tasks).
 
-**Your thinking:**
+**Your thinking:** Go with what you think is best.
+
+**Applied [2026-11-20].** As recommended: style templates later (future_tasks).
 
 ### Wave 9: Characteristics table
 
@@ -993,7 +1220,9 @@ The sidecar holds which presets are on, plus the severity and settings of each r
 
 **Recommended.** Yes.
 
-**Your thinking:**
+**Your thinking:** Go with what you think is best.
+
+**Applied [2026-11-20].** As recommended: needed stars beside current, per element, with inheritance from the system.
 
 #### Q9.2 Expected impact in decisions
 
@@ -1001,19 +1230,25 @@ The sidecar holds which presets are on, plus the severity and settings of each r
 
 **Recommended.** Yes.
 
-**Your thinking:**
+**Your thinking:** Go with what you think is best.
+
+**Applied [2026-11-20].** As recommended: a decision can state its expected impact on characteristics.
 
 #### Q9.3 Hints from metrics
 
 **Recommended.** Hints only. For example, modularity from D and cycles, or testability from a coverage report. Hints never set stars.
 
-**Your thinking:**
+**Your thinking:** Go with what you think is best.
+
+**Applied [2026-11-20].** As recommended, with the source changed: hints come from the model's cycles and instability (Wave 7), not from distance. Hints never set stars.
 
 #### Q9.4 More than seven driving characteristics
 
 **Recommended.** A warning. The book suggests about seven (notes `fundamentals…md:89`).
 
-**Your thinking:**
+**Your thinking:** Go with what you think is best.
+
+**Applied [2026-11-20].** As recommended: more than seven driving characteristics gives a warning.
 
 #### Q9.5 Older versions of dp
 
@@ -1021,7 +1256,9 @@ The sidecar holds which presets are on, plus the severity and settings of each r
 
 **Recommended.** Accept it and say so in the CHANGELOG. A team should upgrade together.
 
-**Your thinking:**
+**Your thinking:** Go with what you think is best.
+
+**Applied [2026-11-20].** As recommended: accept it and say so in the CHANGELOG.
 
 ### Wave 10: Risk and risk storming
 
@@ -1042,7 +1279,9 @@ The sidecar holds which presets are on, plus the severity and settings of each r
 - The Risk overlay is computed from the risks: the highest score per box.
 - The Risk tag group stays, for models that use it by hand.
 
-**Your thinking:**
+**Your thinking:** Risk and Risk Storming has been pushed to future_tasks.md so no need to implement it in this waves situation.
+
+**Applied [2026-11-20].** Parked (as in A7 and C6b). The recommendation is kept for when the wave returns.
 
 #### Q10.2 Scale
 
@@ -1052,7 +1291,9 @@ The sidecar holds which presets are on, plus the severity and settings of each r
 - 1–2 is low, 3–4 medium, 6–9 high;
 - show shading as well as colour.
 
-**Your thinking:**
+**Your thinking:** (Wave 10 is pushed to future_tasks.md.)
+
+**Applied [2026-11-20].** Parked.
 
 #### ★Q10.3 Private scores in risk storming
 
@@ -1069,13 +1310,17 @@ The sidecar holds which presets are on, plus the severity and settings of each r
 
 **Recommended.** Yes.
 
-**Your thinking:**
+**Your thinking:** (Wave 10 is pushed to future_tasks.md.)
+
+**Applied [2026-11-20].** Parked.
 
 #### Q10.4 The grid's columns
 
 **Recommended.** Containers for now. The book prefers domains, and groups come later (future_tasks 2.1).
 
-**Your thinking:**
+**Your thinking:** (Wave 10 is pushed to future_tasks.md.)
+
+**Applied [2026-11-20].** Parked.
 
 ### Wave 11: BMO reviews
 
@@ -1094,7 +1339,9 @@ The sidecar holds which presets are on, plus the severity and settings of each r
 
 **Recommended.** Yes.
 
-**Your thinking:**
+**Your thinking:** Go with what you think is best.
+
+**Applied [2026-11-20].** As recommended. The pack now holds the scope's key code and Wave 7's coupling instead of drift.
 
 #### ★Q11.2 Where the results go
 
@@ -1104,13 +1351,17 @@ The sidecar holds which presets are on, plus the severity and settings of each r
 - add as linked work;
 - add as a comment.
 
-**Your thinking:**
+**Your thinking:** Go with what you think is best.
+
+**Applied [2026-11-20].** As recommended, without 'add as a risk' (Wave 10 is parked).
 
 #### Q11.3 Proposed ratings and suggested risks
 
 **Recommended.** Accepted row by row, and labelled "proposed by BMO" until then.
 
-**Your thinking:**
+**Your thinking:** Go with what you think is best.
+
+**Applied [2026-11-20].** As recommended: ratings accepted row by row, labelled 'proposed by BMO' until then. Suggested risks wait for Wave 10.
 
 ### Wave 12: Runtime
 
@@ -1122,7 +1373,9 @@ The sidecar holds which presets are on, plus the severity and settings of each r
 
 **Recommended.** These two only. A live collector (OTLP over HTTP) stays in future_tasks 2.7.
 
-**Your thinking:**
+**Your thinking:** Go with what you think is best. (Wave 12 is parked.)
+
+**Applied [2026-11-20].** Parked. The recommendation is kept for when the wave returns.
 
 #### Q12.2 Thresholds
 
@@ -1131,13 +1384,17 @@ The sidecar holds which presets are on, plus the severity and settings of each r
 - chain depth;
 - fan-out.
 
-**Your thinking:**
+**Your thinking:** Go with what you think is best. (Wave 12 is parked.)
+
+**Applied [2026-11-20].** Parked.
 
 #### Q12.3 Variants from telemetry
 
 **Recommended.** Read span events that carry the feature-flag attributes now (see 0.1). Read OTLP log files later.
 
-**Your thinking:**
+**Your thinking:** Go with what you think is best. (Wave 12 is parked.)
+
+**Applied [2026-11-20].** Parked.
 
 ### Wave 13: Contracts and consumer notifications
 
@@ -1157,7 +1414,9 @@ The sidecar holds which presets are on, plus the severity and settings of each r
 
 **Recommended.** JSON first, and ask you before adding a YAML dependency. Are your OpenAPI files YAML?
 
-**Your thinking:**
+**Your thinking:** Go with what you think is best.
+
+**Applied [2026-11-20].** JSON only (OpenAPI and JSON Schema); no YAML dependency in this wave, so the server keeps three runtime dependencies. **Trade-off:** most real OpenAPI files are YAML, so those teams export to JSON in CI first. Reading YAML directly is a line in future_tasks 2.1, and the dependency is then your decision. The earlier question 'are your OpenAPI files YAML?' no longer blocks the wave.
 
 #### ★Q13.2 What "the output of service A" means
 
@@ -1174,7 +1433,9 @@ Requests and responses break in opposite ways:
 
 **Recommended.** Yes.
 
-**Your thinking:**
+**Your thinking:** Go with what you think is best.
+
+**Applied [2026-11-20].** As recommended: a service's output is its endpoint responses, the messages it publishes and the data it writes.
 
 #### ★Q13.3 How a consumer marks a change as checked
 
@@ -1185,7 +1446,9 @@ Requests and responses break in opposite ways:
 
 **Recommended.** Yes.
 
-**Your thinking:**
+**Your thinking:** Go with what you think is best.
+
+**Applied [2026-11-20].** As recommended: the consumer's line stores the fingerprint it has checked (`dp.contract.seen`).
 
 #### Q13.4 How people are told
 
@@ -1196,7 +1459,9 @@ Requests and responses break in opposite ways:
 - `dp contracts --fail-on breaking` in CI.
 - No email, chat or webhooks: the bell keeps no stored list per person (DEC-080).
 
-**Your thinking:**
+**Your thinking:** Go with what you think is best.
+
+**Applied [2026-11-20].** As recommended: a computed 'needs a look' item, a badge, optional linked work and `dp contracts --fail-on breaking`. No email or webhooks.
 
 #### Q13.5 Breaking changes
 
@@ -1208,7 +1473,9 @@ Requests and responses break in opposite ways:
 
 Anything else is "changed, impact unknown".
 
-**Your thinking:**
+**Your thinking:** Go with what you think is best.
+
+**Applied [2026-11-20].** As recommended: removed fields, type changes, new required request fields and removed endpoints; anything else is 'changed, impact unknown'.
 
 ### Wave 14: Retrieval and local models
 
@@ -1260,7 +1527,9 @@ Anything else is "changed, impact unknown".
 
 **Recommended.** Option 1.
 
-**Your thinking:**
+**Your thinking:** The interview should be dependent on the codebase. Tend to lean towards more questions than less. Definitely need at least a few questions per interview.
+
+**Applied [2026-11-20].** Questions come from what the scan finds, so a codebase with a broker gets broker questions and one without gets none. When a fact could be asked or assumed, dp asks, and dp asks about every object it would create. **A floor of 6 questions per level's interview**: if the scan yields fewer, dp fills up from a fixed bank of standing questions (at least 8 per level, worded in code, never generated), and the screen says it did. The wording of the bank is added to future_tasks 1.5 for your review. I kept 'one interview, a draft per level' (option 1), reading 'per interview' that way and because DEC-051 wants one level at a time. [Wave 15](wave-15-guided-import-interview.md) is updated.
 
 #### ★Q15.2 Is a click in the interview the final accept?
 
@@ -1272,22 +1541,165 @@ Anything else is "changed, impact unknown".
 
 **Recommended.** Option 1, but "Approve all of these" never covers items the scan could not back with evidence. Those need their own click.
 
-**Your thinking:**
+**Your thinking:** Yes it is final accept, but users can also add some additional context as a free-form text or reference local files.
+
+**Applied [2026-11-20].** The card approval is the final accept (a group's 'Approve all of these' still never covers items the scan could not back with evidence). Beside it: a **note on each card** (typed text, which can back that item as evidence), **general context** in a free-text box, and **file references**. A file inside the code root is read through the file gate (text only, redacted) and can go to BMO as data; a file elsewhere on the computer is kept as a path only, never read or sent (the `local:` kind of Q3.5, DEC-095).
 
 #### Q15.3 Where the answers live
 
 **Recommended.** `architecture/import/interview.json`, next to the intake, outside the model and with a fixed key order. BMO's questions stay in the checklist and appear in the interview as one group.
 
-**Your thinking:**
+**Your thinking:** Save the answers to the questions locally, go with your best thinking
+
+**Applied [2026-11-20].** Everything goes in `architecture/import/interview.json`, committed with the intake: the answers, the card notes, the general context and the file references (your 'include it as well'; the earlier split with a git-ignored file is dropped). Nothing is sent anywhere. **Because it is committed,** dp refuses to save a context text that contains a secret-looking value (as a decision does, DEC-064), and the screen says 'saved in the project and committed with it'. A file outside the code root is kept as a path, written with `~/` where possible, so a user name does not end up in git.
 
 #### Q15.4 Where it sits on the Import page
 
 **Recommended.** A "Guide me" button at the top that opens the interview full width. The current sections (scan, readiness, bring in a level, labels) stay under "Advanced" for people who want the manual route and for the handoff file.
 
-**Your thinking:**
+**Your thinking:** Go with your best decisions
+
+**Applied [2026-11-20].** As recommended: a 'Guide me' button at the top of the Import page; the current sections stay under 'Advanced' for the manual route and the handoff file.
 
 #### Q15.5 BMO's part
 
 **Recommended.** Build 15a first: the interview and the draft without BMO. Then 15b: BMO adds name, description and label cards marked "BMO suggests", never pre-approved, and BMO's own questions appear last.
 
-**Your thinking:**
+**Your thinking:** Go with your best decisions
+
+**Applied [2026-11-20].** As recommended: 15a (the interview and the draft without BMO) first, then 15b (BMO adds name, description and label cards marked 'BMO suggests', never pre-approved; BMO's own questions last).
+
+---
+
+## Part C. Questions from the product vision
+
+*New on 2026-11-19. They come from your twelve features and the non-goal. Each has a recommendation; a blank uses it.*
+
+#### ★C1. What are "git-style commits for software architecture"?
+
+**Analysis** [Fact]
+- dp reads git and never writes it (DEC-018). The History page lists the commits that changed a model and what each changed (DEC-058, `src/core/history.ts`). `dp diff --base <ref>` summarises changes since a ref.
+- A draft is a copy of the model (like a branch). Applying it is a three-way merge and one undo step on main (DEC-016, DEC-032). A draft records its author (DEC-040).
+- So today: branches (drafts), diff, merge (apply) and log (History) exist. A commit with a message, made by dp, does not. Making one means changing DEC-018.
+
+**Options**
+1. **Keep git read-only.** History stays as built. Add a suggested commit message from the change list, so a person commits with git themselves. Nothing in DEC-018 changes.
+2. **Commit on apply, opt-in.** An architect can switch on "commit when a draft is applied". dp commits only `architecture/` with a message built from the draft's title and description, never pushes, never touches other files. Off by default.
+3. **dp's own commit log, separate from git.** A message, an author and a date kept in the model, with revert. This duplicates git and drifts from it.
+
+**Recommended.** Option 2. It makes "draft → apply" read as "branch → commit" without a second history. It needs a DEC that amends DEC-018, a check that the working tree has no other staged changes, and a refusal when git is missing or the folder is not a repository. If you want git to stay read-only, take option 1.
+
+**Your thinking:** Yes.
+
+**Applied [2026-11-19].** Option 2. New [Wave 17](wave-17-architecture-commits.md): an opt-in "commit when a draft is applied", plus a manual Commit button and `dp commit`. dp commits only `architecture/`, never pushes, amends or skips hooks. DEC-091 amends DEC-018.
+
+#### ★C2. Which gaps in the change-proposal feature (C) go into 1.0.0?
+
+**Analysis** [Fact]. [future_tasks.md](../future_tasks.md) 1.2 lists what drafts cannot do yet:
+- rebase a draft onto a main that has moved, and a merge editor for conflicts (today a conflict is reported only when the draft is applied) [Medium];
+- undo of an apply restores the model but not the code files it wrote nor the deleted draft [Small–medium];
+- compare a draft's planned code edits with the code as it was when the draft started [Medium].
+
+With several accounts working in drafts (feature E), the first is the one people meet.
+
+**Options.** Pick any: (a) rebase and merge editor, (b) undo restores the draft, (c) compare against the code at the start of the draft.
+
+**Recommended.** (a) and (b) in 1.0.0, as a new wave after Wave 4. (c) later.
+
+**Your thinking:** Go with your best decision.
+
+**Applied [2026-11-19].** (a) rebase and merge editor and (b) undo that restores the draft, as recommended, in new [Wave 18](wave-18-drafts-keep-up.md). (c) stays later.
+
+#### ★C3. Which lenses does 1.0.0 ship?
+
+**Analysis** [Fact]
+- A lens is a default view: it picks levels, sections and a default overlay, and hides no data (DEC-008, DEC-063). Three ship: Engineer, Architect, Overview (DEC-008, DEC-038).
+- Business and Security presets are in the backlog (future_tasks 1.4, small). There is no DevOps lens.
+
+**Proposal.** Ship presets for the roles your vision names. A DevOps lens would show containers and technology, run addresses, endpoints, linked work and contracts, and hide cost and trade-offs. The other presets (Business, Security, and Developer if Engineer is not that) follow the same pattern.
+
+**Options**
+1. DevOps only.
+2. DevOps, Security and Business.
+3. Also Compliance and QA.
+
+**Recommended.** Option 2, in a small wave after Wave 4 (or inside it). Tell me what each role must see first and I will write the presets from that.
+
+**Your thinking:** Go with your best decisions.
+
+**Applied [2026-11-19].** Option 2: DevOps, Security and Business, in new [Wave 19](wave-19-lenses-for-roles.md). I chose the settings (levels, sections, overlay for each); they are a table in that file for you to review.
+
+#### ★C4. Who may attach images and files?
+
+**Analysis.** Attaching writes a file to the repository's disk (see [Wave 16](wave-16-attachments.md)). Comments are open to every role, viewers included (DEC-049). A viewer's text comment is a few kilobytes; a viewer's upload is up to a file cap.
+
+**Options**
+1. Whoever may comment may attach to a comment, viewers included. Others attach where they may edit.
+2. As option 1, but **not viewers**.
+3. Only architects, and engineers inside drafts.
+
+**Recommended.** Option 2, with a per-project size cap.
+
+**Your thinking:** Anyone can attach files, up to 10 MB per file, and files must be stored locally so dp can pull them up directly.
+
+**Applied [2026-11-19].** Option 1, including viewers: every role can attach to a comment; where someone may edit a thing, they attach to it. Files are stored in `architecture/attachments/` and opened through dp's own page (images in the page, PDFs in a tab, text in a dialog, Office files download). See C5.
+
+#### C5. Which file types, and how big?
+
+**Recommended.** Images shown inline: PNG, JPEG, GIF, WebP. Download only: PDF, text, Markdown, CSV, JSON, Office files. SVG, HTML, scripts and archives refused. About 3.5 MB per file, because a file is sent as base64 inside the 5 MB request that also keeps other websites out. Do you need larger files, such as a 20 MB specification PDF? That needs a different upload route and its own security review.
+
+**Your thinking:** (see C5; applied together)
+
+**Applied [2026-11-19].** 10 MB per file instead of 3.5 MB. That cannot go as base64 inside the 5 MB JSON limit, so [Wave 16](wave-16-attachments.md) now uses a raw upload route with its own limit and its own cross-site rule (a custom header that another website cannot send without a preflight, which dp refuses). Other limits: a per-project total (proposal 500 MB) and an upload rate limit, because viewers can now write to disk.
+
+#### ★C6. Two readings of your answers that I want you to confirm
+
+**(a) Notes from every account.** The vision says different accounts add notes to diagrams.
+- Today `dp.notes` are model data: architects write them, and engineers write them in a draft. Notes also go into BMO's context when the lens shows them.
+- Comments are open to every account, but they are not model data and never reach BMO.
+- If every account wrote model notes, text from anyone would flow into BMO's context unreviewed. DEC-064 treats text from outside the architects as data, never as instructions, and a note is exactly that kind of text.
+
+Options: (1) **notes are model data, written by those who edit the model; every other account uses comments** (with images and files from Wave 16); (2) every account writes notes, kept in a side file like comments, never sent to BMO.
+**Recommended.** Option 1.
+
+**(b) Pushing risk and telemetry to future_tasks (A7).** I read "push these to future_tasks.md" as parking Wave 10 (risk storming) and Wave 12 (runtime telemetry). Waves 11 and 13 do not depend on Wave 12. Wave 11 loses its risk parts. If you meant only the wider questions, not the first cuts, say so and the two waves return to the plan.
+**Recommended.** Keep both parked: neither is among the twelve features, and runtime telemetry is outside the software-architecture line (see [v1-scope-review.md](v1-scope-review.md)).
+
+**Your thinking:** (a) Yes. (b) The owner did not understand the question; it was asked again in plain words, and the answer was: **do not build either for 1.0** (stay parked).
+
+**Later change [2026-11-19].** You then said comments should be reachable by BMO ("everything a person can visualize on screen"). So the reasoning in (a) that kept comments away from BMO no longer holds: comments reach BMO as labelled data (see the follow-up under Q2.2, DEC-094). Who may write what is unchanged: model notes and stickies by those who edit the model, comments by every account.
+
+**Applied [2026-11-19].** (a) Notes are model data, written by those who edit the model; every other account uses comments with images and files. (b) Waves 10 and 12 stay parked in future_tasks; nothing changes from last time.
+
+#### ★C7. How does BMO tell that a decision is "broken or violated"?
+
+**Analysis** [Fact]
+- A decision links to elements and relationships it is about, with a status, alternatives and triggers (DEC-050). `decisionsAbout` finds the decisions for an object (`src/core/decisions.ts`).
+- Nothing today compares a decision with the model or the code.
+- Wave 3 adds an optional Compliance section that can name a rule (Q3.6). Wave 8 adds rules that produce Findings.
+
+**Options**
+1. **Computed only.** A decision whose Compliance names a rule shows "possibly violated" when that rule has a finding on one of its targets. No BMO.
+2. **BMO only.** BMO reads the accepted decisions in a scope and the model and code, and gives a verdict per decision with citations (present, possible, not found, can't tell), like the anti-pattern review.
+3. **Both,** with disagreements pointed out, as Wave 11 already does for anti-patterns.
+
+**Recommended.** Option 3. It is now a task in [Wave 11](wave-11-bmo-reviews.md) (`check-decisions`). A decision with no Compliance rule is checked by BMO only, and labelled as proposed.
+
+**Your thinking:** Yes.
+
+**Applied [2026-11-19].** Option 3: a computed "possibly violated" signal plus BMO's check, disagreements shown. It is the `check-decisions` task in [Wave 11](wave-11-bmo-reviews.md).
+
+#### C8. Does "understanding an existing system" need more than the import and the explain tasks?
+
+**Analysis** [Fact]. The vision's first problem is understanding an existing system. What dp has or plans: the scan and the guided interview build the model (Waves 5, 6, 15); BMO explains an object, a diagram or a draft from the model and code excerpts (Wave 1 makes them cited); `dp context` prints the same pack for coding agents (Wave 2). A run over the token limit is refused, and multi-pass summarising for a whole large repository is not built (DEC-065, future_tasks 1.3, Large).
+
+**Options**
+1. As planned: explain one scope at a time.
+2. Add a "system tour" task: BMO explains the system from the model first, then walks the containers one by one, each a small cited run.
+3. Build multi-pass summarising for whole repositories.
+
+**Recommended.** Option 1 for 1.0.0, then option 2 if real runs show people want one page about the whole system. Option 3 is large and not needed by the twelve features. Note that no real LLM run has been made yet; 1.0.0's checklist should include a real run per provider you support.
+
+**Your thinking:** Have a true back and forth, not just one scope at a time. As code becomes larger or more complex, you can ask more questions to the user. Add this to the checklist.
+
+**Applied [2026-11-19].** A new wave, [Wave 20: a real back-and-forth about an existing system](wave-20-system-conversation.md). dp plans rounds from facts about the system (containers, components, files, cycles, unmapped code); each round is one previewed BMO run on one scope that returns cited statements and questions for the person; the number of questions allowed grows with size and tangle, and the person can ask for more, go deeper or stop; the person's answers carry into later rounds. Nothing is written until a button is pressed. "Add this to the checklist" is applied twice: an item on the in-app "Importing a codebase" list that ticks itself when every round is answered, skipped or ended, and a line on the 1.0.0 release checklist in [../future_tasks.md](../future_tasks.md) 2.0.

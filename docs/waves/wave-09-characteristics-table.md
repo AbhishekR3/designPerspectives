@@ -2,10 +2,11 @@
 
 | | |
 |---|---|
-| **Status** | Waiting for owner answers: ★Q9.1, Q9.2, Q9.3, Q9.4, Q9.5 ([questions.md](questions.md)) |
+| **Status** | Owner answers applied (2026-11-19). Ready to run after Wave 7 |
 | **Branch** | `feat/w09-characteristics-table`, from `main` after Wave 8 is merged |
 | **Size** | M |
-| **Depends on** | Wave 7 (metric hints). Works without it if the hints are left out |
+| **Release** | 0.5.3 (with Wave 11) |
+| **Depends on** | Wave 7 (coupling hints from the model). Works without it if the hints are left out |
 | **Owner items** | 7 ([README.md](README.md#where-each-item-went)) |
 
 Read [README.md](README.md) first: its rules, agents and checks apply to this wave.
@@ -72,7 +73,7 @@ Ratings come from people. BMO's proposed ratings come in Wave 11.
    - The decision front matter gets `impacts: [scalability:+1, simplicity:-1]`, checked against the characteristics list.
    - The table shows "expected by ADR-0007" next to the draft's real change.
    - The diff gets a field and a label for it.
-6. **Hints** (Q9.3). From Wave 7, for example modularity from D and cycles. Shown as hint chips, never written into the stars.
+6. **Hints** (Q9.3). From Wave 7's coupling numbers, for example modularity from cycles and instability. Shown as hint chips, never written into the stars. (Distance from the main sequence is not available: Wave 7 no longer computes it.)
 7. **Overlay.** A "gap" mode for the `@char:<name>` overlay, coloured by needed − current.
 
 ## Determinism
@@ -85,7 +86,15 @@ Ratings come from people. BMO's proposed ratings come in Wave 11.
 
 ## Owner answers
 
-*Filled in when the answers are applied.*
+Applied 2026-11-19: the owner answered Part A and left Part B blank, so every Q below uses its recommendation ([questions.md](questions.md)).
+
+- **Q9.1:** needed stars beside current, per element; a container without its own target shows its system's.
+- **Q9.2:** a decision can state its expected impact on characteristics.
+- **Q9.3:** metric hints only; they never set stars.
+- **Q9.4:** more than seven driving characteristics gives a warning.
+- **Q9.5:** an older dp drops the new value when it saves; the CHANGELOG says so.
+- **2026-11-20 (best thinking):** Q9.1 to Q9.5 hold as recommended. The only change is that hints come from the model's coupling and cycles, because Wave 7 measures the model.
+- **Vision:** feature L, the "-ilities". Wave 10, which followed this wave, is parked.
 
 ## Stop and ask if
 

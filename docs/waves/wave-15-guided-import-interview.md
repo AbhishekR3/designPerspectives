@@ -2,10 +2,11 @@
 
 | | |
 |---|---|
-| **Status** | Owner answer applied (questions 0.3, 2026-11-18). Design questions Q15.1 to Q15.5 ([questions.md](questions.md)) have recommendations and are open |
+| **Status** | Owner answers applied (0.3 on 2026-11-18; Q15.1 to Q15.5 answered 2026-11-20: questions depend on the codebase and there are always a few; the card approval is final, with room for free-text context and file references; answers saved locally). Ready after Waves 5 and 1 |
 | **Branch** | `feat/w15-guided-import-interview`, from `main` after Waves 5 and 1 are merged |
 | **Size** | L. Split point: 15a is the interview and the import without BMO (steps 2 to 5); 15b adds BMO-proposed cards (step 6) |
-| **Depends on** | Wave 5 (file roles and config facts make better cards), Wave 1 (labels and citations for the BMO cards in 15b) |
+| **Release** | 0.5.2 (with Waves 5, 6, 7, 8) |
+| **Depends on** | Wave 5 (code search and key code: the "main files and functions" cards), Wave 1 (labels and citations for the BMO cards in 15b). Wave 3's `local:` link kind is reused for file references |
 | **Owner items** | Answer 0.3 ([README.md](README.md#where-each-item-went)) |
 
 Read [README.md](README.md) first: its rules, agents and checks apply to this wave.
@@ -96,7 +97,7 @@ The scan's exact facts are shown as **grouped cards**, one group per kind, so th
 | Deployable parts | "A Dockerfile and `main.py` (`api/Dockerfile`) make a container **api**, Python." | Approve · Rename · It is a library, not deployed · Same as another container |
 | Looks dev-only | "`compose.yml` has `mailcatcher`. It looks like a local test tool." | Include · Leave out |
 | Component folders, per container | "`api/orders/` has 14 files and would be a component **orders**." | Approve · Rename · Part of another component (pick) · Not a component |
-| Shared helpers (Wave 5 roles) | "`utils/` is imported by 6 folders. It looks like shared helper code." | Keep hidden from lines · Make it a component · Make it its own container |
+| Main files and functions (Wave 5), one card per component | "`api/orders/` is the component **orders**. dp suggests these as its main files: `orders.py` (named like the component), `service.py` (mentioned by 5 other files here)." | Approve · Pick other files (search by name) · Add a function (search by name) · None |
 | Lines between parts | "`api` has host `orders-db` in `settings.py:12`. dp would draw **api → orders-db**." | Approve · Not a real connection · Change direction |
 
 Each card has a "what dp saw" fold-out with the file and line, and a "why am I being asked" sentence. Groups open with the count ("6 external systems found") and a "Approve all of these" button, which still records one decision per item.
@@ -118,13 +119,31 @@ Questions that come from the guesses in questions 0.3, asked as choices or text:
 - **Line labels.** A fixed choice per line kind ("reads from", "writes to", "calls", "publishes to", "sends email through") chosen by the user from rules on the evidence (a host in a database setting suggests "reads from and writes to"), or typed. dp never invents a label (DEC-051).
 - In 15b, BMO can propose names, descriptions and labels as cards marked "BMO suggests", shown beside dp's own proposal. Nothing from BMO is pre-approved.
 
+### How many questions, and where they come from (owner, 2026-11-20)
+
+- **Dependent on the codebase** (Q15.1). A card exists only because the scan found something to ask about: no broker found, no broker question; folders that look like layers, the layers question. The list is computed from the scan, as before.
+- **Lean toward asking** (Q15.1). When a fact could be asked about or assumed, dp asks. dp also asks about every object it would create: a name check, a one-line description and, for each line, a label. "Approve all" stays, per group, and still records one decision per item.
+- **A floor of 6 questions per level's interview** (Q15.1: "definitely at least a few"). If the scan yields fewer, dp fills up to the floor from a **fixed bank of standing questions** per level, worded in code, never generated: for example, at C1 "Which outside systems or services does it talk to that the code does not show?", "Who runs or supports it (admins, support, on-call)?", "Does anything call into it from outside?"; at C2 "Is there a database, queue or cache the code does not show?", "Do the web part and the background workers run from one deployable?"; at C3 "Which folders are layers rather than features?", "What is not part of this container?". The bank has at least 8 questions per level, each shown only when no card already asks it. Step 2 writes the bank; the owner reviews its wording (future_tasks 1.5).
+- **The count is honest.** The screen says "Question 7 of 23" and, when the floor added questions, "6 standing questions added because the scan found little to ask about".
+
+### Adding context (owner, 2026-11-20, Q15.2)
+
+The card approval is the final accept. Beside it the person can add context:
+
+- **A note on a card.** Free text that stays with that item. It counts as typed text, so it can back the item as evidence (DEC-064). It is stored in `interview.json`.
+- **General context.** A "Anything else dp should know?" box at the end of Step 1 and at the end of each level: free text up to 5,000 characters. It is stored in `interview.json`, which is committed, so dp refuses to save a text that contains a secret-looking value (as a decision does, DEC-064) and the screen says "saved in the project and committed with it". It does not count as evidence for any item. It reaches BMO (15b, Wave 20) only inside data blocks, after redaction, and the preview shows it.
+- **File references**, on a card or in the general context. Two kinds:
+  - **A file inside the code root.** Stored as a path. Text files up to 100 KB are read through the file gate (hidden-path rule, the intake's closed paths, redaction) and can go to BMO as data. Other types are listed by name only.
+  - **A file anywhere else on this computer** (`local:`, Wave 3's link kind; DEC-095). dp keeps the path text only. It never reads, copies or sends the file. It shows the name with Copy path, and Open where DEC-095 allows.
+
 ### How answers become a draft
 
 1. Each answer is stored by a stable id taken from the scan fact (so a re-scan keeps answers for unchanged items).
 2. **`src/import/fromInterview.ts`** turns the approved cards and typed answers into an import file (schema v1) and runs it through the existing `checks.ts` and `importToDraft()`. This works with no BMO.
 3. An approval in the interview is the user's explicit accept: it records an `accepted` decision with who made it (`setDecision`). Items the user typed carry the typed text as evidence (DEC-064). The review screen afterwards still lists every item, with its review level computed from evidence as today.
 4. "Not right" and "Not used" are remembered in the interview file, and the item is not imported. A re-import keeps the person's edits (`lastImport.ts`).
-5. Nothing about the interview, confidence or BMO is written into the model (DEC-051, DEC-064). Interview answers live in `architecture/import/interview.json`.
+5. Nothing about the interview, confidence or BMO is written into the model (DEC-051, DEC-064). Answers are saved **locally**, on this machine and sent nowhere (Q15.3): all of it in `architecture/import/interview.json`, next to the intake and committed with it so a team and CI see what was decided: the answers, the card notes, the general context and the paths of referenced files (paths written with `~/` where possible).
+6. **Key code.** An approved "main files and functions" card becomes `dp.code.key` on the component (Wave 5). The import file schema (v1) gets an optional `keyCode` list per element. Old files stay valid; a file that uses it is refused by an older dp, which the CHANGELOG says.
 
 ### Rules for the question list
 
@@ -133,14 +152,16 @@ Questions that come from the guesses in questions 0.3, asked as choices or text:
 - **Stop and resume.** Answers are saved on each card. The user can leave, come back, go back one card, or finish later; unanswered cards stay "left" in the readiness count.
 - **Skip is honest.** "I don't know" records no fact and leaves the item out of the draft, with a checklist item so it is not forgotten.
 - **Keyboard.** Enter approves, keys 1 to 4 pick the answers, arrows move between cards.
-- **Small codebases are short.** Fewer than the groups' thresholds means groups with one card are shown as plain questions.
+- **Small codebases still get the floor.** Groups with one card are shown as plain questions, and the standing questions bring the level up to 6.
 
 ## Determinism
 
 | Output | Class |
 |---|---|
-| The question list, its order and wording | computed |
+| The question list, its order and wording, the floor and the standing bank | computed |
 | Proposed names, labels and groupings from rules | computed; folder-name rules are heuristic and say so on the card |
+| Suggested main files (named like the component, mentioned by others, longest) | heuristic, and say so on the card |
+| Notes and context the person adds | the person's own text, kept as typed |
 | "Approve all" | a user's decision per item |
 | Descriptions quoted from a README or docstring | computed (quoted with source) |
 | Cards from BMO (15b) | proposed |
@@ -148,23 +169,30 @@ Questions that come from the guesses in questions 0.3, asked as choices or text:
 ## Owner answers
 
 - **0.3:** Make all the deterministic calls first, then ask the user. A UI with "x of y" questions. Show what dp would label and let the user approve or disapprove. Grouped questions. More questions rather than fewer. Preliminary text and choice questions. Assume the user knows basic information about the project.
-- Open design questions Q15.1 to Q15.5 use their recommendations until answered.
+- **Q15.1 (2026-11-20):** "The interview should be dependent on the codebase. Tend to lean towards more questions than less. Definitely need at least a few questions per interview." Applied: questions come from what the scan finds; dp asks when in doubt; a floor of 6 per level's interview, filled from a fixed bank of standing questions. The "one interview, a draft per level" shape (option 1) is kept, since the answer says "per interview" and DEC-051 wants one level at a time.
+- **Q15.2:** "Yes it is final accept, but users can also add some additional context as a free-form text or reference local files." Applied: the card approval is the accept (still not for items the scan could not back with evidence under "Approve all of these"); a note on each card, general context, and file references (see "Adding context").
+- **Q15.3 ("save the answers locally", then "include it as well"):** everything in `architecture/import/interview.json`, committed with the intake, including the general context and file references. Because it is committed, a context text with a secret-looking value is refused and the screen says where it is saved.
+- **Q15.4 and Q15.5 (best thinking):** as recommended. A "Guide me" button at the top of the Import page, with the current sections under "Advanced"; 15a (the interview and the draft without BMO) first, then 15b (BMO cards, "BMO suggests", never pre-approved, BMO's own questions last).
+- **Lines between parts (2026-11-20, later):** component-to-component lines in the cards come from the scan's import graph, which Wave 5 part C now builds with one generic regex reader for the major languages (approximate; the card says "found by pattern").
+- **Shared helpers (2026-11-20):** the Wave 5 file-role cards are gone with Wave 5's roles; the new per-component card is "main files and functions".
+- **Vision:** this wave is feature H, and the clearest answer to "understanding an existing codebase is hard".
 
 ## Stop and ask if
 
 - The interview would need to write anything into the model that is not an element, relationship, view or `dp.*` property (for example a confidence label or a BMO marker). DEC-051 and DEC-064 forbid it.
 - An answer would loosen the intake for someone who is not an architect (DEC-064). The card should say who can approve it instead.
 - Q15.1 (one interview or one per level) is changed to something that breaks "one level at a time" (DEC-051).
+- The general context or a referenced file's content would reach BMO anywhere but inside a data block after redaction, or a file outside the code root would be read.
 
 ## Steps and agents
 
-The owner allows up to 3 agents at once. Steps 3 and 4 can run in parallel after step 2 has settled the shared types.
+There is no cap on how many agents run at once. Steps 3 and 4 can run in parallel after step 2 has settled the shared types.
 
 | # | Step | Agent · model | Files | Done when |
 |---|---|---|---|---|
 | 1 | Re-anchor | Explore · Haiku | The files above | Anchors confirmed, differences listed |
 | 2 | Design check: the card catalog, the interview state shape, the shared types | Plan · Opus | `src/shared/types.ts`, `src/import/analysis.ts`, `intake.ts` | A written card catalog and types, reviewed by the main session |
-| 3 | Plan builder (cards from scan and analysis), answer store, `fromInterview.ts` | general-purpose · Sonnet | `src/import/interview.ts`, `interviewState.ts`, `fromInterview.ts` (new), `importer.ts` | Same scan gives the same list; a draft builds without BMO |
+| 3 | Plan builder (cards from scan and analysis, the standing-question bank and floor, main-files cards), answer store, context store, `fromInterview.ts`, optional `keyCode` in the import schema | general-purpose · Sonnet | `src/import/interview.ts`, `interviewState.ts`, `fromInterview.ts`, `schema.ts`, `importer.ts` | Same scan gives the same list; every level reaches the floor; a draft builds without BMO |
 | 4 | Routes, `ROUTE_RULES` and the loosening rule on answers | general-purpose · Opus | `src/server/routes/import.ts`, `src/server/auth.ts`, `intake.ts` | Answers that loosen are refused for non-architects; read-only refuses writes |
 | 5 | The interview UI: stepper, cards, groups, progress, resume, keyboard | general-purpose · Sonnet | `ui/src/pages/ImportInterview.tsx`, `ui/src/hooks/useInterview.ts`, `ui/src/pages/ImportPage.tsx`, `ui/src/styles/pages.css` | Works with the keyboard; the older sections stay under "Advanced" |
 | 6 | BMO cards (15b): suggest names, descriptions and labels as cards; questions from BMO as a group | general-purpose · Sonnet | `src/assistant/importTasks.ts`, `tasks.ts`, interview UI | Handoff and direct backends both work; nothing BMO writes is pre-approved |
@@ -189,7 +217,10 @@ Only one agent builds the UI or runs `cd ui && npm run build` at a time, because
 ## Tests
 
 - **List stability.** The same scan and the same answers give the same list and order, twice.
-- **Cards from facts.** Each group's cards come from the right facts: external systems, containers, dev-only services, components, shared helpers, lines.
+- **Cards from facts.** Each group's cards come from the right facts: external systems, containers, dev-only services, components, main files, lines. A fact that is absent produces no card.
+- **The floor.** A tiny codebase gets at least 6 questions at each level, the extra ones from the standing bank, and the screen says so. A codebase that already gives more gets no standing question that a card already asks.
+- **Main files.** The hints fire on fixtures and not on controls; an approved card writes `dp.code.key` through the draft.
+- **Context.** A card note counts as typed evidence. General context is saved in `interview.json`; a text with a secret-looking value is refused. A file inside the code root is read through the gate (a closed path is refused); a file outside is stored as a path and never read.
 - **Follow-ups.** "Part of another component" adds the "which one" card; the total goes up and the screen says so.
 - **Draft without BMO.** Approved cards and typed answers make an import file that passes `checks.ts` and a draft with the expected elements.
 - **Rejections.** "Not right" and "Not used" items are not imported and stay rejected after a re-scan.
@@ -215,7 +246,7 @@ Only one agent builds the UI or runs `cd ui && npm run build` at a time, because
 - A command-line interview.
 - Scanning more than one repository at a time.
 - Models that ask the questions on their own: BMO adds cards; it never chooses the questions.
-- Changes to what the scan reads (Wave 5) or to drift (Wave 6).
+- Changes to what the scan reads, and drift (parked in future_tasks).
 
 ## Start prompt
 

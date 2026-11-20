@@ -844,3 +844,136 @@ Entry format: **ID — title** · date · status · who decided · what was deci
   - A push to GitHub alone triggers no checks. The pre-push hook (owner-installed) covers that.
   - The pipeline was written without a GitLab project to run it on, so its first run may need fixes.
 - Kept: `.github/` pull request and issue templates, and `demo/ci-examples/github-actions.yml` (a product example, not this repository's CI).
+
+## DEC-090 — Version 1.0.0 is software architecture only, with twelve features; releases stay inside 0.5.x
+
+- Date: 2026-11-19 · Status: Accepted · Decided by: Owner (product vision, answers A1, A2, A7, A8, A10 in `docs/waves/questions.md`). The wave order and the reading of A7 are Proposals.
+- Decision:
+  - **Purpose.** dp is for software architects, and for the people who work with one during the SDLC. It helps them understand an existing system, design a new one, record why, and keep the picture true as code changes. Full text and the feature status: [product-vision.md](product-vision.md).
+  - **Scope of 1.0.0.** Software architecture only. Data architecture and infrastructure come after 1.0.0. dp is **not an IDE**: a person may open files to understand a component, but does not write code in the tool.
+  - **The twelve features:** C4 modelling; a single source of truth; architecture change proposals; lenses (architect, DevOps, other SDLC roles); collaboration and notes with images and files from different accounts; contracts between services; an ADR page; codebase importing; git-style commits for architecture; links to GitHub, SonarQube and Jira; a catalog shared between projects; and BMO, the architecture-intelligence agent.
+  - **What falls outside** is listed in [waves/v1-scope-review.md](waves/v1-scope-review.md) for the owner to decide item by item. Nothing built is removed without that decision.
+  - **Order.** The waves of `docs/waves/` run interleaved (answer A2), not behind deployment diagrams. This amends the order in DEC-028: deployment diagrams (infrastructure) leave the pre-1.0.0 order pending the review, and the small batch no longer waits for them.
+  - **Parked.** Wave 10 (risk storming) and Wave 12 (runtime telemetry) are moved to `docs/future_tasks.md` (answer A7). They are not among the twelve features.
+  - **New waves from the vision.** Wave 16 (images and files, feature E), Wave 17 (architecture commits, feature I), Wave 18 (drafts that keep up, feature C), Wave 19 (lenses for roles, feature D) and Wave 20 (a back-and-forth about an existing system, feature H).
+  - **Releases.** All releases before 1.0.0 are 0.5.x: 0.5.1 (Waves 1, 2, 3, 16, 4), 0.5.2 (5, 6, 15, 7, 8), 0.5.3 (9, 11, 17, 18, 19), 0.5.4 (13, 14, 20), then 1.0.0.
+  - **Planning files stay** in `docs/` (including `docs/waves/`); the owner deletes them before 1.0.0. This is a standing exception to CLAUDE.md's "do not commit superseded plans" for that folder.
+  - **Models.** Fable is never used by agents. When a step could go to either of two models, the larger is used.
+- Why: LLMs write more of the code, so the scarce skill is understanding and deciding the architecture; that is hard to do on an existing system and for the decisions behind it. A narrow 1.0.0 gets a complete product for one audience. Data and infrastructure are real fields with their own models, and doing them at the same time would thin all of it.
+- Trade-offs:
+  - Built features for data (the data catalog and access, pipelines) and runtime (System Testing, traces) exist and are outside the line. They stay until the owner decides, so 1.0.0 may ship with features its vision does not name.
+  - Parking Waves 10 and 12 drops risk storming and telemetry analysis from 1.0.0, and Wave 11 loses its risk parts.
+  - Keeping every release in 0.5.x makes 0.5.4 a large step; the version number then says little until 1.0.0.
+  - 0.5.3 and 0.5.4 are now large groups; a wave that runs long moves to the next 0.5.x number.
+
+## DEC-091 — dp may commit the architecture folder, on request or when a draft is applied
+
+- Date: 2026-11-19 · Status: Accepted · Decided by: Owner (answer C1: "Yes", to option 2). Amends DEC-018.
+- Decision:
+  - dp may run `git commit` for the project's model folder (`architecture/`) and nothing else: when an architect presses **Commit**, runs `dp commit`, or (a setting, off by default, kept in `.dp/commit.json`) when a draft is applied.
+  - It commits only paths under that folder, as `git commit -m … -- <paths>`, so other staged changes are left alone. It uses an argument list, never a shell.
+  - It never pushes, amends, resets, switches branches, stashes or skips hooks. The repository's hooks run, and a refusal or a failing hook is reported.
+  - The message is built in code from the draft's title, description and change summary, with the draft id and the signed-in user as trailers.
+  - Reading git stays as DEC-018 says (read-only functions in `src/core/git.ts`); the commit code is a separate module.
+  - Planned in [waves/wave-17-architecture-commits.md](waves/wave-17-architecture-commits.md).
+- Why: the owner's vision lists git-style commits for software architecture. Drafts are branches and apply is a merge; the missing piece was a commit with a message made from inside the tool.
+- Trade-offs:
+  - dp now writes to the repository's history. A bug could commit something unintended; the path confinement and the refusals are the guard.
+  - Undo after a committed apply leaves the commit; dp does not rewrite history.
+  - Commit identity is git's. A signed-in user is a trailer only, not the author.
+  - A team that wants git fully read-only leaves the setting off and never presses Commit.
+
+## DEC-092 — Sticky notes are model data, and BMO always reads notes and comments
+
+- Date: 2026-11-19 · Status: Accepted (planned in [waves/wave-02-notes-context-help.md](waves/wave-02-notes-context-help.md)) · Decided by: Owner (answers Q2.1 and Q2.2, and the follow-up of 2026-11-19 that comments reach BMO). Amends DEC-070 and, for notes, DEC-073.
+- Decision:
+  - A **sticky note** is a short Markdown card with a position on one diagram. It is stuck to an object (a box or a line on that diagram, kept as an offset so it moves with the object) or to the diagram itself.
+  - It is stored in the model as `dp.stickies` on the diagram's view, the way linked work is stored. It goes through drafts, undo, `dp diff`, merge and the static export. A deleted object turns its stickies into free ones; nothing is deleted silently.
+  - Only those who edit the model write stickies: architects on main, engineers in a draft (the owner's answer C6a).
+  - Comments placed on a diagram (DEC-070) stay as they are: conversation, open to every role, kept in `comments.json`. BMO reads them too (DEC-094). An architect can turn a placed comment into a sticky.
+  - `dp.notes` on an object is unchanged. The separate "one note per diagram" field is not built; a sticky stuck to the diagram is that note.
+  - BMO sees every object note, every sticky and every comment thread in scope, whatever the lens shows. There is no "include notes" switch. The Overview lens still hides notes in the UI.
+  - Notes and comments go in data blocks after redaction, comments labelled with their author and "not reviewed", with their share of the pack budget. Whole notes are dropped, never cut, and the manifest lists any left out.
+- Why: the owner wants stickies to be part of the architecture and analysed by BMO, wants BMO to see all notes, and wants comments reachable too (everything on screen, DEC-094). The earlier worry was that text from any account would steer BMO. DEC-064 already treats all such text as data and never as instructions, so a note or a comment is more data of the same kind.
+- Trade-offs:
+  - Viewers cannot add stickies; they comment, and BMO reads their comments. A viewer's remark reaches BMO without an architect's review, labelled as not reviewed.
+  - A comment can mislead an answer. The label and the checked cites (`comment:<id>`) make that visible; they do not prevent it.
+  - Moving a sticky is an edit that appears in a draft's change list and `dp diff`. Moving a comment pin never did.
+  - A secret typed into a note or a comment reaches BMO unless redaction catches it. DEC-064's redaction applies, and the preview shows the exact prompt before anything is sent.
+  - Two note-like things sit on a diagram, a sticky and a comment pin, and the menu has to make the difference clear.
+
+## DEC-093 — BMO works without an LLM
+
+- Date: 2026-11-19 · Status: Accepted (planned in [waves/wave-02-notes-context-help.md](waves/wave-02-notes-context-help.md)) · Decided by: Owner (answer Q2.5). Amends DEC-051 and DEC-065, which describe BMO as off by default.
+- Decision:
+  - BMO's settings gain a clear switch, "Use an LLM" (the existing `enabled` flag, off by default, changed by architects only).
+  - With it off, BMO stays in the UI as a deterministic assistant. It builds no prompt, sends nothing and writes no handoff file. No backend is called.
+  - It answers a fixed list of commands from the model, notes, decisions, reference notes and the docs: `find`, `help`, `show`, `notes`, `decisions about`. Free text is run as a search, and the chat says it searched. Later waves add their own commands to the list.
+  - The same functions are available as `dp find`, `dp help` and `dp context`. They use GET routes only.
+  - With it on, handoff and direct runs work as before (DEC-064, DEC-065).
+  - The results are class computed. They carry no "BMO" label because nothing is proposed.
+- Why: the owner wants dp to be useful with no LLM, and an LLM to be a choice that is called out (the determinism classes, plan answer A4).
+- Trade-offs:
+  - Free-text questions get a search, not an answer. That is honest but less helpful than a model.
+  - "Enabled" used to mean "BMO exists"; it now means "an LLM may be used". The settings screen and the docs have to say so, and the BMO button no longer hides when it is off.
+  - Search quality is the word index's; it misses a question whose words are not in the names and text.
+
+## DEC-094 — BMO can reach everything the UI shows
+
+- Date: 2026-11-19 · Status: Accepted (planned in [waves/wave-01-grounded-bmo.md](waves/wave-01-grounded-bmo.md), [wave-02](waves/wave-02-notes-context-help.md) and [wave-16](waves/wave-16-attachments.md)) · Decided by: Owner ("everything a person can visualize on screen should be reachable by BMO"). Builds on DEC-064 and DEC-073.
+- Decision:
+  - Every kind of thing the UI shows about a scope has a place in that scope's context pack, either by default or through the lens and preview choices. The pack's manifest says what was left out and why.
+  - The pack builder adds a new kind of data in one place. A computed test walks the fields the panels show for an object and fails if one is neither in the pack nor named in the manifest.
+  - Known kinds added by the plan: comments and sticky notes (Wave 2), and attachments (Wave 16: a list always, text files' content after redaction).
+  - One exception, kept by the assistant and open to the owner's decision: the contents of images, PDFs and Office files are not sent, because dp cannot scan them for secrets (DEC-064). They are listed.
+  - The rest of DEC-064 stands: everything is a fixed, previewed prompt with its hash; repository and account text goes in data blocks, redacted, never into system text; output is a proposal.
+- Why: the owner wants BMO to work from what a person sees, so an answer cannot miss a comment or a note that is on the screen.
+- Trade-offs:
+  - Bigger packs. The budget and the manifest handle it by dropping whole items in a fixed order, so an answer can still miss something that was dropped; the manifest says so.
+  - More text from more accounts reaches the model. It is labelled and redacted, not vetted.
+  - The parity test only checks fields it knows about; a new panel field the test does not list is not caught until the list is updated.
+
+## DEC-095 — A referenced local file opens in the system's default app, with limits
+
+- Date: 2026-11-19 · Status: Accepted (planned in [waves/wave-16-attachments.md](waves/wave-16-attachments.md), item 12; the security review can still reduce it to "Copy path only") · Decided by: Owner (answer Q3.5 and its follow-up: "if I click a PDF it opens in Adobe Acrobat, a .xls in Excel").
+- Decision:
+  - A decision link or attachment can point at a file on the reader's own computer (`local:` path). dp stores the path text. It never reads, copies, hashes or uploads the file, and never sends its contents to BMO.
+  - A click shows a dialog with the full path. On Open, dp's server asks the operating system to open it with the default app.
+  - Only on a server running on this machine, for a request from this machine. On a hub or remote server the button is Copy path only.
+  - Only these document types: pdf, doc, docx, xls, xlsx, ppt, pptx, csv, txt, md, rtf, png, jpg, gif, webp. Programs, scripts, shortcuts, `.app` bundles, `.html`, `.svg` and macro-enabled Office files are refused. The path is resolved (symlinks followed) and the real file's type is checked; it must be an existing regular file.
+  - The opener is started with an argument list, never through a shell. The route is a POST with a `ROUTE_RULES` entry and the cross-site rule of uploads (a custom header, no preflight).
+- Why: the owner wants no duplicate of a large file and wants it to open the way it does anywhere else on the computer.
+- Trade-offs:
+  - dp now asks the operating system to start another program from a path written in a file that can come from someone else's repository. The type list, the full-path dialog and the local-only rule are the guard, and the security review may find them not enough.
+  - A path in git helps only on that machine and shows a user name unless written with `~/`.
+  - The default app is whatever the person's system chooses; a document in it can run its own content (a spreadsheet's links, a PDF's scripts). That is the same as opening the file by hand.
+  - The Windows path is written, not run.
+
+## DEC-096 — dp finds code by search, pins key code, and reads imports and definitions with one generic regex reader
+
+- Date: 2026-11-20 · Status: Accepted (planned in [waves/wave-05-code-search.md](waves/wave-05-code-search.md) and [wave-07-metrics.md](waves/wave-07-metrics.md)) · Decided by: Owner (answers Q5.1, Q5.2, Q5.5 and Q5.8 in `docs/waves/questions.md`: "Remove non-LLM reading of code… search", "nothing should be programming language specific", "only the main files and functions related to a C3 object", and, later the same day, "just do the regex expressions and things can be generalized to all types of major coding languages"). Replaces the plan for language modules, Java support and file roles.
+- Decision:
+  - **No code per language.** No module, tokenizer, resolver or branch for a single language. The Python and JS/TS readers built earlier (`codeMap.ts`) are removed.
+  - **One generic reader.** A table of regular expressions (`codePatterns.ts`) for imports and definitions in the major languages (Python, JavaScript and TypeScript, Java, Kotlin, Scala, C#, Go, Rust, C and C++, Ruby, PHP, Swift), run by one engine on every code file, with one generic comment cut and one generic way of matching an import to a file by its path tail. Results are class approximate and say so. A language not in the table still gets search.
+  - **Search.** dp finds a name in the code as plain text: the BMO command `where <name>` with the LLM off, `dp find <name> --code`, `GET /api/code/search`. It reads only what the code viewer reads and shows masked lines. Hits that match a generic definition pattern are marked "looks like a definition" (heuristic) and listed first.
+  - **Key code.** A component keeps a short list of main files and functions, `dp.code.key` `[{path, name?, line?, note?}]`. A person pins entries; dp checks the file exists and holds the name; dp offers heuristic hints with no LLM; BMO can propose entries, which dp verifies before they can be pinned.
+  - **Not built:** Maven and Gradle reading, file roles, shared-helper hiding, config facts from settings files, language mix per object, a hash cache.
+  - **Metrics** (Wave 7) are computed from the model's lines. Complexity, LCOM and abstractness are not built: they need bodies and fields, which regexes read badly. Revisit after the generic reader has proved itself.
+- Why: the owner wants code reading that is simple and works for any major language. A pattern table is data that grows by adding a line and a test string, instead of a reader per language to keep true.
+- Trade-offs:
+  - Regexes without a tokenizer can read a commented-out or string-embedded import as real, miss dynamic imports and injected dependencies, and cannot resolve an import whose path tail is ambiguous (dp draws no line and says so). The old Python reader was exact for Python; that is traded for breadth.
+  - Results for Python and JS/TS may differ slightly from before; the wave records the differences and regenerates the demo.
+  - Definition marks are patterns, so a function written in an unusual style is not marked.
+  - Key code is only as good as the person's pins; hints and BMO proposals never save themselves.
+
+## DEC-097 — Architecture drift is parked; Wave 6 builds findings and acknowledgements only
+
+- Date: 2026-11-20 · Status: Accepted (planned in [waves/wave-06-findings.md](waves/wave-06-findings.md)) · Decided by: Owner ("Push architecture drift to future_tasks.md for me to review later").
+- Decision:
+  - Drift detection (model ↔ code, `dp drift`, "update the model from code", a Drift page) is not built for 1.0.0. Its design is kept in `docs/future_tasks.md` 2.2 for the owner to review.
+  - Wave 6 keeps the part other waves need: one Finding shape and acknowledgements stored as model data (`dp.acks`, answer A5, 2026-11-19). The warnings dp already makes become the first findings, so the wave is useful alone. An acknowledged warning no longer counts under `dp check --strict`.
+  - Waves 8, 11 and 13 build on the Finding shape. Wave 11's packs no longer carry drift.
+- Why: with code no longer read by language (DEC-096), most drift checks have nothing to compare, and the owner wants to review what is left before it is built.
+- Trade-offs:
+  - Nothing tells a team that the code has moved away from the model, except the checks that already exist (missing code paths, unmapped code, key code that no longer matches).
+  - The Finding shape ships with outcomes ("not found", "not checkable") that only later waves use.

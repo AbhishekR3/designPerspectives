@@ -2,9 +2,10 @@
 
 | | |
 |---|---|
-| **Status** | Waiting for owner answers: ★A3, ★A4, ★Q1.1, ★Q1.2, ★Q1.3, Q1.4, Q1.5 ([questions.md](questions.md)) |
-| **Branch** | `feat/w01-grounded-bmo`, from `main` after DEC-089 (the CI move) is merged |
-| **Size** | L |
+| **Status** | Owner answers applied (2026-11-19; Part B questions Q1.1 to Q1.5 answered, the evaluation set deferred). Ready to run |
+| **Branch** | `feat/w01-grounded-bmo`, from `main` (DEC-089, the CI move, is merged) |
+| **Size** | M–L (was L; the evaluation set left the wave) |
+| **Release** | 0.5.1 (with Waves 2, 3, 16, 4) |
 | **Depends on** | Nothing in this plan |
 | **Owner items** | 2, 9, 11, 12 ([README.md](README.md#where-each-item-went)) |
 
@@ -12,7 +13,7 @@ Read [README.md](README.md) first: its rules, agents and checks apply to this wa
 
 ## Goal
 
-Every BMO text answer says what it is based on, and dp checks those citations. The prompts stay fixed in code, with one template per situation and a fixed, budgeted context pack. Everything BMO writes is labelled. An evaluation set measures prompt quality instead of guessing it. `docs/determinism.md` says, for every feature, what dp computes and what BMO proposes.
+Every BMO text answer says what it is based on, and dp checks those citations. The prompts stay fixed in code, with one template per situation and a fixed, budgeted context pack. Everything BMO writes is labelled. `docs/determinism.md` says, for every feature, what dp computes and what BMO proposes.
 
 ## Owner requests covered
 
@@ -73,9 +74,10 @@ Every BMO text answer says what it is based on, and dp checks those citations. T
    - The first block is a **manifest**: what is included, what is left out and why.
    - It adds the decisions about the referenced objects (`decisionsAbout`, `src/core/decisions.ts:614-616`).
    - It adds Markdown docs under the code root through the existing file gate (Q1.5).
-   - Notes follow the lens as today. Wave 2 adds the preview switch.
+   - Notes follow the lens as today in this wave. Wave 2 changes this: BMO always sees notes and comments (★Q2.2, DEC-092).
+   - **Screen parity** (owner, 2026-11-19, DEC-094): every kind of thing the UI shows about a scope must have a place in that scope's pack, by default or through the lens and preview choices, and the manifest says what was left out and why. The pack builder is written so a new kind of data is added in one place. Known gaps today: comments (Wave 2), sticky notes (Wave 2), attachments (Wave 16). The re-anchor step (step 1) lists any other panel data that no pack carries, and adds it to this brief before step 3 starts. A computed test walks the fields the panels show for an object and checks each is in the pack or named in the manifest.
 3. **Citation contract.** Text tasks answer `{statements: [{text, cites: [{kind, ref, lines?, quote?}]}], unknowns: [string]}`.
-   - `kind` is one of model, file, decision, note, doc or fact.
+   - `kind` is one of model, file, decision, note, doc or fact. Wave 2 adds comment and sticky; Wave 16 adds attachment.
    - The schema goes to providers through `providerSchema`. The handoff `result.json` uses the same shape.
    - The answer arrives as a list of statements, so dp never needs to split sentences.
 4. **Verifier** (`src/assistant/citations.ts`, new). It checks each cite **against the pack that was actually sent**, after redaction:
@@ -84,62 +86,65 @@ Every BMO text answer says what it is based on, and dp checks those citations. T
    - a quote is found there, with whitespace normalised (reuse `findIn` from `review.ts`);
    - decision numbers, note ids, doc sections and fact ids exist.
 
-   Each statement gets one status: cited, partly cited, not cited, or bad cite. A statement that names a file, an object or a number without a valid cite is marked (★Q1.1).
+   Each statement gets one status: cited, partly cited, general, no citation, or bad cite (★Q1.1).
+   - A statement **refers to a thing** when its text names an object, relationship, file or path, decision, note, doc section or number that is in the pack. dp finds this by matching the pack's names, ids, paths and numbers in the text, so no LLM is involved.
+   - A statement that refers to a thing needs a valid cite. One without it (no citation, or a bad cite) is **not shown in the answer**; it is listed under "N claims without a valid citation", which the person can open.
+   - A statement that refers to nothing in the pack (a definition, advice) is shown, marked "general".
 5. **UI.** Statements render with cite chips.
    - A chip only navigates inside dp: it reveals the object, opens the file panel at the lines, or opens the decision. It never opens a URL that the model wrote.
    - A header label reads "BMO · provider/model · N of M statements cited · not checked by a person".
+   - Claims without a valid citation are collapsed under the answer ("N claims without a valid citation"), each marked "no citation" or "bad cite".
 6. **Settings.** Temperature 0 where supported, and a seed where the API has one (OpenAI, Ollama). Both are recorded in the run log, and nothing promises a repeatable run (Q1.4).
-7. **Evaluation.**
-   - Fixtures with ground truth go in `tests/fixtures/eval/`: the demo plus two small repositories, with the expected containers and lines, and statements marked true or false.
-   - A scorer computes:
-     - precision and recall per C4 level for import tasks;
-     - the share of valid citations for text tasks.
-   - CI runs the scorer on canned answers from the fake backend.
-   - `dp bmo eval [--task …] --yes-send` runs real models (owner only). It writes a report to `.dp/bmo/eval/`.
-8. **`docs/determinism.md`** (new). It holds:
+7. **`docs/determinism.md`** (new). It holds:
    - the determinism classes (★A4);
    - the per-level table from questions 0.3;
    - one row per feature, which every later wave extends.
-9. Fix DEC-065's path to `src/assistant/settings.ts`.
+8. Fix DEC-065's path to `src/assistant/settings.ts`.
 
 ## Determinism
 
 | Output | Class |
 |---|---|
-| Context packs, the verifier, the scorer | computed |
+| Context packs, the verifier | computed |
 | BMO answers | proposed, labelled, with a citation status per statement |
-| Real-model evaluation results | measured by the owner, reported in reviews.md |
 
 ## Owner answers
 
-*Filled in when the answers are applied.*
+Applied 2026-11-19: the owner answered Part A and Q1.1 to Q1.5 ([questions.md](questions.md)).
+
+- **A4:** the four determinism classes are accepted; this wave writes `docs/determinism.md` and the DEC.
+- **Q1.1:** "Every statement needs a citation when referring to things." A statement that refers to a thing (an object, file, decision, note, doc section or number in the pack) must carry a valid cite, or it is held back under "N claims without a valid citation". General statements are shown, marked "general". Hidden-by-default is the assistant's reading of "needs"; showing them inline, marked, is the milder alternative.
+- **Q1.2:** templates live in code only, never per project, never written by an LLM.
+- **Q1.3:** **deferred.** The evaluation set (fixtures, scorer, `dp bmo eval`) is not in this wave. It is an idea in [../future_tasks.md](../future_tasks.md) 2.0 ("Testing and evaluating BMO"). The wave still has ordinary unit tests of its own code, using canned answers from the fake backend.
+- **Q1.4:** temperature 0 everywhere, a seed where the API has one; both go in the run log; no claim of exact repeatability.
+- **Q1.5:** yes, the repository's Markdown docs are citable through the same file gate.
+- **Vision (2026-11-19):** this wave is the base of feature L, BMO. Wave 11 adds the check of decisions ("ADR broken or violated") on top of its templates and citations.
 
 ## Stop and ask if
 
-- The ★Q1.1 answer leaves open what must be cited.
+- The answer to ★Q1.1 (option 2) turns out not to cover a kind of statement.
 - ★Q1.2 asks for templates per project. That needs a security design: repository text must not reach system text.
-- ★Q1.3 says no real runs. Then the harness ships without them, and reviews.md says so.
+- Anything in the wave starts to need real-model runs or a scorer to be judged. That is the deferred evaluation: stop and ask.
 
 ## Steps and agents
 
 | # | Step | Agent · model | Files | Done when |
 |---|---|---|---|---|
-| 1 | Re-anchor | Explore · Haiku | The files in "What exists today" | The anchors are confirmed or corrected in the brief |
+| 1 | Re-anchor, and list the screen-parity gaps | Explore · Haiku | The files in "What exists today", plus the panels in `ui/src/panels/` | The anchors are confirmed or corrected in the brief; a list of panel data no pack carries is added to it |
 | 2 | Design check (only if answers leave it open) | Plan · Opus | `prompts.ts`, `tasks.ts`, `runTask.ts`, `review.ts` | One agreed answer shape and verifier plan |
 | 3 | Template registry and context packs | general-purpose · Opus | `src/assistant/prompts.ts`, `contextPack.ts` (new), `tasks.ts`, `runTask.ts`, `modelText.ts` | Packs are byte-stable with a manifest; all 8 tasks use the registry; the system-text test still passes |
-| 4 | Citation contract and verifier | general-purpose · Opus | `src/assistant/citations.ts` (new), `tasks.ts` (`validateText`), `providerBackend.ts` (`providerSchema`), `handoffBackend.ts` | Cites are verified against the sent pack; forged cites and injected text are refused |
+| 4 | Citation contract and verifier | general-purpose · Opus | `src/assistant/citations.ts` (new), `tasks.ts` (`validateText`), `providerBackend.ts` (`providerSchema`), `handoffBackend.ts` | Cites are verified against the sent pack; forged cites and injected text are refused; claims about things without a valid cite are held back |
 | 5 | UI: cited answers and labels | general-purpose · Sonnet | `ui/src/common/BmoChat.tsx`, `BmoSheet.tsx`, `ui/src/hooks/useBmo.ts`, `src/shared/types.ts` | Chips navigate inside dp only; the label shows; keyboard reachable |
-| 6 | Evaluation harness | general-purpose · Sonnet | `tests/fixtures/eval/`, `src/assistant/eval.ts` (new), `src/cli.ts` (`dp bmo eval`) | The scorer works on canned answers; the CLI refuses without `--yes-send` |
-| 7 | Fixture tests (not the authors of steps 3–6) | general-purpose · Sonnet | `tests/unit/bmo-*.test.ts` | Tests as listed below |
-| 8 | Docs | general-purpose · Haiku | `docs/determinism.md` (new), CHANGELOG, decisions.md, reviews.md, CLAUDE.md, README (BMO section), docs/README.md | All docs updated |
-| 9 | Review | main session | — | `/code-review` (high) and `/security-review` findings fixed |
+| 6 | Tests (not the authors of steps 3–5) | general-purpose · Sonnet | `tests/unit/bmo-*.test.ts` | Tests as listed below |
+| 7 | Docs | general-purpose · Haiku | `docs/determinism.md` (new), CHANGELOG, decisions.md, reviews.md, CLAUDE.md, README (BMO section), docs/README.md | All docs updated |
+| 8 | Review | main session | — | `/code-review` (high) and `/security-review` findings fixed |
 
 ## Required in this wave
 
-- **Routes.** The CLI eval needs no route. If an eval route is added, it gets a `ROUTE_RULES` entry (architect).
+- **Routes.** No new route is planned. If one is added, it gets a `ROUTE_RULES` entry.
 - **Hub.** BMO settings live at hub level (DEC-064). Packs use the project's model.
 - **Read-only mode.** Text tasks still run; nothing writes.
-- **Security model.** In CONTRIBUTING, add: citations navigate only inside dp; repository text stays in data blocks; eval reports live in `.dp/`.
+- **Security model.** In CONTRIBUTING, add: citations navigate only inside dp; repository text stays in data blocks.
 - **Static export.** Not affected.
 
 ## Tests
@@ -158,27 +163,29 @@ Every BMO text answer says what it is based on, and dp checks those citations. T
     - an id from another model version;
     - a cite to a hidden path;
     - code comments containing text that pretends to be a cite (an injection attempt).
+- **Claims about things.** A statement naming an object, a path or a number with no valid cite is held back and counted; a general statement is shown as "general".
 - **Providers.** `providerSchema` and `restoreAnswer` handle the new answer shape for each provider. The fake backend gets canned cited answers.
 - **System text** still contains no repository data (the existing test).
-- **Scorer.** Precision and recall on the fixtures, and the citation share.
-- **Browser.** A cited answer renders with chips. A chip reveals the object, and a "not cited" statement is visibly marked.
+- **Screen parity.** For a demo object, every field its panels show is in its pack or named in the manifest; adding a panel field without a pack entry fails the test.
+- **Browser.** A cited answer renders with chips. A chip reveals the object, and the "N claims without a valid citation" line opens to the held-back claims, each marked.
 
 ## Docs
 
 - **New DEC:** grounded answers, the citation contract, and the determinism classes if ★A4 is yes.
 - **CHANGELOG:** Unreleased.
 - **reviews.md:** a section at the top.
-- **CLAUDE.md:** `contextPack.ts`, `citations.ts` and `eval.ts` in the BMO paragraph.
+- **CLAUDE.md:** `contextPack.ts` and `citations.ts` in the BMO paragraph.
 - **README:** the BMO section.
 - **`docs/determinism.md`:** new, and indexed in `docs/README.md`.
 - **future_tasks.md:** mark items 2, 9, 11 and 12 as built.
 
 ## Out of scope
 
-- Help about dp and the "include notes" switch (Wave 2).
+- Help about dp, sticky notes, and BMO always reading notes (Wave 2).
 - Retrieval by word index (Wave 14). No embeddings are planned.
 - Anti-pattern review, proposed ratings and suggested risks (Wave 11).
 - Multi-pass runs for very large repositories (future_tasks 1.3).
+- **The evaluation set** (fixtures with known answers, a scorer, `dp bmo eval`): deferred by the owner to future_tasks 2.0.
 
 ## Start prompt
 
