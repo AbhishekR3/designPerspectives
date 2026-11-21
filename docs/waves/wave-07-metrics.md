@@ -5,8 +5,8 @@
 | **Status** | Rewritten 2026-11-20. Metrics are computed from the model's relationships, not from code, because dp no longer reads code language by language (Wave 5). Ready to run |
 | **Branch** | `feat/w07-metrics`, from `main` |
 | **Size** | S–M (was M) |
-| **Release** | 0.9.0 (with Waves 6, 8) |
-| **Depends on** | Nothing. It reads the model only |
+| **Release** | 0.10.0 (with Waves 6, 8; Wave 27 moved to 0.8.0 in the second look at the waves, 2026-11-20) |
+| **Depends on** | Nothing. It reads the model only. It reuses two things built earlier: the CSV writer `src/core/csv.ts` from [Wave 4](wave-04-roles-data-variants.md) (no second writer) and the generated large model of [Wave 28](wave-28-quality-for-1-0.md) part 28a (no second generator) |
 | **Owner items** | 6 ([README.md](README.md#where-each-item-went)) |
 
 Read [README.md](README.md) first: its rules, agents and checks apply to this wave.
@@ -43,7 +43,7 @@ Show coupling numbers for every system, container and component: who depends on 
 5. **Surfaces** (Q7.2).
    - A "Coupling" section in the element panel: Ca, Ce, I, and the cycle with its members as chips.
    - An overlay `@metric:instability`, `@metric:ca`, `@metric:ce` and `@metric:cycle`, in bands with a legend that shows the coverage note.
-   - `dp metrics [--level system|container|component] [--json|--csv]`.
+   - `dp metrics [--level system|container|component] [--json|--csv]`. The CSV goes through `src/core/csv.ts` (Wave 4), so quoting and the formula-character rule are the same as everywhere else.
    - `GET /api/metrics`, computed per request for the version shown (main, a draft, a git ref), so a draft's numbers are available beside main's.
 6. **No thresholds here.** Turning a cycle, a very high Ce or a very high Ca into a Finding is Wave 8's job (rules and presets), so the limits live in one place.
 
@@ -144,7 +144,7 @@ A chart of abstractness against instability (the "main sequence") comes later.
 | 2 | Algorithms: lifting rule, Ca/Ce/I, Tarjan | general-purpose · Opus | `src/core/metrics.ts` (new), `diagrams.ts` (read) | Values are correct on hand-made models and match the demo's diagrams |
 | 3 | Route, CLI, panel section, overlay | general-purpose · Sonnet | `src/server/routes/metrics.ts` (new), `src/cli.ts`, `ui/src/panels/ElementPanel.tsx`, `colourOverlays.ts`, `src/shared/types.ts` | Works by keyboard; the legend shows the coverage note |
 | 4 | Fixture tests with known values (not the step 2 author) | general-purpose · Sonnet | `tests/unit/metrics*.test.ts` | Tests as listed below |
-| 5 | Docs | general-purpose · Haiku | CHANGELOG, decisions.md, reviews.md, README, CLAUDE.md | All docs updated |
+| 5 | Docs | general-purpose · Haiku | decisions.md, the review file (notes for the release entry), README, CLAUDE.md | All docs updated |
 | 6 | Review | main session | — | `/code-review` (high) findings fixed |
 
 ## Required in this wave
@@ -153,7 +153,7 @@ A chart of abstractness against instability (the "main sequence") comes later.
 - **Hub** and **read-only mode:** unchanged behaviour; it only reads.
 - **Model data.** None: metrics are not stored.
 - **Static export.** Does not include metrics unless the owner asks.
-- **Performance.** A test on a generated model of 5,000 elements and 20,000 lines, with the time budget written down in reviews.md.
+- **Performance.** A test on a generated model of 5,000 elements and 20,000 lines, with the time budget written down in the review file. Use the generator of Wave 28a (`tests/unit/largeModel.ts`) when it exists; if it does not, write it there so that Wave 28a finds it.
 
 ## Tests
 
@@ -167,7 +167,7 @@ A chart of abstractness against instability (the "main sequence") comes later.
 ## Docs
 
 - **New DEC:** metrics are computed from the model, not from code; which ones, with the coverage note; limits live in Wave 8. (DEC-096 records the decision not to parse code.)
-- **README:** metrics. **CLAUDE.md:** `metrics.ts`. **CHANGELOG** and **reviews.md:** this wave's entries.
+- **README:** metrics. **CLAUDE.md:** `metrics.ts`. **The review file** (not the CHANGELOG, which the release change writes): this wave's notes for the release entry.
 - **planned_features.md:** the brownfield-metrics line in 2.2 is closed for coupling and cycles; abstractness, complexity and cohesion stay as report-import ideas.
 - **`docs/determinism.md`:** rows for this wave.
 

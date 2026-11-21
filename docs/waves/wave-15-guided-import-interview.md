@@ -5,8 +5,8 @@
 | **Status** | Owner answers applied (0.3 on 2026-11-18; Q15.1 to Q15.5 answered 2026-11-20: questions depend on the codebase and there are always a few; the card approval is final, with room for free-text context and file references; answers saved locally). Ready after Waves 5 and 1 |
 | **Branch** | `feat/w15-guided-import-interview`, from `main` after Waves 5 and 1 are merged |
 | **Size** | L. Split point: 15a is the interview and the import without BMO (steps 2 to 5); 15b adds BMO-proposed cards (step 6) |
-| **Release** | 0.8.0 (with Wave 5) |
-| **Depends on** | Wave 5 (code search and key code: the "main files and functions" cards), Wave 1 (labels and citations for the BMO cards in 15b). Wave 3's `local:` link kind is reused for file references |
+| **Release** | 0.9.0 (with Waves 5 and 14a) |
+| **Depends on** | Wave 5 (code search and key code: the "main files and functions" cards), Wave 1 (labels and citations for the BMO cards in 15b). Wave 3's `local:` link kind is reused for file references. **Wave 14a** (the typed context window and the size shown before a run) should be merged first: this wave's BMO cards and the split prompts below send the largest requests of the import, and the refusal rule in Wave 14 ("Context window rule") applies to them. [Wave 27](wave-27-small-batch.md) (the inherited owner, 0.8.0) is merged before this wave |
 | **Owner items** | Answer 0.3 ([README.md](README.md#where-each-item-went)) |
 
 Read [README.md](README.md) first: its rules, agents and checks apply to this wave. Also read [../import-design.md](../import-design.md) (what the import is for and what matters to C4 at each level) and the import choices N1 to N15 in [DEC-103](../decisions.md#pro-19--dec-103--code-import-and-bmo-choices-and-the-080-split-n1-to-n15), which change what this wave builds (see its "Decided" section if it has one).
@@ -158,7 +158,7 @@ Code shows outside parts only as clients, URLs and settings, so the interview as
 3. An approval in the interview is the user's explicit accept: it records an `accepted` decision with who made it (`setDecision`). Items the user typed carry the typed text as evidence (DEC-064). The review screen afterwards still lists every item, with its review level computed from evidence as today.
 4. "Not right" and "Not used" are remembered in the interview file, and the item is not imported. A re-import keeps the person's edits (`lastImport.ts`).
 5. Nothing about the interview, confidence or BMO is written into the model (DEC-051, DEC-064). Answers are saved **locally**, on this machine and sent nowhere (Q15.3): all of it in `architecture/import/interview.json`, next to the intake and committed with it so a team and CI see what was decided: the answers, the card notes, the general context and the paths of referenced files (paths written with `~/` where possible).
-6. **Key code.** An approved "main files and functions" card becomes `dp.code.key` on the component (Wave 5). The import file schema (v1) gets an optional `keyCode` list per element. Old files stay valid; a file that uses it is refused by an older dp, which the CHANGELOG says.
+6. **Key code.** An approved "main files and functions" card becomes `dp.code.key` on the component (Wave 5). The import file schema (v1) gets an optional `keyCode` list per element. Old files stay valid; a file that uses it is refused by an older dp, which the notes for the release entry say.
 
 ### Rules for the question list
 
@@ -250,6 +250,16 @@ Code shows outside parts only as clients, URLs and settings, so the interview as
 
 **Applied [2026-11-20].** As recommended: 15a (the interview and the draft without BMO) first, then 15b (BMO adds name, description and label cards marked 'BMO suggests', never pre-approved; BMO's own questions last).
 
+## Added by the 2026-11-20 split
+
+These small items sit on the code this wave rewrites; build them here (sources: planned_features B4 and B7, DEC-103 N11, [Wave 25](wave-25-bmo-own-subscription.md)).
+
+- **A fixed "no LLM" / "needs an LLM" badge on each import step** (N11). Steps that read the code, analyse, check, import to a draft or review are deterministic; the "Ask BMO", "Describe" and "Suggest labels" runs need an LLM (the handoff route needs the person's own agent).
+- **A per-level URL on the Import page**, so a level can be linked to or reloaded directly.
+- **Who keeps `knownServices.ts` up to date:** let a project add its own entries (a small file in `architecture/import/`), with the shipped list as the base.
+- **CODEOWNERS to owner proposals:** the scan already reads `CODEOWNERS` as evidence; show a proposed `owner` card for each mapped object, accepted by a person. **The card is not shown when the proposed owner equals the owner the object already shows**, typed or inherited from its parent ([Wave 27](wave-27-small-batch.md) builds the inherited owner before this wave). So a team that owns a whole container gets one card on the container, not one on every component. Test: a child with an inherited owner equal to the `CODEOWNERS` entry gets no card; a child whose entry differs gets one.
+- **The second half of planned_features A4, for chat users:** a long prompt split into numbered parts that each fit a limit the person sets, and an interview that continues across several pasted replies (Wave 25 builds the single-block paste box). Includes the smaller import for chat-only users: paste the evidence digest, get the import file back in one reply. The limit the person sets here is the same number as the context window of [Wave 14a](wave-14-retrieval-local-models.md) when one is typed; do not add a second size setting.
+
 ## Stop and ask if
 
 - The interview would need to write anything into the model that is not an element, relationship, view or `dp.*` property (for example a confidence label or a BMO marker). DEC-051 and DEC-064 forbid it.
@@ -270,7 +280,7 @@ There is no cap on how many agents run at once. Steps 3 and 4 can run in paralle
 | 5 | The interview UI: stepper, cards, groups, progress, resume, keyboard | general-purpose · Sonnet | `ui/src/pages/ImportInterview.tsx`, `ui/src/hooks/useInterview.ts`, `ui/src/pages/ImportPage.tsx`, `ui/src/styles/pages.css` | Works with the keyboard; the older sections stay under "Advanced" |
 | 6 | BMO cards (15b): suggest names, descriptions and labels as cards; questions from BMO as a group | general-purpose · Sonnet | `src/assistant/importTasks.ts`, `tasks.ts`, interview UI | Handoff and direct backends both work; nothing BMO writes is pre-approved |
 | 7 | Tests (not the authors of steps 3 to 6) | general-purpose · Sonnet | `tests/unit/interview*.test.ts`, `tests/browser/interview.spec.ts` | Tests as listed below |
-| 8 | Docs | general-purpose · Haiku | CHANGELOG, decisions.md, reviews.md, README, CLAUDE.md | All docs updated |
+| 8 | Docs | general-purpose · Haiku | decisions.md, the review file (notes for the release entry, not the CHANGELOG), README, CLAUDE.md | All docs updated |
 | 9 | Review | main session | — | `/code-review` (high) and `/security-review` findings fixed |
 
 Only one agent builds the UI or runs `cd ui && npm run build` at a time, because parallel builds overwrite `static/`.
@@ -309,7 +319,7 @@ Only one agent builds the UI or runs `cd ui && npm run build` at a time, because
 - **New DEC:** the guided interview; deterministic first; answers stored in `architecture/import/interview.json` and never in the model; an approval in the interview is the explicit accept; the question list is computed, not generated. Amends how DEC-051 describes the intake.
 - **README:** the import section ("Guide me" and the question flow).
 - **CLAUDE.md:** the new files in `src/import/` and the UI.
-- **CHANGELOG** and **reviews.md:** this wave's entries, including what was asked of a real codebase (the owner runs one).
+- **The review file** (not the CHANGELOG, which the release change writes): this wave's entries, including what was asked of a real codebase (the owner runs one).
 - **`docs/determinism.md`:** rows for this wave.
 - **planned_features.md:** row 15 done; the "skeleton import without BMO" idea (2.0) is answered.
 

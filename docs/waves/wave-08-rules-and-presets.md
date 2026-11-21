@@ -4,8 +4,8 @@
 |---|---|
 | **Status** | Owner answers applied (2026-11-19; reshaped 2026-11-20: detectors run on the model, not on code). Ready to run after Waves 3, 6 and 7 |
 | **Branch** | `feat/w08-rules-and-presets`, from `main` after Wave 7 is merged |
-| **Size** | L |
-| **Release** | 0.9.0 (with Waves 6, 7) |
+| **Size** | L. **Split point added in the second look at the waves (2026-11-20):** 8a is the registry, the checklist migration, presets, settings and the Rules page (steps 2, 3 and 5); 8b is the detectors with their fixtures and the overlay rows (steps 4 and 6). 8a leaves dp with the same checks as before in one place; 8b adds what is new. Write "8a built" in the README table in between |
+| **Release** | 0.10.0 (with Waves 6, 7; Wave 27 moved to 0.8.0 on 2026-11-20) |
 | **Depends on** | Wave 3 (reference entries to link), Wave 6 (Findings, acknowledgements), Wave 7 (coupling numbers and cycles from the model) |
 | **Owner items** | 18, and 21 for anti-patterns found from the model and the code ([README.md](README.md#where-each-item-went)) |
 
@@ -25,7 +25,7 @@ No rule ever blocks a save.
 > - Any implementations of architecture validation and pre-sets.
 > - Think if you can think through ways to track if any anti-patterns is occuring with telemetry or other ways?
 
-This wave covers "other ways": the model and the code. Telemetry was Wave 12, which is parked.
+This wave covers "other ways": the model and the code. Telemetry work is parked (ideas list I2.7).
 
 ## What exists today [Fact]
 
@@ -222,7 +222,7 @@ The sidecar holds which presets are on, plus the severity and settings of each r
 | 4 | Detectors | general-purpose · Sonnet | `src/core/rules/*.ts` | Each passes its fixtures; `couldNotCheck` filled in |
 | 5 | Rules page and overlay | general-purpose · Sonnet | `ui/src/pages/RulesPage.tsx` (new), `ui/src/common/Findings.tsx`, `colourOverlays.ts` | Works by keyboard; links to reference entries |
 | 6 | Fixture tests (not the step 4 author) | general-purpose · Sonnet | `tests/unit/rules*.test.ts`, `tests/browser/rules.spec.ts` | Tests as listed below |
-| 7 | Docs and CI example | general-purpose · Haiku | CHANGELOG, decisions.md, reviews.md, README, CLAUDE.md, `demo/ci-examples/` | All docs updated |
+| 7 | Docs and CI example | general-purpose · Haiku | decisions.md, the review file (notes for the release entry, not the CHANGELOG), README, CLAUDE.md, `demo/ci-examples/` | All docs updated |
 | 8 | Review | main session | — | `/code-review` (high) findings fixed |
 
 ## Required in this wave
@@ -247,14 +247,14 @@ The sidecar holds which presets are on, plus the severity and settings of each r
 - **New DEC:** the registry; presets; rules never block a save; amends DEC-084.
 - **README:** rules and presets.
 - **CLAUDE.md:** `src/core/rules/`.
-- **CHANGELOG** and **reviews.md:** this wave's entries.
+- **The review file** (not the CHANGELOG, which the release change writes): this wave's entries.
 - **ideas list:** I2.2 (checks and lints) done in part; fitness functions stay.
 - **`docs/determinism.md`:** rows for this wave.
 
 ## Out of scope
 
 - BMO's anti-pattern review (Wave 11).
-- Telemetry rules (Wave 12, parked; ideas list I2.7).
+- Telemetry rules (parked; ideas list I2.7).
 - Starter models per architecture style (Q8.6).
 - Exporting fitness functions.
 

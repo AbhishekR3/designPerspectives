@@ -5,8 +5,8 @@
 | **Status** | Owner answer applied (questions C8, 2026-11-19: a true back-and-forth, with more questions as the code grows; add it to the checklist). Design is a proposal; the open points are listed below. Ready after Waves 1, 2, 5 and 15 |
 | **Branch** | `feat/w20-system-conversation`, from `main` after Wave 15 is merged |
 | **Size** | L. Split point: 20a is the round planner and the loop with the handoff and direct backends (steps 2 to 4); 20b is the actions that write to the model (step 5) |
-| **Release** | 0.11.0 (with Waves 13, 14, 22; after Wave 22) |
-| **Depends on** | Wave 1 (templates, packs, citations, labels), Wave 5 (key code and code search), Wave 15 (the interview, `interview.json` and the context file). Wave 7 (model coupling), Wave 2 (notes) and Wave 14 (the word index for choosing excerpts) and Wave 22 (digests of the parts not in focus) improve it and are not required |
+| **Release** | 0.12.0 (with Waves 13, 14b, 22; after Waves 14b and 22, the last of the group) |
+| **Depends on** | Wave 1 (templates, packs, citations, labels), Wave 5 (key code and code search), Wave 15 (the interview, `interview.json` and the context file). Wave 7 (model coupling), Wave 2 (notes), Wave 14b (the word index for choosing excerpts), Wave 14a (the typed context window, already merged in 0.9.0, which caps each round's size) and Wave 22 (digests of the parts not in focus) improve it and are not required |
 | **Owner items** | Feature H and the vision's opening problem: "understanding an existing system architecture/codebase is difficult" (answer C8) |
 
 Read [README.md](README.md) first: its rules, agents and checks apply to this wave. Also read [../import-design.md](../import-design.md) (what the import is for and what matters to C4 at each level) and the import choices N1 to N15 in [DEC-103](../decisions.md#pro-19--dec-103--code-import-and-bmo-choices-and-the-080-split-n1-to-n15), which change what this wave builds (see its "Decided" section if it has one).
@@ -100,7 +100,7 @@ Understanding an existing system is a conversation, not one question about one s
 | 5 | Actions that write: note, import file, decision, checklist | general-purpose · Opus | `modelEdits.ts`, `src/import/importer.ts` path, `decisions` path, `checklist.ts` | Each writes only on a press; drafts for engineers |
 | 6 | UI | general-purpose · Sonnet | `ui/src/pages/ImportPage.tsx`, `ui/src/common/` (a `Conversation.tsx`), `hooks/useBmo.ts` | Keyboard reachable; every round previewed |
 | 7 | Tests (not the authors of 3 to 6) | general-purpose · Sonnet | `tests/unit/conversation*.test.ts`, `tests/browser/conversation.spec.ts` | As listed below |
-| 8 | Docs and checklist item | general-purpose · Sonnet | decisions.md, CHANGELOG, reviews.md, CLAUDE.md, README, `checklist.ts` `STARTERS`, ideas list I2.0 | Docs and both checklists updated |
+| 8 | Docs and checklist item | general-purpose · Sonnet | decisions.md, the review file (notes for the release entry, not the CHANGELOG), CLAUDE.md, README, `checklist.ts` `STARTERS`, ideas list I2.0 | Docs and both checklists updated |
 | 9 | Review | main session | — | `/code-review` (high) and `/security-review` findings fixed |
 
 ## Required in this wave
@@ -124,7 +124,7 @@ Understanding an existing system is a conversation, not one question about one s
 
 ## Docs
 
-- **New DEC:** the conversation (rounds, question cap, memory, actions, state file). **CHANGELOG**, **reviews.md**, **CLAUDE.md** (`conversation.ts`, `Conversation.tsx`), **README** (BMO section).
+- **New DEC:** the conversation (rounds, question cap, memory, actions, state file). **The review file** (not the CHANGELOG, which the release change writes), **CLAUDE.md** (`conversation.ts`, `Conversation.tsx`), **README** (BMO section).
 - **docs/determinism.md:** rows. **checklist.ts** `STARTERS` and ideas list I2.0: the checklist items.
 
 ## Out of scope

@@ -5,8 +5,8 @@
 | **Status** | Owner answers applied (questions C4 and C5, 2026-11-19: anyone can attach, up to 10 MB per file, stored locally and opened directly). Ready to run after Wave 3 |
 | **Branch** | `feat/w16-attachments`, from `main` after Wave 3 is merged |
 | **Size** | M–L |
-| **Release** | 0.7.0 (with Waves 1, 2, 3, 4) |
-| **Depends on** | Wave 2 (the Markdown renderer, sticky notes), Wave 3 (the Decisions page and its links section, including the `local:` link kind) |
+| **Release** | 0.8.0 (with Waves 3, 26, 4, 27) |
+| **Depends on** | Wave 2 (the Markdown renderer, sticky notes), Wave 3 (the Decisions page and its links section, including the `local:` link kind). Better after [Wave 26](wave-26-users-and-roles.md) (the Users page), so attaching has people with roles |
 | **Owner items** | Feature E of [../product-vision.md](../product-vision.md): "different accounts who can add notes/images/files to the diagrams". Replaces Wave 3's optional upload step (Q3.5 option 2) |
 
 Read [README.md](README.md) first: its rules, agents and checks apply to this wave.
@@ -116,10 +116,13 @@ Accounts can attach images and files to a diagram, a box or line, a decision, a 
 
 **Applied [2026-11-19].** 10 MB per file instead of 3.5 MB. That cannot go as base64 inside the 5 MB JSON limit, so [Wave 16](wave-16-attachments.md) now uses a raw upload route with its own limit and its own cross-site rule (a custom header that another website cannot send without a preflight, which dp refuses). Other limits: a per-project total (proposal 500 MB) and an upload rate limit, because viewers can now write to disk.
 
+## Added by the 2026-11-20 split
+
+- **[Wave 26](wave-26-users-and-roles.md) (Users and roles page) runs before this wave**, so "anyone can attach" has people with roles to attach. Nothing in this wave's design changes; the roles it uses are the same three.
 ## Stop and ask if
 
 - The raw upload route cannot keep the cross-site rule (custom header, no preflight) in the real server, or the security review finds a way around it. Then fall back to base64 in JSON with a lower file cap, and ask the owner.
-- A PDF cannot be opened inline safely: it downloads instead (say so in reviews.md).
+- A PDF cannot be opened inline safely: it downloads instead (say so in the review file).
 - A cap above 10 MB per file is wanted.
 - SVG or HTML must be shown inline.
 - The security review finds the "open in the default app" route unsafe (a file type that can start a program, a symlink or path trick, a Windows quoting problem). Then ship Copy path only and tell the owner.
@@ -135,7 +138,7 @@ Accounts can attach images and files to a diagram, a box or line, a decision, a 
 | 3 | References in the model: `dp.attachments`, decision section, comments, diff and merge | general-purpose · Opus | `src/core/modelEdits.ts`, `decisions.ts`, `comments.ts`, `modelUnits.ts`, `diff.ts`, `merge.ts` | References round trip, diff and merge; drafts do not copy the store |
 | 4 | UI | general-purpose · Sonnet | `ui/src/common/` (attach widget, thumbnails, dialog), `panels/`, `pages/DecisionEditor.tsx`, `common/comments.tsx` | The five places attach and show; keyboard reachable |
 | 5 | Tests (not the authors of 2 to 4) | general-purpose · Sonnet | `tests/unit/attachments*.test.ts`, `tests/browser/attachments.spec.ts` | As listed below |
-| 6 | Docs | general-purpose · Haiku | CHANGELOG, decisions.md, reviews.md, CONTRIBUTING (security model), CLAUDE.md, README | All docs updated |
+| 6 | Docs | general-purpose · Haiku | decisions.md, the review file (notes for the release entry, not the CHANGELOG), CONTRIBUTING (security model), CLAUDE.md, README | All docs updated |
 | 7 | Review | main session | — | `/code-review` (high) and `/security-review`, both mandatory; findings fixed |
 
 ## Required in this wave
@@ -165,7 +168,7 @@ Accounts can attach images and files to a diagram, a box or line, a decision, a 
 ## Docs
 
 - **New DEC:** the attachment store, the raw upload route and its cross-site rule, the type rules, and who may attach (anyone). DEC-094 (screen parity) and DEC-095 (opening local files) are already written; update them if the build differs.
-- **CHANGELOG:** nothing until the 0.7.0 release entry is written (see README, Releases). **reviews.md:** a section at the top.
+- **The review file** (not the CHANGELOG, which the release change writes): notes for the release entry.
 - **CLAUDE.md:** `attachments.ts` and its route module.
 - **README:** the collaboration paragraph.
 - **docs/determinism.md:** a row.

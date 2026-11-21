@@ -5,8 +5,8 @@
 | **Status** | Owner answer applied (questions C3: "go with your best decisions", 2026-11-19 → DevOps, Security and Business presets). The exact settings are mine; the owner reviews them in the UI. Ready to run |
 | **Branch** | `feat/w19-lenses-for-roles`, from `main` |
 | **Size** | S–M |
-| **Release** | 0.10.0 (with Waves 9, 11, 17, 18) |
-| **Depends on** | Nothing required. Better after Wave 9 (characteristics) and Wave 13 (contracts) so the lenses can show them; without them the lenses still work |
+| **Release** | 0.11.0 (with Waves 9, 11, 17, 18) |
+| **Depends on** | Nothing required. Better after Wave 9 (characteristics) so the lenses can show it; without it the lenses still work. **Wave 13 (contracts) is built after this wave** (0.12.0), so it adds its own section to the lenses: the DevOps and Security presets written here list no "contracts" section, and [Wave 13](wave-13-contracts.md) adds it to them (and to the Architect and Engineer lenses) in one of its steps, with a test. Do not add a placeholder section for it here |
 | **Owner items** | Feature D of [../product-vision.md](../product-vision.md): "Architecture Lenses (Architect, DevOps, other members involved during SDLC)". [../planned_features.md](../planned_features.md) B5 |
 
 Read [README.md](README.md) first: its rules, agents and checks apply to this wave.
@@ -88,7 +88,7 @@ The same model reads right for the people who work with an architect: DevOps, se
 | 1 | Re-anchor | Explore · Haiku | The files in "What exists today" | Anchors confirmed |
 | 2 | Three built-in lenses, picker, help table | general-purpose · Sonnet | `src/core/designPerspectivesFile.ts`, `ui/src/hooks/useLens.ts`, `ui/src/common/HelpCard.tsx`, settings dialog | Six lenses listed; defaults unchanged; no stored data |
 | 3 | Tests (a different agent) | general-purpose · Sonnet | `tests/unit/lenses*.test.ts`, a browser test | As listed below |
-| 4 | Docs | general-purpose · Haiku | decisions.md, CHANGELOG, reviews.md, CLAUDE.md, README (lenses), planned_features B5 | Docs updated |
+| 4 | Docs | general-purpose · Haiku | decisions.md, the review file (notes for the release entry, not the CHANGELOG), CLAUDE.md, README (lenses), planned_features B5 | Docs updated |
 | 5 | Review | main session | — | `/code-review` (high) fixed |
 
 ## Required in this wave
@@ -108,7 +108,7 @@ The same model reads right for the people who work with an architect: DevOps, se
 
 ## Docs
 
-- **New DEC:** the three lenses (amends DEC-038's list of built-ins). **CHANGELOG**, **reviews.md**, **CLAUDE.md**, **README**. **planned_features.md** B5: mark built; Compliance and QA lenses stay ideas.
+- **New DEC:** the three lenses (amends DEC-038's list of built-ins). **The review file** (not the CHANGELOG, which the release change writes), **CLAUDE.md**, **README**. **planned_features.md** B5: mark built; Compliance and QA lenses stay ideas.
 
 ## Out of scope
 

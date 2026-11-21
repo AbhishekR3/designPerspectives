@@ -5,7 +5,7 @@
 | **Status** | Rewritten 2026-11-20: the owner moved architecture drift to ideas list (I2.2). This wave keeps the part that Waves 8, 11 and 13 need: one Finding shape and acknowledgements. Ready to run |
 | **Branch** | `feat/w06-findings`, from `main` |
 | **Size** | M (was M–L) |
-| **Release** | 0.9.0 (with Waves 7, 8) |
+| **Release** | 0.10.0 (with Waves 7, 8; Wave 27 moved to 0.8.0 on 2026-11-20) |
 | **Depends on** | Nothing required. If Wave 5 is merged first, its key-code checks become Findings too |
 | **Owner items** | None of the list directly. It is the base of items 18, 19 and 22 ([README.md](README.md#where-each-item-went)); item 1 (drift) is parked |
 
@@ -102,7 +102,7 @@ The Finding shape and acknowledgements come from answer A5 (2026-11-19) and stay
 
 **Owner's thinking:** Go with whatever you think is best.
 
-**Applied [2026-11-19].** Yes. One Finding shape, and acknowledgements stored as model data (`dp.acks`). Wave 6 builds it and records the DEC. Waves 8, 11 and 13 reuse it. Wave 12 would have too; it is parked.
+**Applied [2026-11-19].** Yes. One Finding shape, and acknowledgements stored as model data (`dp.acks`). Wave 6 builds it and records the DEC. Waves 8, 11 and 13 reuse it. The parked runtime work (ideas list I2.7) would have too.
 
 ### ★Q6.1 Acknowledgements as model data
 
@@ -159,6 +159,9 @@ The Finding shape and acknowledgements come from answer A5 (2026-11-19) and stay
 
 **Applied [2026-11-20].** Not built. `dp drift` and its CI example are in ideas list I2.2.
 
+## Added by the 2026-11-20 split
+
+- **Home page "needs a look" and proposed decisions (DEC-099, D15).** Owner, 2026-11-20: build the alignment with the next change that touches `src/core/homeSummary.ts` or the home page, and this wave does (findings feed "needs a look"). The server's list also includes proposed decisions, so the page and the top-bar badge (DEC-079) use one rule. Test: on the demo (which ships proposed decisions) the page's list and the badge give the same count. Source: planned_features B6.
 ## Stop and ask if
 
 - ★Q6.1 or ★A5 prefers a side file for acknowledgements.
@@ -173,7 +176,7 @@ The Finding shape and acknowledgements come from answer A5 (2026-11-19) and stay
 | 3 | Producers from `dp check`, routes, CLI, home and bell | general-purpose · Sonnet | `cliReports.ts`, `validate.ts`, `src/cli.ts`, `src/server/routes/findings.ts` (new), `src/server/auth.ts`, `homeSummary.ts`, `App.tsx` | Exit codes unchanged except for acknowledged warnings; ROUTE_RULES added |
 | 4 | Findings page, shared list, overlay | general-purpose · Sonnet | `ui/src/pages/FindingsPage.tsx` (new), `ui/src/common/Findings.tsx` (new), `colourOverlays.ts`, `useNavigation.ts` | Works by keyboard; acknowledge from the page |
 | 5 | Tests by another agent | general-purpose · Sonnet | `tests/unit/findings*.test.ts`, `tests/browser/findings.spec.ts` | Tests as listed below |
-| 6 | Docs | general-purpose · Haiku | CHANGELOG, decisions.md, reviews.md, README, CLAUDE.md | All docs updated |
+| 6 | Docs | general-purpose · Haiku | decisions.md, the review file (notes for the release entry, not the CHANGELOG), README, CLAUDE.md | All docs updated |
 | 7 | Review | main session | — | `/code-review` (high) findings fixed |
 
 ## Required in this wave
@@ -198,7 +201,7 @@ The Finding shape and acknowledgements come from answer A5 (2026-11-19) and stay
 
 - **New DEC:** the Finding shape; acknowledgements as model data (A5); the existing warnings as the first findings; drift parked (DEC-097).
 - **README:** findings and acknowledgements. **CLAUDE.md:** `findings.ts`, `FindingsPage.tsx`, `Findings.tsx`.
-- **CHANGELOG**, **reviews.md**, and **`docs/determinism.md`** rows.
+- **The review file** (not the CHANGELOG, which the release change writes) and **`docs/determinism.md`** rows.
 
 ## Decided (DEC-103, 2026-11-20; assistant's reasoning, the owner may overrule)
 
@@ -208,7 +211,7 @@ The Finding shape and acknowledgements come from answer A5 (2026-11-19) and stay
 
 - Drift of any kind (ideas list I2.2).
 - Rules, presets and detectors (Wave 8).
-- Contract changes (Wave 13). Runtime findings (Wave 12, parked).
+- Contract changes (Wave 13). Runtime findings (parked, ideas list I2.7).
 - Watching files for changes.
 
 ## Start prompt

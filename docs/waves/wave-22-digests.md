@@ -5,7 +5,7 @@
 | **Status** | Written 2026-11-20 from [import-design.md](../import-design.md) section 7 and DEC-103 (N13). The shape is the assistant's proposal; the owner may overrule it. Ready after Waves 5 and 15 |
 | **Branch** | `feat/w22-digests`, from `main` after Waves 5 and 15 are merged |
 | **Size** | M–L. Split point: 22a is the computed digests, the hash and `dp digest` (steps 2 to 3); 22b is the BMO summary, the UI and `dp context --write` (steps 4 to 6) |
-| **Release** | 0.11.0 (with Waves 13, 14, 20), run before Wave 20 |
+| **Release** | 0.12.0 (with Waves 13, 14b, 20), run after Wave 14b and before Wave 20 (14b's word index chooses the excerpts of the one component in focus; digests cover everything else) |
 | **Depends on** | Wave 5 (key code, the generic reader's definitions and imports), Wave 15 (the scan's candidates and the N1 skip list). Wave 2 (`dp context`) is extended by step 6; if it is not merged, step 6 waits. Wave 20 uses the digests and is better with them; neither blocks the other |
 | **Owner items** | The open question of analysing a very large codebase (Q-C1b, N13; planned_features.md B4 "multi-pass summarising") |
 
@@ -66,7 +66,7 @@ A very large repository costs one pass to understand and small runs afterwards. 
 | 5 | Digests list, sheet, readiness note | general-purpose · Sonnet | `ui/src/pages/ImportPage.tsx`, `ui/src/hooks/useBmo.ts` or a new hook | Works by keyboard; summary state changes in the list |
 | 6 | `dp context --write` | general-purpose · Sonnet | `src/cli.ts`, Wave 2's context module | Refuses a file without the marker; writes only on request |
 | 7 | Tests by another agent | general-purpose · Sonnet | `tests/unit/digests*.test.ts`, `tests/browser/digests.spec.ts` | Tests as listed below |
-| 8 | Docs | general-purpose · Haiku | CHANGELOG, decisions.md, reviews.md, README, CLAUDE.md | All docs updated |
+| 8 | Docs | general-purpose · Haiku | decisions.md, the review file (notes for the release entry, not the CHANGELOG), README, CLAUDE.md | All docs updated |
 | 9 | Review | main session | — | `/code-review` (high) findings fixed |
 
 ## Required in this wave
@@ -92,7 +92,7 @@ A very large repository costs one pass to understand and small runs afterwards. 
 
 - **New DEC:** the store and its place outside the model; no silent regeneration; the file-overwrite rule of `dp context --write`.
 - **README:** digests. **CLAUDE.md:** `digests.ts`, `routes/digests.ts`. **import-design.md** section 7: mark methods 9 and 10 built.
-- **CHANGELOG**, **reviews.md**, and **`docs/determinism.md`** rows.
+- **The review file** (not the CHANGELOG, which the release change writes) and **`docs/determinism.md`** rows.
 
 ## Out of scope
 

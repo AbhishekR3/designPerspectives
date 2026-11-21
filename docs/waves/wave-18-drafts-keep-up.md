@@ -5,8 +5,8 @@
 | **Status** | Owner answer applied (questions C2: "go with your best decision", 2026-11-19 → rebase and merge editor, and undo that restores the draft; the code comparison stays later). Ready to run |
 | **Branch** | `feat/w18-drafts-keep-up`, from `main` |
 | **Size** | M–L. Split point: 18a is rebase and the merge editor (steps 2 to 4); 18b is undo that restores the draft (step 5) |
-| **Release** | 0.10.0 (with Waves 9, 11, 17, 19) |
-| **Depends on** | Nothing in this plan |
+| **Release** | 0.11.0 (with Waves 9, 11, 17, 19) |
+| **Depends on** | Nothing in this plan. **Run before [Wave 17](wave-17-architecture-commits.md)** (architecture commits), which adds a commit-on-apply hook to the same `Drafts.apply` and an undo notice that describes what 18b makes undo do. Leave `Drafts.apply` with one clearly named place after a successful apply where a later step can run (for example a list of after-apply callbacks), so Wave 17 adds its hook there and does not edit the merge itself |
 | **Owner items** | Feature C of [../product-vision.md](../product-vision.md): architecture change proposals. [../planned_features.md](../planned_features.md) B3 |
 
 Read [README.md](README.md) first: its rules, agents and checks apply to this wave.
@@ -77,6 +77,9 @@ With several accounts working in drafts (feature E), the first is the one people
 
 **Applied [2026-11-19].** (a) rebase and merge editor and (b) undo that restores the draft, as recommended, in new [Wave 18](wave-18-drafts-keep-up.md). (c) stays later.
 
+## Added by the 2026-11-20 split
+
+- **Optional 18c, compare a draft's planned code edits with the code as it was when the draft started** (planned_features B3). Today they are compared with the code folder as it is now, so a file changed since the draft began shows as a conflict. It is the same stale-draft problem as the rebase; build it here if 18a leaves room, otherwise leave it in planned_features B3 (it is not needed for 1.0.0).
 ## Stop and ask if
 
 - A resolution would need dp to combine two different edits of one field (for example two different descriptions). dp offers a choice, never a blend.
@@ -93,7 +96,7 @@ With several accounts working in drafts (feature E), the first is the one people
 | 4 | Merge editor and the apply dialog offer | general-purpose · Sonnet | `ui/src/drafts/` (a `MergeEditor.tsx`, `ApplyDialog.tsx`, `DraftList.tsx`) | Each conflict resolvable by keyboard; "main +N" returns to 0 after a rebase |
 | 5 | Undo that restores the draft and code files | general-purpose · Opus | `src/core/drafts.ts` (apply), `project.ts`, a recovery store | A changed code file is left alone and named; limits hold |
 | 6 | Tests (not the authors of 2 to 5) | general-purpose · Sonnet | `tests/unit/drafts-rebase*.test.ts`, `tests/browser/merge-editor.spec.ts` | As listed below |
-| 7 | Docs | general-purpose · Haiku | `docs/planned-change.md`, decisions.md, CHANGELOG, reviews.md, CLAUDE.md, README | The limits list in planned-change.md shrinks |
+| 7 | Docs | general-purpose · Haiku | `docs/planned-change.md`, decisions.md, the review file (notes for the release entry, not the CHANGELOG), CLAUDE.md, README | The limits list in planned-change.md shrinks |
 | 8 | Review | main session | — | `/code-review` (high) and `/security-review` findings fixed |
 
 ## Required in this wave
@@ -120,7 +123,7 @@ With several accounts working in drafts (feature E), the first is the one people
 
 - **New DEC:** rebase and the merge editor; the recovery copy for undo; limits.
 - **`docs/planned-change.md`:** update "what it cannot do yet".
-- **CHANGELOG**, **reviews.md**, **CLAUDE.md** (`MergeEditor.tsx`), **README**.
+- **The review file** (not the CHANGELOG, which the release change writes), **CLAUDE.md** (`MergeEditor.tsx`), **README**.
 - **planned_features.md:** mark the rebase and undo rows built; keep the code comparison.
 
 ## Out of scope

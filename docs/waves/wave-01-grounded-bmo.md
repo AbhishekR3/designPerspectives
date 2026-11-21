@@ -2,11 +2,11 @@
 
 | | |
 |---|---|
-| **Status** | Owner answers applied (2026-11-19; Part B questions Q1.1 to Q1.5 answered, the evaluation set deferred). Ready to run |
+| **Status** | Owner answers applied (2026-11-19; Part B questions Q1.1 to Q1.5 answered, the evaluation set deferred). **A real-run gate was added on 2026-11-20 (owner, the second look at the waves): the wave closes only after one real run through a route the owner uses (step 7, "The real-run gate").** Ready to run after Wave 23 |
 | **Branch** | `feat/w01-grounded-bmo`, from `main` (DEC-089, the CI move, is merged) |
 | **Size** | M–L (was L; the evaluation set left the wave) |
-| **Release** | 0.7.0 (with Waves 2, 3, 16, 4) |
-| **Depends on** | Nothing in this plan |
+| **Release** | 0.7.0 (with Waves 24, 2, 25, 29) |
+| **Depends on** | Nothing in the code. [Wave 23](wave-23-sealed-credentials.md) (sealed credentials, 0.6.1) **is merged first**, because the real-run gate saves a real key and the first key ever saved must already be sealed |
 | **Owner items** | 2, 9, 11, 12 ([README.md](README.md#where-each-item-went)) |
 
 Read [README.md](README.md) first: its rules, agents and checks apply to this wave.
@@ -241,11 +241,27 @@ Proposed: Wave 1. See Q1.1 to Q1.4.
 
 **Applied [2026-11-19].** As recommended.
 
+## Added by the 2026-11-20 split
+
+- **Wave 23 (sealed credentials, 0.6.1) runs before this wave**, so the owner's first real provider run saves a sealed key. Nothing in this wave changes; it only means no plain-text key is ever written during Wave 1's own checks by hand.
+- **[Wave 25](wave-25-bmo-own-subscription.md) later gives every text task a handoff route.** Keep the citation checker callable from `handoffBackend.ts` (it already appears in the steps) so a result read from `result.json` is verified the same way as a direct answer.
 ## Stop and ask if
 
 - The answer to ★Q1.1 (option 2) turns out not to cover a kind of statement.
 - ★Q1.2 asks for templates per project. That needs a security design: repository text must not reach system text.
-- Anything in the wave starts to need real-model runs or a scorer to be judged. That is the deferred evaluation: stop and ask.
+- Anything in the wave starts to need real-model runs or a scorer to be judged. That is the deferred evaluation: stop and ask. (The real-run gate in step 7 is not that evaluation: it is one run through one route to see that the contract works at all, with no scoring.)
+- The real-run gate fails in a way that changes the answer shape, the citation contract or the verifier (for example a provider returns the answer wrapped in prose, or drops the cites). Say what the model returned, and ask before redesigning: the later BMO waves (11, 15b, 20, 22b, 25) are written against this contract.
+
+## The real-run gate (owner, 2026-11-20)
+
+Until now every BMO test in the repository runs against canned answers; no real model has ever answered through dp, and the default model ids in `src/assistant/settings.ts` were never checked against a provider's current list (manual test plan U1 to U3). This wave defines the answer shape and the verifier that six later waves rely on, so it is the right place to see that it works against a real model, once.
+
+- **What the gate is.** After steps 3 to 6 are built and green, run one real BMO text task (an `explain` of one demo container is enough) through **one route the owner will actually use**: a provider API key, a chat subscription through the handoff route (paste the prompt, paste the reply), or a local Ollama model. The result must pass the verifier, or be refused for a reason that is right (a forged cite, a missing quote), and the cited chips must open the right place.
+- **Before it:** check the default model ids in `settings.ts` against the chosen provider's current list (U2) and fix any that are wrong. Credentials saved for the run are already sealed ([Wave 23](wave-23-sealed-credentials.md) is merged first).
+- **Who:** the owner supplies the key or the chat app; the wave agent runs `dp bmo status` first and uses BMO if it is on (and tells the owner whether it was available), then walks through the run with the owner.
+- **A pass or a fail is written into the review file** (route, model id, what came back, what the verifier said), with the row added to the manual test plan (U1, U3).
+- **If no route can be tried** (no key, no chat app, no Ollama), the wave does not close: it stays at "built, gate open" in the README table, and Wave 25 and every BMO wave after it wait. Do not replace the gate with a canned-answer test.
+- **Not in the gate:** the other two providers (they stay on the 1.0.0 checklist, section 4), scoring answers for quality (the deferred evaluation, ideas list I2.0) and cost.
 
 ## Steps and agents
 
@@ -257,8 +273,9 @@ Proposed: Wave 1. See Q1.1 to Q1.4.
 | 4 | Citation contract and verifier | general-purpose · Opus | `src/assistant/citations.ts` (new), `tasks.ts` (`validateText`), `providerBackend.ts` (`providerSchema`), `handoffBackend.ts` | Cites are verified against the sent pack; forged cites and injected text are refused; claims about things without a valid cite are held back |
 | 5 | UI: cited answers and labels | general-purpose · Sonnet | `ui/src/common/BmoChat.tsx`, `BmoSheet.tsx`, `ui/src/hooks/useBmo.ts`, `src/shared/types.ts` | Chips navigate inside dp only; the label shows; keyboard reachable |
 | 6 | Tests (not the authors of steps 3–5) | general-purpose · Sonnet | `tests/unit/bmo-*.test.ts` | Tests as listed below |
-| 7 | Docs | general-purpose · Haiku | `docs/determinism.md` (new), CHANGELOG, decisions.md, reviews.md, CLAUDE.md, README (BMO section), docs/README.md | All docs updated |
-| 8 | Review | main session | — | `/code-review` (high) and `/security-review` findings fixed |
+| 7 | **Real-run gate** (see "The real-run gate"): check the model ids, then one real run through one route the owner uses | the wave agent with the owner (Opus if a fix is needed) | `src/assistant/settings.ts` (the ids), `providerBackend.ts` or `handoffBackend.ts`, `citations.ts` | A real answer passes the verifier or is refused for the right reason; result written in the review file; the wave does not close without it |
+| 8 | Docs | general-purpose · Haiku | `docs/determinism.md` (new), decisions.md, the review file (notes for the release entry, not the CHANGELOG), CLAUDE.md, README (BMO section), docs/README.md | All docs updated |
+| 9 | Review | main session | — | `/code-review` (high) and `/security-review` findings fixed |
 
 ## Required in this wave
 
@@ -293,8 +310,8 @@ Proposed: Wave 1. See Q1.1 to Q1.4.
 ## Docs
 
 - **New DEC:** grounded answers, the citation contract, and the determinism classes if ★A4 is yes.
-- **CHANGELOG:** nothing until the 0.7.0 release entry is written (see README, Releases).
-- **reviews.md:** a section at the top.
+- **CHANGELOG:** nothing; the release change writes it (see README, Releases).
+- **The review file:** notes for the release entry, and the result of the real-run gate.
 - **CLAUDE.md:** `contextPack.ts` and `citations.ts` in the BMO paragraph.
 - **README:** the BMO section.
 - **`docs/determinism.md`:** new, and indexed in `docs/README.md`.

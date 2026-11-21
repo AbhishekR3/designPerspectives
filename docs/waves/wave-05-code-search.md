@@ -5,7 +5,7 @@
 | **Status** | Rewritten 2026-11-20, revised the same day. dp stops reading code with one tokenizer per language. It searches code as plain text, a component's main files and functions are pinned, and one **generic regex reader** (a table of patterns for the major languages) replaces the Python and JS/TS readers. Ready to run after Waves 1 and 2 |
 | **Branch** | `feat/w05-code-search`, from `main` after Waves 1 and 2 are merged |
 | **Size** | M–L. Split point: 5a is search and key code (steps 2 to 5); 5b is the generic reader that replaces the old readers (step 6) |
-| **Release** | 0.8.0 (with Wave 15) |
+| **Release** | 0.9.0 (with Wave 14a and Wave 15) |
 | **Depends on** | Wave 1 (context packs, citations) and Wave 2 (the list of fixed BMO commands and `dp find`) |
 | **Owner items** | 14 (more languages) and 8 (config files, `tools.py`) ([README.md](README.md#where-each-item-went)) |
 
@@ -266,6 +266,9 @@ This depends on who dp is for (★A1).
 
 **Applied [2026-11-20].** Option 2 in spirit, with a replacement. The per-language tokenizers, resolvers and function lookup (Python, JS/TS) are removed. **One generic regex reader** (a pattern table plus one engine, no code per language) takes over `scanImports` and `findFunctions`, so the code diagram, the scan's component lines, the unmapped-code warning and the coding plan's import check keep working and now cover the major languages, not only Python and JS/TS. Everything it returns is approximate and says so. The demo's results may change slightly; step 1 of Wave 5 records the old results as a baseline, step 6 lists every difference, and the demo is regenerated. **Trade-off:** regexes without a tokenizer can read a commented-out or string-embedded import as real (a generic comment cut helps but is not exact), and the resolver matches a specifier to files by path, so two files with the same path tail are ambiguous (dp draws no line then, and says so). The old Python tokenizer was exact for Python; that exactness is traded for breadth. [Wave 5](wave-05-code-search.md) part C.
 
+## Added by the 2026-11-20 split
+
+- **Deeper code check in the coding plan** (planned_features B3). The plan sees files and Python/JS/TS relative imports only. When the generic reader replaces those readers, find out whether `codingPlan.ts` uses them; if it does, it must use the new reader so the plan check does not regress. Adding HTTP, queue or injection checks to the plan is not in this wave (the import scan already reads more; feeding it into the plan check stays in planned_features B3).
 ## Stop and ask if
 
 - A language needs its own code (a tokenizer, a parser, a branch in the engine) to reach acceptable results. The answer then is a new pattern, or the language stays search-only; a parser is a new plan.
@@ -285,7 +288,7 @@ This depends on who dp is for (★A1).
 | 5 | BMO `propose-key-code` | general-purpose · Sonnet | `src/assistant/prompts.ts`, `tasks.ts`, `runTask.ts`, `citations.ts` | A forged path or name is refused |
 | 6 | **5b.** Generic reader: pattern table, engine, resolver, ranges; switch `codeMap`, scan, `unmappedCode`, coding plan and review to it; remove the old readers; the definition cue in search | general-purpose · Opus | `src/core/codeReader.ts`, `codePatterns.ts` (new), `codeMap.ts`, `src/import/scan.ts`, `review.ts`, `unmappedCode.ts`, `codingPlan.ts`, `codeSearch.ts` | Every difference from the baseline listed; the demo regenerated; no per-language code left |
 | 7 | Tests (not the authors of steps 2 to 6) | general-purpose · Sonnet | `tests/unit/code-search*.test.ts`, `key-code*.test.ts`, `code-reader*.test.ts`, `tests/browser/key-code.spec.ts` | Tests as listed below |
-| 8 | Docs | general-purpose · Haiku | CHANGELOG, decisions.md, reviews.md, README, CLAUDE.md (the `codeMap.ts` description), `docs/determinism.md` | All docs updated |
+| 8 | Docs | general-purpose · Haiku | decisions.md, the review file (notes for the release entry, not the CHANGELOG), README, CLAUDE.md (the `codeMap.ts` description), `docs/determinism.md` | All docs updated |
 | 9 | Review | main session | — | `/code-review` (high) and `/security-review` (the file gate) findings fixed |
 
 Only one agent builds the UI or runs `cd ui && npm run build` at a time.
@@ -318,7 +321,7 @@ Only one agent builds the UI or runs `cd ui && npm run build` at a time.
   - A commented-out import (`//`, `/* */`, `#`) is ignored; a `#include` is not treated as a comment.
   - Resolution: a relative import, a dotted import, a grouped Go block, a wildcard, an outside library (no edge), and an ambiguous tail (no edge, and the result says so).
   - Function ranges end at the next definition.
-  - The demo's results are compared with the baseline from step 1, and every difference is listed in reviews.md.
+  - The demo's results are compared with the baseline from step 1, and every difference is listed in the review file.
   - No file or branch is named for a single language (a test greps the source tree).
 - **Users of the reader:** the code diagram and the unmapped-code warning work on a fixture in a language that had no reader before.
 - **Browser:** search for a name, pin a result, open it at the line, remove the name from the file and see the warning.
@@ -327,7 +330,7 @@ Only one agent builds the UI or runs `cd ui && npm run build` at a time.
 
 - **DEC-096** records the decision (search, key code, one generic reader). Add a new DEC for key code (`dp.code.key`), its checks, the hints and the BMO proposal task.
 - **README:** find code, key code, the languages the pattern table covers. **CLAUDE.md:** `codeSearch.ts`, `keyCode.ts`, `codeReader.ts`, `codePatterns.ts`, and the revised description of `codeMap.ts`.
-- **CHANGELOG** and **reviews.md:** this wave's entries, including the list of differences from the old readers. **`docs/determinism.md`:** rows.
+- **The review file** (not the CHANGELOG, which the release change writes): this wave's entries, including the list of differences from the old readers. **`docs/determinism.md`:** rows.
 - **planned_features.md:** B4's "Scan languages beyond Python and JS/TS" is done for the languages in the table.
 
 ## Decided (DEC-103, 2026-11-20; assistant's reasoning, the owner may overrule)
