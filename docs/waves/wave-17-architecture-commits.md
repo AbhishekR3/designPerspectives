@@ -5,8 +5,8 @@
 | **Status** | Owner answer applied (questions C1, 2026-11-19: yes, opt-in commit on apply). Ready to run |
 | **Branch** | `feat/w17-architecture-commits`, from `main` |
 | **Size** | M |
-| **Release** | 0.10.0 (with Waves 9, 11, 18, 19) |
-| **Depends on** | Nothing in this plan. Fits best after Wave 18, which changes how a draft is applied |
+| **Release** | 0.11.0 (with Waves 9, 11, 18, 19) |
+| **Depends on** | Nothing hard. **Run after [Wave 18](wave-18-drafts-keep-up.md)** (the second look at the waves, 2026-11-20, made this the rule; the old run order had 17 first). Both change `Drafts.apply` (`src/core/drafts.ts`): Wave 18b changes what undo of an apply does (it brings the draft back), and this wave's commit-on-apply hook and its undo notice (design item 10) describe that behaviour. Built in this order, the hook and the notice are written once against the final undo; built the other way round, Wave 18b rewrites them. A draft that was rebased (18a) must still build a commit message from its title and description |
 | **Owner items** | Feature I of [../product-vision.md](../product-vision.md): "git-style commits for software architecture" |
 
 Read [README.md](README.md) first: its rules, agents and checks apply to this wave.
@@ -96,7 +96,7 @@ An architect can turn an architecture change into a git commit from inside dp, w
 | 3 | Routes, settings, apply hook, `dp commit` | general-purpose · Opus | `src/server/routes/` (a `commit` area), `src/server/auth.ts`, `drafts.ts` apply, `src/cli.ts`, settings reader | Apply commits only when set; a refusal never undoes an apply |
 | 4 | UI: Commit button, setting, undo notice | general-purpose · Sonnet | `ui/src/pages/HistoryPage.tsx`, the settings page, `ApplyDialog.tsx` | Keyboard reachable; refusals shown in words |
 | 5 | Tests (not the authors of 2 to 4) | general-purpose · Sonnet | `tests/unit/git-commit*.test.ts`, `cli-commit.test.ts`, `tests/browser/commit.spec.ts` | As listed below |
-| 6 | Docs | general-purpose · Haiku | decisions.md, CHANGELOG, reviews.md, CONTRIBUTING (security model), CLAUDE.md, README | All docs updated |
+| 6 | Docs | general-purpose · Haiku | decisions.md, the review file (notes for the release entry, not the CHANGELOG), CONTRIBUTING (security model), CLAUDE.md, README | All docs updated |
 | 7 | Review | main session | — | `/code-review` (high) and `/security-review` findings fixed |
 
 ## Required in this wave
@@ -121,7 +121,7 @@ An architect can turn an architecture change into a git commit from inside dp, w
 ## Docs
 
 - **DEC:** DEC-091 already records the decision. Add a new entry only if the build changes it.
-- **CHANGELOG** and **reviews.md:** entries. **README:** the History paragraph. **CLAUDE.md:** `gitCommit.ts`.
+- **The review file** (not the CHANGELOG, which the release change writes): entries. **README:** the History paragraph. **CLAUDE.md:** `gitCommit.ts`.
 - **docs/determinism.md:** a row.
 
 ## Out of scope

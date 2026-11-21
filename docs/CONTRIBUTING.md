@@ -106,7 +106,7 @@ Decided 2026-11-20 (DEC-100, answer D9). It applies to people and to coding-agen
 Decided 2026-11-20 (DEC-100, answer D7). The tag and the release are on GitHub, which holds the repository; the GitLab remote only runs CI (DEC-089). dp is installed from GitHub, not from npm (DEC-063), so the tag is the release. **Nothing below is pushed, merged or tagged until the owner says go.** The version is `0.X.Y` before 1.0.0 (DEC-098): a group of features raises X, a fix-only release raises Y. The first release made this way is 0.6.0, which also needs the version bump listed in step 2.
 
 **Before you start**
-- Every wave of the group is merged to `main`, and its notes are in `docs/reviews.md`.
+- Every wave of the group is merged to `main`, and its notes are in its review file (`docs/waves/wave-NN-review.md`, DEC-105; the older stages are in `docs/reviews.md`).
 - `git fetch`; local `main` equals `origin/main`; `git status` is clean.
 - `gh auth status` shows the account that owns the repository.
 
@@ -115,7 +115,8 @@ Decided 2026-11-20 (DEC-100, answer D7). The tag and the release are on GitHub, 
 2. **One small commit: the release change.** Nothing else goes in it.
    - `npm version x.y.z --no-git-tag-version` (changes `package.json` and `package-lock.json`, makes no tag).
    - The line `Version **x.y.z**` in `README.md`.
-   - The section `## [x.y.z] - Month - DD - YYYY` at the top of `docs/CHANGELOG.md`, in the format of [DEC-098](decisions.md) and written from what shipped, using the notes in `docs/reviews.md`. The date is the day the tag is made (0.6.0 keeps the date DEC-098 gave it). Only built, tested, working things are listed.
+   - Once Wave 28a is merged ([wave plan](waves/wave-28-quality-for-1-0.md)): a compatibility fixture folder for the version being released, `tests/fixtures/compat/x.y.z/`, copied from a project that version wrote (the compatibility test then keeps every released version opening byte for byte), and a regenerated public-surface snapshot (`npm run surface:update`) if the release changed it on purpose.
+   - The section `## [x.y.z] - Month - DD - YYYY` at the top of `docs/CHANGELOG.md`, in the format of [DEC-098](decisions.md) and written from what shipped, using the "Notes for the release entry" in the review files of the group (and `docs/reviews.md` for the older stages). The date is the day the tag is made (0.6.0 keeps the date DEC-098 gave it). Only built, tested, working things are listed.
 3. **Check.** `npm run ci` (the full run: typecheck, lint, format, tests, test list, UI build, browser tests, demo, package install). It must end with "All CI checks passed", and `static/`, `demo/` and `tests/TESTS.csv` must be unchanged from what is committed. Optional but recommended until the first GitLab pipeline has passed: push the branch to the GitLab remote (`git push gitlab release/x.y.z`) for the run on Linux with Node 20 and 22. A failure there blocks the release.
 4. **Walk the manual test plan** for what changed in this group ([manual-test-plan.md](manual-test-plan.md)), and at least the demo tour (`npm run dp -- serve --demo`). Write the result in the plan's Result column. A row that fails is fixed before the tag, or the release notes name it.
 5. **Pull request.** `git push origin release/x.y.z`, then `gh pr create --base main --title "Release x.y.z" --body-file <the changelog section>`. The owner reviews and merges (a merge commit, so the tagged commit is on `main`).

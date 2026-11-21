@@ -2,11 +2,11 @@
 
 | | |
 |---|---|
-| **Status** | Owner answers applied (2026-11-19), with changes from the vision and from parking Wave 10. Ready to run after Wave 9 |
+| **Status** | Owner answers applied (2026-11-19), with changes from the vision and from parking risk storming (the former Wave 10). Ready to run after Wave 9 |
 | **Branch** | `feat/w11-bmo-reviews`, from `main` after Wave 9 is merged |
 | **Size** | M |
-| **Release** | 0.10.0 (with Wave 9) |
-| **Depends on** | Wave 1 (templates, packs, citations, labels), Wave 3 (reference library), Wave 8 (deterministic findings), Wave 9 (characteristics table). Wave 10 (risks) is parked, so the risk parts below are left out until it returns |
+| **Release** | 0.11.0 (with Waves 9, 17, 18, 19) |
+| **Depends on** | Wave 1 (templates, packs, citations, labels), Wave 3 (reference library), Wave 8 (deterministic findings), Wave 9 (characteristics table). The risk work (the former Wave 10, ideas list I2.3) is parked, so the risk parts below are left out until it returns |
 | **Owner items** | 22, the BMO part of 7, and "ADR broken or violated" from the vision (feature L) ([README.md](README.md#where-each-item-went)) |
 
 Read [README.md](README.md) first: its rules, agents and checks apply to this wave.
@@ -18,7 +18,7 @@ BMO reviews the design and the code in three ways:
 - it checks them against the decisions (ADRs) the architects accepted, to find a decision that is broken or violated;
 - it proposes characteristic ratings.
 
-(A fourth way, suggesting risks, waits for Wave 10, which is parked.)
+(A fourth way, suggesting risks, waits for the parked risk work (ideas list I2.3).)
 
 Every result is cited, labelled and shown next to what dp found by itself. Nothing is written until you press an action.
 
@@ -37,7 +37,7 @@ Every result is cited, labelled and shown next to what dp found by itself. Nothi
 - Wave 8: deterministic detectors and Findings.
 - Wave 9: needed and current ratings.
 - Wave 3: the Compliance section of a decision, which can name a rule.
-- Wave 10 (parked): `dp.risks` does not exist yet.
+- The parked risk work (ideas list I2.3): `dp.risks` does not exist yet.
 
 **BMO's existing machinery**
 - Runs: preview, hash confirmation and the run log (`src/assistant/runTask.ts:501-506`, `:605-606`; `providerBackend.ts:635-689`).
@@ -83,7 +83,7 @@ Every result is cited, labelled and shown next to what dp found by itself. Nothi
    - **BMO's part.** Per decision: a verdict (holds, possibly violated, can't tell), with cited statements from the decision text, the model, the code excerpts and the decision's own alternatives and triggers. A decision without a Compliance rule is checked by BMO only, and labelled proposed.
    - **UI.** A button on the Decisions page and in a decision's panel; the sheet shows dp's computed signal beside BMO's verdict and points out disagreements.
    - **Actions.** As in task 2: add as a checklist item, linked work or a comment. A proposed status change on the decision ("superseded?") is shown, never applied.
-5. **Task `suggest-risks`: not built.** It returns with Wave 10.
+5. **Task `suggest-risks`: not built.** It returns with the parked risk work.
 6. **Labels.** Every result reads "proposed by BMO" until accepted. The run log records the template id, version and settings.
 
 ## Determinism
@@ -98,8 +98,8 @@ Every result is cited, labelled and shown next to what dp found by itself. Nothi
 Applied 2026-11-19: Part B was left blank, so each Q uses its recommendation ([the questions section below](#questions-options-and-answers-moved-from-questionsmd)).
 
 - **Q11.1:** you pick library entries (those marked "check by default" pre-selected) and a required scope; each entry gets present, possible, not found or can't tell, with cited evidence; dp's own findings are shown beside it.
-- **Q11.2:** results show in a sheet; nothing is written unless an action is pressed. "Add as a risk" is dropped while Wave 10 is parked.
-- **Q11.3:** proposed ratings are accepted row by row and labelled "proposed by BMO" until then. Suggested risks wait for Wave 10.
+- **Q11.2:** results show in a sheet; nothing is written unless an action is pressed. "Add as a risk" is dropped while the risk work is parked.
+- **Q11.3:** proposed ratings are accepted row by row and labelled "proposed by BMO" until then. Suggested risks wait for the parked risk work.
 - **2026-11-20 (best thinking):** Q11.1 to Q11.3 hold as recommended. The pack no longer carries drift (parked) and carries the scope's key code and Wave 7's model coupling instead. The code a review sees is excerpts chosen by the existing rules (and Wave 14's word index when it exists), the same for every language.
 - **Vision (feature L):** the `check-decisions` task is new. Confirmed by the owner on 2026-11-19 (questions C7: yes, computed signal plus BMO).
 
@@ -136,7 +136,7 @@ Applied 2026-11-19: Part B was left blank, so each Q uses its recommendation ([t
 
 **Owner's thinking:** Go with what you think is best.
 
-**Applied [2026-11-20].** As recommended, without 'add as a risk' (Wave 10 is parked).
+**Applied [2026-11-20].** As recommended, without 'add as a risk' (the risk work is parked).
 
 ### Q11.3 Proposed ratings and suggested risks
 
@@ -144,7 +144,7 @@ Applied 2026-11-19: Part B was left blank, so each Q uses its recommendation ([t
 
 **Owner's thinking:** Go with what you think is best.
 
-**Applied [2026-11-20].** As recommended: ratings accepted row by row, labelled 'proposed by BMO' until then. Suggested risks wait for Wave 10.
+**Applied [2026-11-20].** As recommended: ratings accepted row by row, labelled 'proposed by BMO' until then. Suggested risks wait for the parked risk work.
 
 ### ★C7. How does BMO tell that a decision is "broken or violated"?
 
@@ -178,7 +178,7 @@ Applied 2026-11-19: Part B was left blank, so each Q uses its recommendation ([t
 | 3 | UI: button, entry picker, results sheet, actions | general-purpose · Sonnet | `ui/src/common/BmoReview.tsx` (new), `RulesPage.tsx`, `contextMenus.ts`, `CharacteristicsPage.tsx`, `DecisionsPage.tsx` | Actions write only when pressed; works by keyboard |
 | 4 | Tests with the fake backend (another agent) | general-purpose · Sonnet | `tests/unit/bmo-review*.test.ts`, `tests/browser/bmo-review.spec.ts` | Tests as listed below |
 | 5 | Security review of the new prompts | general-purpose · Opus | The new templates and context packs | No path for library or repository text into system text; links in answers navigate inside dp only |
-| 6 | Docs | general-purpose · Haiku | CHANGELOG, decisions.md, reviews.md, README (BMO), CLAUDE.md | All docs updated |
+| 6 | Docs | general-purpose · Haiku | decisions.md, the review file (notes for the release entry, not the CHANGELOG), README (BMO), CLAUDE.md | All docs updated |
 | 7 | Review | main session | — | `/code-review` (high) findings fixed |
 
 ## Required in this wave
@@ -204,13 +204,13 @@ Applied 2026-11-19: Part B was left blank, so each Q uses its recommendation ([t
 - **New DEC:** the three review tasks (anti-patterns, decisions, ratings), the required scope, actions only, and labels.
 - **README:** the BMO section.
 - **CLAUDE.md:** `BmoReview.tsx` and the new tasks.
-- **CHANGELOG** and **reviews.md:** this wave's entries.
+- **The review file** (not the CHANGELOG, which the release change writes): this wave's entries.
 - **`docs/determinism.md`:** rows for this wave.
 
 ## Out of scope
 
 - Multi-pass reviews of a whole project.
-- Suggesting risks (Wave 10, parked).
+- Suggesting risks (the parked risk work (ideas list I2.3)).
 - Saving review results on their own.
 - Retrieval over code (Wave 14).
 

@@ -5,7 +5,7 @@
 | **Status** | Owner answers applied (2026-11-19; Q2.1 to Q2.5 answered: sticky notes are model data, BMO always sees notes, BMO works without an LLM). Ready to run after Wave 1 |
 | **Branch** | `feat/w02-notes-context-help`, from `main` after Wave 1 is merged |
 | **Size** | M–L (was M; sticky notes as model data and BMO without an LLM were added) |
-| **Release** | 0.7.0 |
+| **Release** | 0.7.0 (with Waves 24, 1, 25, 29) |
 | **Depends on** | Wave 1 (context packs, citations, labels) |
 | **Owner items** | 3, 17 ([README.md](README.md#where-each-item-went)) |
 
@@ -96,7 +96,7 @@ Notes are easy to write, read and find for three audiences: people, BMO and codi
    - Same redaction, same file gate, read-only. Markdown by default (Q2.3).
    - It gives coding agents (such as Claude Code) the model without an MCP server (DEC-020).
 6. **BMO without an LLM** (★Q2.5, DEC-093).
-   - **The setting:** the existing `enabled` flag, relabelled "Use an LLM" in the BMO settings. It stays off by default and architects change it.
+   - **The setting:** the existing `enabled` flag, relabelled "Use an LLM" in the BMO settings. It stays off by default **in this wave** and architects change it. [Wave 25](wave-25-bmo-own-subscription.md) flips the default in the same release (0.7.0), so (second look at the waves, 2026-11-20): keep the default in the one constant `DEFAULT_SETTINGS`, make every test read that constant instead of writing "off" into the test, and do not write "off by default" into README, CLAUDE.md or the demo tour in this wave (describe the setting, not its default). That way Wave 25 changes one constant and the tests that follow it, and no text has to be changed twice.
    - **Off:** BMO is still in the UI, as a deterministic assistant. No prompt is built, nothing is sent, no handoff file is written, and the fake and provider backends are never called.
    - **Fixed commands** (`src/assistant/commands.ts`, new). Each is a pure function of the model, the docs corpus and its arguments:
 
@@ -272,8 +272,11 @@ Options: (1) **notes are model data, written by those who edit the model; every 
 
 **Later change [2026-11-19].** You then said comments should be reachable by BMO ("everything a person can visualize on screen"). So the reasoning in (a) that kept comments away from BMO no longer holds: comments reach BMO as labelled data (see the follow-up under Q2.2, DEC-094). Who may write what is unchanged: model notes and stickies by those who edit the model, comments by every account.
 
-**Applied [2026-11-19].** (a) Notes are model data, written by those who edit the model; every other account uses comments with images and files. (b) Waves 10 and 12 stay parked in the ideas list; nothing changes from last time.
+**Applied [2026-11-19].** (a) Notes are model data, written by those who edit the model; every other account uses comments with images and files. (b) Waves 10 and 12 stay parked in the ideas list; nothing changes from last time. (Their wave files were deleted on 2026-11-20; the designs are in the ideas list, I2.3 and I2.7.)
 
+## Added by the 2026-11-20 split
+
+- **[Wave 25](wave-25-bmo-own-subscription.md) turns BMO on by default** (planned_features A2) using the setting and the deterministic commands built here. Keep the "Use an LLM" setting of DEC-093 and the commands (`find`, `help`, `show`, `notes`, `decisions about`) stable and documented; Wave 25 depends on them and runs after this wave.
 ## Stop and ask if
 
 - ★Q2.1 turns out to need a separate note per object per diagram. Nothing stores per-diagram, per-object text except layout.
@@ -293,7 +296,7 @@ Options: (1) **notes are model data, written by those who edit the model; every 
 | 6 | BMO without an LLM | general-purpose · Opus | `src/assistant/commands.ts` (new), `src/assistant/settings.ts`, `src/server/routes/bmo.ts`, `ui/src/hooks/useBmo.ts`, `ui/src/common/BmoChat.tsx`, BMO settings UI | With the switch off, nothing is built or sent and the commands work; free text runs as `find` |
 | 7 | `dp context`, `dp find`, help corpus, search, help task | general-purpose · Sonnet | `src/cli.ts`, `scripts/` (corpus build), `src/assistant/help.ts` (new), `prompts.ts` | Byte-stable output; search ranks deterministically; help answers cite sections |
 | 8 | Tests by another agent | general-purpose · Sonnet | `tests/unit/`, `tests/browser/` | Tests as listed below |
-| 9 | Docs | general-purpose · Haiku | CHANGELOG, decisions.md (update DEC-092 and DEC-093 if the build differs), reviews.md, CLAUDE.md, README, `docs/determinism.md` | All docs updated |
+| 9 | Docs | general-purpose · Haiku | decisions.md (update DEC-092 and DEC-093 if the build differs), the review file (notes for the release entry, not the CHANGELOG), CLAUDE.md, README, `docs/determinism.md` | All docs updated |
 | 10 | Review | main session | — | `/code-review` (high) and `/security-review` (the renderer, and what the LLM-off mode can send) findings fixed |
 
 ## Required in this wave
@@ -345,7 +348,7 @@ Options: (1) **notes are model data, written by those who edit the model; every 
 - **DEC-092, DEC-093 and DEC-094** are already written (2026-11-19): sticky notes as model data and BMO always reading notes and comments (amends DEC-070 and DEC-073), BMO without an LLM, and screen parity (BMO can reach everything the UI shows). This wave adds one more DEC for the help corpus, what ships, and `dp context` as the alternative to MCP.
 - **README:** notes, stickies, `dp context`, `dp find`, help, the LLM switch.
 - **CLAUDE.md:** the new files (`commands.ts`, `help.ts`, `Markdown.tsx`, the Notes page) and a line that placed notes are comments while stickies are model data.
-- **CHANGELOG** and **reviews.md:** this wave's entries.
+- **The review file** (not the CHANGELOG, which the release change writes): this wave's entries.
 - **`docs/determinism.md`:** rows for this wave.
 - **planned_features.md:** the MCP row gets a pointer to `dp context`.
 

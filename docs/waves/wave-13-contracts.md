@@ -3,10 +3,10 @@
 | | |
 |---|---|
 | **Status** | Owner answers applied (2026-11-19; decided 2026-11-20: JSON only, no YAML dependency in this wave). Ready to run after Waves 4 and 6 |
-| **Branch** | `feat/w13-contracts`, from `main` after Waves 4 and 6 are merged (Wave 12 is parked and not needed) |
+| **Branch** | `feat/w13-contracts`, from `main` after Waves 4 and 6 are merged (the parked runtime work is not needed) |
 | **Size** | M–L |
-| **Release** | 0.11.0 (with Waves 14, 20, 22) |
-| **Depends on** | Wave 4 (data access letters), Wave 6 (Findings, acknowledgements) |
+| **Release** | 0.12.0 (with Waves 14b, 22, 20) |
+| **Depends on** | Wave 4 (data access letters), Wave 6 (Findings, acknowledgements). [Wave 19](wave-19-lenses-for-roles.md) (the new lenses, 0.11.0) is built first, so step 4 adds a "contracts" section to the lenses (see step 4) |
 | **Owner items** | 19 ([README.md](README.md#where-each-item-went)) |
 
 Read [README.md](README.md) first: its rules, agents and checks apply to this wave.
@@ -204,9 +204,8 @@ Anything else is "changed, impact unknown".
 | 1 | Re-anchor | Explore · Haiku | The files above | Anchors confirmed |
 | 2 | Contract meaning: direction rules, canonical fingerprint, breaking classes | general-purpose · Opus | `src/core/contracts.ts` (new), `src/core/impact.ts` (new), `modelEdits.ts`, `types.ts` | Fingerprints stable; breaking rules correct by direction |
 | 3 | Finding changes, marking as checked, CLI, home and bell | general-purpose · Sonnet | `drafts.ts` and `diff.ts` (the impact list), `homeSummary.ts`, `App.tsx`, `src/cli.ts`, `src/server/routes/contracts.ts` (new), `auth.ts` | Exit codes correct; ROUTE_RULES added |
-| 4 | UI: contract field in the panel, badges, impact in the change list and apply dialog | general-purpose · Sonnet | `RelationshipPanel.tsx`, `BoxesAndLines.tsx`, `ui/src/drafts/ChangeList.tsx`, `ApplyDialog.tsx` | Works by keyboard |
-| 5 | Fixtures and tests (another agent) | general-purpose · Sonnet | `tests/fixtures/contracts/`, `tests/unit/contracts*.test.ts`, `tests/browser/` | Tests as listed below |
-| 6 | Docs and CI example | general-purpose · Haiku | CHANGELOG, decisions.md, reviews.md, README, CLAUDE.md, `demo/ci-examples/` | All docs updated |
+| 4 | UI: contract field in the panel, badges, impact in the change list and apply dialog; **a `contracts` section added to the lenses** (added in the second look at the waves, 2026-11-20: Wave 19 builds the DevOps, Security and Business lenses first and lists no such section) | general-purpose · Sonnet | `RelationshipPanel.tsx`, `BoxesAndLines.tsx`, `ui/src/drafts/ChangeList.tsx`, `ApplyDialog.tsx`, `src/shared/types.ts` (`SECTIONS`), `src/core/designPerspectivesFile.ts` (the built-in lens list) | Works by keyboard; DevOps, Security, Architect and Engineer show the contract section, Business and Overview do not; a lens a person saved before keeps its own choice || 5 | Fixtures and tests (another agent) | general-purpose · Sonnet | `tests/fixtures/contracts/`, `tests/unit/contracts*.test.ts`, `tests/browser/` | Tests as listed below |
+| 6 | Docs and CI example | general-purpose · Haiku | decisions.md, the review file (notes for the release entry, not the CHANGELOG), README, CLAUDE.md, `demo/ci-examples/` | All docs updated |
 | 7 | Review | main session | — | `/code-review` (high) findings fixed |
 
 ## Required in this wave
@@ -236,7 +235,7 @@ Anything else is "changed, impact unknown".
   - how people are told.
 - **README:** contracts.
 - **CLAUDE.md:** `contracts.ts` and `impact.ts`.
-- **CHANGELOG** and **reviews.md:** this wave's entries.
+- **The review file** (not the CHANGELOG, which the release change writes): this wave's entries.
 - **`docs/determinism.md`:** rows for this wave.
 
 ## Out of scope

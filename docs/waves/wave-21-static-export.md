@@ -5,8 +5,8 @@
 | **Status** | Planned 2026-11-20 from the owner's answer D1 ("static export will be done before deployment of v1", DEC-100). The four open choices (D16 to D19) were decided on 2026-11-20 by the assistant's reasoning, at the owner's request (DEC-102). The design is otherwise a Proposal. Ready to run after Wave 20 |
 | **Branch** | `feat/w21-static-export`, from `main` after the previous wave is merged |
 | **Size** | M–L (split point: 21a the export build, the folder form and the review step; 21b the single file and the CI examples) |
-| **Release** | 0.12.0 (its own release, last before 1.0.0; DEC-102, DEC-103) |
-| **Depends on** | Waves 2, 3, 6, 8, 9, 13 and 16 for what the export carries (it can be built before them and gain rows as they land, but it should be run last so it is built once against their final shape). Hard dependency: none |
+| **Release** | 0.13.0 (its own release, the last feature wave before 1.0.0; DEC-102, DEC-103, DEC-106). [Wave 28b](wave-28-quality-for-1-0.md) (0.14.0) follows it, because its accessibility audit also audits the exported single file |
+| **Depends on** | Waves 2, 3, 6, 8, 9, 13, 16 and 27 for what the export carries (27, the small batch, ships earlier, in 0.8.0, and adds the technology toggle and the inherited owner to what a snapshot shows) (it can be built before them and gain rows as they land, but it should be run last so it is built once against their final shape). Hard dependency: none |
 | **Owner items** | DEC-024, DEC-028, scope decision P3 (DEC-104). Not one of the twelve features: it is how a model is shared with people who cannot run Node, and it supports features B and E |
 
 Read [README.md](README.md) first: its rules, agents and checks apply to this wave.
@@ -93,7 +93,7 @@ DEC-024 (2026-11-14) set the design: the built UI plus a snapshot of the model, 
 ## Owner answers
 
 - **D1 (2026-11-20, DEC-100):** the export is part of 1.0.0, built before it. Scope review P3 becomes "keep".
-- **D16 to D19 (2026-11-20, DEC-102; the owner asked for the assistant's best reasoning):** its own release (0.11.0, moved to 0.12.0 by DEC-103); the two lists of item 5; both shapes, from a second build target; one project at a time.
+- **D16 to D19 (2026-11-20, DEC-102; the owner asked for the assistant's best reasoning):** its own release (0.11.0, moved to 0.12.0 by DEC-103, then to 0.13.0 by DEC-106); the two lists of item 5; both shapes, from a second build target; one project at a time.
 
 ## Stop and ask if
 
@@ -106,12 +106,12 @@ DEC-024 (2026-11-14) set the design: the built UI plus a snapshot of the model, 
 
 | # | Step | Agent · model | Files | Done when |
 |---|---|---|---|---|
-| 1 | Re-anchor, and check the `file:` behaviour of the current build in three browsers | Explore · Haiku, then the main session | The files above, `static/index.html` | Anchors confirmed; the check is written in reviews.md |
+| 1 | Re-anchor, and check the `file:` behaviour of the current build in three browsers | Explore · Haiku, then the main session | The files above, `static/index.html` | Anchors confirmed; the check is written in the review file |
 | 2 | Snapshot builder: which routes, keyed by version; byte-stable output | general-purpose · Opus | `src/core/exportHtml.ts` (new), `src/server/routes/*` (read) | Every route the UI calls in read-only mode has an entry; two runs give identical bytes |
 | 3 | UI export mode: the `api.ts` switch, the banner, hidden controls | general-purpose · Sonnet | `ui/src/api.ts`, `ui/src/App.tsx`, `ui/src/exportMode.ts` (new) | An exported demo opens, every diagram and page reads, no control writes |
 | 4 | Review report, `--without`, `--with`, the secret refusal, the CLI | general-purpose · Opus | `src/core/exportReport.ts` (new), `src/cli.ts` | The report matches the content; the refusal works on a planted secret |
 | 5 | The export build target (21a: step 3 needs it) and the single-file inlining (21b) | general-purpose · Sonnet | `ui/vite.export.config.ts` (new), `ui/package.json`, `package.json` (`files`), `scripts/ci-local.ts`, `.gitlab-ci.yml` | The folder and the single file open from disk in three browsers; the CI check that committed build output is current covers `static-export/` |
-| 6 | CI examples, docs | general-purpose · Haiku | `demo/ci-examples/`, README, CLAUDE.md, decisions.md, reviews.md | Docs updated |
+| 6 | CI examples, docs | general-purpose · Haiku | `demo/ci-examples/`, README, CLAUDE.md, decisions.md, the review file (notes for the release entry, not the CHANGELOG) | Docs updated |
 | 7 | Tests, by a different subagent from steps 2 to 4 | general-purpose · Sonnet | `tests/unit/export-*.test.ts`, `tests/browser/export.spec.ts` | As listed below |
 | 8 | Review | main session | — | `/code-review` (high) and `/security-review` findings fixed |
 
@@ -122,7 +122,7 @@ DEC-024 (2026-11-14) set the design: the built UI plus a snapshot of the model, 
 - **Model data.** None added.
 - **Security model** in `docs/CONTRIBUTING.md`: the export as a path by which the model leaves the machine, the review, the refusal and the options.
 - **Windows:** paths in `--out` and in the snapshot's keys.
-- **Performance.** A test on a generated project of 2,000 elements with 200 diagrams: the time and the output size, written down in reviews.md.
+- **Performance.** A test on a generated project of 2,000 elements with 200 diagrams: the time and the output size, written down in the review file.
 
 ## Tests
 

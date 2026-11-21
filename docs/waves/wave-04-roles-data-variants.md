@@ -5,8 +5,8 @@
 | **Status** | Owner answers applied (2026-11-19 for the variants, 2026-11-20 for the data half). The owner answered Q4.1 to Q4.3, so the data half (CRUD letters, role × data matrix) is **kept**; the scope decision for P4 is keep (DEC-104). Ready to run |
 | **Branch** | `feat/w04-roles-data-variants`, from `main` after the previous wave is merged |
 | **Size** | M |
-| **Release** | 0.7.0 |
-| **Depends on** | Nothing in this plan; can move earlier or later |
+| **Release** | 0.8.0 (with Waves 3, 26, 16, 27; run before Wave 27, see below) |
+| **Depends on** | Nothing in this plan. Wave 13 (contracts, 0.12.0) needs it. Two things in it are shared with other waves (added in the second look at the waves, 2026-11-20): **the CSV writer** `src/core/csv.ts` (step 4) is reused by Waves 7 and 27, and **the condition chip on a line** changes label sizing, which [Wave 27](wave-27-small-batch.md) (technology on lines) changes next |
 | **Owner items** | 20, 5 ([README.md](README.md#where-each-item-went)) |
 
 Read [README.md](README.md) first: its rules, agents and checks apply to this wave.
@@ -72,7 +72,7 @@ The explanation of A/B testing in C4 is in section 0.1 of the questions section 
      - the letters set on the row's own relationships;
      - greyed, the letters the person **can reach** through the containers they use. For person → web app → database, these are the web app's letters on its line to the database.
    - The reach is computed with a depth limit and protection against cycles. It is labelled "can reach", because it says what the path allows, not what the role is allowed to do.
-   - Filters: sensitive data only, and one holder. The table exports as CSV.
+   - Filters: sensitive data only, and one holder. The table exports as CSV, through **one shared writer, `src/core/csv.ts`, that this wave builds first** (RFC 4180 quoting, a fixed column order, byte-stable output, and a leading formula character neutralised: a cell starting with `=`, `+`, `-` or `@` gets a leading apostrophe, because a spreadsheet can run such a cell). Wave 7 (`dp metrics --csv`) and Wave 27 (`dp export csv`) call the same writer; none of them writes a second one.
 4. **Checks.** These are `dp check` warnings for now; they become Findings in Wave 6 and Wave 8.
    - Sensitive data that a person can delete, explicitly or through reach.
    - An asset nobody creates (not for an entry still marked "legacy write": its letters were never chosen).
@@ -109,7 +109,7 @@ Applied 2026-11-19 (Part A) and 2026-11-20 (Part B, [the questions section below
 - **Q4.4:** option 1. Each variant is its own flow; variants share a key and show as tabs in the flow player.
 - **Q4.5:** yes, an optional condition on a line, shown as a chip, with a diagram filter.
 - **Q4.6 (best thinking):** wait for deployment diagrams, which are infrastructure and after 1.0.0 (DEC-104, P1).
-- **The observed A/B split** was Wave 12's; that wave is parked (answer A7).
+- **The observed A/B split** belonged to the parked runtime work (ideas list I2.7) (answer A7).
 
 ## Questions, options and answers (moved from questions.md)
 
@@ -141,7 +141,7 @@ Measuring the experiment means sending exposure and conversion events to an anal
 
 **Proposed**
 - Wave 4: an optional condition on lines, and A/B variants as grouped flows, with a short guide.
-- Wave 12: the observed split from telemetry, when the telemetry carries it.
+- The parked runtime work (ideas list I2.7): the observed split from telemetry, when the telemetry carries it.
 - Canary and blue/green wait for deployment diagrams.
 
 See Q4.4 to Q4.6 and Q12.3.
@@ -248,10 +248,10 @@ See Q4.4 to Q4.6 and Q12.3.
 | 1 | Re-anchor | Explore · Haiku | The files above | Anchors confirmed |
 | 2 | Variant flows and conditions (model, units, merge, renumbering) | general-purpose · Opus | `src/core/flows.ts`, `modelEdits.ts`, `modelUnits.ts`, `diff.ts`, `src/core/merge.ts` | Variants survive saves, drafts and merges; old flows are unchanged |
 | 3 | CRUD letters: model and compatibility | general-purpose · Sonnet | `modelEdits.ts` (`cleanAccess`), `types.ts`, `catalog.ts`, `DataSections.tsx`, `ElementPanel.tsx` | Old files load and save byte-identically when untouched |
-| 4 | Matrix page, reach, checks | general-purpose · Sonnet | `ui/src/pages/AccessPage.tsx` (new), `src/core/access.ts` (new), `src/core/cliReports.ts`, `App.tsx`, `useNavigation.ts` | The page works by keyboard; reach handles cycles |
+| 4 | Matrix page, reach, checks, and the shared CSV writer | general-purpose · Sonnet | `ui/src/pages/AccessPage.tsx` (new), `src/core/access.ts` (new), `src/core/csv.ts` (new), `src/core/cliReports.ts`, `App.tsx`, `useNavigation.ts` | The page works by keyboard; reach handles cycles; the CSV writer quotes, neutralises formula cells and gives the same bytes twice |
 | 5 | Flow UI: groups, tabs, condition chips, filter | general-purpose · Sonnet | `ui/src/panels/FlowPanel.tsx`, `useFlowPlayer.ts`, `ui/src/canvas/BoxesAndLines.tsx`, `ui/src/canvas/FlowPlayer.tsx` | Tabs work; chips show; the filter works |
 | 6 | Tests by another agent | general-purpose · Sonnet | `tests/unit/`, `tests/browser/` | Tests as listed below |
-| 7 | Demo and docs | general-purpose · Haiku | `scripts/make-demo.ts` (a variant pair and CRUD letters in the demo), CHANGELOG, decisions.md, reviews.md, README, CLAUDE.md | `npm run make-demo` result committed |
+| 7 | Demo and docs | general-purpose · Haiku | `scripts/make-demo.ts` (a variant pair and CRUD letters in the demo), decisions.md, the review file (notes for the release entry, not the CHANGELOG), README, CLAUDE.md (`access.ts`, `csv.ts`) | `npm run make-demo` result committed |
 | 8 | Review | main session | — | `/code-review` (high) findings fixed |
 
 ## Required in this wave
@@ -261,7 +261,7 @@ See Q4.4 to Q4.6 and Q12.3.
 - **Read-only mode.** No edits.
 - **Model data.** `ops`, `dp.condition`, `dp.variant` and `dp.variantOf` need units, diff labels, merge, the change list and `dp diff`.
 - **Static export.** It includes all of these.
-- **CHANGELOG.** Note that an older dp sees only read or write.
+- **Notes for the release entry** (in the review file; the release change writes the CHANGELOG): an older dp sees only read or write.
 
 ## Tests
 
@@ -278,6 +278,7 @@ See Q4.4 to Q4.6 and Q12.3.
   - The depth limit.
   - A person with no relationships.
 - **Checks:** sensitive data deletable by a person; an asset with no creator.
+- **CSV writer** (`src/core/csv.ts`): quoting of commas, quotes and newlines; a cell starting with `=`, `+`, `-` or `@` gets a leading apostrophe; fixed column order; the same bytes twice; an empty table gives the header only.
 - **Variants**
   - Renumbering keeps the variant properties.
   - Group, draft, apply.
@@ -292,14 +293,14 @@ See Q4.4 to Q4.6 and Q12.3.
 - **New DEC:** CRUD letters and their compatibility; people as roles and "can reach"; variants as grouped flows; conditions on relationships.
 - **README:** the A/B guide.
 - **CLAUDE.md:** `access.ts` and `AccessPage.tsx`.
-- **CHANGELOG** and **reviews.md:** this wave's entries.
+- **The review file** (not the CHANGELOG, which the release change writes): notes for the release entry, including that an older dp sees only read or write.
 - **`docs/determinism.md`:** rows for this wave.
 
 ## Out of scope
 
 - Policy letters ("allowed").
 - Canary and blue/green, which need deployment diagrams.
-- Variant splits seen in telemetry (Wave 12, parked).
+- Variant splits seen in telemetry (parked runtime work, ideas list I2.7).
 - Findings and acknowledgements (Wave 6).
 
 ## Start prompt

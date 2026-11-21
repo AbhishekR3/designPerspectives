@@ -5,7 +5,7 @@
 | **Status** | Owner answers applied (2026-11-19). Ready to run after Wave 7 |
 | **Branch** | `feat/w09-characteristics-table`, from `main` after Wave 8 is merged |
 | **Size** | M |
-| **Release** | 0.10.0 (with Wave 11) |
+| **Release** | 0.11.0 (with Waves 11, 17, 18, 19) |
 | **Depends on** | Wave 7 (coupling hints from the model). Works without it if the hints are left out |
 | **Owner items** | 7 ([README.md](README.md#where-each-item-went)) |
 
@@ -94,7 +94,7 @@ Applied 2026-11-19: the owner answered Part A and left Part B blank, so every Q 
 - **Q9.4:** more than seven driving characteristics gives a warning.
 - **Q9.5:** an older dp drops the new value when it saves; the CHANGELOG says so.
 - **2026-11-20 (best thinking):** Q9.1 to Q9.5 hold as recommended. The only change is that hints come from the model's coupling and cycles, because Wave 7 measures the model.
-- **Vision:** feature L, the "-ilities". Wave 10, which followed this wave, is parked.
+- **Vision:** feature L, the "-ilities". Risk storming, which was to follow this wave, is parked (ideas list I2.3).
 
 ## Questions, options and answers (moved from questions.md)
 
@@ -169,7 +169,7 @@ Applied 2026-11-19: the owner answered Part A and left Part B blank, so every Q 
 | 3 | Table page and compare | general-purpose · Sonnet | `ui/src/pages/CharacteristicsPage.tsx` (new), `App.tsx`, `useNavigation.ts`, `useModel.ts` (two versions) | Edits in place work; the compare works across drafts and refs |
 | 4 | Hints and the gap overlay | general-purpose · Sonnet | `colourOverlays.ts`, `src/core/metrics.ts` (read) | Hints are never written to stars |
 | 5 | Tests by another agent | general-purpose · Sonnet | `tests/unit/`, `tests/browser/` | Tests as listed below |
-| 6 | Demo and docs | general-purpose · Haiku | `scripts/make-demo.ts` (targets in the demo), CHANGELOG, decisions.md, reviews.md, README, CLAUDE.md | `make-demo` result committed |
+| 6 | Demo and docs | general-purpose · Haiku | `scripts/make-demo.ts` (targets in the demo), decisions.md, the review file (notes for the release entry, not the CHANGELOG), README, CLAUDE.md | `make-demo` result committed |
 | 7 | Review | main session | — | `/code-review` (high) findings fixed |
 
 ## Required in this wave
@@ -179,7 +179,7 @@ Applied 2026-11-19: the owner answered Part A and left Part B blank, so every Q 
 - **Read-only mode.** The table can be viewed but not edited.
 - **Model data.** `target` and `impacts` need units, diff labels, merge, the change list and `dp diff`.
 - **Static export.** It includes the table.
-- **CHANGELOG.** An older dp drops `target` when it saves (Q9.5).
+- **Notes for the release entry** (in the review file; the release change writes the CHANGELOG): an older dp drops `target` when it saves (Q9.5).
 
 ## Tests
 
@@ -194,7 +194,7 @@ Applied 2026-11-19: the owner answered Part A and left Part B blank, so every Q 
 - **New DEC:** needed and current; inheritance; `impacts` in decisions; hints are never written into ratings.
 - **README:** the table.
 - **CLAUDE.md:** `CharacteristicsPage.tsx`.
-- **CHANGELOG** and **reviews.md:** this wave's entries.
+- **The review file** (not the CHANGELOG, which the release change writes): this wave's entries.
 - **planned_features.md:** B5 ("rating targets") done; ratings on relationships and flows stay.
 - **`docs/determinism.md`:** rows for this wave.
 

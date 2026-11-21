@@ -5,7 +5,7 @@
 | **Status** | Owner answers applied (2026-11-19; Q3.1 to Q3.5 answered: the page stays "Decisions", plus references to local files). Ready to run after Wave 2. Uploads are in [Wave 16](wave-16-attachments.md) |
 | **Branch** | `feat/w03-reference-and-adrs`, from `main` after Wave 2 is merged |
 | **Size** | M |
-| **Release** | 0.7.0 |
+| **Release** | 0.8.0 (with Waves 26, 16, 4, 27) |
 | **Depends on** | Wave 2 (the Markdown renderer) |
 | **Owner items** | 4, 13 ([README.md](README.md#where-each-item-went)) |
 
@@ -298,7 +298,7 @@ Applied 2026-11-19: the owner answered Part A and Q3.1 to Q3.5 ([the questions s
 | 5 | Search for "ADR", links (web, `code:`, `local:`), prose rendering, Compliance | general-purpose · Sonnet | `decisions.ts`, `diff.ts`, `DecisionsPage.tsx`, `DecisionEditor.tsx`, `App.tsx`, the search box and help card | Links parse and serialize byte-identically; unsafe links are refused; "ADR" finds the Decisions page |
 | 6 | *(Uploads moved to Wave 16)* | — | — | — |
 | 7 | Tests by another agent | general-purpose · Sonnet | `tests/unit/`, `tests/browser/` | Tests as listed below |
-| 8 | Docs | general-purpose · Haiku | CHANGELOG, decisions.md, reviews.md, CLAUDE.md (the list of files kept outside the workspace), README | All docs updated |
+| 8 | Docs | general-purpose · Haiku | decisions.md, the review file (notes for the release entry, not the CHANGELOG), CLAUDE.md (the list of files kept outside the workspace), README | All docs updated |
 | 9 | Review | main session | — | `/code-review` (high) and `/security-review` findings fixed |
 
 ## Required in this wave
@@ -332,7 +332,7 @@ Applied 2026-11-19: the owner answered Part A and Q3.1 to Q3.5 ([the questions s
 - **New DEC:** the library is kept beside the model with a precedence rule and architect-only edits; links in decisions, including `local:` references; the page keeps the name "Decisions". It amends DEC-050 where decisions change.
 - **README:** the reference notes and Decisions (ADRs).
 - **CLAUDE.md:** the map and the list of files outside the workspace.
-- **CHANGELOG** and **reviews.md:** the wave's entries.
+- **The review file** (not the CHANGELOG, which the release change writes): the wave's entries.
 - **`docs/determinism.md`:** rows for this wave.
 
 ## Decided (DEC-103, 2026-11-20; assistant's reasoning, the owner may overrule)

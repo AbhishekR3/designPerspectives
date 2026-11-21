@@ -5,7 +5,7 @@ The running list of project decisions and the reasoning behind them, grouped by 
 **Entry format:** `<topic code>-<n> · DEC-<id> — title`, then date · status · who decided · decision · why · trade-off. "Owner" means the project owner. "Proposal" means the choice was delegated and made by the assistant, as an interpretation rather than a sourced fact.
 
 **Rules**
-- The DEC id is the permanent name of a decision. Other files cite it; never reuse or renumber one. The next free id is the one after the highest DEC id in this file (**DEC-106** on 2026-11-20).
+- The DEC id is the permanent name of a decision. Other files cite it; never reuse or renumber one. The next free id is the one after the highest DEC id in this file (**DEC-108** on 2026-11-20).
 - Add a new entry at the end of the subtopic it belongs to (or a new subtopic), with the next free DEC id and the next free `<code>-<n>` of its topic. The `<code>-<n>` numbers are positions in this file; a DEC id is not.
 - Do not rewrite old entries. When a decision changes, add a new entry and set the old one's status to "Superseded by <ID>", with a "Now:" line saying what changed. The bracket after a title is the state on 2026-11-20.
 - Entries are in DEC order within a subtopic, except for entries added later. DEC-074 to DEC-084 are dated 16 November but were written after the 17 November entries.
@@ -13,7 +13,7 @@ The running list of project decisions and the reasoning behind them, grouped by 
 
 | Code | Topic | Entries |
 |---|---|---|
-| PRO | Project, scope and process | 21 |
+| PRO | Project, scope and process | 23 |
 | STK | Stack, files and repo layout | 7 |
 | MOD | Model and diagrams | 15 |
 | CAN | Canvas, editing and layout | 11 |
@@ -35,11 +35,13 @@ The running list of project decisions and the reasoning behind them, grouped by 
 | 024 static export | In 1.0.0, planned as [Wave 21](waves/wave-21-static-export.md) (DEC-100); release, defaults, shapes and hubs in DEC-102 |
 | 095 open a local file | Confirmed by the owner (DEC-100); planned in Wave 16 |
 | 100 release steps, shared-checkout rule | Written in [CONTRIBUTING.md](CONTRIBUTING.md); the first release made with them is 0.6.0 |
-| 101 credentials always encrypted | Planned: [planned_features.md](planned_features.md) A7 |
+| 101 credentials always encrypted | Planned: [planned_features.md](planned_features.md) A7, as [Wave 23](waves/wave-23-sealed-credentials.md) (0.6.1) |
 | 102 static export: release, defaults, shapes, hubs | Planned: [Wave 21](waves/wave-21-static-export.md); release number moved to 0.12.0 by 103 |
 | 103 code import and BMO choices (N1 to N15), 0.8.0 split | Planned: Waves 3, 5, 6, 15 and 22 (digests) |
 | 105 a finished wave is replaced by its review file | Rule for wave agents: [waves/README.md](waves/README.md#closing-a-wave); no wave is built yet |
-| 104 scope of 1.0.0, item by item | Documents written; hiding System Testing, traces and the demo system is planned: [planned_features.md](planned_features.md) A8 |
+| 106 first release group split, Waves 23 to 27 | Planned: [Waves 23 to 27](waves/README.md); release numbers 0.6.1 to 0.13.0; the groups changed again by 107 |
+| 107 the second look at the waves | Planned: [Waves 28 and 29](waves/README.md#the-second-look-at-the-waves-2026-11-20), a real-run gate in Wave 1, the context window rule (Wave 14a), release numbers 0.6.1 to 0.14.0 |
+| 104 scope of 1.0.0, item by item | Documents written; hiding System Testing, traces and the demo system is planned as [Wave 29](waves/wave-29-system-testing-switch.md) (DEC-107) |
 
 **Not (fully) live**
 
@@ -199,6 +201,7 @@ The running list of project decisions and the reasoning behind them, grouped by 
   - Minor bumps for each wave group mean X passes 8 and 9 before 1.0.0 (0.10.0 sorts after 0.9.0 under SemVer, not as text).
   - The 0.6.0 section is dated by its last commit while `package.json` and the README still say 0.5.0 until the release change is made.
   - Now: DEC-103 regroups the waves after 0.7.0: 0.8.0 (5, 15), 0.9.0 (6, 7, 8), 0.10.0 (9, 11, 17, 18, 19), 0.11.0 (13, 14, 22, 20), 0.12.0 (21). The numbering rule itself is unchanged.
+  - Now: DEC-106 splits the first group and adds Waves 23 to 27: 0.6.1 (23), 0.7.0 (24, 1, 2, 25 and A8), 0.8.0 (3, 26, 16, 4), 0.9.0 (5, 15), 0.10.0 (6, 7, 8, 27), 0.11.0 (9, 11, 17, 18, 19), 0.12.0 (13, 14, 22, 20), 0.13.0 (21).
 
 
 ### Roadmap order
@@ -323,6 +326,7 @@ The running list of project decisions and the reasoning behind them, grouped by 
 - Decision:
   - **D16, release.** Wave 21 is its own release, **0.11.0**, run last, after the waves of 0.10.0.
     - Now: DEC-103 splits 0.8.0, so every later group moves up by one and Wave 21 is **0.12.0**, still last.
+    - Now: DEC-106 splits 0.7.0, so Wave 21 is **0.13.0**, still last.
   - **D17, what an export includes.** The rule: an export shows what the diagrams and panels show about the architecture; whatever is not the model itself, or has the most risk of leaving by accident, is opt-in. Included by default, each removable with `--without`: the model, `notes`, `decisions`, `links`, `owners`, `addresses`, `library`, `keycode`, `findings`, `contracts`. Left out by default, each added with `--with`: `comments`, `attachments`, `work`, `costs`, `local-paths` (without it, a file name only), `code`, `checklist`, `import-review`, `bmo-runs`. A secret-looking value always refuses the export. `.dp/`, credentials, users, integrations and drafts are never exported. The command only prints a report until `--yes` is given.
   - **D18, shapes.** Both are built, from one second UI build target (classic script, relative paths, data as script files, elkjs as a separate classic script): a **folder** that opens from a web host and from disk (21a), and a **single file** with everything inline (21b). The check that this works from a `file:` address in three browsers is the first step of the wave; if it fails in one, the wave stops and asks.
   - **D19, hubs.** One project per export. No home page, catalog or cross-project Work page. A folder per project with an index page may come after 1.0.0.
@@ -356,7 +360,9 @@ The running list of project decisions and the reasoning behind them, grouped by 
   - **N8, a pinned key-code entry that no longer matches.** A finding (Wave 6) the person can acknowledge. Never silent, never removed by dp; when only the name is gone and the file exists, the finding says so.
   - **N9, Wave 14.** Stays where it is.
   - **N10, the 0.8.0 split.** 0.8.0 is Waves 5 and 15 (the import release). 0.9.0 is Waves 6, 7, 8. 0.10.0 is Waves 9, 11, 17, 18, 19. 0.11.0 is Waves 13, 14, 22, 20 (22 is the digests wave of N13, run before 20). The static export (Wave 21) is 0.12.0.
+    - Now: DEC-106 moves every group after 0.7.0 up by one: the import release (Waves 5 and 15) is 0.9.0.
   - **N11, labels.** Each import step carries a fixed badge: "no LLM" or "needs an LLM".
+  - Now (N12, N15): DEC-107 settles the refusal rule: a window the person typed is a limit and a larger request is refused; with none typed, dp warns and shows "limit not set"; the pass-budget refusal stays.
   - **N12, N15, context window.** A new optional BMO setting holds the model's context window, typed by the person. The size refusal stays tied to the pass budget; the window drives a warning and the limit shown beside the estimate in the BMO sheet, which says "limit not set" when it is unknown. Reading an Ollama model's own value is allowed only after a check against a real server (manual-test-plan U27).
   - **N13, digests.** A wave of its own after Waves 5 and 15 ([Wave 22](waves/wave-22-digests.md), 0.11.0, before Wave 20): digests per container and component in `architecture/import/digests/`, a computed part plus a labelled BMO summary, and a hash that marks a digest out of date and never regenerates it silently. The agent instructions file is written only on request (`dp context --write`).
   - **N14, assumptions.** The assumption work of DEC-099 is built in Wave 3 (the decision record and its page), with the "wrong" state as a small checklist change; Wave 6 reads that state and does not define it.
@@ -429,6 +435,50 @@ The running list of project decisions and the reasoning behind them, grouped by 
 - Why: the wave file is a plan, and once the wave is built it describes what was meant, not what exists; the review says what is true. Copying the questions section keeps the options and the owner's words, which no other file holds.
 - Alternatives considered: a section per wave in `reviews.md` (the earlier rule; one big file, and the wave file would still have to be deleted by hand later); keeping wave files until 1.0.0 (plans and reality sit side by side and drift).
 - Trade-offs: links must be fixed at each close, and a missed one breaks a document (the agent runs a link check); the plan is no longer there to compare with the result, so the review file records the differences; the file name differs from the owner's wording only by the dash (`wave-01-review.md` follows the `wave-01-...` names).
+
+#### PRO-22 · DEC-106 — The first release group is split, and Waves 23 to 27 are added from the planned features
+
+- Date: 2026-11-20 · Status: Accepted (documents only; no wave is built) · Decided by: Owner ("Split it the best way you think. You can increase the number of waves"). The split, the five new waves and their order are the assistant's reasoning and so a Proposal. Amends DEC-098, DEC-102 and DEC-103 (release numbers only).
+- Facts: 0.7.0 held Waves 1, 2, 3, 16, 4 and, in effect, entries A2 to A5, A7 and A8 of [planned_features.md](planned_features.md), which nothing in the waves placed (A8 only said "0.7.0 group"). The small batch (DEC-104, P2) was kept in 1.0.0 but had no release.
+- Decision:
+  - **Five new waves**, each from a planned-features entry: [Wave 23](waves/wave-23-sealed-credentials.md) (A7, credentials always sealed), [Wave 24](waves/wave-24-remove-project-from-hub.md) (A3, remove a project from a hub), [Wave 25](waves/wave-25-bmo-own-subscription.md) (A2 and the first half of A4, BMO on from the start with your own subscription), [Wave 26](waves/wave-26-users-and-roles.md) (A5, a Users page) and [Wave 27](waves/wave-27-small-batch.md) (the small batch).
+  - **A8 stays a planned-features entry, not a wave** (DEC-104 refused a wave for it). It is done in the 0.7.0 group before that release change.
+  - **The release groups.** 0.6.1 (Wave 23, a security fix, so a patch under DEC-098); 0.7.0 (Waves 24, 1, 2, 25 and A8); 0.8.0 (Waves 3, 26, 16, 4); then every later group moves up by one: 0.9.0 (5, 15), 0.10.0 (6, 7, 8, 27), 0.11.0 (9, 11, 17, 18, 19), 0.12.0 (13, 14, 22, 20), 0.13.0 (21). Then 1.0.0.
+  - **Order inside the groups.** Wave 23 first, before the owner's first real provider call. Wave 25 after Waves 1 and 2 (it needs the citation checker and the deterministic BMO). Wave 26 before Wave 16, so attaching has people with roles. Wave 27 after Wave 7, so the CSV export can share its writer.
+  - **Table items placed in existing waves** (no new wave): the "needs a look" alignment in Wave 6; the context-window display in Wave 14; the "no LLM" badge, the per-level Import URL, the known-services upkeep, the CODEOWNERS owner cards and the second half of A4 in Wave 15; the plan check on the generic reader in Wave 5; the draft-start code comparison as an optional part of Wave 18.
+  - **Left unplaced on purpose:** A1 (Codacy and live refresh: feature J is built and the live parts are in the ideas list), A6 (hosted accounts, after 1.0.0), the light theme and the accessibility audit (items of the 1.0.0 checklist, after Wave 21), the coverage overlay, line routing stage 2, per-diagram hiding and ratings on relationships.
+  - **Old to new release numbers:** 0.7.0 (1, 2, 3, 16, 4) became 0.7.0 (24, 1, 2, 25) and 0.8.0 (3, 26, 16, 4); old 0.8.0 became 0.9.0; old 0.9.0 became 0.10.0; old 0.10.0 became 0.11.0; old 0.11.0 became 0.12.0; old 0.12.0 became 0.13.0.
+- Why: the first group was the largest by far and mixed three kinds of work (BMO, collaboration and reference, housekeeping). The split keeps each release one story, puts the security fix first as the entry asks, and gives every item the owner decided to build a place, so none is lost.
+- Alternatives considered:
+  - **One 0.7.0 with an order inside it.** No renumbering; refused because the group would hold ten pieces of work and release only at the end.
+  - **Patch releases (0.6.2, 0.6.3) for the small waves.** No renumbering; refused because DEC-098 reserves the patch number for fixes, and A3 and A8 are changes.
+  - **A wave for A8.** Refused by DEC-104 and kept refused.
+  - **Waves for A1, the light theme and the accessibility audit.** Not added: A1 is outside the twelve features, and the other two are checklist items that depend on the final UI.
+- Trade-offs:
+  - **Release numbers written in DEC-098, DEC-102, DEC-103 and DEC-104 are the earlier plan.** Those entries keep their text and carry a "Now:" line pointing here; the wave files and the waves README hold the current numbers.
+  - **0.7.0 is still the largest group** (two M–L waves, two M waves and A8).
+  - **Wave 23 is a patch only if "fix" includes a security fix.** It changes how values are stored, not what the product does.
+  - **Five new waves bring questions** (Q23.1 to Q27.2), each with a recommendation that holds if the owner leaves it blank.
+  - **Two accepted decisions disagree on the context window** (DEC-099 Q-C1b refuses above the window; DEC-103 N12 only warns). Found while placing the item in Wave 14, whose file says to ask the owner; this entry does not settle it.
+  - Now: DEC-107 settles it (a window the person typed is a limit; none typed means a warning), and changes the release groups again.
+
+#### PRO-23 · DEC-107 — The second look at the waves: a real-run gate, the context window rule, Waves 28 and 29, moves and the deleted parked waves
+
+- Date: 2026-11-20 · Status: Accepted (documents only; no wave is built) · Decided by: Owner for the real-run gate in Wave 1, the context window rule, adding Wave 28 without the light theme, making A8 a wave, deleting the parked Waves 10 and 12, and accepting that 0.7.0 and 0.8.0 stay large; the assistant's reasoning, at the owner's request ("go with best reasoning for the rest"), for everything else below, so each of those is a Proposal the owner may overrule. Amends DEC-065 (the size refusal), DEC-099 (Q-C1b), DEC-103 (N10, N12, N15), DEC-104 (A8 is now a wave) and DEC-106 (release groups).
+- Facts: the owner asked to "rethink each wave" after the vision (DEC-090), the code-reading rule (DEC-096), the scope decisions (DEC-104) and the five waves of DEC-106 had changed the plan. No real model has ever answered through dp (manual test plan U1 to U3), the model ids were never checked, and Waves 1, 11, 15b, 20, 22b and 25 are written against the answer shape and verifier Wave 1 defines. DEC-099 (Q-C1b) and DEC-103 (N12, N15) disagreed on what happens above a model's context window. The 1.0.0 checklist named an accessibility audit, a scale check, models from older versions that must still open, a statement of what 1.0.0 keeps stable and a check of the package contents, with no wave to carry them.
+- Decision:
+  - **Real-run gate (owner).** [Wave 1](waves/wave-01-grounded-bmo.md) closes only after one real run through a route the owner uses (an API key, a chat subscription by handoff, or Ollama), after the default model ids are checked; [Wave 25](waves/wave-25-bmo-own-subscription.md) also needs one real handoff round trip. If no route can be tried, the BMO waves wait.
+  - **Context window rule (owner).** A context window the person typed for the chosen model is a limit: a larger request is refused, and the message names the window, the estimate and what to narrow. With none typed, dp shows "limit not set" and only warns. The pass-budget refusal (`runTokenLimit`, DEC-065) stays in both cases. The window is part of the preview hash. It comes from the person only; reading an Ollama model's own value waits for a check on a real server (U27). Built in Wave 14a, which writes the DEC that records it.
+  - **Wave 14 is split.** 14a (local runtimes, the typed window, the size shown before a run) ships in 0.9.0 and runs before Wave 15; 14b (the word index) stays in 0.12.0 and runs before Waves 22 and 20.
+  - **Wave 27 moves to 0.8.0 and runs right after Wave 4**, which builds the shared CSV writer `src/core/csv.ts` (with the formula-character rule) that Waves 7 and 27 reuse.
+  - **Wave 17 runs after Wave 18**, and Wave 18 leaves one place after a successful apply where Wave 17's hook runs. **Wave 8 gets a split point** (8a registry, presets and Rules page; 8b detectors and overlay). **Wave 13 adds a contracts section to the lenses** that Wave 19 builds first. **Wave 2 keeps the "Use an LLM" default in one constant** that Wave 25 changes.
+  - **New Wave 28, quality for 1.0.0, without the light theme (owner).** 28a (guard rails: compatibility fixtures from released versions, a snapshot of the public surface, a generated large model with time budgets, a package-contents check) runs early and has no release of its own; 28b (an automated accessibility audit including the exported file, a keyboard-only walk, the fixes, the stable-surface statement) is 0.14.0 and runs last. Q28.1 to Q28.3 were settled by the assistant: a development-only checker, budgets at three times the first measured run, and the Python 0.2 sentence retracted unless a real file turns up. 1.0.0 is dark only and says so.
+  - **A8 becomes [Wave 29](waves/wave-29-system-testing-switch.md)** (owner: "Yes"), in 0.7.0 and run last in the group. The flag is `dp serve --testing` only, with no setting; the demo's services start only with `--with-system`. This overrules DEC-104's "not a wave" and keeps its decision to hide and not delete.
+  - **Waves 10 and 12 are deleted (owner).** Their designs moved to the ideas list (I2.3 and I2.7); the decisions that parked them (A7, DEC-097, DEC-104 P5 and P6) stand.
+  - **Release groups now:** 0.6.1 (23, 28a), 0.7.0 (24, 1, 2, 25, 29), 0.8.0 (3, 26, 16, 4, 27), 0.9.0 (5, 14a, 15), 0.10.0 (6, 7, 8), 0.11.0 (9, 11, 18, 17, 19), 0.12.0 (14b, 13, 22, 20), 0.13.0 (21), 0.14.0 (28b), then 1.0.0.
+- Why: a gate before six waves are built on an answer shape is cheaper than a redesign after them; one of two conflicting decisions had to give, and the combined rule honours both while dp never claims a limit it does not know; each move removes a double edit of the same code (line labels, `Drafts.apply`, a CSV writer, a default setting) or a missing input (the inherited owner before Wave 15's owner cards, the window before the import release); guards are worth most when they run before the work they guard; a flag without a wave had no start prompt.
+- Alternatives considered: no gate (the real run happens last, on the checklist); the gate before Wave 25 only; "warn only" or "refuse and drop the pass budget" for the window; Wave 28 with the light theme, or no Wave 28; moving Wave 24 out of 0.7.0 (it only renames releases); splitting Wave 2 (Waves 5 and 25 need both halves); keeping Waves 10 and 12 as files (they were the longest designs for the ideas list, which now holds them).
+- Trade-offs: Wave 1 cannot close without the owner's key or chat app; 0.7.0 holds five waves and 0.8.0 five (the owner accepted this); one more wave and release (0.14.0) and every later wave updates the public-surface snapshot; the ideas file is git-ignored, so the two parked designs are no longer in the repository; release numbers written in DEC-098, DEC-102, DEC-103, DEC-104 and DEC-106 are earlier plans, and the waves README holds the current ones.
 
 ## STK — Stack, files and repo layout
 
