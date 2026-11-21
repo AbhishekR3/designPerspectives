@@ -92,7 +92,7 @@ Tool settings live in `config/` (the root keeps only `README.md`, `LICENSE`, `pa
 
 ## Repo notes
 
-- `docs/README.md` indexes the docs. `docs/decisions.md` is the running list of decisions and their rationale: read it before changing a design choice, and add an entry (at the bottom) when a new decision is made. `docs/planned_features.md` holds planned work with a clear scope in a fixed entry format (open to contributors); the owner's private ideas live in `local/ideas.md` (git-ignored, the one place other products may be named). `docs/planned-change.md` is the how-to for the drafts workflow and its limits. `docs/notes/` holds chapter notes on the two reference books (C4 model; Fundamentals of Software Architecture) with `→ designPerspectives` implications.
+- `docs/README.md` indexes the docs. `docs/decisions.md` is the running list of decisions and their rationale: read it before changing a design choice, and add an entry (at the end of its topic) when a new decision is made. `docs/planned_features.md` holds planned work with a clear scope in a fixed entry format (open to contributors); the owner's private ideas live in `local/ideas.md` (git-ignored, the one place other products may be named). `docs/planned-change.md` is the how-to for the drafts workflow and its limits. `docs/notes/` holds chapter notes on the two reference books (C4 model; Fundamentals of Software Architecture) with `→ designPerspectives` implications.
 - `docs/reviews.md` holds the per-stage reviews in one file, newest first. Each stage adds a section at the top: what was built, how it was checked, limits, questions, and an empty owner-feedback part.
 - `docs/CONTRIBUTING.md` is the one file for contributing, the code of conduct, reporting a security problem and the security model. `docs/CHANGELOG.md` lists changes per version.
 - `demo/` holds everything for learning the tool (model, sample code, sample draft, demo hub, the demo system's page `web-app/`, `import-example.json`, `ci-examples/`); `demo/README.md` is the tour and carries the demo model's credits (Apache-2.0 attribution; keep it).
@@ -104,6 +104,9 @@ Tool settings live in `config/` (the root keeps only `README.md`, `LICENSE`, `pa
 - Everything is TypeScript. Do not add Python or other-language code.
 - State trade-offs for design decisions. Separate sourced facts from interpretation, and say which is which.
 - You may research other websites, tools and competitors (read their docs, pages and features) to inform design. Do not name or compare them in repository files, commit messages or pull requests; write the resulting ideas in our own terms.
+- `docs/CHANGELOG.md` follows SemVer (DEC-098): each version is `## [x.y.z] - Month - DD - YYYY` with the headings `Added`, `Fixed`, `Changed`, `Deprecated`, `Remove` in that order, and a heading with nothing under it is dropped. Releases before 1.0.0 are `0.X.Y` with no ceiling on X. List only what is built, tested and working; no `Unreleased` section and no planned work. Wave agents do not touch the changelog; the release change writes the section.
 - Do not add `Co-Authored-By` lines or session links to commit messages or pull request descriptions.
 - Do not commit the reference books (PDFs) or superseded plans.
 - Branch from `main` for changes; do not commit directly to `main`.
+- Shared checkout (DEC-100): one branch per session; commit by path (never `git add -A` or `.`); never edit a file another session has modified and not committed (run `git status --short` first); never `git stash` or `git reset --hard`. Details: `docs/CONTRIBUTING.md`, "More than one session in one checkout".
+- A release follows `docs/CONTRIBUTING.md`, "Making a release": nothing is pushed, merged or tagged without the owner's go.

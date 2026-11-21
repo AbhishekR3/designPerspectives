@@ -5,7 +5,7 @@
 | **Status** | Owner answers applied (2026-11-19; Part B questions Q1.1 to Q1.5 answered, the evaluation set deferred). Ready to run |
 | **Branch** | `feat/w01-grounded-bmo`, from `main` (DEC-089, the CI move, is merged) |
 | **Size** | M–L (was L; the evaluation set left the wave) |
-| **Release** | 0.5.1 (with Waves 2, 3, 16, 4) |
+| **Release** | 0.7.0 (with Waves 2, 3, 16, 4) |
 | **Depends on** | Nothing in this plan |
 | **Owner items** | 2, 9, 11, 12 ([README.md](README.md#where-each-item-went)) |
 
@@ -110,7 +110,7 @@ Every BMO text answer says what it is based on, and dp checks those citations. T
 
 ## Owner answers
 
-Applied 2026-11-19: the owner answered Part A and Q1.1 to Q1.5 ([questions.md](questions.md)).
+Applied 2026-11-19: the owner answered Part A and Q1.1 to Q1.5 ([the questions section below](#questions-options-and-answers-moved-from-questionsmd)).
 
 - **A4:** the four determinism classes are accepted; this wave writes `docs/determinism.md` and the DEC.
 - **Q1.1:** "Every statement needs a citation when referring to things." A statement that refers to a thing (an object, file, decision, note, doc section or number in the pack) must carry a valid cite, or it is held back under "N claims without a valid citation". General statements are shown, marked "general". Hidden-by-default is the assistant's reading of "needs"; showing them inline, marked, is the milder alternative.
@@ -119,6 +119,127 @@ Applied 2026-11-19: the owner answered Part A and Q1.1 to Q1.5 ([questions.md](q
 - **Q1.4:** temperature 0 everywhere, a seed where the API has one; both go in the run log; no claim of exact repeatability.
 - **Q1.5:** yes, the repository's Markdown docs are citable through the same file gate.
 - **Vision (2026-11-19):** this wave is the base of feature L, BMO. Wave 11 adds the check of decisions ("ADR broken or violated") on top of its templates and citations.
+
+## Questions, options and answers (moved from questions.md)
+
+*Moved from the deleted `questions.md` on 2026-11-20, with the owner's words as written. In the quotes, `future_tasks.md` and `backlog.md` mean the old backlog, now [planned_features.md](../planned_features.md) and the owner's private ideas list; `docs/waves/v1-scope-review.md` was decided in DEC-104.*
+
+### 0.6 What makes a better fixed context prompt?
+
+You asked that the prompts stay hard-coded for specific situations and never be written by an LLM. That is already how dp works [Fact]:
+- every system text is a fixed TypeScript builder (`src/assistant/prompts.ts:130-261`, `PROMPT_VERSION` 1.0.0 at `:23`);
+- data goes only into fenced, redacted blocks (`prompts.ts:42-53`);
+- a test checks that system text never contains repository data (`tests/unit/bmo-core.test.ts:89`).
+
+What makes a fixed prompt give better answers [Proposal, common practice]:
+
+1. **One template per situation:** explain an object, explain a diagram, compare two versions, review drift, check anti-patterns, answer a question about dp. Each has an id and a version, shown in the preview.
+2. **A fixed order:** the task, the rules, the shape of the answer, then the data from most to least important.
+3. **A budget for each block**, so a big code excerpt can't push the model out. Whole items are dropped, never cut in half.
+4. **A list of what was included, what was left out and why** ("12 files left out: budget"). The model can then say "I wasn't shown that" instead of guessing, which means fewer false positives.
+5. **Stable ids for everything that can be quoted:** object ids, file and line, decision numbers, note ids. The answer cites them, and dp checks the citations.
+6. **An explicit "say you don't know" rule**, with open questions at the end.
+7. **Short worked examples, written by hand and kept in code**, for the hardest tasks.
+8. **An evaluation set:** fixed inputs with known right answers, so a prompt change is measured, not guessed.
+
+Proposed: Wave 1. See Q1.1 to Q1.4.
+
+### A6. How BMO's output is labelled
+
+**Recommended**
+- Labels appear in the UI and in review files only, for example: "BMO · model · 5 of 7 statements cited · not checked by a person".
+- Nothing is stored as a label in the model (DEC-051, DEC-064).
+- Once you accept something, it is yours.
+
+**Owner's thinking:** Go with whatever you think is best.
+
+**Applied [2026-11-19].** As recommended: labels in the UI and review files only; nothing stored in the model (DEC-051, DEC-064).
+
+### ★Q1.1 What must carry a citation, and what happens to a sentence without one?
+
+**Analysis** [Fact]
+- **Only import items carry evidence today** (`src/import/review.ts:174-300`).
+- **Text answers are plain text.** The only checks are that the text is not empty and is under 100,000 characters (`validateText`, `src/assistant/tasks.ts:271-288`).
+- **The material is already citable:**
+  - object ids are written next to names (`src/assistant/modelText.ts:88`);
+  - code excerpts carry their path and line numbers (`codeExcerpts.ts:209-211`, `:332-334`);
+  - scan facts have ids.
+
+**Options**
+1. Every statement must cite, or it is dropped.
+2. Every statement that names a file, an object or a number must cite. Other statements are shown, marked "not cited".
+3. Citations are optional and shown when present.
+
+**What dp checks, in every option**
+- A cited object exists in the version shown.
+- A cited file and its lines were really in what was sent, after redaction.
+- The quoted text is found there.
+- A citation link only moves around inside dp.
+
+**Recommended.** Option 2. The answer comes back as a list of statements, so dp never needs an LLM to split sentences.
+
+**Owner's thinking:** Every statement needs a citation when referring to things.
+
+**Applied [2026-11-19].** Read as option 2 with a wide meaning of "things", plus the strict half of option 1.
+- **What counts as referring to a thing:** the statement names an object, a relationship, a file or path, a decision, a note, a doc section or a number that was in what was sent. dp finds this by matching the names, ids, paths and numbers of the pack in the statement's text, so no LLM is involved.
+- **What happens:** such a statement must carry a cite that dp verifies. One without a valid cite is **not shown in the answer**. The answer ends with "N claims without a valid citation", which opens to list them, each marked "no citation" or "bad cite".
+- **General statements** that refer to nothing in the pack (a definition, advice) are shown and marked "general".
+- **My reading, [Proposal]:** I took "needs" to mean hidden until the person asks. Showing them inline, marked, is the milder alternative and a one-line change.
+- [Wave 1](wave-01-grounded-bmo.md) is updated.
+
+### ★Q1.2 Where do the prompt templates live, and who can change them?
+
+**Analysis**
+- **In code.** `prompts.ts` grows into a registry of templates, one per situation.
+  - Each is versioned and shown read-only in the preview, for example "explain-object v2".
+  - It changes only through a code change, is never written by an LLM, and has no per-project override.
+- **The alternative:** templates per project that architects can edit.
+  - It is flexible.
+  - But runs could no longer be compared.
+  - And it opens a path for repository text into system text, which the test at `bmo-core.test.ts:89` forbids.
+
+**Recommended.** In code only.
+
+**Owner's thinking:** In code.
+
+**Applied [2026-11-19].** As recommended: templates live in code only, never per project, never written by an LLM.
+
+### ★Q1.3 Who builds the evaluation set, and who runs it with real models?
+
+**Analysis**
+- No LLM is used in development or CI [Owner] (`docs/backlog.md:19`).
+- The fake backend gives canned answers (`src/assistant/fakeBackend.ts`).
+- Proposed setup:
+  - **Fixtures written by hand:** the demo and two small repositories, each with known right answers (the containers, the lines, which statements are true).
+  - **CI checks the checkers:** the citation checker and the scorer, run on canned answers.
+  - **Real runs by you only:** `dp bmo eval --yes-send`, with the results written into the wave's reviews.md section.
+
+**Recommended.** As proposed. Your thinking could add which providers you will run; each real run costs money.
+
+**Owner's thinking:** Delay this to future_tasks.md. I need to think through testing and evaluation much more deeply.
+
+**Applied [2026-11-19].** The evaluation set is out of Wave 1 and is now an idea to think through.
+- **Removed from Wave 1:** the fixtures with known right answers, the scorer, `dp bmo eval`, `eval.ts`.
+- **Added to ideas list I2.0:** "Testing and evaluating BMO", with the open points listed.
+- **Kept in Wave 1:** ordinary unit tests of dp's own code. These are the context packs, the citation checker (with canned answers from the fake backend) and the providers' answer handling. They test our code, not how good a model is, so they are not the evaluation you deferred.
+- **Wave 1 shrinks** from L to M–L.
+- **Knock-on:** [Wave 14](wave-14-retrieval-local-models.md) planned to measure the word index with Wave 1's evaluation, with and without the index. That measurement moves to the same the ideas list item. The index still ships.
+
+### Q1.4 Temperature and seed
+
+**Recommended.** Temperature 0 everywhere, and a seed where the API has one (OpenAI and Ollama do; the Anthropic API has none [Training]). Both go into the run log. dp never claims a run can be repeated exactly.
+
+**Owner's thinking:** Yes, that works.
+
+**Applied [2026-11-19].** As recommended.
+
+### Q1.5 Can BMO cite the repository's own docs?
+
+**Recommended.** Yes. Markdown files under the code root (README, docs, ADRs kept in the repo) can be quoted and cited. They go through the same file gate as code: redaction, must-not-open, and DEC-064.
+
+**Owner's thinking:** Yes.
+
+**Applied [2026-11-19].** As recommended.
 
 ## Stop and ask if
 
@@ -172,7 +293,7 @@ Applied 2026-11-19: the owner answered Part A and Q1.1 to Q1.5 ([questions.md](q
 ## Docs
 
 - **New DEC:** grounded answers, the citation contract, and the determinism classes if ★A4 is yes.
-- **CHANGELOG:** Unreleased.
+- **CHANGELOG:** nothing until the 0.7.0 release entry is written (see README, Releases).
 - **reviews.md:** a section at the top.
 - **CLAUDE.md:** `contextPack.ts` and `citations.ts` in the BMO paragraph.
 - **README:** the BMO section.

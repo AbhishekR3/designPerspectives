@@ -5,11 +5,11 @@
 | **Status** | Owner answer applied (questions C8, 2026-11-19: a true back-and-forth, with more questions as the code grows; add it to the checklist). Design is a proposal; the open points are listed below. Ready after Waves 1, 2, 5 and 15 |
 | **Branch** | `feat/w20-system-conversation`, from `main` after Wave 15 is merged |
 | **Size** | L. Split point: 20a is the round planner and the loop with the handoff and direct backends (steps 2 to 4); 20b is the actions that write to the model (step 5) |
-| **Release** | 0.5.4 (with Waves 13, 14) |
-| **Depends on** | Wave 1 (templates, packs, citations, labels), Wave 5 (key code and code search), Wave 15 (the interview, `interview.json` and the context file). Wave 7 (model coupling), Wave 2 (notes) and Wave 14 (the word index for choosing excerpts) improve it and are not required |
+| **Release** | 0.11.0 (with Waves 13, 14, 22; after Wave 22) |
+| **Depends on** | Wave 1 (templates, packs, citations, labels), Wave 5 (key code and code search), Wave 15 (the interview, `interview.json` and the context file). Wave 7 (model coupling), Wave 2 (notes) and Wave 14 (the word index for choosing excerpts) and Wave 22 (digests of the parts not in focus) improve it and are not required |
 | **Owner items** | Feature H and the vision's opening problem: "understanding an existing system architecture/codebase is difficult" (answer C8) |
 
-Read [README.md](README.md) first: its rules, agents and checks apply to this wave.
+Read [README.md](README.md) first: its rules, agents and checks apply to this wave. Also read [../import-design.md](../import-design.md) (what the import is for and what matters to C4 at each level) and the import choices N1 to N15 in [DEC-103](../decisions.md#pro-19--dec-103--code-import-and-bmo-choices-and-the-080-split-n1-to-n15), which change what this wave builds (see its "Decided" section if it has one).
 
 ## Goal
 
@@ -62,6 +62,25 @@ Understanding an existing system is a conversation, not one question about one s
 - **C8:** a true back and forth, more questions as code grows, added to the checklist. The checklist is read as the in-app list (item above) **and** the 1.0.0 release checklist.
 - **2026-11-20:** the facts that plan rounds include import cycles only where Wave 5's generic reader finds them (approximate), and no longer include shared helpers (not singled out). The person's context from Wave 15 (general context and referenced files) joins "What you told me", inside data blocks after redaction.
 - Open (assumed): the person answers in a round before the next is previewed, so every round sees the answers; "ask me everything now" in one go is not built.
+
+## Questions, options and answers (moved from questions.md)
+
+*Moved from the deleted `questions.md` on 2026-11-20, with the owner's words as written. In the quotes, `future_tasks.md` and `backlog.md` mean the old backlog, now [planned_features.md](../planned_features.md) and the owner's private ideas list; `docs/waves/v1-scope-review.md` was decided in DEC-104.*
+
+### C8. Does "understanding an existing system" need more than the import and the explain tasks?
+
+**Analysis** [Fact]. The vision's first problem is understanding an existing system. What dp has or plans: the scan and the guided interview build the model (Waves 5, 6, 15); BMO explains an object, a diagram or a draft from the model and code excerpts (Wave 1 makes them cited); `dp context` prints the same pack for coding agents (Wave 2). A run over the token limit is refused, and multi-pass summarising for a whole large repository is not built (DEC-065, planned_features B4, Large).
+
+**Options**
+1. As planned: explain one scope at a time.
+2. Add a "system tour" task: BMO explains the system from the model first, then walks the containers one by one, each a small cited run.
+3. Build multi-pass summarising for whole repositories.
+
+**Recommended.** Option 1 for 1.0.0, then option 2 if real runs show people want one page about the whole system. Option 3 is large and not needed by the twelve features. Note that no real LLM run has been made yet; 1.0.0's checklist should include a real run per provider you support.
+
+**Owner's thinking:** Have a true back and forth, not just one scope at a time. As code becomes larger or more complex, you can ask more questions to the user. Add this to the checklist.
+
+**Applied [2026-11-19].** A new wave, [Wave 20: a real back-and-forth about an existing system](wave-20-system-conversation.md). dp plans rounds from facts about the system (containers, components, files, cycles, unmapped code); each round is one previewed BMO run on one scope that returns cited statements and questions for the person; the number of questions allowed grows with size and tangle, and the person can ask for more, go deeper or stop; the person's answers carry into later rounds. Nothing is written until a button is pressed. "Add this to the checklist" is applied twice: an item on the in-app "Importing a codebase" list that ticks itself when every round is answered, skipped or ended, and a line on the 1.0.0 release checklist in ideas list I2.0.
 
 ## Stop and ask if
 

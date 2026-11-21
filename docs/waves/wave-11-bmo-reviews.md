@@ -5,7 +5,7 @@
 | **Status** | Owner answers applied (2026-11-19), with changes from the vision and from parking Wave 10. Ready to run after Wave 9 |
 | **Branch** | `feat/w11-bmo-reviews`, from `main` after Wave 9 is merged |
 | **Size** | M |
-| **Release** | 0.5.3 (with Wave 9) |
+| **Release** | 0.10.0 (with Wave 9) |
 | **Depends on** | Wave 1 (templates, packs, citations, labels), Wave 3 (reference library), Wave 8 (deterministic findings), Wave 9 (characteristics table). Wave 10 (risks) is parked, so the risk parts below are left out until it returns |
 | **Owner items** | 22, the BMO part of 7, and "ADR broken or violated" from the vision (feature L) ([README.md](README.md#where-each-item-went)) |
 
@@ -95,13 +95,74 @@ Every result is cited, labelled and shown next to what dp found by itself. Nothi
 
 ## Owner answers
 
-Applied 2026-11-19: Part B was left blank, so each Q uses its recommendation ([questions.md](questions.md)).
+Applied 2026-11-19: Part B was left blank, so each Q uses its recommendation ([the questions section below](#questions-options-and-answers-moved-from-questionsmd)).
 
 - **Q11.1:** you pick library entries (those marked "check by default" pre-selected) and a required scope; each entry gets present, possible, not found or can't tell, with cited evidence; dp's own findings are shown beside it.
 - **Q11.2:** results show in a sheet; nothing is written unless an action is pressed. "Add as a risk" is dropped while Wave 10 is parked.
 - **Q11.3:** proposed ratings are accepted row by row and labelled "proposed by BMO" until then. Suggested risks wait for Wave 10.
 - **2026-11-20 (best thinking):** Q11.1 to Q11.3 hold as recommended. The pack no longer carries drift (parked) and carries the scope's key code and Wave 7's model coupling instead. The code a review sees is excerpts chosen by the existing rules (and Wave 14's word index when it exists), the same for every language.
 - **Vision (feature L):** the `check-decisions` task is new. Confirmed by the owner on 2026-11-19 (questions C7: yes, computed signal plus BMO).
+
+## Questions, options and answers (moved from questions.md)
+
+*Moved from the deleted `questions.md` on 2026-11-20, with the owner's words as written. In the quotes, `future_tasks.md` and `backlog.md` mean the old backlog, now [planned_features.md](../planned_features.md) and the owner's private ideas list; `docs/waves/v1-scope-review.md` was decided in DEC-104.*
+
+### ★Q11.1 The anti-pattern review needs a scope
+
+**Analysis** [Fact]
+- A run over the size limit is refused.
+- There is no multi-pass yet (DEC-065).
+
+**Proposed**
+- **You pick entries from the library.** Entries marked "check by default" are pre-selected.
+- **You pick a scope:** a diagram, a selection, a container or a draft.
+- **The run uses Wave 1's fixed template and citations.**
+- **Each entry gets a result:** "present", "possible", "not found" or "can't tell", with cited evidence.
+- **dp's own findings are shown beside it,** and any disagreement is pointed out.
+
+**Recommended.** Yes.
+
+**Owner's thinking:** Go with what you think is best.
+
+**Applied [2026-11-20].** As recommended. The pack now holds the scope's key code and Wave 7's coupling instead of drift.
+
+### ★Q11.2 Where the results go
+
+**Recommended.** They show in a sheet. Nothing is written unless you press one of these actions:
+- add as a risk;
+- add as a checklist item;
+- add as linked work;
+- add as a comment.
+
+**Owner's thinking:** Go with what you think is best.
+
+**Applied [2026-11-20].** As recommended, without 'add as a risk' (Wave 10 is parked).
+
+### Q11.3 Proposed ratings and suggested risks
+
+**Recommended.** Accepted row by row, and labelled "proposed by BMO" until then.
+
+**Owner's thinking:** Go with what you think is best.
+
+**Applied [2026-11-20].** As recommended: ratings accepted row by row, labelled 'proposed by BMO' until then. Suggested risks wait for Wave 10.
+
+### ★C7. How does BMO tell that a decision is "broken or violated"?
+
+**Analysis** [Fact]
+- A decision links to elements and relationships it is about, with a status, alternatives and triggers (DEC-050). `decisionsAbout` finds the decisions for an object (`src/core/decisions.ts`).
+- Nothing today compares a decision with the model or the code.
+- Wave 3 adds an optional Compliance section that can name a rule (Q3.6). Wave 8 adds rules that produce Findings.
+
+**Options**
+1. **Computed only.** A decision whose Compliance names a rule shows "possibly violated" when that rule has a finding on one of its targets. No BMO.
+2. **BMO only.** BMO reads the accepted decisions in a scope and the model and code, and gives a verdict per decision with citations (present, possible, not found, can't tell), like the anti-pattern review.
+3. **Both,** with disagreements pointed out, as Wave 11 already does for anti-patterns.
+
+**Recommended.** Option 3. It is now a task in [Wave 11](wave-11-bmo-reviews.md) (`check-decisions`). A decision with no Compliance rule is checked by BMO only, and labelled as proposed.
+
+**Owner's thinking:** Yes.
+
+**Applied [2026-11-19].** Option 3: a computed "possibly violated" signal plus BMO's check, disagreements shown. It is the `check-decisions` task in [Wave 11](wave-11-bmo-reviews.md).
 
 ## Stop and ask if
 

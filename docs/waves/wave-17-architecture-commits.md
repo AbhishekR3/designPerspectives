@@ -5,7 +5,7 @@
 | **Status** | Owner answer applied (questions C1, 2026-11-19: yes, opt-in commit on apply). Ready to run |
 | **Branch** | `feat/w17-architecture-commits`, from `main` |
 | **Size** | M |
-| **Release** | 0.5.3 (with Waves 9, 11, 18, 19) |
+| **Release** | 0.10.0 (with Waves 9, 11, 18, 19) |
 | **Depends on** | Nothing in this plan. Fits best after Wave 18, which changes how a draft is applied |
 | **Owner items** | Feature I of [../product-vision.md](../product-vision.md): "git-style commits for software architecture" |
 
@@ -58,6 +58,28 @@ An architect can turn an architecture change into a git commit from inside dp, w
 
 - **C1:** yes. Option 2: commit on apply, opt-in, off by default, amending DEC-018. A manual commit is included.
 - Open (assumed, change if wrong): the commit covers the whole `architecture/` folder (model, decisions, drafts, reference, attachments, import review files), not `.dp/`.
+
+## Questions, options and answers (moved from questions.md)
+
+*Moved from the deleted `questions.md` on 2026-11-20, with the owner's words as written. In the quotes, `future_tasks.md` and `backlog.md` mean the old backlog, now [planned_features.md](../planned_features.md) and the owner's private ideas list; `docs/waves/v1-scope-review.md` was decided in DEC-104.*
+
+### ★C1. What are "git-style commits for software architecture"?
+
+**Analysis** [Fact]
+- dp reads git and never writes it (DEC-018). The History page lists the commits that changed a model and what each changed (DEC-058, `src/core/history.ts`). `dp diff --base <ref>` summarises changes since a ref.
+- A draft is a copy of the model (like a branch). Applying it is a three-way merge and one undo step on main (DEC-016, DEC-032). A draft records its author (DEC-040).
+- So today: branches (drafts), diff, merge (apply) and log (History) exist. A commit with a message, made by dp, does not. Making one means changing DEC-018.
+
+**Options**
+1. **Keep git read-only.** History stays as built. Add a suggested commit message from the change list, so a person commits with git themselves. Nothing in DEC-018 changes.
+2. **Commit on apply, opt-in.** An architect can switch on "commit when a draft is applied". dp commits only `architecture/` with a message built from the draft's title and description, never pushes, never touches other files. Off by default.
+3. **dp's own commit log, separate from git.** A message, an author and a date kept in the model, with revert. This duplicates git and drifts from it.
+
+**Recommended.** Option 2. It makes "draft → apply" read as "branch → commit" without a second history. It needs a DEC that amends DEC-018, a check that the working tree has no other staged changes, and a refusal when git is missing or the folder is not a repository. If you want git to stay read-only, take option 1.
+
+**Owner's thinking:** Yes.
+
+**Applied [2026-11-19].** Option 2. New [Wave 17](wave-17-architecture-commits.md): an opt-in "commit when a draft is applied", plus a manual Commit button and `dp commit`. dp commits only `architecture/`, never pushes, amends or skips hooks. DEC-091 amends DEC-018.
 
 ## Stop and ask if
 

@@ -5,7 +5,7 @@
 | **Status** | Owner answers applied (2026-11-19; decided 2026-11-20: JSON only, no YAML dependency in this wave). Ready to run after Waves 4 and 6 |
 | **Branch** | `feat/w13-contracts`, from `main` after Waves 4 and 6 are merged (Wave 12 is parked and not needed) |
 | **Size** | M–L |
-| **Release** | 0.5.4 (with Wave 14) |
+| **Release** | 0.11.0 (with Waves 14, 20, 22) |
 | **Depends on** | Wave 4 (data access letters), Wave 6 (Findings, acknowledgements) |
 | **Owner items** | 19 ([README.md](README.md#where-each-item-went)) |
 
@@ -80,7 +80,7 @@ Consumers are told on the diagram, on the home page, in the bell, in CI and, if 
        - a new required request field;
        - a removed endpoint.
      - Anything else is "changed, impact unknown".
-   - **Live calls.** During System Testing, a body whose top-level shape differs from the sample gives an information Finding.
+   - **Live calls.** During System Testing, a body whose top-level shape differs from the sample gives an information Finding. System Testing is off by default in 1.0.0 (DEC-104, [planned_features.md](../planned_features.md) A8), so this step runs only when the mode is switched on; it is the one optional part of this wave and nothing else depends on it.
 5. **Marking as checked** (★Q13.3). "Mark as checked" sets `dp.contract.seen` on the consumer's relationship. It is a model edit: engineers make it in drafts, architects on main.
 6. **Telling people** (Q13.4).
    - A "needs a look" item of kind `contract-change` on the home page, and a count in the bell's "Now".
@@ -99,7 +99,7 @@ Consumers are told on the diagram, on the home page, in the bell, in CI and, if 
 
 ## Owner answers
 
-Applied 2026-11-19: the owner answered Part A and left Part B blank, so every Q below uses its recommendation ([questions.md](questions.md)).
+Applied 2026-11-19: the owner answered Part A and left Part B blank, so every Q below uses its recommendation ([the questions section below](#questions-options-and-answers-moved-from-questionsmd)).
 
 - **Q13.1 (best thinking, 2026-11-20):** JSON only (OpenAPI and JSON Schema). No YAML dependency now; the server keeps three runtime dependencies. Trade-off: most real OpenAPI files are YAML, so those teams need the JSON export step. "Read YAML contracts" is a line in ideas list I2.1.
 - **Q13.2 to Q13.5 (best thinking, 2026-11-20):** hold as recommended, below.
@@ -108,6 +108,89 @@ Applied 2026-11-19: the owner answered Part A and left Part B blank, so every Q 
 - **Q13.4:** a computed "needs a look" item, a badge, optional linked work, `dp contracts --fail-on breaking`; no email or webhooks.
 - **Q13.5:** dp computes removed fields, type changes, new required request fields and removed endpoints; anything else is "changed, impact unknown".
 - **Vision:** this wave is feature F.
+
+## Questions, options and answers (moved from questions.md)
+
+*Moved from the deleted `questions.md` on 2026-11-20, with the owner's words as written. In the quotes, `future_tasks.md` and `backlog.md` mean the old backlog, now [planned_features.md](../planned_features.md) and the owner's private ideas list; `docs/waves/v1-scope-review.md` was decided in DEC-104.*
+
+### ★Q13.1 Which contract formats first?
+
+**Analysis** [Fact]
+- No schema exists today:
+  - `dp.endpoints` is a method and a path (`src/shared/types.ts:445-448`);
+  - `dp.example` is a sample.
+- There is no YAML library; the scan reads YAML line by line.
+
+**Options**
+- OpenAPI and JSON Schema in JSON first.
+- YAML through a new dependency.
+- AsyncAPI and protobuf later.
+- As a weak fallback, the top-level shape of the samples (`ui/src/inspect/SamplePayload.tsx:26-33`).
+
+**Recommended.** JSON first, and ask you before adding a YAML dependency. Are your OpenAPI files YAML?
+
+**Owner's thinking:** Go with what you think is best.
+
+**Applied [2026-11-20].** JSON only (OpenAPI and JSON Schema); no YAML dependency in this wave, so the server keeps three runtime dependencies. **Trade-off:** most real OpenAPI files are YAML, so those teams export to JSON in CI first. Reading YAML directly is a line in ideas list I2.1, and the dependency is then your decision. The earlier question 'are your OpenAPI files YAML?' no longer blocks the wave.
+
+### ★Q13.2 What "the output of service A" means
+
+**Proposed.** A's output is three things:
+1. **The responses of A's endpoints,** read by the callers.
+2. **The messages A publishes,** read by whoever reads the topic, through the broker (DEC-065 `via`).
+3. **The data A writes,** read by its readers (DEC-055).
+
+So dp finds who is affected through endpoints and data, not through which way a line points.
+
+Requests and responses break in opposite ways:
+- a new required request field breaks callers;
+- a removed response field breaks readers.
+
+**Recommended.** Yes.
+
+**Owner's thinking:** Go with what you think is best.
+
+**Applied [2026-11-20].** As recommended: a service's output is its endpoint responses, the messages it publishes and the data it writes.
+
+### ★Q13.3 How a consumer marks a change as checked
+
+**Proposed**
+- The consumer's line stores the fingerprint it has checked (`dp.contract.seen`).
+- When the current fingerprint differs, the consumer "needs a look".
+- "Mark as checked" is an ordinary model edit: engineers make it in drafts, architects on main.
+
+**Recommended.** Yes.
+
+**Owner's thinking:** Go with what you think is best.
+
+**Applied [2026-11-20].** As recommended: the consumer's line stores the fingerprint it has checked (`dp.contract.seen`).
+
+### Q13.4 How people are told
+
+**Recommended**
+- A computed "needs a look" item, on the home page and in the bell's "Now".
+- A badge on the consumer.
+- Optional linked work on the consumer (DEC-085).
+- `dp contracts --fail-on breaking` in CI.
+- No email, chat or webhooks: the bell keeps no stored list per person (DEC-080).
+
+**Owner's thinking:** Go with what you think is best.
+
+**Applied [2026-11-20].** As recommended: a computed 'needs a look' item, a badge, optional linked work and `dp contracts --fail-on breaking`. No email or webhooks.
+
+### Q13.5 Breaking changes
+
+**Recommended.** For JSON Schema and OpenAPI, dp computes these:
+- a removed field;
+- a type change;
+- a new required request field;
+- a removed endpoint.
+
+Anything else is "changed, impact unknown".
+
+**Owner's thinking:** Go with what you think is best.
+
+**Applied [2026-11-20].** As recommended: removed fields, type changes, new required request fields and removed endpoints; anything else is 'changed, impact unknown'.
 
 ## Stop and ask if
 

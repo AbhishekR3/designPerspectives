@@ -5,7 +5,7 @@
 | **Status** | Rewritten 2026-11-20: the owner moved architecture drift to ideas list (I2.2). This wave keeps the part that Waves 8, 11 and 13 need: one Finding shape and acknowledgements. Ready to run |
 | **Branch** | `feat/w06-findings`, from `main` |
 | **Size** | M (was M–L) |
-| **Release** | 0.5.2 |
+| **Release** | 0.9.0 (with Waves 7, 8) |
 | **Depends on** | Nothing required. If Wave 5 is merged first, its key-code checks become Findings too |
 | **Owner items** | None of the list directly. It is the base of items 18, 19 and 22 ([README.md](README.md#where-each-item-went)); item 1 (drift) is parked |
 
@@ -78,6 +78,87 @@ The Finding shape and acknowledgements come from answer A5 (2026-11-19) and stay
 - **Drift (2026-11-20):** pushed to the ideas list. Q6.3 (what drift compares against), Q6.4 (fixing drift through the import review) and Q6.5 (drift in CI) are not built; their designs are kept there.
 - **Vision:** feature L (the base for BMO's checks) and the single source of truth (B).
 
+## Questions, options and answers (moved from questions.md)
+
+*Moved from the deleted `questions.md` on 2026-11-20, with the owner's words as written. In the quotes, `future_tasks.md` and `backlog.md` mean the old backlog, now [planned_features.md](../planned_features.md) and the owner's private ideas list; `docs/waves/v1-scope-review.md` was decided in DEC-104.*
+
+### ★A5. One Finding and one way to acknowledge it, for every check?
+
+**Analysis.** Drift (Wave 6), rules (8), runtime (12), contracts (13) and BMO reviews (11) all say the same kind of thing: "something about object X needs a look". Built separately, each would bring its own overlay, bell item and way to silence it.
+
+**Proposed**
+- **One Finding shape** in `src/shared/types.ts`: rule, target, severity, class, outcome, evidence, and what could not be checked. Built in Wave 6.
+- **Acknowledgements are model data.** "Seen, and here is why it's fine" is stored on the target as a `dp.*` property. Project-wide findings are stored on the workspace, the way `dp.work` is (`src/core/work.ts:48-75`).
+- **So acknowledgements behave like any edit:**
+  - they go through drafts, undo and `dp diff`;
+  - only people who may edit the model can silence a finding.
+
+  ideas list I2.2 warns against "a way to hide real problems"; this keeps silencing reviewable.
+- **The cost:** acknowledgements show up in model diffs, which is the point.
+
+**The alternative** is a side file like `checklist.json`. Anyone with checklist rights could then silence drift on main without a review.
+
+**Recommended.** Yes.
+
+**Owner's thinking:** Go with whatever you think is best.
+
+**Applied [2026-11-19].** Yes. One Finding shape, and acknowledgements stored as model data (`dp.acks`). Wave 6 builds it and records the DEC. Waves 8, 11 and 13 reuse it. Wave 12 would have too; it is parked.
+
+### ★Q6.1 Acknowledgements as model data
+
+**Analysis.** See ★A5.
+
+**Recommended.** Yes: `dp.acks` on the object the finding is about.
+
+**Owner's thinking:** (Answered by A5: yes.) Wave 6: Push architecture drift to future_tasks.md for me to review later.
+
+**Applied [2026-11-20].** Kept: `dp.acks` stay model data. [Wave 6](wave-06-findings.md) is now 'Findings and acknowledgements'.
+
+### ★Q6.2 Three outcomes: found, not found, not checkable
+
+**Analysis** [Fact]
+- Imports show the lines between components that run in one process.
+- Most lines between containers (HTTP, queues) don't appear in imports.
+- dp reads hosts only from env samples and compose (`scan.ts:919-925`).
+
+**Proposed.** Every drift check answers found, not found or not checkable, and says why. For example, an HTTP line between containers with no host in config is "not checkable", never "missing".
+
+**Recommended.** Yes.
+
+**Owner's thinking:** Push architecture drift to future_tasks.md for me to review later.
+
+**Applied [2026-11-20].** The three outcomes (found, not found, not checkable) stay in the Finding shape for the later waves. Wave 6's own checks are the warnings dp already makes, so they are always 'found'.
+
+### Q6.3 What drift compares against
+
+**Recommended.** A fresh scan of the working tree by default. `--ref <git ref>` compares against a branch instead, using the existing git reader.
+
+**Owner's thinking:** Push architecture drift to future_tasks.md for me to review later.
+
+**Applied [2026-11-20].** Not built. Kept in ideas list I2.2 for your review.
+
+### ★Q6.4 How drift is fixed
+
+**Proposed**
+- **"Update the model from code"** writes an ordinary import file from the findings you pick.
+- **It reuses the import path.** The file goes through the existing checks, importer and review, so scan facts make those items "verified" by themselves (DEC-051, DEC-064). There is no second way into a draft.
+- **Names come from the code** (service and folder names). Placeholders are flagged.
+- **BMO can be asked to name and describe** the new objects, labelled as proposed.
+
+**Recommended.** Yes.
+
+**Owner's thinking:** Push architecture drift to future_tasks.md for me to review later.
+
+**Applied [2026-11-20].** Not built. 'Update the model from code' is kept in ideas list I2.2 as part of the drift design.
+
+### Q6.5 Drift in CI
+
+**Recommended.** `dp drift --fail-on new` exits 1 only for findings that aren't acknowledged. A CI example goes in `demo/ci-examples/`.
+
+**Owner's thinking:** Push architecture drift to future_tasks.md for me to review later.
+
+**Applied [2026-11-20].** Not built. `dp drift` and its CI example are in ideas list I2.2.
+
 ## Stop and ask if
 
 - ★Q6.1 or ★A5 prefers a side file for acknowledgements.
@@ -118,6 +199,10 @@ The Finding shape and acknowledgements come from answer A5 (2026-11-19) and stay
 - **New DEC:** the Finding shape; acknowledgements as model data (A5); the existing warnings as the first findings; drift parked (DEC-097).
 - **README:** findings and acknowledgements. **CLAUDE.md:** `findings.ts`, `FindingsPage.tsx`, `Findings.tsx`.
 - **CHANGELOG**, **reviews.md**, and **`docs/determinism.md`** rows.
+
+## Decided (DEC-103, 2026-11-20; assistant's reasoning, the owner may overrule)
+
+- **N8.** A pinned key-code entry (Wave 5) that no longer matches (file gone, or the name gone) is a finding the person can acknowledge. It is never silent and never removed by dp; when only the name is gone and the file exists, the finding says so.
 
 ## Out of scope
 

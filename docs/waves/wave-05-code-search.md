@@ -5,11 +5,11 @@
 | **Status** | Rewritten 2026-11-20, revised the same day. dp stops reading code with one tokenizer per language. It searches code as plain text, a component's main files and functions are pinned, and one **generic regex reader** (a table of patterns for the major languages) replaces the Python and JS/TS readers. Ready to run after Waves 1 and 2 |
 | **Branch** | `feat/w05-code-search`, from `main` after Waves 1 and 2 are merged |
 | **Size** | M–L. Split point: 5a is search and key code (steps 2 to 5); 5b is the generic reader that replaces the old readers (step 6) |
-| **Release** | 0.5.2 (with Waves 15, 6, 7, 8) |
+| **Release** | 0.8.0 (with Wave 15) |
 | **Depends on** | Wave 1 (context packs, citations) and Wave 2 (the list of fixed BMO commands and `dp find`) |
 | **Owner items** | 14 (more languages) and 8 (config files, `tools.py`) ([README.md](README.md#where-each-item-went)) |
 
-Read [README.md](README.md) first: its rules, agents and checks apply to this wave.
+Read [README.md](README.md) first: its rules, agents and checks apply to this wave. Also read [../import-design.md](../import-design.md) (what the import is for and what matters to C4 at each level) and the import choices N1 to N15 in [DEC-103](../decisions.md#pro-19--dec-103--code-import-and-bmo-choices-and-the-080-split-n1-to-n15), which change what this wave builds (see its "Decided" section if it has one).
 
 ## Goal
 
@@ -26,7 +26,7 @@ dp has no module, tokenizer or branch for any single language. A language is cov
 > - Add more languages to be supported such as Java
 > - How does config files/common functions such as tools.py show up in this?
 
-The owner's answers of 2026-11-20 ([questions.md](questions.md), Q5.1 to Q5.8):
+The owner's answers of 2026-11-20 ([the questions section below](#questions-options-and-answers-moved-from-questionsmd), Q5.1 to Q5.8):
 
 - "Remove non-LLM reading of code. It can search and show you specific searches like if I search the name of a function in BMO offline (no-LLM) it'll show me the file for it."
 - "The above should be applicable to any programming language, nothing should be programming language specific."
@@ -107,7 +107,7 @@ The owner's answers of 2026-11-20 ([questions.md](questions.md), Q5.1 to Q5.8):
 - **No Maven or Gradle reading, no `pom.xml` parsing.** They are manifests, not source code, and were not part of the owner's answer. Java source is read by the generic reader. (Say if you want the manifests read like `package.json` is.)
 - **No file roles** (test, config, build, generated, shared helper), **no hiding of shared helpers**, **no config facts** from settings files.
 - **No uncapped file walker, no content-hash cache.** Search has its own caps; Wave 14 hashes what it indexes.
-- **No language mix per object** (scope review P8).
+- **No language mix per object** (DEC-104, P8: dropped).
 - **No complexity, LCOM or abstractness** (Wave 7): they need function bodies and field use, which regexes get badly wrong.
 
 ## Determinism
@@ -130,6 +130,141 @@ The owner's answers of 2026-11-20 ([questions.md](questions.md), Q5.1 to Q5.8):
 - **Q5.8:** remove the existing per-language reading, do regexes generalised to the major languages. Applied as part C.
 - **Search and definitions:** "What can we do about this?" Applied as the definition cue in item 1.
 - **Vision:** feature H (codebase importing) and feature L (BMO finds and explains code).
+
+## Questions, options and answers (moved from questions.md)
+
+*Moved from the deleted `questions.md` on 2026-11-20, with the owner's words as written. In the quotes, `future_tasks.md` and `backlog.md` mean the old backlog, now [planned_features.md](../planned_features.md) and the owner's private ideas list; `docs/waves/v1-scope-review.md` was decided in DEC-104.*
+
+*The questions of this wave were asked about code facts, before the owner chose search and one generic reader (Q5.1, Q5.2, Q5.5, Q5.8). Wave 5 was then rewritten; the "Applied" lines say what changed.*
+
+### ★Q5.1 How should dp read code?
+
+**Analysis** [Fact]
+- dp reads code with small hand-written tokenizers and regular expressions, and has no parser dependency (`src/core/codeMap.ts:98-232`, `package.json:39-43`).
+- JS and TS imports come from one regular expression over the raw text (`codeMap.ts:36`, `:245`). So commented-out imports count, and dynamic imports are missed.
+
+**Options**
+1. **A tokenizer per language.** No dependency and the same result every time, but unusual syntax is missed.
+2. **tree-sitter grammars compiled to WebAssembly.** Real syntax trees for many languages, called from TypeScript. It adds a dependency and a few MB to the package [Training].
+3. **Reports from each language's own tools.**
+
+**Recommended.** Option 1, including a JS/TS tokenizer that drops comments and strings, as the Python one does. Every approximate result is labelled. Revisit option 2 if Wave 7's complexity and LCOM numbers need it.
+
+**Owner's thinking:** Remove non-LLM reading of code. It can search and show you specific searches like if I search the name of a function in BMO offline (no-LLM) it'll show me the file for it. Much more simple for no-LLM code reading
+
+**Applied [2026-11-20].** **Revised later the same day (see Q5.8).** The first reading was 'dp reads no language at all'; your follow-up says regexes generalised to the major languages are wanted. Final: remove the per-language readers (tokenizers and resolvers) and replace them with **one generic regex reader**, a table of patterns for the major languages run the same way on every code file, with every result labelled approximate. Plain-text search comes first (offline BMO `where <name>`, `dp find <name> --code`), shows files and lines, and marks hits that look like a definition. Recorded as DEC-096. [Wave 5](wave-05-code-search.md) is rewritten as 'Code search, key code and one generic code reader'.
+
+### ★Q5.2 Which languages after Java?
+
+**Recommended**
+- Java now, with Kotlin imports in the same pass; they use the same syntax.
+- Go next: `go.mod` is already read (`src/import/scan.ts:431-452`).
+- C# later.
+
+This depends on who dp is for (★A1).
+
+**Owner's thinking:** The above should be applicable to any programming language, nothing should be programming language specific.
+
+**Applied [2026-11-20].** 'Any programming language' is met by one pattern table for the major languages (Python, JavaScript and TypeScript, Java, Kotlin, Scala, C#, Go, Rust, C and C++, Ruby, PHP, Swift) and no module, file or branch per language. A language that is not in the table still gets search. Adding a language means adding patterns and a test string. The earlier 'Java now, Go next, C# later' becomes 'all of those at once, approximately'.
+
+### Q5.3 Java builds
+
+**Proposed**
+- **Maven:** `pom.xml` modules, packaging and dependencies.
+- **Gradle:** `settings.gradle` includes, and dependencies in their common forms. Gradle files are code, so only the common forms can be read.
+- **Container candidates:** a module with an entry point (a `main` method or a Spring Boot application class), or one packaged as a war.
+- **Two approximations, labelled:**
+  - classes in the same package need no import, so those lines come from same-package names;
+  - a wildcard import gives a line to the whole package.
+
+**Recommended.** Yes.
+
+**Owner's thinking:** Do we still need Java builds/sample code with the above in mind? (asked once for Q5.3 and Q5.4)
+
+**Applied [2026-11-20].** No Maven or Gradle reading for now: they are build manifests, not source code, and your later answer was about reading code with regexes. Java source is read by the generic reader. Say so if you want `pom.xml` and Gradle files read as well; that would be a small manifest reader like the one for `package.json`.
+
+### ★Q5.4 Java sample code
+
+**Analysis** [Fact]
+- CLAUDE.md says: "Everything is TypeScript. Do not add Python or other-language code."
+- The demo already has Python sample code (`demo/sample_code/api`, `pipeline`). It is data that gets scanned, not dp code.
+- CI has no Java runtime, and the demo system's services are TypeScript (DEC-077).
+
+**Options**
+1. Java only as test fixtures.
+2. Also a small Java service in `demo/sample_code`, scanned but never run.
+
+**Recommended.** Option 1. Choose option 2 if you want the demo to show Java.
+
+**Owner's thinking:** (Answered with Q5.3: do we still need Java sample code?)
+
+**Applied [2026-11-20].** No Java sample code and no Java fixtures, and CLAUDE.md's 'everything is TypeScript' needs no exception. Tests write small plain-text fixtures from strings into a temporary folder, in no particular language.
+
+### ★Q5.5 How `tools.py` and other shared helpers are treated
+
+**Proposed** (see 0.2)
+- **When a file is a shared helper:** its folder has a known name (util, utils, common, shared, helpers, tools, lib), or at least N components import it.
+- **How shared helpers show:**
+  - with a badge;
+  - left out of the lines between components by default; a toggle shows them;
+  - no longer "unmapped" once they have the role.
+- **When shared code becomes a box:**
+  - a "shared" component is proposed only above the threshold;
+  - code shared by several containers is proposed as its own container (DEC-023).
+- **Your overrides** go in the intake, for example `"roles": {"src/tools.py": "shared"}`.
+
+**Recommended.** Yes. Your thinking could set N (we suggest 3) and the folder names.
+
+**Owner's thinking:** Since I no longer care about how the code specific things work, i dont think we should be mapping tools.py and such. I only want to see the main files and functions related to a C3 object with that in mind (asked once for Q5.5, Q5.6 and Q5.7)
+
+**Applied [2026-11-20].** The shared-helper rule (folder names, N = 3, intake overrides), the file roles and the badges are dropped. A component instead shows **key code**: its main files and functions, stored as `dp.code.key`. A person pins them (from a search result or the file picker); dp checks each file still exists and holds the name; dp offers hints without an LLM (a file named like the component, mentioned by several of its files, the longest); BMO can propose entries, and dp verifies the path and the name before they can be pinned. `tools.py` is a code file like any other: no box, no role, and no special line. If it matters to a component, someone pins it.
+
+### Q5.6 Config files as evidence
+
+**Recommended**
+- Keep names and hosts only, passed through the same redaction as BMO (`src/assistant/redact.ts`). Never keep values.
+- `.env` and `.github/` stay closed (DEC-031).
+- This covers Java's `application.yml` and `.properties` files, and Python settings modules.
+
+**Owner's thinking:** (Answered with Q5.5.)
+
+**Applied [2026-11-20].** Config facts are dropped with the language readers. The scan's existing reading of env samples and compose stays as it is; `.env` and `.github/` stay closed (DEC-031).
+
+### Q5.7 Content hashes
+
+**Analysis** [Fact]
+- `evidence.json` stores file sizes, not hashes (`scan.ts:932`). An edit that keeps a file's size is invisible.
+- `evidence.json` is committed.
+
+**Options**
+1. Hashes in `evidence.json`. Every edit changes it, which makes noisy diffs.
+2. Hashes in a git-ignored `.dp/cache/`. Fine on one machine, but CI can't say what changed since a given point.
+
+**Recommended.** Option 2. Wave 13 stores the contract fingerprints it needs in the model instead.
+
+**Owner's thinking:** (Answered with Q5.5.)
+
+**Applied [2026-11-20].** No content-hash cache in Wave 5: search needs none. Wave 14 hashes what it indexes, and Wave 13 computes a fingerprint from a small JSON file when asked.
+
+### ★Q5.8 What happens to the code reading that is already built?
+
+*New on 2026-11-20. It comes from "remove non-LLM reading of code" (Q5.1).*
+
+**Analysis** [Fact]
+- Built today and language-specific: Python and JS/TS imports and function lookup (`src/core/codeMap.ts`), the component-to-component import lines in the scan, the code level diagram, the unmapped-code warning, and the import check in the coding plan.
+- Not language-specific and not affected: code paths on elements (`dp.code.paths`), the file viewer, the scan of manifests, compose and Dockerfiles.
+- We read Q5.1 as "do not build more of this, and do not rely on it". It could also be read as "take it out".
+
+**Options**
+1. **Freeze.** Keep what exists, label it "Python and JS/TS only" in the UI and docs, add nothing, fix bugs only. New work (search, key code, model metrics, the interview) does not depend on it; the interview uses the import lines where they exist.
+2. **Remove the import reading and function lookup.** Keep code paths, the viewer and search. The code diagram would show files without import lines; the scan's component lines and the coding plan's import check go.
+3. **Remove all of it,** including the code level diagram.
+
+**Recommended.** Option 1 now, and look again before 1.0.0. Removing built features is a bigger step than not building more (the scope review makes the same point), and the import lines are the only evidence dp has for lines between components. **Trade-off:** two ways of reading code live side by side, one of them language-specific, and the docs must say so.
+
+**Owner's thinking:** Remove the non-LLM reading of code, just do the regex expressions and things can be generalized to all types of major coding languages
+
+**Applied [2026-11-20].** Option 2 in spirit, with a replacement. The per-language tokenizers, resolvers and function lookup (Python, JS/TS) are removed. **One generic regex reader** (a pattern table plus one engine, no code per language) takes over `scanImports` and `findFunctions`, so the code diagram, the scan's component lines, the unmapped-code warning and the coding plan's import check keep working and now cover the major languages, not only Python and JS/TS. Everything it returns is approximate and says so. The demo's results may change slightly; step 1 of Wave 5 records the old results as a baseline, step 6 lists every difference, and the demo is regenerated. **Trade-off:** regexes without a tokenizer can read a commented-out or string-embedded import as real (a generic comment cut helps but is not exact), and the resolver matches a specifier to files by path, so two files with the same path tail are ambiguous (dp draws no line then, and says so). The old Python tokenizer was exact for Python; that exactness is traded for breadth. [Wave 5](wave-05-code-search.md) part C.
 
 ## Stop and ask if
 
@@ -194,6 +329,13 @@ Only one agent builds the UI or runs `cd ui && npm run build` at a time.
 - **README:** find code, key code, the languages the pattern table covers. **CLAUDE.md:** `codeSearch.ts`, `keyCode.ts`, `codeReader.ts`, `codePatterns.ts`, and the revised description of `codeMap.ts`.
 - **CHANGELOG** and **reviews.md:** this wave's entries, including the list of differences from the old readers. **`docs/determinism.md`:** rows.
 - **planned_features.md:** B4's "Scan languages beyond Python and JS/TS" is done for the languages in the table.
+
+## Decided (DEC-103, 2026-11-20; assistant's reasoning, the owner may overrule)
+
+- **N2.** Entry points and public interfaces (`main`, route registrations, CLI commands, queue consumers, schedulers, exports) are one small generic pattern per kind in the pattern table. They are hints for key code, never components.
+- **N4.** The manifest table adds Cargo, Gemfile, Composer and .NET project files. Maven and Gradle stay out (Q5.3).
+- **N5.** One list of source extensions replaces `SOURCE_EXT` (`codeMap.ts`) and `LANG_BY_EXT` (`scan.ts`), with a flag for "counts as source" versus "known file type".
+- **N7.** The rule for what matters at each level is stated in [import-design.md](../import-design.md); this wave implements it and links back, and does not restate it.
 
 ## Out of scope
 

@@ -5,7 +5,7 @@
 | **Status** | Owner answers applied (2026-11-19; Q3.1 to Q3.5 answered: the page stays "Decisions", plus references to local files). Ready to run after Wave 2. Uploads are in [Wave 16](wave-16-attachments.md) |
 | **Branch** | `feat/w03-reference-and-adrs`, from `main` after Wave 2 is merged |
 | **Size** | M |
-| **Release** | 0.5.1 |
+| **Release** | 0.7.0 |
 | **Depends on** | Wave 2 (the Markdown renderer) |
 | **Owner items** | 4, 13 ([README.md](README.md#where-each-item-went)) |
 
@@ -134,7 +134,7 @@ Decision records stay on the **Decisions** page (architecture decision records, 
 
 ## Owner answers
 
-Applied 2026-11-19: the owner answered Part A and Q3.1 to Q3.5 ([questions.md](questions.md)). Q3.6 was left blank, so it uses its recommendation.
+Applied 2026-11-19: the owner answered Part A and Q3.1 to Q3.5 ([the questions section below](#questions-options-and-answers-moved-from-questionsmd)). Q3.6 was left blank, so it uses its recommendation.
 
 - **Q3.1:** the owner asked "What is a library?". It is the reference library of pattern and anti-pattern write-ups (see Goal); the page is called "Reference notes". The recommendation stands: option 4. Per project in `architecture/reference/` and hub-wide in `<hub>/reference/`; a project entry overrides a hub entry with the same name; architects edit, everyone reads; a DEC adds it to CLAUDE.md's list of files outside the workspace.
 - **Q3.2:** yes for now; an opt-in starter set of about 10 anti-patterns and 5 patterns, in our own words, with book and page references; an Opus subagent checks that no text is copied. The owner wants to review the starters later: it is an item in ideas list O.
@@ -142,6 +142,145 @@ Applied 2026-11-19: the owner answered Part A and Q3.1 to Q3.5 ([questions.md](q
 - **Q3.4:** the page stays "Decisions" (option 2). Search for "ADR" finds it.
 - **Q3.5:** links in decisions here, files in [Wave 16](wave-16-attachments.md) (which also covers diagrams, notes and comments), and a reference to a file on the owner's own computer so nothing is duplicated (the `local:` link kind). The owner also wants a click to open it in the system's default app; that is Wave 16's item 12 (DEC-095). Splitting files out keeps this wave at M and gives the security work its own review.
 - **Q3.6:** yes, an optional Compliance section that can name a rule.
+
+## Questions, options and answers (moved from questions.md)
+
+*Moved from the deleted `questions.md` on 2026-11-20, with the owner's words as written. In the quotes, `future_tasks.md` and `backlog.md` mean the old backlog, now [planned_features.md](../planned_features.md) and the owner's private ideas list; `docs/waves/v1-scope-review.md` was decided in DEC-104.*
+
+### ★Q3.1 Where does the library live, and who edits it?
+
+**Analysis**
+- The library isn't data about one object, so the `dp.*` rule doesn't fit. It is like `comments.json` (DEC-049) and `checklist.json` (DEC-084).
+- Hubs already share a catalog across projects (DEC-055).
+
+**Options**
+1. Per project, in `architecture/reference/`.
+2. Hub-wide, in `<hub>/reference/`.
+3. Per person, outside git.
+4. Both 1 and 2, with a rule for which entry wins.
+
+**Recommended.** Option 4.
+- **Entries:** Markdown files with a small header.
+- **Which wins:** a project entry overrides a hub entry with the same name.
+- **Kept beside the model:** no drafts and no undo, like the checklist.
+- **Who edits:** architects only, through a new permission (engineers' checklist rights don't cover it). Everyone can read it.
+- **A DEC** adds it to CLAUDE.md's list of files outside the workspace.
+
+**Owner's thinking:** What is a library?
+
+**Applied [2026-11-19].** The word was unclear, so here it is in plain words.
+- **"The library" is the reference library:** your curated set of write-ups on patterns and anti-patterns that architects fall into (Entity Trap, Big Ball of Mud, and so on). It is what you asked for as "a reference notes section curated by me". Each entry is one Markdown page inside dp: a summary, signs to look for, why it hurts, what to do instead. It is a small built-in wiki that everyone can read and architects edit.
+- **"Where does it live" means which folder the entry files are in, and who may edit them:**
+  1. Per project, in `architecture/reference/`. It travels with the project's git repository.
+  2. Per hub, shared by every project on a hub.
+  3. Per person, outside git.
+  4. Both 1 and 2, where a project entry beats a hub entry of the same name.
+- **No change to the plan.** Option 4 still holds, since the question was about the word and not about the options. Tell me if the explanation changes your mind.
+- **The label:** I'll call the page "Reference notes", your own words, and not "library".
+
+### ★Q3.2 Should dp ship starter entries?
+
+**Analysis** [Fact]. The book notes name many anti-patterns and patterns, with page numbers (`docs/notes/fundamentals-of-software-architecture-richards-ford.md`):
+- Entity Trap (:138);
+- Architecture Sinkhole (:188);
+- Big Ball of Mud (:158);
+- one shared entity library (:253);
+- Swarm of Gnats (:277);
+- Accidental SOA (:324);
+- Grains of Sand (:344).
+
+**Recommended**
+- An opt-in starter set of about 10 anti-patterns and 5 patterns, written in our own words, with book and page references.
+- No copied text. An Opus subagent checks for that.
+- You then curate: edit, delete, add.
+- The alternative is to start empty.
+
+**Owner's thinking:** Yes, that works for now, but still add this into future_tasks.md so I can review these later.
+
+**Applied [2026-11-19].** As recommended: an opt-in starter set of about 10 anti-patterns and 5 patterns, in our own words, with book and page references, and an Opus copy check. Added to ideas list O ("Checks that only the owner can run"): review the starter entries and curate them.
+
+### Q3.3 The entry template
+
+**Proposed**
+- **Header:**
+  - kind: pattern, anti-pattern, principle, checklist or note;
+  - tags;
+  - the characteristics it affects;
+  - related rule ids (Wave 8);
+  - sources (book and page);
+  - "check by default" (pre-selected for BMO's review).
+- **Sections:** Summary · Signs to look for · Why it hurts (or why it helps) · What to do instead · Example · My notes.
+- "Signs to look for" is what Wave 8's detectors and Wave 11's BMO review use.
+
+**Owner's thinking:** Do whatever you think is best.
+
+**Applied [2026-11-19].** As proposed.
+
+### ★Q3.4 Should the section be called "ADRs"?
+
+**Analysis** [Fact]
+- The toolbar button and the page are called "Decisions" (`ui/src/App.tsx:946-950`, `:357`).
+- The files are `architecture/decisions/NNNN-slug.md` (DEC-050). The CLI and the API say "decisions".
+- You asked for "a section called ADR Architectural Decision Records".
+
+**Options**
+1. Label the button "ADRs" and the page "Architecture decision records (ADRs)". Keep the paths.
+2. Keep "Decisions", and make a search for "ADR" find it.
+
+"ADR" is architect jargon, and people on the Overview lens may not know it.
+
+**Recommended.** Option 1. It is what you asked for, and the people who write decisions are architects.
+
+**Owner's thinking:** Leave it as the Decisions page.
+
+**Applied [2026-11-19].** Option 2. The button and the page stay "Decisions". Searching for "ADR" or "architecture decision record" finds the page. The help card and the README say "Decisions (architecture decision records, ADRs)", and paths and API names stay. The vision's feature G ("an ADR page") is the Decisions page. [Wave 3](wave-03-reference-and-adrs.md), Wave 11 and the vision file are updated.
+
+### ★Q3.5 Attachments: links, or files too?
+
+**Analysis** [Fact]
+- **A decision can hold neither links nor files today.** Its prose shows as plain text (`ui/src/pages/DecisionsPage.tsx:351-353`).
+- **Drafts copy the whole decisions folder,** into the draft and into its base (`src/core/drafts.ts:208-212`). A file kept there would be stored three times per draft.
+- **A request body must be JSON under 5 MB** (`src/server/requestProtection.ts:12`, `:94-102`). That rule also stops other websites sending requests to dp.
+- **Secrets:** a decision holding a secret is refused (DEC-064), and binary files can't be scanned for secrets.
+- **The planned static export would include attachments** (DEC-024).
+
+**Options**
+1. **Links now.** A Links section with web links (http and https only) and repository paths. Paths are checked against the code root and the hidden-path rule (DEC-031).
+2. **Files as well.**
+   - Uploaded as base64 inside JSON, into a shared `architecture/attachments/` folder named by content. It sits outside `decisions/`, so drafts don't copy it.
+   - A size cap and a list of allowed types.
+   - Download only: SVG and HTML are never shown in the page.
+   - Never sent to BMO.
+
+**Recommended.** Option 1 now, option 2 later if links aren't enough. Your thinking could say what you expect to attach (whiteboard photos, PDFs, spreadsheets).
+
+**Owner's thinking:** Options 1 and 2, but also allow users to just reference another file on their local machine, so they don't need duplicates.
+
+**Applied [2026-11-19].** Both options, plus a third way to attach.
+- **Links:** built in Wave 3, as planned.
+- **Files:** built in [Wave 16](wave-16-attachments.md), as planned (up to 10 MB, anyone can attach, stored in the project).
+- **New: a reference to a file on your own computer,** so a large file need not be copied into the project. [Proposal, how]
+  - It is a `local:` link kind that holds a path (`~/specs/design.pdf` or an absolute path).
+  - dp stores the path text only. It never reads, copies, uploads or sends the file to BMO.
+  - It shows the file name and a Copy path button.
+  - `dp check` gives an info line if the file does not exist on the machine running the check.
+  - Wave 3 builds the link kind for decisions. Wave 16 adds "Reference a file on this computer" beside "Upload" wherever you can attach.
+- **Opening it (follow-up, 2026-11-19):** you asked that a click open the file in the system's default app, such as a PDF in Acrobat or a spreadsheet in Excel. Yes, in [Wave 16](wave-16-attachments.md) (item 12, DEC-095), with limits.
+  - A web page cannot open `file:` links [Training], so dp's server asks the operating system to open it, the way the CLI already opens the browser (`src/cli.ts:57-60`).
+  - **The danger:** a decision from a cloned repository could point at a program or script, and "open" would start it. So:
+    - only a short list of document types opens (PDF, Word, Excel, PowerPoint, CSV, text, Markdown, common images). Programs, scripts, shortcuts, `.app` bundles, `.html`, `.svg` and macro-enabled Office files are refused;
+    - the path is resolved first, symlinks included, and the real file's type is checked;
+    - a dialog shows the full path before it opens, because a link's label can say anything;
+    - it works only on a server running on your own machine. On a hub or remote server the button is Copy path, because "open" would open the file on the server's computer;
+    - the same cross-site rule as uploads applies.
+  - The Windows path is written and not run, like the rest of the CLI's Windows code. If the security review finds the route unsafe, Wave 16 ships Copy path only and tells you.
+- **Trade-off:** a path in git is only useful on that machine. It shows your user name unless written as `~/`. Teammates see a path they cannot open.
+
+### Q3.6 A "Compliance" section in decisions
+
+**Proposed.** The book's ADR template has a Compliance section: how the decision is checked, by hand or by an automated test (notes `fundamentals…md:386`). In dp it would be an optional section that can name a rule from Wave 8.
+
+**Recommended.** Yes.
 
 ## Stop and ask if
 
@@ -195,6 +334,10 @@ Applied 2026-11-19: the owner answered Part A and Q3.1 to Q3.5 ([questions.md](q
 - **CLAUDE.md:** the map and the list of files outside the workspace.
 - **CHANGELOG** and **reviews.md:** the wave's entries.
 - **`docs/determinism.md`:** rows for this wave.
+
+## Decided (DEC-103, 2026-11-20; assistant's reasoning, the owner may overrule)
+
+- **N14.** The assumption work of DEC-099 (a decision cites assumption items, a "wrong" state, "needs a look" on the decisions that cite one) is built here, because the decision record and its page hold the link. The "wrong" state is a small checklist change that rides with it. Wave 6 reads that state and does not define it.
 
 ## Out of scope
 

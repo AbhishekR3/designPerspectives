@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Parked** (owner, answer A7, 2026-11-19): anti-patterns through telemetry moved to ideas list I2.7. Runtime is outside the software-architecture line (scope review P5) and not among the twelve features. Kept for when it returns |
+| **Status** | **Parked** (owner, answer A7, 2026-11-19): anti-patterns through telemetry moved to ideas list I2.7. Runtime is outside the software-architecture line (scope decision P5: later, DEC-104) and not among the twelve features. Kept for when it returns |
 | **Branch** | `feat/w12-runtime-telemetry`, from `main` (when the wave returns) |
 | **Size** | M |
 | **Release** | — |
@@ -92,12 +92,49 @@ Wave 8 covers the model and code side of this.
 
 ## Owner answers
 
-Applied 2026-11-19: the owner answered Part A and left Part B blank, so every Q below uses its recommendation ([questions.md](questions.md)).
+Applied 2026-11-19: the owner answered Part A and left Part B blank, so every Q below uses its recommendation ([the questions section below](#questions-options-and-answers-moved-from-questionsmd)).
 
 - **A7:** "Push these to future_tasks.md". This wave is parked, not deleted (owner, A10).
 - **Q12.1 to Q12.3:** their recommendations stand for when the wave returns (trace files and System Testing runs only; settings in the rule registry; flag attributes on span events).
 - **Effect on other waves:** none depend on it. Wave 4's observed A/B split and Wave 6's runtime drift note point here and stay unbuilt.
-- **Confirmed** by the owner on 2026-11-19 ([questions.md](questions.md) C6b): do not build either for 1.0.
+- **Confirmed** by the owner on 2026-11-19 ([C6 in Wave 2](wave-02-notes-context-help.md#questions-options-and-answers-moved-from-questionsmd)): do not build either for 1.0.
+
+## Questions, options and answers (moved from questions.md)
+
+*Moved from the deleted `questions.md` on 2026-11-20, with the owner's words as written. In the quotes, `future_tasks.md` and `backlog.md` mean the old backlog, now [planned_features.md](../planned_features.md) and the owner's private ideas list; `docs/waves/v1-scope-review.md` was decided in DEC-104.*
+
+### ★Q12.1 Where telemetry comes from
+
+**Analysis** [Fact]. Today dp reads two sources:
+- trace files (OTLP JSON) from a folder, keeping the newest 2,000 traces (`src/core/traces.ts:31-32`);
+- System Testing's run log: 200 calls, in memory only (`src/server/testSession.ts:44-50`).
+
+**Recommended.** These two only. A live collector (OTLP over HTTP) stays in ideas list I2.7.
+
+**Owner's thinking:** Go with what you think is best. (Wave 12 is parked.)
+
+**Applied [2026-11-20].** Parked. The recommendation is kept for when the wave returns.
+
+### Q12.2 Thresholds
+
+**Recommended.** Rule settings in the registry:
+- repeated calls in one trace (N+1);
+- chain depth;
+- fan-out.
+
+**Owner's thinking:** Go with what you think is best. (Wave 12 is parked.)
+
+**Applied [2026-11-20].** Parked.
+
+### Q12.3 Variants from telemetry
+
+**Recommended.** Read span events that carry the feature-flag attributes now (see 0.1). Read OTLP log files later.
+
+**Owner's thinking:** Go with what you think is best. (Wave 12 is parked.)
+
+**Applied [2026-11-20].** Parked.
+
+The parking of this wave (A7, C6b) is explained under C6 in [wave-02-notes-context-help.md](wave-02-notes-context-help.md#questions-options-and-answers-moved-from-questionsmd): the owner asked again in plain words and the answer was **do not build Wave 10 or Wave 12 for 1.0**.
 
 ## Stop and ask if
 

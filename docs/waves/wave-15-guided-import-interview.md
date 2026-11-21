@@ -5,11 +5,11 @@
 | **Status** | Owner answers applied (0.3 on 2026-11-18; Q15.1 to Q15.5 answered 2026-11-20: questions depend on the codebase and there are always a few; the card approval is final, with room for free-text context and file references; answers saved locally). Ready after Waves 5 and 1 |
 | **Branch** | `feat/w15-guided-import-interview`, from `main` after Waves 5 and 1 are merged |
 | **Size** | L. Split point: 15a is the interview and the import without BMO (steps 2 to 5); 15b adds BMO-proposed cards (step 6) |
-| **Release** | 0.5.2 (with Waves 5, 6, 7, 8) |
+| **Release** | 0.8.0 (with Wave 5) |
 | **Depends on** | Wave 5 (code search and key code: the "main files and functions" cards), Wave 1 (labels and citations for the BMO cards in 15b). Wave 3's `local:` link kind is reused for file references |
 | **Owner items** | Answer 0.3 ([README.md](README.md#where-each-item-went)) |
 
-Read [README.md](README.md) first: its rules, agents and checks apply to this wave.
+Read [README.md](README.md) first: its rules, agents and checks apply to this wave. Also read [../import-design.md](../import-design.md) (what the import is for and what matters to C4 at each level) and the import choices N1 to N15 in [DEC-103](../decisions.md#pro-19--dec-103--code-import-and-bmo-choices-and-the-080-split-n1-to-n15), which change what this wave builds (see its "Decided" section if it has one).
 
 ## Goal
 
@@ -25,7 +25,7 @@ The reader is assumed to know the basics of the project, may know more, and prob
 
 > For importing codebase people don't want to manually create diagrams. When importing the codebase, make all the deterministic calls, then ask questions to the user. Show it as a UI with x/y questions. Like you can show the user what you were thinking of labelling certain items and the user can approve disaprove. You can ask grouped values. It's alright asking more questions than less to ensure you are getting the correct answer. You can ask a preliminary questions that involve text based responses or choosing between options. Whatever you think is the best way to get context out of the user for this codebase. Make an assumption the user knows basic info about the project, but may know more, but probably doesn't.
 
-Which levels are exact and which are guesses is in [questions.md](questions.md) 0.3. The interview asks about the guesses and confirms the exact facts in bulk.
+Which levels are exact and which are guesses is in [import-design.md](../import-design.md) section 8 (the table by C4 level). The interview asks about the guesses and confirms the exact facts in bulk.
 
 ## What exists today [Fact; anchors from the survey of 2026-11-18, two marked ~ are approximate]
 
@@ -192,6 +192,64 @@ Code shows outside parts only as clients, URLs and settings, so the interview as
 - **Shared helpers (2026-11-20):** the Wave 5 file-role cards are gone with Wave 5's roles; the new per-component card is "main files and functions".
 - **Vision:** this wave is feature H, and the clearest answer to "understanding an existing codebase is hard".
 
+## Questions, options and answers (moved from questions.md)
+
+*Moved from the deleted `questions.md` on 2026-11-20, with the owner's words as written. In the quotes, `future_tasks.md` and `backlog.md` mean the old backlog, now [planned_features.md](../planned_features.md) and the owner's private ideas list; `docs/waves/v1-scope-review.md` was decided in DEC-104.*
+
+*New: it comes from your answer to 0.3. These have recommendations and none changes the direction you set.*
+
+### ★Q15.1 One interview, or one per level?
+
+**Analysis.** DEC-051 brings a codebase in one C4 level at a time, with a draft per level. Your answer asks for one flow with "x of y" questions.
+
+**Options**
+1. **One interview, a draft per level.** Steps 1 and 2 are asked once. Then each level is answered and imported on its own, so the model stays reviewable (DEC-051). "x of y" counts the current level, with the later levels listed as "still to come".
+2. **One interview, one draft.** Faster to click through, but one very large draft to review.
+
+**Recommended.** Option 1.
+
+**Owner's thinking:** The interview should be dependent on the codebase. Tend to lean towards more questions than less. Definitely need at least a few questions per interview.
+
+**Applied [2026-11-20].** Questions come from what the scan finds, so a codebase with a broker gets broker questions and one without gets none. When a fact could be asked or assumed, dp asks, and dp asks about every object it would create. **A floor of 6 questions per level's interview**: if the scan yields fewer, dp fills up from a fixed bank of standing questions (at least 8 per level, worded in code, never generated), and the screen says it did. The wording of the bank is added to ideas list O for your review. I kept 'one interview, a draft per level' (option 1), reading 'per interview' that way and because DEC-051 wants one level at a time. [Wave 15](wave-15-guided-import-interview.md) is updated.
+
+### ★Q15.2 Is a click in the interview the final accept?
+
+**Analysis.** Today an unverified item needs an explicit accept in the review (`review.ts:754`). If the user has already approved the card, asking again is noise; but a card approved quickly with "Approve all" is a weaker check than the review.
+
+**Options**
+1. **The card approval is the accept** and is recorded with who made it. The review screen still shows every item and its level.
+2. **The interview only proposes.** Everything is reviewed again afterwards.
+
+**Recommended.** Option 1, but "Approve all of these" never covers items the scan could not back with evidence. Those need their own click.
+
+**Owner's thinking:** Yes it is final accept, but users can also add some additional context as a free-form text or reference local files.
+
+**Applied [2026-11-20].** The card approval is the final accept (a group's 'Approve all of these' still never covers items the scan could not back with evidence). Beside it: a **note on each card** (typed text, which can back that item as evidence), **general context** in a free-text box, and **file references**. A file inside the code root is read through the file gate (text only, redacted) and can go to BMO as data; a file elsewhere on the computer is kept as a path only, never read or sent (the `local:` kind of Q3.5, DEC-095).
+
+### Q15.3 Where the answers live
+
+**Recommended.** `architecture/import/interview.json`, next to the intake, outside the model and with a fixed key order. BMO's questions stay in the checklist and appear in the interview as one group.
+
+**Owner's thinking:** Save the answers to the questions locally, go with your best thinking
+
+**Applied [2026-11-20].** Everything goes in `architecture/import/interview.json`, committed with the intake: the answers, the card notes, the general context and the file references (your 'include it as well'; the earlier split with a git-ignored file is dropped). Nothing is sent anywhere. **Because it is committed,** dp refuses to save a context text that contains a secret-looking value (as a decision does, DEC-064), and the screen says 'saved in the project and committed with it'. A file outside the code root is kept as a path, written with `~/` where possible, so a user name does not end up in git.
+
+### Q15.4 Where it sits on the Import page
+
+**Recommended.** A "Guide me" button at the top that opens the interview full width. The current sections (scan, readiness, bring in a level, labels) stay under "Advanced" for people who want the manual route and for the handoff file.
+
+**Owner's thinking:** Go with your best decisions
+
+**Applied [2026-11-20].** As recommended: a 'Guide me' button at the top of the Import page; the current sections stay under 'Advanced' for the manual route and the handoff file.
+
+### Q15.5 BMO's part
+
+**Recommended.** Build 15a first: the interview and the draft without BMO. Then 15b: BMO adds name, description and label cards marked "BMO suggests", never pre-approved, and BMO's own questions appear last.
+
+**Owner's thinking:** Go with your best decisions
+
+**Applied [2026-11-20].** As recommended: 15a (the interview and the draft without BMO) first, then 15b (BMO adds name, description and label cards marked 'BMO suggests', never pre-approved; BMO's own questions last).
+
 ## Stop and ask if
 
 - The interview would need to write anything into the model that is not an element, relationship, view or `dp.*` property (for example a confidence label or a BMO marker). DEC-051 and DEC-064 forbid it.
@@ -254,6 +312,13 @@ Only one agent builds the UI or runs `cd ui && npm run build` at a time, because
 - **CHANGELOG** and **reviews.md:** this wave's entries, including what was asked of a real codebase (the owner runs one).
 - **`docs/determinism.md`:** rows for this wave.
 - **planned_features.md:** row 15 done; the "skeleton import without BMO" idea (2.0) is answered.
+
+## Decided (DEC-103, 2026-11-20; assistant's reasoning, the owner may overrule)
+
+- **N1.** The scan skips test, doc, example, script, migration, fixture, generated and third-party folders by name when it finds C3 candidates (list in DEC-103, in `EXTRA_SKIP_DIRS` of `scan.ts` only). The candidate review lists what was skipped, each with "add back".
+- **N3.** Layered folders get no rule: the interview asks "are these folders one component?" when names look layered.
+- **N6.** The readiness report keeps minutes, tokens and passes, and shows money only when `pricePerMTok` is set.
+- **N11.** Each import step shows a fixed "no LLM" or "needs an LLM" badge.
 
 ## Out of scope
 

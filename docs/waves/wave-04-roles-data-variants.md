@@ -2,10 +2,10 @@
 
 | | |
 |---|---|
-| **Status** | Owner answers applied (2026-11-19 for the variants, 2026-11-20 for the data half). The owner answered Q4.1 to Q4.3, so the data half (CRUD letters, role × data matrix) is **kept**; the scope review's P4 is marked keep on that basis. Ready to run |
+| **Status** | Owner answers applied (2026-11-19 for the variants, 2026-11-20 for the data half). The owner answered Q4.1 to Q4.3, so the data half (CRUD letters, role × data matrix) is **kept**; the scope decision for P4 is keep (DEC-104). Ready to run |
 | **Branch** | `feat/w04-roles-data-variants`, from `main` after the previous wave is merged |
 | **Size** | M |
-| **Release** | 0.5.1 |
+| **Release** | 0.7.0 |
 | **Depends on** | Nothing in this plan; can move earlier or later |
 | **Owner items** | 20, 5 ([README.md](README.md#where-each-item-went)) |
 
@@ -20,7 +20,7 @@ Show who can create, read, update and delete which data, per role of the **model
 > - Include easy way to view roles/actions like CRUD for each role and what they view and easy way to do this.
 > - From C4 design, how does A/B testing and similar conditional services work?
 
-The explanation of A/B testing in C4 is in [questions.md](questions.md), section 0.1.
+The explanation of A/B testing in C4 is in section 0.1 of the questions section below.
 
 ## What exists today [Fact]
 
@@ -100,16 +100,141 @@ The explanation of A/B testing in C4 is in [questions.md](questions.md), section
 
 ## Owner answers
 
-Applied 2026-11-19 (Part A) and 2026-11-20 (Part B, [questions.md](questions.md)).
+Applied 2026-11-19 (Part A) and 2026-11-20 (Part B, [the questions section below](#questions-options-and-answers-moved-from-questionsmd)).
 
-- **Split by the vision (2026-11-19).** Half of this wave is C4 modelling: conditions on lines and A/B variants as grouped flows (Q4.4, Q4.5). The other half is data architecture: CRUD letters (Q4.1), people as roles and the matrix (Q4.2). The scope review recommended **later** for the data half; the owner then answered Q4.1 to Q4.3 (2026-11-20), which is read as **keep**. The owner can still overrule this in the scope review.
+- **Split by the vision (2026-11-19).** Half of this wave is C4 modelling: conditions on lines and A/B variants as grouped flows (Q4.4, Q4.5). The other half is data architecture: CRUD letters (Q4.1), people as roles and the matrix (Q4.2). The scope review recommended **later** for the data half; the owner then answered Q4.1 to Q4.3 (2026-11-20), which was read as **keep**, and confirmed it on 2026-11-20 by taking the review's recommendation to keep it, together with the data catalog it edits (DEC-104, B1 and P4). Cutting one means cutting the other.
 - **Q4.1 (2026-11-20):** "W should change to C U D right now. CRUD choosing works." Applied: no `W`; an old `write` reads as C, U and D, and the person narrows it by choosing letters.
 - **Q4.2 (best thinking):** as proposed. A role is a C4 person; a matrix page with the letters set on the person's own lines and, greyed, the letters they can reach through their containers; the checks as `dp check` warnings. No policy letters ("allowed"); that stays a stop-and-ask.
 - **Q4.3:** yes. A table of Architect, Engineer and Viewer in the help card, generated from `src/server/auth.ts`.
 - **Q4.4:** option 1. Each variant is its own flow; variants share a key and show as tabs in the flow player.
 - **Q4.5:** yes, an optional condition on a line, shown as a chip, with a diagram filter.
-- **Q4.6 (best thinking):** wait for deployment diagrams, which are infrastructure and not scheduled before 1.0.0 (scope review P1).
+- **Q4.6 (best thinking):** wait for deployment diagrams, which are infrastructure and after 1.0.0 (DEC-104, P1).
 - **The observed A/B split** was Wave 12's; that wave is parked (answer A7).
+
+## Questions, options and answers (moved from questions.md)
+
+*Moved from the deleted `questions.md` on 2026-11-20, with the owner's words as written. In the quotes, `future_tasks.md` and `backlog.md` mean the old backlog, now [planned_features.md](../planned_features.md) and the owner's private ideas list; `docs/waves/v1-scope-review.md` was decided in DEC-104.*
+
+### 0.1 How do A/B tests, feature flags and other conditional services fit C4?
+
+**Short answer.** C4 diagrams show structure: what exists and what talks to what. Which path a request takes at run time is not structure: variant A or B, a flag on or off, the canary or the stable version. So C4 shows conditional behaviour in four places, each at its own level.
+
+1. **The flag or experiment service is a box.** If a third party runs it, it is an external software system; if you run it, it is a container. Everything that reads flags has a line to it ("reads flag rules from").
+2. **Variants are boxes only when they are deployed separately.** Checkout v1 and Checkout v2 as two services are two containers, and the line from the router to each carries the condition ("10% of users, experiment checkout-v2"). When the variant is an `if` inside one component, which is the usual case, no box changes. That detail is below C4's level on purpose; show it in a flow or a note.
+3. **Dynamic diagrams show one path at a time.** dp's flows are Structurizr dynamic views: an ordered list of steps with no "else" branch. So each variant is its own flow, for example "Checkout, variant A" and "Checkout, variant B".
+4. **Canary and blue/green releases are a deployment matter.** The same container runs twice in one environment, with traffic split between them. They belong on deployment diagrams (the C4 book, chapter 8; notes `c4-model-brown.md:123-132`).
+
+Measuring the experiment means sending exposure and conversion events to an analytics store. That is an ordinary data flow with its own lines.
+
+**What dp has today** [Fact]
+- There is no condition, weight, variant or flag anywhere in `src/` or `ui/src/`.
+- A flow step is `{id, description, order, response}` (`src/shared/types.ts:363-370`), and dp renumbers its own flows "1" to "n" on every save (`src/core/flows.ts:171-205`). Any branch notation would be flattened.
+- The only conditions are:
+  - System Testing breakpoints, which pause a call (`src/core/testing.ts:319-362`);
+  - the "conditional" kind of decision (`src/shared/types.ts:547-569`).
+- Deployment diagrams are decided (DEC-019, DEC-022) but not built.
+
+**Telemetry** [Fact]
+- OpenTelemetry's feature-flag conventions (status: Release Candidate) record each flag evaluation as a `feature_flag.evaluation` event through the logs API.
+- The event carries `feature_flag.key` and `feature_flag.result.variant` (opentelemetry.io, semantic conventions for feature flags, checked 2026-11-17).
+- dp reads trace files only (`src/core/traces.ts`). It sees a variant only when an app also puts these attributes on its spans.
+
+**Proposed**
+- Wave 4: an optional condition on lines, and A/B variants as grouped flows, with a short guide.
+- Wave 12: the observed split from telemetry, when the telemetry carries it.
+- Canary and blue/green wait for deployment diagrams.
+
+See Q4.4 to Q4.6 and Q12.3.
+
+### ★Q4.1 CRUD letters on data access
+
+**Analysis** [Fact]
+- Data access on a line is "read" or "write" today (`src/shared/types.ts:259-262`; `cleanAccess`, `src/core/modelEdits.ts:1320-1330`).
+- A hub flags data that several projects write (`src/core/catalog.ts:139-144`).
+
+**Proposed**
+- Access becomes letters: C, R, U and D.
+- Old files stay valid:
+  - read becomes R;
+  - write becomes W, meaning "changes it; the letters aren't chosen yet". W counts as a writer until someone picks C, U or D.
+- dp writes both the letters and the old read/write value, so an older dp still reads the file correctly.
+- "Several writers" counts C, U, D and W.
+
+**Recommended.** Yes.
+
+**Owner's thinking:** W should change to C U D right now. CRUD choosing works.
+
+**Applied [2026-11-20].** No `W`. An old `write` is read as C, U and D from the start, and the person narrows it by choosing letters; an old `read` is R. An untouched file is not rewritten (it stays byte-identical); once an entry is saved, dp writes the letters and the old read/write value so an older dp still reads it. **Trade-off:** until someone narrows it, an old write shows all three letters, so the matrix over-reports deletes and the check 'data nobody creates' cannot fire for that data. The matrix marks such cells 'legacy write, not yet narrowed'. [Wave 4](wave-04-roles-data-variants.md) is updated.
+
+### ★Q4.2 People as roles, and "can reach"
+
+**Analysis** [Fact]
+- A C4 person is a plain element with no role field (`src/core/workspace.ts:15`).
+- The Data section is hidden for people (`ui/src/panels/ElementPanel.tsx:106`).
+- Access is recorded per line.
+
+**Proposed**
+- **A role is a C4 person.**
+- **A matrix page:**
+  - rows are people; a second tab shows containers;
+  - columns are data, grouped by the element that holds it.
+- **Each cell shows two things:**
+  - the letters set explicitly on the person's own line;
+  - greyed out, the letters the person **can reach** through the containers they use. For person → web app → database, these are the web app's letters. They are computed, and they say what the path allows, not what the role is allowed to do.
+- **Checks:**
+  - sensitive data a person can delete;
+  - data nobody creates;
+  - access to data neither end holds (this exists today).
+
+**Open:** do you also want "allowed" (a policy you set) beside "does" (what the path allows)? That would be a second set of letters per person.
+
+**Recommended.** Yes to the proposal; no policy letters for now.
+
+**Owner's thinking:** Go with your best thinking.
+
+**Applied [2026-11-20].** As proposed: a role is a C4 person; a matrix page with the letters set on the person's own lines and, greyed, the letters they can reach through the containers they use; the three checks as `dp check` warnings. No policy letters ('allowed'): a second set of letters per person would be a second thing to keep true, and the model can say what a path permits, not what a role may do. Answering Q4.1 to Q4.3 is read as keeping the data half of Wave 4 (scope review P4 is marked keep; overrule it there if that is wrong).
+
+### Q4.3 dp's own roles
+
+**Recommended.** A table in the help card, generated from `src/server/auth.ts`, showing what Architect, Engineer and Viewer can see and do. Nothing more.
+
+**Owner's thinking:** Yes.
+
+**Applied [2026-11-20].** A table in the help card, generated from `src/server/auth.ts`: what Architect, Engineer and Viewer can see and do.
+
+### ★Q4.4 A/B variants as separate flows?
+
+**Analysis** [Fact]
+- Flows are linear, and dp renumbers them on every save (`flows.ts:171-205`).
+- Structurizr's dynamic views have no branch.
+
+**Options**
+1. **Each variant is its own flow.** Variant flows are grouped by a shared key and labelled "A", "B" or "control". The flow player shows them as tabs and marks the steps that differ.
+2. **Branches inside one flow.** This needs a new step format, which Structurizr's own tools would show as a flat list. It also needs protecting from renumbering.
+
+**Recommended.** Option 1.
+
+**Owner's thinking:** Option 1.
+
+**Applied [2026-11-20].** Each variant is its own flow. Variants share a key, are labelled A, B or control, and show as tabs in the flow player with the differing steps marked.
+
+### Q4.5 Conditions on lines
+
+**Proposed.** An optional condition on a line: a flag and a value, or free text ("checkout-v2 = on", "10% of users"). It shows as a chip on the line, and a diagram filter shows or hides conditional lines.
+
+**Recommended.** Yes.
+
+**Owner's thinking:** Yes.
+
+**Applied [2026-11-20].** An optional condition on a line, shown as a chip, with a diagram filter.
+
+### Q4.6 Canary and blue/green
+
+**Recommended.** Wait for deployment diagrams (see ★A2).
+
+**Owner's thinking:** Go with your best thinking.
+
+**Applied [2026-11-20].** Wait for deployment diagrams, which are infrastructure and not scheduled before 1.0.0 (scope review P1; after 1.0.0, DEC-104). Until then a canary or blue/green split is modelled with the condition on a line (Q4.5) and a note.
 
 ## Stop and ask if
 

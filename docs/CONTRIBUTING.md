@@ -14,7 +14,7 @@ Thanks for looking at the project. This part explains how to set up, check and s
 ## Before you start
 
 - For anything larger than a small fix, open an issue first so we can agree on the approach.
-- Read `docs/decisions.md` before you change a design choice. It records each decision and its trade-off. If your change makes a new choice, add an entry at the bottom.
+- Read `docs/decisions.md` before you change a design choice. It records each decision and its trade-off. If your change makes a new choice, add an entry at the end of its topic.
 
 ## Setup
 
@@ -89,22 +89,68 @@ Decided for this repository in DEC-063.
 - A change to model or demo code regenerates `demo/` (`npm run make-demo`) in the same commit. CI fails if `demo/` is out of date.
 - CI runs the checks above, including `dp check --strict` on the demo.
 - The owner merges.
-- A release is a `vX.Y.Z` tag on `main`, with a GitHub release that names the changes from `docs/CHANGELOG.md`.
+- A release is a `vX.Y.Z` tag on `main`, with a GitHub release that names the changes from `docs/CHANGELOG.md`. The steps are in [Making a release](#making-a-release).
+
+## More than one session in one checkout
+
+Decided 2026-11-20 (DEC-100, answer D9). It applies to people and to coding-agent sessions that share one working tree. The cost of breaking it has been a repair each time: a second session once had 27 uncommitted documentation edits on `main` while a clean-up ran, and `docs/reviews.md` records the same for DEC-050 and DEC-051.
+
+- **One branch per session.** Start on a branch of your own from `main`, or in your own worktree (`git worktree add ../dp-<topic> -b <branch> main`, then `npm ci` there). Never work on `main`.
+- **Never edit a file that another session has modified and not committed.** Run `git status --short` before you start and note what is already modified. A modified file you did not change is off limits: leave it, say so, and wait or work in a worktree. A shared file you must change anyway (`docs/decisions.md`, `docs/planned_features.md`) is edited in a worktree and merged by the owner.
+- **Commit by path.** `git add <path>…` and `git commit <path>…`, never `git add -A` or `git add .`. Before committing, `git diff --cached --stat` must list only your files.
+- **Never run `git stash`, `git reset --hard`, `git checkout -- <path>` or a force push.** Each destroys or hides another session's uncommitted work.
+- **Counters and generated files.** Check the next free DEC id in `docs/decisions.md` when you write an entry, not when you start. Regenerate `tests/TESTS.csv`, `demo/` and `static/` instead of merging them by hand, and build the UI and run browser tests one session at a time, because both write `static/`.
+
+## Making a release
+
+Decided 2026-11-20 (DEC-100, answer D7). The tag and the release are on GitHub, which holds the repository; the GitLab remote only runs CI (DEC-089). dp is installed from GitHub, not from npm (DEC-063), so the tag is the release. **Nothing below is pushed, merged or tagged until the owner says go.** The version is `0.X.Y` before 1.0.0 (DEC-098): a group of features raises X, a fix-only release raises Y. The first release made this way is 0.6.0, which also needs the version bump listed in step 2.
+
+**Before you start**
+- Every wave of the group is merged to `main`, and its notes are in `docs/reviews.md`.
+- `git fetch`; local `main` equals `origin/main`; `git status` is clean.
+- `gh auth status` shows the account that owns the repository.
+
+**Steps**
+1. **Branch.** `git switch -c release/x.y.z main`.
+2. **One small commit: the release change.** Nothing else goes in it.
+   - `npm version x.y.z --no-git-tag-version` (changes `package.json` and `package-lock.json`, makes no tag).
+   - The line `Version **x.y.z**` in `README.md`.
+   - The section `## [x.y.z] - Month - DD - YYYY` at the top of `docs/CHANGELOG.md`, in the format of [DEC-098](decisions.md) and written from what shipped, using the notes in `docs/reviews.md`. The date is the day the tag is made (0.6.0 keeps the date DEC-098 gave it). Only built, tested, working things are listed.
+3. **Check.** `npm run ci` (the full run: typecheck, lint, format, tests, test list, UI build, browser tests, demo, package install). It must end with "All CI checks passed", and `static/`, `demo/` and `tests/TESTS.csv` must be unchanged from what is committed. Optional but recommended until the first GitLab pipeline has passed: push the branch to the GitLab remote (`git push gitlab release/x.y.z`) for the run on Linux with Node 20 and 22. A failure there blocks the release.
+4. **Walk the manual test plan** for what changed in this group ([manual-test-plan.md](manual-test-plan.md)), and at least the demo tour (`npm run dp -- serve --demo`). Write the result in the plan's Result column. A row that fails is fixed before the tag, or the release notes name it.
+5. **Pull request.** `git push origin release/x.y.z`, then `gh pr create --base main --title "Release x.y.z" --body-file <the changelog section>`. The owner reviews and merges (a merge commit, so the tagged commit is on `main`).
+6. **Tag.** `git switch main && git pull --ff-only`. Check that `package.json` says x.y.z and the top changelog heading says x.y.z. Then `git tag -a vx.y.z -m "designPerspectives x.y.z"` and `git push origin vx.y.z`.
+7. **GitHub release.** Extract the section as the notes and publish it:
+   ```
+   awk -v h="## [x.y.z]" 'index($0,h)==1{f=1;next} /^## \[/{f=0} f' docs/CHANGELOG.md | sed '/./,$!d' > "${TMPDIR:-/tmp}/dp-notes.md"
+   gh release create vx.y.z --title "x.y.z" --notes-file "${TMPDIR:-/tmp}/dp-notes.md" --verify-tag
+   ```
+   The notes are the changelog section word for word; do not use generated notes. A release is a normal release (no pre-release flag), because installs are by tag.
+8. **Check the install.** In an empty folder: `npm install -g github:AbhishekR3/designPerspectives#vx.y.z`, then `dp --version`, `dp init --demo demo-check` and `dp serve demo-check`. This is the one check that CI cannot make, and it has not been run yet (manual test plan, unverified facts). Write the result in `docs/reviews.md`.
+9. **Close.** Delete the release branch (`git branch -d release/x.y.z`; `git push origin --delete release/x.y.z`). Mark the waves of the group done in `docs/waves/README.md`.
+
+**Rules**
+- A tag is never moved or re-made. A mistake is fixed in the next version (a new `0.X.Y`), and the wrong release is edited to say so.
+- Only the latest release gets fixes ([Supported versions](#supported-versions)), so a fix release always branches from `main`.
+- Tag only a commit on `main` whose `static/`, `demo/` and `tests/TESTS.csv` are committed and current.
+- No `npm publish` (DEC-063). If that is ever decided, it is a seventh action after step 7 and gets its own decision.
+- **1.0.0** adds to the list: the 1.0.0 checklist (ideas list I2.0), the owner deleting the planning files in `docs/waves/` (DEC-090), and the static export working on the demo ([Wave 21](waves/wave-21-static-export.md)).
 
 ## Changelog standard
 
-Proposed 2026-11-20 for the owner's review; not yet decided, and `docs/CHANGELOG.md` has not been changed to match.
+Decided 2026-11-20 (DEC-098). `docs/CHANGELOG.md` follows [Semantic Versioning](https://semver.org).
 
-- One file, `docs/CHANGELOG.md`, newest version first, with an `Unreleased` block on top. Every change that a user or contributor can notice gets a line there in the same pull request.
-- Headings follow the Keep a Changelog layout (1.1.0): `## [x.y.z] - YYYY-MM-DD`, with the sections `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed` and `Security`, in that order, and only the ones that are used.
-- A line says what a person can now do or what changed for them, in one or two sentences. Keep the decision number in brackets (for example "(DEC-069)"), as the file does today.
-- At the bottom, one link per version to the comparison on the code host (`[x.y.z]: <compare URL>`), so a version heading is clickable.
-- Today's file already follows most of this. It writes the date with an em dash ("0.5.0 — 2026-11-16"), has no square brackets around versions and has no comparison links.
-- The scrollable list of releases that people know from GitHub is **GitHub Releases**, not this file: each release is a `vX.Y.Z` tag with notes. This repository has no tags yet, so that list is empty. The Git process above already says a release carries the notes from this file; whether to copy them into a GitHub release for each version is open.
+- One file, newest version first. Each version is `## [x.y.z] - Month - DD - YYYY` (for example `## [0.6.0] - November - 17 - 2026`).
+- Under it, in this order and only the ones that are used: `### Added`, `### Fixed`, `### Changed`, `### Deprecated`, `### Remove`. Security items go under the heading they belong to, with the prefix "Security:".
+- Before 1.0.0 every release is `0.X.Y`, with no ceiling on X: a feature release raises X, a fix-only release raises Y.
+- Only what is built, tested and working in the repository is listed. There is no `Unreleased` section and planned work is never announced there (it belongs in [planned_features.md](planned_features.md)).
+- A line says what a person can now do or what changed for them, in one or two sentences. Keep the decision number in brackets (for example "(DEC-069)").
+- The section for a version is written when the release is made (version in `package.json`, README and the heading, in one small change), from what shipped.
+- A release is a `vX.Y.Z` tag with notes taken from this file, copied word for word into a GitHub release ([Making a release](#making-a-release)). This repository has no tags yet; 0.6.0 will be the first.
 
 ## Ideas and planned features
 
-- [planned_features.md](planned_features.md) lists work with a clear scope; the long entries (A1 to A5) use a fixed format (status, why, what exists, what is missing, proposal, trade-offs, open questions, size, links). Pick one up, or open an issue to propose a new entry.
+- [planned_features.md](planned_features.md) lists work with a clear scope; the long entries (A1 to A7) use a fixed format (status, why, what exists, what is missing, proposal, trade-offs, open questions, size, links). Pick one up, or open an issue to propose a new entry.
 - [planned_features.md](planned_features.md) also holds the scheduled work in compact tables (section B), grouped by area, with source markers and rough sizes.
 - An idea that is not yet scoped can be raised in an issue. The maintainer keeps a private list of ideas that are still being thought through; it is not part of the repository.
 - To see how the code is laid out before you start, read the architecture section of [../.claude/CLAUDE.md](../.claude/CLAUDE.md) and the draft overview in [architecture.md](architecture.md).
@@ -199,7 +245,7 @@ designPerspectives is a local tool. In plain words:
 - To compare versions, it runs the `git` command. It only reads from git and never changes the repository.
 - In a hub (`dp serve --hub`), no project folder may hold the hub folder or another project, so one project's code routes cannot reach another's model, `hub.json` or the shared catalog. No project folder may be hidden (such as `.dp` or `.git`), as written or through a link, and a project added from the browser must be a folder inside the hub.
 - `hub.json` is trusted. It is checked when the hub loads, but a hand-written entry can still point outside the hub folder. Write only entries you trust.
-- Integration credentials are kept in `.dp/credentials.json` (mode 0600, ignored by git). They are plain text on disk unless `DP_SECRET_KEY` is set, which encrypts them with AES-256-GCM. Their values are never sent to the browser or printed; only architects manage them.
+- Integration credentials are kept in `.dp/credentials.json` (mode 0600, ignored by git). They are plain text on disk unless `DP_SECRET_KEY` is set, which encrypts them with AES-256-GCM. Their values are never sent to the browser or printed; only architects manage them. **Planned (DEC-101, owner, 2026-11-20): values are always encrypted**, with `DP_SECRET_KEY` or a key file dp creates in the user's config folder, never in a project or hub folder; this paragraph changes when that is built.
 - Tool connections for linked work are kept in `.dp/integrations.json` (mode 0600 in a 0700 `.dp/`, ignored by git; the hub's in a hub) and changed by architects only (`dp integrations`, the integrations routes). They are never in the model or the sidecar, because an engineer can edit a draft and could otherwise point a token at another host. A connection names a stored credential by name only.
 - The severity mapping for linked work (DEC-087) is in the sidecar (`work.severity`) because it holds only names and levels, no host, token or path, so anyone with edit rights may change it. `GET /api/hub/work` (DEC-088) lists only the projects the user may see, the same rule as the home page (DEC-060).
 - The server reaches out to the network in three cases only, each started by a person: **Refresh status** of linked work (below), a BMO run with the `direct` backend (below), and a call that passes an intercept point in System Testing mode (below).

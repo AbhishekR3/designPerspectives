@@ -1,0 +1,146 @@
+# Checklist before release 1.0.0
+
+Status: written 2026-11-20. This is the "1.0.0 checklist" that [CONTRIBUTING.md](CONTRIBUTING.md#making-a-release) and the ideas list (I2.0) refer to. Tick a box only when the check was made, and write the date and the result next to it. A box that cannot be ticked is either fixed or named in the release notes; it is never ticked on trust.
+
+**Reading the marks.** *Fact* items cite where the requirement comes from (a DEC, a file or a wave). [Proposal] items are my reading of what 1.0.0 should mean and are the owner's to accept, change or drop.
+
+**Where things stand on 2026-11-20** (sources: [waves/README.md](waves/README.md), `package.json`, `git tag`): `package.json` and the README say 0.5.0; there are no git tags; 0.6.0 is built but its release change is not made; no wave is built. Everything below is therefore still ahead.
+
+---
+
+## 1. Decisions the owner still owes
+
+- [x] **Scope of 1.0.0 (D4)**, decided 2026-11-20 item by item: DEC-104 (the review file is deleted; the summary is in [product-vision.md](product-vision.md), "The line, item by item"). *Fact:* decisions.md, DEC-104.
+- [ ] Apply the answers: the waves, the product vision and the manual test plan match the decided scope (items hidden or marked "later" are hidden, not deleted). [Proposal] *Done 2026-11-20 for the waves, the vision, the decisions and planned_features; **not done** for the manual test plan beyond section 27, and the code change (A8) is not built.*
+- [ ] **What 1.0.0 promises to keep stable** [Proposal]. SemVer says 1.0.0 is the point where the public surface stops changing without a major version. Decide and write down which of these are in that promise: the `architecture/` file formats (`workspace.json`, `designperspectives.json`, `dp.*` properties, decision files, `comments.json`, `checklist.json`), the import file schema v1, the `dp` command names and flags, the `/api/*` routes, and the exit codes of `dp check`. Put the answer in `docs/decisions.md` as a DEC and in CONTRIBUTING.md.
+- [ ] Answer or consciously defer every open item in [decisions.md](decisions.md#open-questions-and-the-ids-of-answered-ones). *Fact:* it holds no open question today (D4 was answered, DEC-104); U26 (the BMO check of the folder-skip list) is a check, not a question.
+
+## 2. Everything in scope is built, tested and released
+
+*Fact:* the twelve features A to L of [product-vision.md](product-vision.md), the waves in [waves/README.md](waves/README.md), and the releases it lists (0.7.0 to 0.12.0).
+
+- [ ] 0.6.0 released: version bump in `package.json` and the README, changelog section, tag, GitHub release (DEC-098, "Making a release").
+- [ ] Waves of each group built, merged to `main`, with a review file `docs/waves/wave-NN-review.md` and the wave file deleted ([waves/README.md](waves/README.md#closing-a-wave)): 0.7.0 (1, 2, 3, 16, 4), 0.8.0 (5, 15), 0.9.0 (6, 7, 8), 0.10.0 (9, 11, 17, 18, 19), 0.11.0 (13, 14, 22, 20), 0.12.0 (21). Adjust to the scope decision in section 1.
+- [ ] 0.7.0, 0.8.0, 0.9.0, 0.10.0, 0.11.0 and 0.12.0 each released the same way, in order.
+- [ ] Each feature, one line each, works end to end on the demo and on a real project:
+  - [ ] A C4 modelling (five levels, flows, conditions and variants)
+  - [ ] B Single source of truth (every diagram computed from the one model)
+  - [ ] C Change proposals (drafts, apply, rebase and merge editor, coding plan)
+  - [ ] D Lenses (Engineer, Architect, Overview, DevOps, Security, Business)
+  - [ ] E Collaboration (local accounts and roles, notes, comments, images and files)
+  - [ ] F Contracts between services
+  - [ ] G Decisions (ADR page)
+  - [ ] H Codebase import (scan, search, key code, guided interview)
+  - [ ] I Architecture commits (History, Commit button, `dp commit`)
+  - [ ] J External services linking (GitHub, GitLab, SonarQube, Jira)
+  - [ ] K Shared catalog and reference library
+  - [ ] L BMO (cited answers, findings, metrics, rules, reviews)
+- [ ] The static HTML export works on the demo: a folder opens from disk and from a web host, the single file opens by itself, the review report lists what leaves the machine and refuses secret-looking values, the output is byte-stable. *Fact:* DEC-100 puts it in 1.0.0; [Wave 21](waves/wave-21-static-export.md).
+- [ ] System Testing, traces and the demo system are off by default and called experimental (DEC-104, [planned_features.md](planned_features.md) A8): `dp serve` shows no **Test** button and starts no intercept listener without `--testing`; `dp serve --demo` starts no demo services without `--with-system`; the README, the demo tour and the security model say so.
+- [ ] Nothing parked or "not built yet" is described as working anywhere: README, in-app text, manual test plan section 27. *Fact:* waves 10 and 12 and architecture drift are parked.
+
+## 3. Automated gates
+
+- [ ] `npm run ci` ends with "All CI checks passed" on the release commit, and `static/`, `demo/` and `tests/TESTS.csv` are unchanged from what is committed. *Fact:* CONTRIBUTING.md, "Making a release", step 3.
+- [ ] **The GitLab pipeline has run at least once and passed, on Node 20 and Node 22 on Linux.** It never has. *Fact:* `.gitlab-ci.yml` says "NOT RUN YET"; manual test plan U7, U16.
+- [ ] No test is skipped or marked flaky without a written reason. Browser tests run on a machine with Chromium (`npm run test:browser`).
+- [ ] `npm audit` (production and dev dependencies) has no high or critical finding, or each one is explained. Dependencies are pinned by `package-lock.json`. [Proposal]
+- [ ] The test list `tests/TESTS.csv` is current and every test file starts with its one-line purpose comment. *Fact:* CLAUDE.md, Tests.
+
+## 4. Real-world checks that have never been run
+
+*Fact:* these are in the manual test plan, section 29 ("Unverified facts"), and section 19 ("Install checks that only the owner can run"). Write each result in the plan's Result column. Which ones **block** 1.0.0 is a [Proposal]: those marked "blocks".
+
+**Install and platforms**
+- [ ] **Blocks.** Install from the release tag on a clean machine: `npm install -g github:AbhishekR3/designPerspectives#v1.0.0`, then `dp --version`, `dp init --demo demo-check`, `dp serve demo-check`. Never run (U17; the only install route, DEC-063).
+- [ ] **Blocks.** One run on Windows: `dp serve --demo`, paths, line endings, opening the browser (U15, DEC-095).
+- [ ] macOS and one Linux machine, the latest Chrome, Firefox and Safari for the UI (manual test plan section 25).
+
+**BMO**
+- [ ] **Blocks.** One real run with each backend you ship: the Claude API, the OpenAI API and Ollama (U1, U3). Check the default model ids against each provider's current list first (U2).
+- [ ] Run the C3 candidate task on a real repository to check the folder-skip list, and record whether BMO was on (U26).
+- [ ] Read the context window from a running Ollama server before dp relies on it (U27).
+
+**Linked work**
+- [ ] One real link per tool: GitHub (including a private repository and Enterprise), GitLab (including self-hosted), SonarQube 10 or later, Jira Cloud (U4).
+- [ ] Import a real report from each scanner format: SARIF, GitLab Code Quality, SonarQube issues (U5).
+- [ ] Run the three sample CI jobs in `demo/ci-examples/` once in a scratch repository (U6).
+
+**Import at scale**
+- [ ] `dp scan --plan` on three real repositories of different sizes; compare the guessed limits with the effort you actually spend (U10, U13, U14).
+- [ ] A real large model through the BMO preview, to test the context limits (U11, U12, U24).
+
+**System Testing and traces** (hidden by default in 1.0.0, DEC-104: these checks run with `dp serve --testing`; skip them only if the release notes say the mode is removed)
+- [ ] A real OpenTelemetry Collector file (U8), and one run against a service of your own for the cases dp passes through unverified: HTTPS, HTTP/2, gRPC, WebSocket, large and compressed bodies (U9).
+
+## 5. Security
+
+*Fact:* the security model is in [CONTRIBUTING.md](CONTRIBUTING.md); manual test plan sections 16 and 20.
+
+- [ ] `/security-review` run on the whole of `main`, not only on the last branch. Every finding is fixed or named in the notes. [Proposal]
+- [ ] Credentials are always encrypted at rest (DEC-101, planned as [planned_features.md](planned_features.md) A7): built and tested, or the release notes say plainly that they are not.
+- [ ] Every non-GET route has a `ROUTE_RULES` entry in `src/server/auth.ts` (a test enforces it). Every new route and outbound call is in the security model section. *Fact:* waves/README.md, "Required in every wave".
+- [ ] Defaults: the server binds `127.0.0.1`; sign-in, sessions, roles and `--read-only` behave as documented; the Host and cross-site checks and the JSON-only rule hold.
+- [ ] Outbound calls go only to pinned hosts (BMO providers, work tools); the System Testing target allow-list is loopback by default.
+- [ ] Masking limits are stated where a person can see them: values are hidden by field name only (U20). A hand-written `hub.json` is trusted (U21): accept in writing, or add the check.
+- [ ] No secret in the repository or its history (`git log -p` search for keys and tokens); `.dp/` and `local/` are git-ignored; the static export review refuses secret-looking values.
+- [ ] How to report a security problem is in CONTRIBUTING.md and the supported-versions rule names 1.0.x.
+
+## 6. Quality of use
+
+- [ ] **Accessibility.** One keyboard-only walkthrough of the main tasks (model, draft, decision, import) and one automated audit. Screen-reader names, focus traps in dialogs, canvas editing by keyboard and colour contrast are unchecked; narrow widths under 760 px and the light theme are unsupported (U18, DEC-013, DEC-042). Either fix or state the limits in the README. [Proposal]
+- [ ] **Scale.** A 100+ container model: open, edit, undo, check, the checklist rules and the first load stay usable (U24, manual test plan section 23). Number written down.
+- [ ] **Failure modes** in manual test plan section 22 and **concurrency** in section 21 are walked, including two browser tabs and a change on disk while the server runs.
+- [ ] The demo tour runs from a fresh install without a step that needs a file outside the package (`npm run dp -- serve --demo`).
+- [ ] Open the demo on two machines and look at the diagrams: label sizes and line routing are estimates and fonts differ (U19).
+- [ ] The "0 projects" screen seen once is understood or confirmed gone (U22). The demo's checklist rule that fails on purpose is decided (U23).
+
+## 7. Compatibility and upgrade
+
+- [ ] A model made by the oldest supported version opens in 1.0.0 unchanged, and a model saved by 1.0.0 still reads in Structurizr's tools where it should (manual test plan section 30). *Fact:* the README promises that files from the Python 0.2 version open unchanged; keep or retract that claim.
+- [ ] Every format change since 0.6.0 is either additive (unknown fields kept) or has a migration, and the migration is tested. [Proposal]
+- [ ] Hubs, linked catalog copies, drafts and `architecture/import/` data from older versions open and behave.
+- [ ] The package contains what it should and nothing else: `npm pack --dry-run`; `static/` and `demo/` included, `dist/` built by `prepare`, no `local/`, no test results, no reference books.
+
+## 8. Documentation
+
+- [ ] README: version line says 1.0.0; the feature list matches what is built (no planned feature listed as working); install steps are the ones tested in section 4.
+- [ ] [CHANGELOG.md](CHANGELOG.md) has a `## [1.0.0] - Month - DD - YYYY` section in the DEC-098 format, written from what shipped (see [reviews.md](reviews.md)), with no planned or unreleased work.
+- [ ] [docs/README.md](README.md) index lists every file in `docs/`, including this checklist and `docs/determinism.md` (written by Wave 1).
+- [ ] [decisions.md](decisions.md): every design choice made for 1.0.0 has a DEC; the index is current; no entry contradicts the shipped behaviour.
+- [ ] [planned_features.md](planned_features.md): built items removed or marked built; what remains is "after 1.0.0" (data architecture, infrastructure, hosted accounts A6, parked waves).
+- [ ] [manual-test-plan.md](manual-test-plan.md): every row for the final scope has a Result (pass, fail with a reason, or "not run" with a reason); section 27 ("Not built yet: do not test") is current.
+- [ ] [product-vision.md](product-vision.md) status table says "built" for each feature, or says what is not.
+- [ ] `.claude/CLAUDE.md` code map matches the source tree (new folders and files are listed).
+- [ ] `demo/README.md` still carries the demo model's credits (Apache-2.0 attribution; keep it). *Fact:* CLAUDE.md, Repo notes.
+- [ ] **The owner deletes the planning files** in `docs/waves/` (the review files, the parked waves 10 and 12 and the README; the wave files of built waves are deleted when each wave closes, and `questions.md` and `v1-scope-review.md` are already deleted) and the links to them are fixed. *Fact:* DEC-090; waves/README.md, "How to use this folder". No agent deletes them.
+
+## 9. Repository and legal
+
+- [ ] `LICENSE` is MIT and the `package.json` license field agrees; third-party licences of bundled code (UI build, demo model) are compatible and credited. [Proposal: run a licence listing over production dependencies.]
+- [ ] No reference book (PDF) and no superseded plan is committed. *Fact:* CLAUDE.md, Working rules.
+- [ ] No other product is named or compared in repository files, commit messages or pull requests (search the repository before the tag). *Fact:* CLAUDE.md, Working rules.
+- [ ] The pull-request template and the issue templates in `.github/` are current; the code of conduct and contribution steps match how 1.0.0 is actually run.
+- [ ] `git status` is clean; local `main` equals `origin/main`; no stray branches that hold unmerged work; no uncommitted edits from another session. *Fact:* DEC-100.
+
+## 10. The release itself
+
+*Fact:* every step follows [Making a release](CONTRIBUTING.md#making-a-release) in CONTRIBUTING.md. **Nothing is pushed, merged or tagged until the owner says go.**
+
+- [ ] The owner has said go, in this session, for 1.0.0.
+- [ ] Branch `release/1.0.0` from `main`; one small commit with `npm version 1.0.0 --no-git-tag-version`, the README version line and the changelog section. Nothing else in it.
+- [ ] `npm run ci` passes on that branch; GitLab pipeline passes (section 3).
+- [ ] Manual test plan walked for the final scope and the demo tour (section 4); results written.
+- [ ] Pull request opened with the changelog section as its body; the owner reviews and merges with a merge commit.
+- [ ] Tag `v1.0.0` on `main` (annotated), pushed once. A tag is never moved or re-made.
+- [ ] GitHub release `1.0.0` with the changelog section word for word (not generated notes); a normal release, no pre-release flag.
+- [ ] Install check from the tag in an empty folder (section 4), result written in [reviews.md](reviews.md).
+- [ ] Close: delete the release branch, mark the waves done in `docs/waves/README.md` (or the owner has removed that folder), and note what the first fix release (1.0.1) should look at.
+
+---
+
+## What I could not confirm from the files
+
+- Whether the GitHub repository has branch protection, and whether the README badges, repository description and topics are set. These live on GitHub, not in the files.
+- Whether DEC-101 (always-encrypted credentials) is built: it is planned as A7 and no wave builds it, so it may need its own wave before 1.0.0.
+- Which of section 4's checks truly block 1.0.0. I marked three as blocking (install from the tag, Windows, one real run per BMO backend) because the README and CONTRIBUTING promise them and nothing has ever run them; that is a judgement, and the owner may relax it.

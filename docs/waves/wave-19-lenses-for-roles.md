@@ -5,7 +5,7 @@
 | **Status** | Owner answer applied (questions C3: "go with your best decisions", 2026-11-19 → DevOps, Security and Business presets). The exact settings are mine; the owner reviews them in the UI. Ready to run |
 | **Branch** | `feat/w19-lenses-for-roles`, from `main` |
 | **Size** | S–M |
-| **Release** | 0.5.3 (with Waves 9, 11, 17, 18) |
+| **Release** | 0.10.0 (with Waves 9, 11, 17, 18) |
 | **Depends on** | Nothing required. Better after Wave 9 (characteristics) and Wave 13 (contracts) so the lenses can show them; without them the lenses still work |
 | **Owner items** | Feature D of [../product-vision.md](../product-vision.md): "Architecture Lenses (Architect, DevOps, other members involved during SDLC)". [../planned_features.md](../planned_features.md) B5 |
 
@@ -52,6 +52,29 @@ The same model reads right for the people who work with an architect: DevOps, se
 ## Owner answers
 
 - **C3:** best decision: DevOps, Security and Business presets (option 2). The settings table is the assistant's proposal for the owner to review.
+
+## Questions, options and answers (moved from questions.md)
+
+*Moved from the deleted `questions.md` on 2026-11-20, with the owner's words as written. In the quotes, `future_tasks.md` and `backlog.md` mean the old backlog, now [planned_features.md](../planned_features.md) and the owner's private ideas list; `docs/waves/v1-scope-review.md` was decided in DEC-104.*
+
+### ★C3. Which lenses does 1.0.0 ship?
+
+**Analysis** [Fact]
+- A lens is a default view: it picks levels, sections and a default overlay, and hides no data (DEC-008, DEC-063). Three ship: Engineer, Architect, Overview (DEC-008, DEC-038).
+- Business and Security presets are in the backlog (planned_features B5, small). There is no DevOps lens.
+
+**Proposal.** Ship presets for the roles your vision names. A DevOps lens would show containers and technology, run addresses, endpoints, linked work and contracts, and hide cost and trade-offs. The other presets (Business, Security, and Developer if Engineer is not that) follow the same pattern.
+
+**Options**
+1. DevOps only.
+2. DevOps, Security and Business.
+3. Also Compliance and QA.
+
+**Recommended.** Option 2, in a small wave after Wave 4 (or inside it). Tell me what each role must see first and I will write the presets from that.
+
+**Owner's thinking:** Go with your best decisions.
+
+**Applied [2026-11-19].** Option 2: DevOps, Security and Business, in new [Wave 19](wave-19-lenses-for-roles.md). I chose the settings (levels, sections, overlay for each); they are a table in that file for you to review.
 
 ## Stop and ask if
 

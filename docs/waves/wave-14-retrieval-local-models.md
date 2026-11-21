@@ -2,10 +2,10 @@
 
 | | |
 |---|---|
-| **Status** | Owner answers applied (questions 0.4 and 0.5, 2026-11-18). No gate. Part B questions Q14.1 to Q14.5 are answered by them. The with-and-without-index measurement left this wave on 2026-11-19, with Wave 1's evaluation set (see Q1.3). Ready to run after Waves 1 and 2 |
+| **Status** | Kept in 1.0.0 (scope decision P7, DEC-104). Owner answers applied (questions 0.4 and 0.5, 2026-11-18). No gate. Part B questions Q14.1 to Q14.5 are answered by them. The with-and-without-index measurement left this wave on 2026-11-19, with Wave 1's evaluation set (see Q1.3). Ready to run after Waves 1 and 2 |
 | **Branch** | `feat/w14-local-runtimes-word-index`, from `main` after the previous wave is merged |
 | **Size** | M |
-| **Release** | 0.5.4 (with Wave 13) |
+| **Release** | 0.11.0 (with Waves 13, 20, 22) |
 | **Depends on** | Wave 1 (packs), Wave 2 (the BM25 module built for help search). Wave 5's code search and file gate are reused if merged. Code is split into chunks the same way for every language (no language modules exist) |
 | **Owner items** | 16, 15 ([README.md](README.md#where-each-item-went)) |
 
@@ -16,7 +16,7 @@ Read [README.md](README.md) first: its rules, agents and checks apply to this wa
 1. **Local runtimes are first-class.** dp shows whether a local model runs on the GPU, offers bounded runtime settings, and supports local servers that speak the OpenAI chat API.
 2. **A word index for choosing context.** BMO picks code and doc excerpts for big codebases with a BM25 word index. Same input, same ranking. Every pick is shown in the manifest.
 
-dp itself gets no CUDA or MPS code, no vector index and no embeddings. The owner chose the word index only ([questions.md](questions.md) 0.5) and chose local runtimes over native GPU code (0.4).
+dp itself gets no CUDA or MPS code, no vector index and no embeddings. The owner chose the word index only (question 0.5 in the questions section below) and chose local runtimes over native GPU code (0.4).
 
 ## Owner requests covered
 
@@ -92,6 +92,98 @@ Owner answers [2026-11-18]: "Make local runtimes first-class" (0.4) and "Do only
 - **Gate (Q14.1):** lifted by the two answers above.
 - **2026-11-20 (best thinking):** Q14.1 to Q14.5 stand. Two changes from the code-reading answers: chunks are language-neutral, and the index also serves offline BMO's free-text search.
 - Still open, with their recommendation as the default: nothing in this wave. (The route rule for building the index is decided in step 3 and recorded in the DEC.)
+
+## Questions, options and answers (moved from questions.md)
+
+*Moved from the deleted `questions.md` on 2026-11-20, with the owner's words as written. In the quotes, `future_tasks.md` and `backlog.md` mean the old backlog, now [planned_features.md](../planned_features.md) and the owner's private ideas list; `docs/waves/v1-scope-review.md` was decided in DEC-104.*
+
+### 0.4 What can GPU acceleration speed up here?
+
+**Short answer.** In dp, a GPU helps a lot with one kind of work only: running an LLM and computing embeddings. That work happens inside the model runtime, not in dp. Ollama, for example, uses Metal on Apple Silicon and CUDA on NVIDIA cards by itself [Training].
+
+dp's own work is scanning files, import graphs, metrics, diffs and layout. That is branching graph work on small data, which a GPU doesn't speed up. Node also has no practical GPU path without native add-ons, and those would break the all-TypeScript, plain `npm install` setup.
+
+**Facts**
+- dp calls Ollama's `/api/chat` with `num_ctx` and `num_predict` only. It sends no GPU option (`src/assistant/providerBackend.ts:475-491`).
+- Ollama's `/api/ps` lists the loaded models with `size` and `size_vram`, so the share on the GPU is `size_vram / size`.
+  - There is no field that names the processor.
+  - On some recent builds the number is reported too low.
+  - Sources, checked 2026-11-17: docs.ollama.com/api/ps; ollama issues #8644, #19089, #19204.
+- Diagram layout runs in the browser (`static/assets/diagram-layout.js`).
+
+**Options**
+
+| Option | Trade-off |
+|---|---|
+| CUDA or MPS code inside dp | Native add-ons per platform, to speed up work dp doesn't do. Not recommended |
+| A model in the browser on WebGPU | Large downloads, slower than a local runtime, a heavy dependency. Not now |
+| **Make local runtimes first-class** | Show whether the model sits on the GPU. Offer bounded runtime settings (context size, how long a model stays loaded). Add a provider for local servers that speak the OpenAI chat API, loopback only by default as DEC-065 pins hosts. Write setup notes per platform. **Recommended (Wave 14)** |
+
+**Owner's thinking:** Make local runtimes first-class.
+
+**Applied [2026-11-18].** The third option, as recommended. No CUDA or MPS code in dp. [Wave 14](wave-14-retrieval-local-models.md) is now about local runtimes and the word index; Q14.4 is answered by this. It is no longer gated on Wave 1's evaluation.
+
+### 0.5 What would a vector DB speed up?
+
+**Short answer.** A vector DB doesn't make the LLM faster. It helps choose which pieces of code and docs go into a prompt when the words in a question don't match the names in the code. A smaller, better-chosen prompt is faster and cheaper, and that is the whole gain.
+
+**Facts**
+- dp chooses context by fixed rules today: the objects you name, their parents and neighbours, their code paths, and excerpts ranked by rules (`src/assistant/runTask.ts:375-474`, `src/assistant/codeExcerpts.ts:272-345`).
+- There is no embedding or retrieval code in the repository.
+- The server has three runtime dependencies (`package.json:39-43`).
+
+**Trade-offs**
+- **Embeddings need a model.**
+  - A local one, through Ollama, keeps code on the machine.
+  - A cloud embedding service would send the whole indexed codebase at once. The per-run preview and its hash can't show that (DEC-064).
+- **The index goes stale when code changes.** It must be rebuilt, and filtered by the current intake rules at every query.
+- **Similar is not the same as evidence.** Retrieval only picks what BMO reads. Citations (Wave 1) still decide what counts.
+- **A database server or a native extension adds install weight.** A flat file with exact cosine search in TypeScript is likely fast enough for tens of thousands of pieces [Proposal; to be measured].
+- **A word index (BM25) needs no model and gives the same answer every time.** It works well on code, where names matter.
+
+**Recommended (Wave 14, gated)**
+- A word index first.
+- Optional local embeddings, in a flat file under `.dp/index/`.
+- No database server.
+- Build it only if Wave 1's evaluation shows that choosing context is what holds answers back.
+
+**Owner's thinking:** Do only the word indexing.
+
+**Applied [2026-11-18].** The word index (BM25) only. Dropped from Wave 14: local embeddings, the flat vector file, fusion, and the embeddings call to Ollama. Nothing else changes: no database server, no cloud calls. Embeddings can come back later as their own task if Wave 1's evaluation shows the word index misses what BMO needs (the evaluation comparison stays in Wave 14). This also answers Q14.1 (go), Q14.2, Q14.3 and Q14.5.
+
+### ★Q14.1 The gate
+
+**Recommended.** Build this wave only if Wave 1's evaluation shows BMO missing context it needed, or if you say go.
+
+**Owner's thinking:** Answered by 0.4 and 0.5: go, for local runtimes and the word index. No gate.
+
+### ★Q14.2 A vector DB, or a flat index?
+
+**Recommended.** A flat index in `.dp/index/`, with no database server (see 0.5).
+
+**Owner's thinking:** Answered by 0.5: only the word index. No vector file at all for now. The word index still lives in `.dp/index/`, with no database server.
+
+### ★Q14.3 Embeddings
+
+**Recommended.** Local only (Ollama). Cloud embeddings would send the whole index past the preview.
+
+**Owner's thinking:** Answered by 0.5: no embeddings, local or cloud, in this wave.
+
+### ★Q14.4 GPU
+
+**Recommended.** No CUDA or MPS code in dp. Instead (see 0.4):
+- local model servers;
+- the GPU share as Ollama reports it;
+- bounded runtime settings;
+- setup notes.
+
+**Owner's thinking:** Answered by 0.4: make local runtimes first-class, as recommended.
+
+### Q14.5 Word index first
+
+**Recommended.** BM25 first. Add embeddings on top only if the evaluation shows they help.
+
+**Owner's thinking:** Answered by 0.5: BM25 only. Embeddings are not planned.
 
 ## Stop and ask if
 

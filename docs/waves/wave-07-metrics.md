@@ -5,7 +5,7 @@
 | **Status** | Rewritten 2026-11-20. Metrics are computed from the model's relationships, not from code, because dp no longer reads code language by language (Wave 5). Ready to run |
 | **Branch** | `feat/w07-metrics`, from `main` |
 | **Size** | S–M (was M) |
-| **Release** | 0.5.2 |
+| **Release** | 0.9.0 (with Waves 6, 8) |
 | **Depends on** | Nothing. It reads the model only |
 | **Owner items** | 6 ([README.md](README.md#where-each-item-went)) |
 
@@ -61,6 +61,75 @@ Show coupling numbers for every system, container and component: who depends on 
 - **Q7.3:** a worker thread, a cache and a 20,000-file test are not needed. A test with a generated model of 5,000 elements and 20,000 lines under a time budget replaces them.
 - **Q7.4:** thresholds move to Wave 8's rules.
 - **Vision:** feature L (metrics are part of BMO's analysis; BMO reads them in its packs).
+
+## Questions, options and answers (moved from questions.md)
+
+*Moved from the deleted `questions.md` on 2026-11-20, with the owner's words as written. In the quotes, `future_tasks.md` and `backlog.md` mean the old backlog, now [planned_features.md](../planned_features.md) and the owner's private ideas list; `docs/waves/v1-scope-review.md` was decided in DEC-104.*
+
+*The questions of this wave were asked about code metrics, before the owner chose model coupling only (Q7.1 to Q7.4). Wave 7 was then rewritten; the "Applied" lines say what changed.*
+
+### ★Q7.1 Which metrics are computed, approximate or imported?
+
+**Analysis** [Fact]
+- **No metric is computed today.**
+- **The raw material exists:**
+  - the file import graph (`codeMap.ts:235-249`);
+  - the folder graph (`scan.ts:966-975`);
+  - line counts (`codeMap.ts:251-256`);
+  - rough function ranges (`codeMap.ts:484-523`).
+- **What the book says** (notes `fundamentals…md:50-55`, `:102`):
+  - instability I = Ce ÷ (Ca + Ce);
+  - abstractness A, and distance D = |A + I − 1|;
+  - LCOM measures structural cohesion, not logical cohesion;
+  - complexity: the industry norm is below 10; the authors prefer below 5.
+
+**Per metric**
+- **Ca, Ce, I and cycles: computed** from imports. They are exact for what the import graph sees, with a coverage note such as "JS/TS: relative imports only".
+- **A and D:** computed where a language has abstract types (Java, and TypeScript interfaces and abstract classes). Approximate for Python ABCs and Protocols.
+- **Complexity: approximate.** Decision points per function, counted from tokens the way common tools count them [Training]. Tested on fixtures with known values.
+- **LCOM4: approximate.** It counts groups of methods linked by the fields they share, read from tokens. Java fields used without `this.` are a known miss.
+  - The alternative is importing it from a Java metrics report where a team has one.
+  - Few tools report LCOM for Python or TypeScript [Training].
+
+**Recommended.** Compute Ca, Ce, I, cycles, A and D. Compute complexity and LCOM4 as approximate, with labels. Import from reports later, if teams have them.
+
+**Owner's thinking:** Go with what you think is best.
+
+**Applied [2026-11-20].** Changed by Q5.1 and Q5.2. Ca, Ce, instability and cycles are **computed from the model's own lines**, per level, so they work for any language. LCOM, complexity, abstractness and distance need a per-language parser, so they are not built; importing a report from a tool that already measures them is an idea (ideas list I2.5). [Wave 7](wave-07-metrics.md) is rewritten as 'Model metrics'.
+
+### Q7.2 Where metrics show
+
+**Recommended.**
+- A "Code metrics" section in the panel.
+- An overlay.
+- `dp metrics --json|--csv`.
+
+A chart of abstractness against instability (the "main sequence") comes later.
+
+**Owner's thinking:** Go with what you think is best.
+
+**Applied [2026-11-20].** As recommended, renamed 'Coupling': a panel section, an overlay and `dp metrics --json|--csv`.
+
+### Q7.3 Speed on large repositories
+
+**Recommended**
+- Heavy work runs in the CLI or a worker thread, with a cache. It never runs inside a web request.
+- A test on a generated repository of 20,000 files.
+
+**Owner's thinking:** Go with what you think is best.
+
+**Applied [2026-11-20].** No worker thread, cache or 20,000-file test: the work is linear in the model, which is small. A test with a generated model of 5,000 elements and 20,000 lines under a written time budget replaces them.
+
+### Q7.4 Thresholds
+
+**Recommended.** Thresholds are sidecar settings:
+- complexity warns at 10;
+- D warns at 0.7 [Proposal];
+- cycles are always reported.
+
+**Owner's thinking:** Go with what you think is best.
+
+**Applied [2026-11-20].** Thresholds move to Wave 8's rules as rule parameters, so the limits live in one place. The complexity and distance thresholds are gone with those metrics.
 
 ## Stop and ask if
 

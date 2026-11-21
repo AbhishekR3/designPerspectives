@@ -1,8 +1,8 @@
 # Stage reviews
 
 One section per stage or release, newest first: what was built, how it was checked, and the limits. Where a review asked questions, they are kept with the owner's feedback below them.
-Owner questions from these reviews were answered on 2026-11-16 and are recorded in [decisions.md](decisions.md) under DEC-063.
-File paths inside older sections are the paths at the time; see DEC-062 for the current layout.
+Owner questions from the stages up to release 0.4.0 were answered on 2026-11-16 and are recorded in [decisions.md](decisions.md) under DEC-063. Questions from later sections were not all answered: a "Status [2026-11-20]" note under each question list says which are answered, obsolete or still open. **Everything still open is collected in [decisions.md](decisions.md#open-questions-and-the-ids-of-answered-ones). The claims in these reviews that were never run or measured (no real provider call, Windows, GitHub install, Structurizr, and others) are listed with a Result column in [manual-test-plan.md](manual-test-plan.md#29-unverified-facts-what-was-never-run-or-measured).**
+File paths inside older sections are the paths at the time; see DEC-062 and DEC-066 for the current layout. Names such as `backlog.md`, `future_tasks.md` and `docs/reviews/` also belong to their time: the lists now live in `docs/planned_features.md`, the ideas list is private, and the screenshots were removed on 2026-11-20.
 
 ## Contents
 
@@ -33,6 +33,7 @@ File paths inside older sections are the paths at the time; see DEC-062 for the 
 - [Stage A3 review: canvas-first layout, characteristics and cost](#stage-a3-review-canvas-first-layout-characteristics-and-cost)
 - [Stage A2 review: feature round of 14 November](#stage-a2-review-feature-round-of-14-november)
 - [Stage A review — Model and diagrams (Proof of Concept)](#stage-a-review--model-and-diagrams-proof-of-concept)
+- [Where every question went (2026-11-20)](#where-every-question-went-2026-11-20)
 
 ## Linked work: pin anywhere, live status from four tools, push from CI, a Work page
 
@@ -118,6 +119,8 @@ The owner asked for a checklist for importing a codebase or starting a project, 
 1. Should viewers be able to answer BMO's questions (today only architects and engineers change the checklist)?
 2. Should confirming an assumption with one click count as evidence for the review, or stay as it is (the words must be typed, as DEC-064 asks)?
 3. Should `dp check` (or a `dp checklist` command) report open checklist items, for CI?
+
+**Status [2026-11-20]:** question 1: no, viewers cannot answer checklist questions (owner, [DEC-099](decisions.md#pro-16--dec-099--owner-answers-to-the-open-questions-of-2026-11-20-part-1-of-open-questionsmd)). Question 2: decided after a rethink (DEC-099, Q-K2): assumptions can be cited by decisions and marked "wrong"; one click stays non-evidence. Question 3: only the 16 self-checking rules reach `dp check` (through Wave 8); items a person added and BMO's questions do not (DEC-099).
 
 ### Owner feedback
 
@@ -213,6 +216,8 @@ Routes: `/api/testing*` in `src/server/routes/testing.ts`; `GET /api/traces*` in
 3. Is a made-up trace enough for the demo, or should the demo get a small runnable system again?
 4. Which comes first next: saved test cases with `dp test`, or HTTPS intercept points?
 
+**Status [2026-11-20]:** questions 1 to 3 were answered (DEC-075, DEC-077). Question 4 was answered "`dp test`", but saved test cases and HTTPS are parked in the ideas list (ideas list I2.7); the follow-up on hidden values is answered in DEC-099 (a saved case would hold the masked call and the person would supply real values at run time).
+
 ### Owner feedback
 
 Answered on 2026-11-16:
@@ -266,13 +271,15 @@ Date: 2026-11-17. Branch: `feat/canvas-feedback-round`, from `fix/move-only-what
 2. Should a note follow a box it is dropped on (attach to the element), or stay on the diagram as now?
 3. Should flow-step chaining link only to the step just before and just after? It now finds the nearest earlier or later step at the same element.
 
+**Status [2026-11-20]:** question 1: no cap; the preview shows the approximate size before sending (DEC-099; follow-up Q-C1b: refuse only above the model's context window). Question 3: kept, the nearest earlier and later step (DEC-099). Question 2 is superseded by the sticky notes planned in Wave 2 (DEC-092).
+
 ### Owner feedback
 
 (empty)
 
 ## Repository clean-up: short root, one demo folder, one tests folder, readable names
 
-Date: 2026-11-16. Branch: `chore/repo-cleanup`, from `feat/import-and-bmo`. Decision: [DEC-066](decisions.md#dec-066--repository-layout-a-short-root-one-demo-folder-one-tests-folder-readable-names).
+Date: 2026-11-16. Branch: `chore/repo-cleanup`, from `feat/import-and-bmo`. Decision: [DEC-066](decisions.md#stk-7--dec-066--repository-layout-a-short-root-one-demo-folder-one-tests-folder-readable-names).
 
 ### What was built
 
@@ -304,7 +311,7 @@ Date: 2026-11-16. Branch: `chore/repo-cleanup`, from `feat/import-and-bmo`. Deci
 
 ## Release 0.5.0: codebase to model and BMO
 
-Date: 2026-11-16. Branch: `feat/import-and-bmo`, from `release/0.4`. Decisions: [DEC-051](decisions.md#dec-051--stage-b-import-bmo-a-purpose-built-import-file-one-c4-level-at-a-time-no-inferred-labels) (the import design, now built), [DEC-064](decisions.md#dec-064--what-an-import-file-cannot-vouch-for-itself-and-what-the-import-and-bmo-code-will-not-read-or-keep) (security rules; confirmed by the owner), and [DEC-065](decisions.md#dec-065--bmo-where-it-runs-who-may-run-it-and-how-an-import-draft-is-applied) (where BMO runs, who may run it, partial apply).
+Date: 2026-11-16. Branch: `feat/import-and-bmo`, from `release/0.4`. Decisions: [DEC-051](decisions.md#cod-2--dec-051--stage-b-import-bmo-a-purpose-built-import-file-one-c4-level-at-a-time-no-inferred-labels) (the import design, now built), [DEC-064](decisions.md#cod-3--dec-064--what-an-import-file-cannot-vouch-for-itself-and-what-the-import-and-bmo-code-will-not-read-or-keep) (security rules; confirmed by the owner), and [DEC-065](decisions.md#cod-8--dec-065--bmo-where-it-runs-who-may-run-it-and-how-an-import-draft-is-applied) (where BMO runs, who may run it, partial apply).
 
 ### What was built
 
@@ -365,7 +372,7 @@ What was done:
 
 ## Release 0.4.0: one branch, answers applied, files regrouped, security fixes
 
-Date: 2026-11-16. Branch: `release/0.4`, which merges the two lines of work (hub, home, catalog, decision records and line routing) with the release work. Decisions: [DEC-062](decisions.md#dec-062--files-are-grouped-by-area-with-plain-names) (layout) and [DEC-063](decisions.md#dec-063--owner-answers-to-the-open-review-questions-release-040) (owner answers).
+Date: 2026-11-16. Branch: `release/0.4`, which merges the two lines of work (hub, home, catalog, decision records and line routing) with the release work. Decisions: [DEC-062](decisions.md#stk-6--dec-062--files-are-grouped-by-area-with-plain-names) (layout) and [DEC-063](decisions.md#pro-15--dec-063--owner-answers-to-the-open-review-questions-release-040) (owner answers).
 
 ### What was built
 
@@ -407,7 +414,7 @@ None open. The next round is Stage B (codebase to model with an import file and 
 
 ## Orthogonal line routing (stage 1 and routing around boxes)
 
-Date: 2026-11-15. Branch: `feat/orthogonal-routing`. Baseline: `feat/decision-records` (9e602dd), because `main` is behind the stacked branches. Decision: [DEC-052](decisions.md#dec-052--lines-use-right-angles-go-around-boxes-and-spread-out-on-each-side-of-a-box).
+Date: 2026-11-15. Branch: `feat/orthogonal-routing`. Baseline: `feat/decision-records` (9e602dd), because `main` is behind the stacked branches. Decision: [DEC-052](decisions.md#can-6--dec-052--lines-use-right-angles-go-around-boxes-and-spread-out-on-each-side-of-a-box).
 
 ### What was built
 
@@ -464,9 +471,11 @@ Date: 2026-11-15. Branch: `feat/orthogonal-routing`. Baseline: `feat/decision-re
 3. What should the next routing stage cover? The options are: separating lines in a shared gap, label-versus-line avoidance, ELK label sizes, and optional hops. Which comes first?
    - Answer [main session, not the owner]: stage-2 order chosen by the main session (lanes and label-vs-line first, in DEC-061). ELK label sizes, straight/curved/smooth routing and optional hops remain in the backlog.
 
+**Status [2026-11-20]:** question 3: no next routing stage is scheduled; it starts when a real diagram shows a problem (DEC-099). The leftover options are in `docs/planned_features.md` (B5).
+
 ### Follow-up (DEC-061)
 
-Date: 2026-11-15. Decision: [DEC-061](decisions.md#dec-061--default-line-shape-per-diagram-lanes-and-make-room--spread-out).
+Date: 2026-11-15. Decision: [DEC-061](decisions.md#can-7--dec-061--default-line-shape-per-diagram-lanes-and-make-room--spread-out).
 
 #### What was built
 
@@ -556,10 +565,6 @@ This stage answers the owner's feedback on the H2–H5 questions:
 | H6-4 | **History.** Commits touching the model folders, per project or across the hub, each compared with its parent model: counts and up to 12 objects. It also shows what is not committed yet against HEAD, and links to each version compared with the one before. Cached per commit. | `src/core/history.ts`, `GET /api/history`, `ui/src/home/HistoryPage.tsx` |
 | H6-5 | **GitHub status for linked work.** "Refresh status from GitHub" under Linked work. It reads issue and pull request states from api.github.com with the first `github` credential (or none, for public repositories). One undo step; it reports links it could not read and never returns the token. | `src/core/workStatus.ts`, `POST /api/work/refresh`, `ui/src/panels/WorkRefresh.tsx`, `CredentialStore.byProvider` |
 
-![History across a hub](reviews/h6/history.png)
-
-![Home page with the catalog changes copied](reviews/h6/home.png)
-
 ### How it was checked
 
 - **vitest**: 305 tests (up from 298), all pass.
@@ -623,14 +628,6 @@ These stages finish the owner-approved plan "home page, multiple projects, share
 | H5-1 | **Credentials store**: `.dp/credentials.json` (0600, gitignored). Values are encrypted with AES-256-GCM when `DP_SECRET_KEY` is set (scrypt key per value, name and provider bound in); otherwise they are stored as plain text and the page says so. Locked with the wrong key. Values are write-only; the masked hint shows the last 4 characters. | `src/core/credentials.ts` |
 | H5-2 | **Routes, CLI and page**: the `admin` action (architects; refused on a read-only server); `dp credentials list/add/rotate/remove` (values from stdin); the Credentials page. | `routes/credentials.ts`, `auth.ts`, `cli.ts`, `ui/src/home/CredentialsPage.tsx` |
 
-![Home page of the demo hub](reviews/h2-h5/home.png)
-
-![Shared catalog: who reads and writes each table](reviews/h2-h5/catalog.png)
-
-![A linked copy's panel: catalog link, shared and private data](reviews/h2-h5/panel.png)
-
-![Credentials](reviews/h2-h5/credentials.png)
-
 ### How it works (one paragraph)
 
 `dp serve DIR --hub` reads `hub.json` and serves each listed project folder through its own, unchanged project app, chosen by a request header. The browser shows a home page above the projects: what each one holds, what needs a look and what is being watched. Shared things live once in the catalog project. Each project keeps a linked copy of what it uses, and lists which tables those copies hold and which of its relationships read or write them. The catalog page then answers "who uses this table, and who writes it" across projects. Credentials for future integrations are stored next to the hub, outside git. Their values are never shown again, and they are encrypted when a key is given.
@@ -680,6 +677,8 @@ These stages finish the owner-approved plan "home page, multiple projects, share
 4. Which integration should use the credentials first (GitHub issue and pull request status on linked work, or trace backends)?
 5. Should tables also be drawable as components on demand (for a data-centric view), or stay a list?
 
+**Status [2026-11-20]:** all five were answered; the answers are in the Stage H6 table and in DEC-063 (not only the pointer under "Owner feedback"). 1 yes (DEC-057); 2 yes (DEC-057); 3 no, optional key (DEC-063); 4 GitHub (DEC-059); 5 tables stay a list (DEC-063).
+
 ### Owner feedback
 
 Answered on 2026-11-16: see DEC-063 in [decisions.md](decisions.md).
@@ -707,10 +706,6 @@ This is the first stage of the owner-approved plan "home page, multiple projects
 | H1-11 | **URL.** The page lives in the URL as `p=decisions[/<id>]` on the diagram hash. Back closes it, the model version is kept, and a link to a decision in a draft works. | `usePage` in `ui/src/useNavigation.ts` |
 | H1-12 | **Secret warning.** The editor warns when text looks like a password or key, because decision records go into git. | `DecisionEditor.tsx` |
 | H1-13 | **Demo**: seven decisions, one of each kind. They include a superseded/reversal pair and a time-boxed "shared database" decision that leads into the catalog stage. They are generated by `npm run make-demo` and copied by `dp init --demo`. | `scripts/make-demo.ts`, `demo/decisions/`, `store.ts` |
-
-![A conditional decision](reviews/h1-decisions/record.png)
-
-![The editor](reviews/h1-decisions/editor.png)
 
 ### How it works (one paragraph)
 
@@ -820,6 +815,8 @@ Samples are plain fields in the model, so they are versioned, diffed and merged 
 3. Should the inspector also read OpenTelemetry trace files, so the chain after the API is observed rather than read from the model?
 4. Should the demo ship a small sample web app, so the inspector can be tried with `dp serve --demo` alone?
 
+**Status [2026-11-20]:** question 1 was answered (DEC-045). Question 2 is obsolete: the live UI inspector was removed (DEC-074). Question 3 was built (DEC-046, kept by DEC-074). Question 4 is superseded: the web app was removed (DEC-074) and replaced by a runnable demo system (DEC-077). Round 2 questions are answered under round 2 below and in DEC-063.
+
 ### Owner feedback (round 1)
 
 - Q1: keep masking personal data → DEC-045.
@@ -889,7 +886,7 @@ Version 1.0.0 is the first release for people outside the team. The project file
 
 - Since 0.3.0, the whole programme (stages C4, P1, R, P2, P3, P4, P5, P6) has taken vitest from 137 to 229 tests, and browser tests from 32 to 112.
 - Lint was added and is clean. Typecheck is clean.
-- Each stage has a review file in `docs/reviews/`.
+- Each stage has a section in this file (the per-stage review files and screenshots that once sat in `docs/reviews/` were merged and removed).
 - The same commands were run locally on macOS only. CI was not run on GitHub for these branches. Linux and Node 20 were not exercised.
 
 ### Limits
@@ -1296,8 +1293,6 @@ Owner decisions for this stage (2026-11-14): applying a draft is an object-level
 | C3 | **`dp diff --base <ref> [--head <ref>] [--format md\|json] [--out f] [--exit-code]`**: Markdown summary for a pull request comment (counts, tables of elements, relationships, flows, settings, collapsed before/after). | same |
 | C3 | Sample CI jobs: GitHub Actions (check + comment via `gh`) and GitLab CI (check + note via the REST API). | `docs/examples/ci/` |
 
-Screenshots: [draft with the Changes overlay and a changed object selected](reviews/stage-c/draft-changes.png), [apply dialog](reviews/stage-c/apply-dialog.png).
-
 ### How it works (one paragraph)
 
 A model version is flattened into **units**, one per object (element, relationship, view, stored position, tag group, lens, style, layout entry; `src/core/units.ts`). Diff, merge and the overlay all compare units by key; IDs do not change on rename and elements cannot change parent, so matching by ID is exact. View element lists are left out of units because `syncViews`/`syncFlows` rebuild them from the model. Every API request names the version it works on and the one it is compared with in two headers (`X-DP-Model`, `X-DP-Compare`), so the server keeps no "current draft" and two tabs can show different versions. Decisions: DEC-016 (drafts and merge), DEC-017 (headers), DEC-018 (git CLI).
@@ -1539,8 +1534,7 @@ ATM fill colour changed from light grey to a dark purple to suit the dark theme.
   rating then characteristic overlay, cost line then cost overlay, flow card Introduction →
   steps → Conclusion, search). Three existing tests clicked the canvas at (30, 30) to deselect;
   that spot is now under the floating bar, so they click the left edge at mid-height instead.
-- Screenshots: `stage-a3/before.png` (Stage A2), `stage-a3/tag-overlay.png`,
-  `stage-a3/characteristics.png`, `stage-a3/flow-cost.png`.
+- Screenshots of this stage were taken for the review and removed from the repository on 2026-11-20 (they showed an old interface; git history keeps them).
 - Not verified: Structurizr's own tools with the new `dp.*` properties (Docker/Maven not
   available here, as in A2); CI on GitHub.
 
@@ -1708,6 +1702,45 @@ Conclusion: the format fits; no reason to stop before A1.
 3. Deviation 8: keep committing the built UI, or build it only for releases (then installing from git needs Node)?
 4. The demo has no tag groups, so checklist step 6 starts from scratch. Should the demo ship with an example group?
 
+**Status [2026-11-20]:** question 1 is an owner-only check; the how-to is section 30 of [manual-test-plan.md](manual-test-plan.md#30-structurizr-check-the-steps-behind-mt-draft-167) (MT-167). Question 2 was deferred (DEC-063). Question 3 is closed: the built UI stays committed (DEC-063). Question 4 is closed: the demo already has tag groups.
+
 ### 7. Owner feedback
 
 Answered on 2026-11-16: see DEC-063 in [decisions.md](decisions.md).
+
+## Where every question went (2026-11-20)
+
+The verdict on every numbered question in this file, so nothing silently disappears. Decisions are in [decisions.md](decisions.md) (DEC-063, DEC-099 and others). Questions still open, and where each question id went, are in [decisions.md](decisions.md#open-questions-and-the-ids-of-answered-ones). U-numbers are rows of section 29 of [manual-test-plan.md](manual-test-plan.md#29-unverified-facts-what-was-never-run-or-measured); Q-numbers are the items of DEC-099.
+
+| Section | Question | Verdict |
+|---|---|---|
+| Linked work | Work page key; hub roll-up; severity mapping; CI push to a draft | Answered (DEC-086, DEC-088, DEC-087, DEC-085) |
+| Checklist | K1 viewers; K2 one-click confirm; K3 CI report | K1, K3 answered (DEC-099); K2 decided: assumptions (DEC-099) |
+| Interaction fixes | "0 projects" screenshot; new project on an existing model; badge counts proposed decisions | Answered (DEC-081, DEC-079); the screenshot is U22 |
+| System Testing | hub; shared session; demo trace or system; `dp test` or HTTPS | Answered (DEC-075, DEC-077); follow-up Q-T4 answered: stays parked (DEC-099) |
+| Canvas round | C1 token cap; C2 notes follow boxes; C3 flow chaining | C1, C3 answered (DEC-099; follow-up Q-C1b); C2 superseded by Wave 2 stickies (DEC-092) |
+| Release 0.5.0 | confirm DEC-064; viewers run BMO text tasks; 1.5 × budget; `scope.include` | Answered (DEC-064, DEC-065) |
+| Release 0.4.0 | "None open" | Closed |
+| Orthogonal routing | rounded corners; per-diagram default; next stage; "Rounded" clears the key; selection only | Answered; next stage: none now (DEC-099) |
+| Stage H6 | "no access" role; commit copies; scheduled GitHub refresh | Answered (DEC-060, DEC-057, DEC-059) |
+| Stages H2–H5 | roles per project; update every copy; require `DP_SECRET_KEY`; first integration; tables as components | Answered (DEC-057, DEC-063, DEC-059); see D6 in [decisions.md](decisions.md#open-questions-and-the-ids-of-answered-ones) |
+| Stage H1 | engineers file proposed decisions on main; front-matter grammar; lock accepted decisions | Answered (DEC-063) |
+| Sample data (round 1) | mask IBANs; two-second window; read trace files; demo web app | Answered; two-second window obsolete (DEC-074); demo web app superseded (DEC-074, DEC-077) |
+| Sample data (round 2) | backtrack with traces; field lineage; `--no-history`; live collector | Answered, deferred (DEC-063) |
+| Stage P6 | one PR or eight; npm now; apply Prettier | Answered (DEC-063) |
+| Stage P5 | palette collapsed at 1280 px; light theme | Answered / deferred (DEC-063); light theme in `planned_features.md` B5 |
+| Stage P4 | own drafts only; viewer lens hides data; 12-hour session | Answered (DEC-063, DEC-008) |
+| Stage P3 | rebase; author from `git config` | Deferred to Wave 18; answered (DEC-063) |
+| Stage P2 | blank by default; Ctrl/Cmd+click; empty system's context diagram in the sidebar | Answered (DEC-063) |
+| Stage R | one Prettier commit; dialog wording | Answered (DEC-063) |
+| Stage P1 | framing for editor previews; dot-folder mapping; non-loopback host | Answered (DEC-063) |
+| Stage C4 | code-edit option default; roll back; separate undo | Answered (DEC-063, DEC-032) |
+| Stage C | compare with main; layout conflicts; sample draft; compare stored models; `--strict` in CI | Answered (DEC-063); CI is now GitLab and has not run (U7) |
+| Release 0.2.0 | sync linked work from GitHub; pipeline from the palette | Built (DEC-059, DEC-085); deferred (DEC-063) |
+| Stage A3 | rating targets; one-off cost; dark theme only; Status tab | Deferred (DEC-063); rating targets are Wave 9 |
+| Stage A | open the demo in Structurizr; per-diagram hiding; commit the built UI; demo tag groups | Q-A1: the how-to is [section 30 of the manual test plan](manual-test-plan.md#30-structurizr-check-the-steps-behind-mt-draft-167); the check is yours; others answered (DEC-063) |
+| Rewrite in TypeScript, Stage A2, repository clean-up | no questions section | — |
+
+Four review sections have an empty "Owner feedback" block: the checklist, the canvas feedback round, the repository clean-up and release 0.4.0 (a placeholder comment). Their questions are answered in DEC-099 or listed in decisions.md ("Open questions and the ids of answered ones").
+
+---

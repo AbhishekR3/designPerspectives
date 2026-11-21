@@ -5,7 +5,7 @@
 | **Status** | Owner answers applied (questions C4 and C5, 2026-11-19: anyone can attach, up to 10 MB per file, stored locally and opened directly). Ready to run after Wave 3 |
 | **Branch** | `feat/w16-attachments`, from `main` after Wave 3 is merged |
 | **Size** | M–L |
-| **Release** | 0.5.1 (with Waves 1, 2, 3, 4) |
+| **Release** | 0.7.0 (with Waves 1, 2, 3, 4) |
 | **Depends on** | Wave 2 (the Markdown renderer, sticky notes), Wave 3 (the Decisions page and its links section, including the `local:` link kind) |
 | **Owner items** | Feature E of [../product-vision.md](../product-vision.md): "different accounts who can add notes/images/files to the diagrams". Replaces Wave 3's optional upload step (Q3.5 option 2) |
 
@@ -85,8 +85,36 @@ Accounts can attach images and files to a diagram, a box or line, a decision, a 
 
 - **C4:** anyone can attach (every role, viewers on comments).
 - **Q3.5 (2026-11-19):** also allow a reference to a file on the user's own machine, so nothing is duplicated (item 12). **Follow-up the same day:** a click opens it in the system's default app, with the limits in item 12 (DEC-095).
+- **D5 (2026-11-20, DEC-100):** the owner confirmed "open in the default app" when offered "Copy path only" as the safer default. Item 12 stays as written; Copy path only is the fallback on a server that is not on the reader's machine and, if the security review finds the route unsafe, everywhere (the stop condition below still applies).
 - **Screen parity (2026-11-19):** BMO can reach everything a person can see. For attachments that means they are listed, text files' content goes in redacted, and images, PDFs and Office files are listed only (item 10, DEC-094). The assistant kept that last exception because dp cannot scan those files for secrets; the owner may overrule it.
 - **C5:** up to 10 MB per file. Files are stored locally in the project and open directly from it. This needed a raw upload route with its own cross-site rule (item 3); that design and the PDF-inline choice are the assistant's proposals for the security review.
+
+## Questions, options and answers (moved from questions.md)
+
+*Moved from the deleted `questions.md` on 2026-11-20, with the owner's words as written. In the quotes, `future_tasks.md` and `backlog.md` mean the old backlog, now [planned_features.md](../planned_features.md) and the owner's private ideas list; `docs/waves/v1-scope-review.md` was decided in DEC-104.*
+
+### ★C4. Who may attach images and files?
+
+**Analysis.** Attaching writes a file to the repository's disk (see [Wave 16](wave-16-attachments.md)). Comments are open to every role, viewers included (DEC-049). A viewer's text comment is a few kilobytes; a viewer's upload is up to a file cap.
+
+**Options**
+1. Whoever may comment may attach to a comment, viewers included. Others attach where they may edit.
+2. As option 1, but **not viewers**.
+3. Only architects, and engineers inside drafts.
+
+**Recommended.** Option 2, with a per-project size cap.
+
+**Owner's thinking:** Anyone can attach files, up to 10 MB per file, and files must be stored locally so dp can pull them up directly.
+
+**Applied [2026-11-19].** Option 1, including viewers: every role can attach to a comment; where someone may edit a thing, they attach to it. Files are stored in `architecture/attachments/` and opened through dp's own page (images in the page, PDFs in a tab, text in a dialog, Office files download). See C5.
+
+### C5. Which file types, and how big?
+
+**Recommended.** Images shown inline: PNG, JPEG, GIF, WebP. Download only: PDF, text, Markdown, CSV, JSON, Office files. SVG, HTML, scripts and archives refused. About 3.5 MB per file, because a file is sent as base64 inside the 5 MB request that also keeps other websites out. Do you need larger files, such as a 20 MB specification PDF? That needs a different upload route and its own security review.
+
+**Owner's thinking:** (see C5; applied together)
+
+**Applied [2026-11-19].** 10 MB per file instead of 3.5 MB. That cannot go as base64 inside the 5 MB JSON limit, so [Wave 16](wave-16-attachments.md) now uses a raw upload route with its own limit and its own cross-site rule (a custom header that another website cannot send without a preflight, which dp refuses). Other limits: a per-project total (proposal 500 MB) and an upload rate limit, because viewers can now write to disk.
 
 ## Stop and ask if
 
@@ -137,7 +165,7 @@ Accounts can attach images and files to a diagram, a box or line, a decision, a 
 ## Docs
 
 - **New DEC:** the attachment store, the raw upload route and its cross-site rule, the type rules, and who may attach (anyone). DEC-094 (screen parity) and DEC-095 (opening local files) are already written; update them if the build differs.
-- **CHANGELOG:** Unreleased. **reviews.md:** a section at the top.
+- **CHANGELOG:** nothing until the 0.7.0 release entry is written (see README, Releases). **reviews.md:** a section at the top.
 - **CLAUDE.md:** `attachments.ts` and its route module.
 - **README:** the collaboration paragraph.
 - **docs/determinism.md:** a row.

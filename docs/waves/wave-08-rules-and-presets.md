@@ -5,7 +5,7 @@
 | **Status** | Owner answers applied (2026-11-19; reshaped 2026-11-20: detectors run on the model, not on code). Ready to run after Waves 3, 6 and 7 |
 | **Branch** | `feat/w08-rules-and-presets`, from `main` after Wave 7 is merged |
 | **Size** | L |
-| **Release** | 0.5.2 |
+| **Release** | 0.9.0 (with Waves 6, 7) |
 | **Depends on** | Wave 3 (reference entries to link), Wave 6 (Findings, acknowledgements), Wave 7 (coupling numbers and cycles from the model) |
 | **Owner items** | 18, and 21 for anti-patterns found from the model and the code ([README.md](README.md#where-each-item-went)) |
 
@@ -118,7 +118,7 @@ Each rule states its class: computed or heuristic. Heuristic findings are shown 
 
 ## Owner answers
 
-Applied 2026-11-19: the owner answered Part A and left Part B blank, so every Q below uses its recommendation ([questions.md](questions.md)).
+Applied 2026-11-19: the owner answered Part A and left Part B blank, so every Q below uses its recommendation ([the questions section below](#questions-options-and-answers-moved-from-questionsmd)).
 
 - **Q8.1:** no. Rules make findings for the UI and `dp check`; they never block a save.
 - **Q8.2:** yes. The checklist's 16 rules move into one registry with the same ids; a new DEC amends DEC-084.
@@ -127,7 +127,84 @@ Applied 2026-11-19: the owner answered Part A and left Part B blank, so every Q 
 - **Q8.5:** heuristic detectors shown as hints only.
 - **Q8.6:** style templates later (the ideas list).
 - **2026-11-20 (best thinking, after the code-reading answers):** Q8.1 to Q8.6 hold as recommended. Two changes follow from the other answers: the "zone of pain or uselessness" detector is gone (it needs abstractness, which needs a per-language parser), and the thresholds for coupling that Wave 7 no longer carries become parameters of rules here.
-- **Vision:** feature L (anti-pattern detection). The Security basics and Data presets touch data and infrastructure; the owner's review (scope review) may move them out.
+- **Vision:** feature L (anti-pattern detection). The Security basics and Data presets touch data and infrastructure. They stay: the data catalog and data access are kept in 1.0.0 (DEC-104, B1 and P4), and a preset reads only the model, which has no deployment diagrams until after 1.0.0 (P1). [Proposal: read from the scope decisions, not asked separately.]
+
+## Questions, options and answers (moved from questions.md)
+
+*Moved from the deleted `questions.md` on 2026-11-20, with the owner's words as written. In the quotes, `future_tasks.md` and `backlog.md` mean the old backlog, now [planned_features.md](../planned_features.md) and the owner's private ideas list; `docs/waves/v1-scope-review.md` was decided in DEC-104.*
+
+### ★Q8.1 Can a rule ever block a save?
+
+**Analysis** [Fact]. Model errors block any save that adds an error (`src/core/validate.ts:28-39`, `src/core/project.ts:169-170`).
+
+**Recommended.** No. Rules make findings for the UI and `dp check` only. CI fails through `dp check --strict` or `--fail-on`.
+
+**Owner's thinking:** Go with what you think is best.
+
+**Applied [2026-11-20].** As recommended: rules never block a save.
+
+### ★Q8.2 Move the checklist's rules into the registry?
+
+**Analysis** [Fact]
+- 16 checklist rules exist as code (`src/core/checklistRules.ts:65-168`).
+- DEC-084 says those rules are fixed and can only be skipped.
+
+**Recommended.** Yes. One registry with the same ids, so checklist items keep working. This amends DEC-084 in a new DEC.
+
+**Owner's thinking:** Go with what you think is best.
+
+**Applied [2026-11-20].** As recommended: the checklist's 16 rules move into one registry with the same ids, and a new DEC amends DEC-084.
+
+### ★Q8.3 Presets, and which are on by default
+
+**Proposed.** Rule packs, written in code:
+
+| Preset | Rules |
+|---|---|
+| **C4 basics** | Descriptions, technology, labels that aren't "Uses", no mixed levels (from the C4 checklist ideas, ideas list I2.2) |
+| **Structure** | Cycles, layers by tag group, caps on dependencies |
+| **Data** | Several writers, a shared database, paths to sensitive data |
+| **Microservices** | A shared database, chatty pairs, long synchronous chains, too many services |
+| **Event-driven** | Event loops, topics nobody reads |
+| **Security basics** | External-facing containers, sensitive data on technology tagged unencrypted |
+
+The sidecar holds which presets are on, plus the severity and settings of each rule.
+
+**Recommended.** C4 basics on by default; the others opt-in.
+
+**Owner's thinking:** Go with what you think is best.
+
+**Applied [2026-11-20].** As recommended: C4 basics on by default, the others opt-in. The 'zone of pain or uselessness' detector is gone (it needs abstractness). The Data and Security basics presets touch data and infrastructure, which the scope review might have moved out; it did not (DEC-104: data stays, B1 and P4).
+
+### ★Q8.4 Silencing a finding
+
+**Recommended.** Silencing means acknowledging the finding with a reason (★A5).
+- Anyone who may edit the model can do it. Engineers do it in drafts.
+- `dp check` output counts acknowledged findings, for example "3 acknowledged".
+
+**Owner's thinking:** Go with what you think is best.
+
+**Applied [2026-11-20].** As recommended: silencing is acknowledging with a reason; `dp check` counts acknowledged findings.
+
+### Q8.5 Heuristic detectors
+
+**Recommended.** Shown as hints only, for example:
+- names that look like the Entity Trap;
+- "architecture by implication": containers with no decision.
+
+**Owner's thinking:** Go with what you think is best.
+
+**Applied [2026-11-20].** As recommended: heuristic detectors show as hints only.
+
+### Q8.6 Style templates
+
+**Analysis.** Style templates would be starter models for a style, such as "layered" or "microservices".
+
+**Recommended.** Later (the ideas list).
+
+**Owner's thinking:** Go with what you think is best.
+
+**Applied [2026-11-20].** As recommended: style templates later (the ideas list).
 
 ## Stop and ask if
 

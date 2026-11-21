@@ -5,7 +5,7 @@
 | **Status** | Owner answers applied (2026-11-19). Ready to run after Wave 7 |
 | **Branch** | `feat/w09-characteristics-table`, from `main` after Wave 8 is merged |
 | **Size** | M |
-| **Release** | 0.5.3 (with Wave 11) |
+| **Release** | 0.10.0 (with Wave 11) |
 | **Depends on** | Wave 7 (coupling hints from the model). Works without it if the hints are left out |
 | **Owner items** | 7 ([README.md](README.md#where-each-item-went)) |
 
@@ -86,7 +86,7 @@ Ratings come from people. BMO's proposed ratings come in Wave 11.
 
 ## Owner answers
 
-Applied 2026-11-19: the owner answered Part A and left Part B blank, so every Q below uses its recommendation ([questions.md](questions.md)).
+Applied 2026-11-19: the owner answered Part A and left Part B blank, so every Q below uses its recommendation ([the questions section below](#questions-options-and-answers-moved-from-questionsmd)).
 
 - **Q9.1:** needed stars beside current, per element; a container without its own target shows its system's.
 - **Q9.2:** a decision can state its expected impact on characteristics.
@@ -95,6 +95,65 @@ Applied 2026-11-19: the owner answered Part A and left Part B blank, so every Q 
 - **Q9.5:** an older dp drops the new value when it saves; the CHANGELOG says so.
 - **2026-11-20 (best thinking):** Q9.1 to Q9.5 hold as recommended. The only change is that hints come from the model's coupling and cycles, because Wave 7 measures the model.
 - **Vision:** feature L, the "-ilities". Wave 10, which followed this wave, is parked.
+
+## Questions, options and answers (moved from questions.md)
+
+*Moved from the deleted `questions.md` on 2026-11-20, with the owner's words as written. In the quotes, `future_tasks.md` and `backlog.md` mean the old backlog, now [planned_features.md](../planned_features.md) and the owner's private ideas list; `docs/waves/v1-scope-review.md` was decided in DEC-104.*
+
+### ★Q9.1 Scale and scope
+
+**Analysis** [Fact]
+- Ratings are whole stars 1–5 per element, with a "driving" flag and a note (`src/core/modelEdits.ts:533-553`).
+- There is no target.
+- People and lines have no ratings.
+
+**Proposed**
+- Add "needed" stars beside "current", per element.
+- A container without its own target shows its system's, labelled "from the system".
+- Gap = needed − current.
+- Ratings on lines and flows come later (planned_features B5).
+
+**Recommended.** Yes.
+
+**Owner's thinking:** Go with what you think is best.
+
+**Applied [2026-11-20].** As recommended: needed stars beside current, per element, with inheritance from the system.
+
+### Q9.2 Expected impact in decisions
+
+**Proposed.** A decision can say what it should do to characteristics, for example `impacts: [scalability:+1, simplicity:-1]`. The table shows that expected change beside the draft's real ratings.
+
+**Recommended.** Yes.
+
+**Owner's thinking:** Go with what you think is best.
+
+**Applied [2026-11-20].** As recommended: a decision can state its expected impact on characteristics.
+
+### Q9.3 Hints from metrics
+
+**Recommended.** Hints only. For example, modularity from D and cycles, or testability from a coverage report. Hints never set stars.
+
+**Owner's thinking:** Go with what you think is best.
+
+**Applied [2026-11-20].** As recommended, with the source changed: hints come from the model's cycles and instability (Wave 7), not from distance. Hints never set stars.
+
+### Q9.4 More than seven driving characteristics
+
+**Recommended.** A warning. The book suggests about seven (notes `fundamentals…md:89`).
+
+**Owner's thinking:** Go with what you think is best.
+
+**Applied [2026-11-20].** As recommended: more than seven driving characteristics gives a warning.
+
+### Q9.5 Older versions of dp
+
+**Analysis** [Fact]. An older dp drops the new "needed" value when it saves, because it drops keys it doesn't know.
+
+**Recommended.** Accept it and say so in the CHANGELOG. A team should upgrade together.
+
+**Owner's thinking:** Go with what you think is best.
+
+**Applied [2026-11-20].** As recommended: accept it and say so in the CHANGELOG.
 
 ## Stop and ask if
 

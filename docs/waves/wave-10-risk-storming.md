@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | **Parked** (owner, answer A7, 2026-11-19): risk analysis moved to ideas list I2.3. The wave is not in a release and not in the vision's twelve features. Kept for when it returns |
+| **Status** | **Parked** (owner, answer A7, 2026-11-19): risk analysis moved to ideas list I2.3. The wave is not in a release and not in the vision's twelve features (scope decision P6: later, DEC-104). Kept for when it returns |
 | **Branch** | `feat/w10-risk-storming`, from `main` after Wave 9 is merged |
 | **Size** | M |
 | **Release** | — |
@@ -97,12 +97,78 @@ Run risk-storming sessions in which people score privately first, then agree, th
 
 ## Owner answers
 
-Applied 2026-11-19: the owner answered Part A and left Part B blank, so every Q below uses its recommendation ([questions.md](questions.md)).
+Applied 2026-11-19: the owner answered Part A and left Part B blank, so every Q below uses its recommendation ([the questions section below](#questions-options-and-answers-moved-from-questionsmd)).
 
 - **A7:** "Push these to future_tasks.md". This wave is parked, not deleted (owner, A10).
 - **Q10.1 to Q10.4:** their recommendations stand for when the wave returns (`dp.risks`, 3×3, private scores with sign-in, containers as columns).
 - **Effect on other waves:** Wave 11 loses "add as a risk" and `suggest-risks`. The Risk tag group and the trade-off risks stay as built.
-- **Confirmed** by the owner on 2026-11-19 ([questions.md](questions.md) C6b): do not build either for 1.0.
+- **Confirmed** by the owner on 2026-11-19 ([C6 in Wave 2](wave-02-notes-context-help.md#questions-options-and-answers-moved-from-questionsmd)): do not build either for 1.0.
+
+## Questions, options and answers (moved from questions.md)
+
+*Moved from the deleted `questions.md` on 2026-11-20, with the owner's words as written. In the quotes, `future_tasks.md` and `backlog.md` mean the old backlog, now [planned_features.md](../planned_features.md) and the owner's private ideas list; `docs/waves/v1-scope-review.md` was decided in DEC-104.*
+
+### ★Q10.1 Where risks live
+
+**Analysis** [Fact]
+- Trade-offs already have a "risk" kind (`src/core/modelEdits.ts:184`).
+- The demo has a "Risk" tag group, and a lens whose default overlay is "Risk" (`demo/designperspectives.json:5`, `:82`).
+
+**Options**
+1. **`dp.risks` per object.**
+   - Each risk holds: characteristic, impact 1–3, likelihood 1–3, mitigation, owner, status, links.
+   - Project-wide risks sit on the workspace.
+   - The trade-off risks move over.
+2. **A separate risks file, like decisions.** This breaks the `dp.*` rule and duplicates the trade-off risks.
+
+**Recommended.** Option 1.
+- The Risk overlay is computed from the risks: the highest score per box.
+- The Risk tag group stays, for models that use it by hand.
+
+**Owner's thinking:** Risk and Risk Storming has been pushed to future_tasks.md so no need to implement it in this waves situation.
+
+**Applied [2026-11-20].** Parked (as in A7 and C6b). The recommendation is kept for when the wave returns.
+
+### Q10.2 Scale
+
+**Recommended.** 3×3, as in the book (notes `fundamentals…md:404-405`):
+- rate impact first;
+- an unknown likelihood counts as 3;
+- 1–2 is low, 3–4 medium, 6–9 high;
+- show shading as well as colour.
+
+**Owner's thinking:** (Wave 10 is pushed to future_tasks.md.)
+
+**Applied [2026-11-20].** Parked.
+
+### ★Q10.3 Private scores in risk storming
+
+**Analysis** [Fact]. Sign-in is optional (DEC-041). Without it, dp can't tell people apart.
+
+**Proposed**
+- **One session per characteristic.**
+- **Each signed-in participant scores privately.**
+  - Scores are kept in `.dp/`, not in git.
+  - Nobody sees them before the reveal, architects included.
+- **The reveal** shows the spread and the disagreements.
+- **The agreed score becomes the risk,** and the private scores are deleted.
+- **Without sign-in,** a session runs on one machine, with people taking turns. Scores are then hidden on trust only.
+
+**Recommended.** Yes.
+
+**Owner's thinking:** (Wave 10 is pushed to future_tasks.md.)
+
+**Applied [2026-11-20].** Parked.
+
+### Q10.4 The grid's columns
+
+**Recommended.** Containers for now. The book prefers domains, and groups come later (ideas list I2.1).
+
+**Owner's thinking:** (Wave 10 is pushed to future_tasks.md.)
+
+**Applied [2026-11-20].** Parked.
+
+The parking of this wave (A7, C6b) is explained under C6 in [wave-02-notes-context-help.md](wave-02-notes-context-help.md#questions-options-and-answers-moved-from-questionsmd): the owner asked again in plain words and the answer was **do not build Wave 10 or Wave 12 for 1.0**.
 
 ## Stop and ask if
 

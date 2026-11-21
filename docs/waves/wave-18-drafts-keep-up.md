@@ -5,7 +5,7 @@
 | **Status** | Owner answer applied (questions C2: "go with your best decision", 2026-11-19 → rebase and merge editor, and undo that restores the draft; the code comparison stays later). Ready to run |
 | **Branch** | `feat/w18-drafts-keep-up`, from `main` |
 | **Size** | M–L. Split point: 18a is rebase and the merge editor (steps 2 to 4); 18b is undo that restores the draft (step 5) |
-| **Release** | 0.5.3 (with Waves 9, 11, 17, 19) |
+| **Release** | 0.10.0 (with Waves 9, 11, 17, 19) |
 | **Depends on** | Nothing in this plan |
 | **Owner items** | Feature C of [../product-vision.md](../product-vision.md): architecture change proposals. [../planned_features.md](../planned_features.md) B3 |
 
@@ -55,6 +55,27 @@ With several accounts proposing changes in drafts, main moves while a draft is o
 ## Owner answers
 
 - **C2:** best decision, as recommended: (a) and (b) in this wave; (c) later.
+
+## Questions, options and answers (moved from questions.md)
+
+*Moved from the deleted `questions.md` on 2026-11-20, with the owner's words as written. In the quotes, `future_tasks.md` and `backlog.md` mean the old backlog, now [planned_features.md](../planned_features.md) and the owner's private ideas list; `docs/waves/v1-scope-review.md` was decided in DEC-104.*
+
+### ★C2. Which gaps in the change-proposal feature (C) go into 1.0.0?
+
+**Analysis** [Fact]. [planned_features.md](../planned_features.md) B3 lists what drafts cannot do yet:
+- rebase a draft onto a main that has moved, and a merge editor for conflicts (today a conflict is reported only when the draft is applied) [Medium];
+- undo of an apply restores the model but not the code files it wrote nor the deleted draft [Small–medium];
+- compare a draft's planned code edits with the code as it was when the draft started [Medium].
+
+With several accounts working in drafts (feature E), the first is the one people meet.
+
+**Options.** Pick any: (a) rebase and merge editor, (b) undo restores the draft, (c) compare against the code at the start of the draft.
+
+**Recommended.** (a) and (b) in 1.0.0, as a new wave after Wave 4. (c) later.
+
+**Owner's thinking:** Go with your best decision.
+
+**Applied [2026-11-19].** (a) rebase and merge editor and (b) undo that restores the draft, as recommended, in new [Wave 18](wave-18-drafts-keep-up.md). (c) stays later.
 
 ## Stop and ask if
 
