@@ -79,7 +79,7 @@ The running list of project decisions and the reasoning behind them, grouped by 
 | **N1 to N15** code import and BMO choices (what the scan skips, entry points, layered folders, other manifests, the extension lists, the readiness report, who owns the level rules, pinned key code that stops matching, Wave 14, the 0.8.0 split, "needs an LLM" labels, context limits, digests, the assumption work, where the context window comes from) | [DEC-103](#pro-19--dec-103--code-import-and-bmo-choices-and-the-080-split-n1-to-n15); built in Waves 3, 5, 6 and 15 (each wave file has a "Decided (DEC-103)" section) and the digests as [Wave 22](waves/wave-22-digests.md) |
 | Q-A1: how to open the demo in Structurizr's tools | [manual-test-plan.md](manual-test-plan.md#30-structurizr-check-the-steps-behind-mt-draft-167), section 30 |
 | Unverified facts, what was never run or measured (U1 to U25, later U26 and U27) | [manual-test-plan.md](manual-test-plan.md#29-unverified-facts-what-was-never-run-or-measured), section 29, with a Result column; related gap rows in section 28 |
-| The verdict on all 81 questions in reviews.md | [reviews.md](reviews.md), the last section, "Where every question went" |
+| The verdict on all 81 questions of the stage reviews | The deleted `reviews.md`, last section "Where every question went" (`git show 24bbca1:docs/reviews.md`). Every row there points to a DEC in this file or to a row above; the stage limits it listed are now section 31 of the [manual test plan](manual-test-plan.md#31-known-limits-by-area) |
 | **D3** (the 0.6.0 release change), **D8** (where `.gitlab-ci.yml` lives), **D10** (a permission in `.claude/settings.json`), **D11** (the code map in `CLAUDE.md`) | Chores in [planned_features.md](planned_features.md) B7. D3 has its steps in [CONTRIBUTING.md](CONTRIBUTING.md#making-a-release) |
 | **D12** (`docs/determinism.md` does not exist yet), **D13** (Prettier is enforced), **D14** (the demo web app page) | Closed: stated in [waves/README.md](waves/README.md), in the notes of DEC-034 and the status of DEC-048 here, and in the decisions index above |
 
@@ -161,7 +161,7 @@ The running list of project decisions and the reasoning behind them, grouped by 
 - Date: 2026-11-14 · Status: Accepted · Decided by: Owner
 - Decision: the repository keeps the two book notes (`notes/`), the backlog (`backlog.md`), this decisions list, and per-stage reviews (`reviews/`). The books themselves and superseded plans are not committed. Other tools are not named or compared in repository files, commit messages or pull requests. Commits and PRs carry no co-author or session-link lines.
 - Why: the owner will work from a local folder synced with this repository, using a local editor with Claude Code, so everything a session needs must be in the repository.
-- Now: the backlog is [planned_features.md](planned_features.md) (the owner's private ideas are in the git-ignored `local/ideas.md`); the per-stage reviews are one file, [reviews.md](reviews.md), and the screenshots that once sat in `reviews/` were removed on 2026-11-20. The naming rule stands (DEC-029).
+- Now: the backlog is [planned_features.md](planned_features.md) (the owner's private ideas are in the git-ignored `local/ideas.md`); the per-stage reviews were one file, `reviews.md`, deleted on 2026-11-20 (the limits it listed are section 31 of the [manual test plan](manual-test-plan.md#31-known-limits-by-area); the text is in git, `git show 24bbca1:docs/reviews.md`), and the screenshots that once sat in `reviews/` were removed on 2026-11-20. The naming rule stands (DEC-029).
 
 #### PRO-9 · DEC-029 — Research on other tools is allowed; naming them is not
 
@@ -197,7 +197,7 @@ The running list of project decisions and the reasoning behind them, grouped by 
   - **History.** All earlier entries were rewritten into this format, and the work that sat under `Unreleased` became 0.6.0.
 - Why: the owner wants a changelog a reader can trust (everything in it exists) and version numbers that say something, instead of every release sharing 0.5.x.
 - Trade-offs:
-  - No `Unreleased` block means a change is not recorded until its release is written; the wave reviews (`docs/reviews.md`) hold the notes meanwhile.
+  - No `Unreleased` block means a change is not recorded until its release is written; the wave review files (`docs/waves/wave-NN-review.md`, DEC-105) hold the notes meanwhile.
   - Minor bumps for each wave group mean X passes 8 and 9 before 1.0.0 (0.10.0 sorts after 0.9.0 under SemVer, not as text).
   - The 0.6.0 section is dated by its last commit while `package.json` and the README still say 0.5.0 until the release change is made.
   - Now: DEC-103 regroups the waves after 0.7.0: 0.8.0 (5, 15), 0.9.0 (6, 7, 8), 0.10.0 (9, 11, 17, 18, 19), 0.11.0 (13, 14, 22, 20), 0.12.0 (21). The numbering rule itself is unchanged.
@@ -306,7 +306,7 @@ The running list of project decisions and the reasoning behind them, grouped by 
   - **D2**: DEC-041 already gives each person a name, a role and an author stamp on drafts; a hosted account service is a separate product (sign-up, recovery, billing, a server to run) and not needed to deliver the twelve features.
   - **D5**: the owner wants no copy of a large file and the way it opens anywhere else on the computer (DEC-095's reason). The limits in DEC-095 are the guard; the review is the check.
   - **D7**: the tag, the release and CI sit on two services (DEC-063, DEC-089), and no release has been made yet, so one written list avoids deciding it again each time. GitHub is where `gh` is logged in and where the repository's pull requests are.
-  - **D9**: on 2026-11-20 a second session had 27 uncommitted documentation edits on `main` while a clean-up ran, and `reviews.md` records the same for DEC-050 and DEC-051. Each time the cost was a repair. The rule is cheap.
+  - **D9**: on 2026-11-20 a second session had 27 uncommitted documentation edits on `main` while a clean-up ran, and the old stage reviews (`reviews.md`, now in git) recorded the same for DEC-050 and DEC-051. Each time the cost was a repair. The rule is cheap.
   - **D15**: the page and the badge disagree today because the demo ships proposed decisions; a one-rule fix inside a change that already touches the file costs less than a branch of its own.
 - Alternatives considered:
   - **D1.** (A) After 1.0.0, as the scope review first proposed: smaller 1.0.0, but until then only `dp serve --read-only` shares a model. (B, chosen) Before 1.0.0, last in the order. (C) Before the waves, so every wave can test its export row: the export would then change with every wave.
@@ -350,7 +350,8 @@ The running list of project decisions and the reasoning behind them, grouped by 
 
 - Date: 2026-11-20 · Status: Accepted (not built; each item names where it is built) · Decided by: Owner for N1 ("yes, confirm with BMO if available"); N2 to N15 on the assistant's reasoning at the owner's request ("do your best reasoning", then "do what you think is best"), so each is a Proposal the owner may overrule. Amends DEC-102 (release number) and DEC-098 (release groups).
 - Decision:
-  - **N1, skip folders.** The scan skips `test`, `tests`, `__tests__`, `spec`, `docs`, `doc`, `examples`, `example`, `scripts`, `migrations`, `fixtures`, `generated` and `third_party` by name when it looks for C3 candidates, in `EXTRA_SKIP_DIRS` of `scan.ts` only, not in the code map's `SKIP_DIRS`. The candidate review lists what was skipped, each with "add back". Built in Wave 15 (the import release). BMO was off when this was asked (checked twice on 2026-11-20: handoff backend, no provider, no credential), so the list was checked against the code only and the owner was told. The standing rule: whenever BMO is available to the owner, use it for this check and say whether it was available; manual-test-plan U26 holds the steps.
+  - **N1, skip folders.** The scan skips `test`, `tests`, `__tests__`, `spec`, `docs`, `doc`, `examples`, `example`, `scripts`, `migrations`, `fixtures`, `generated` and `third_party` by name when it looks for C3 candidates, in `EXTRA_SKIP_DIRS` of `scan.ts` only, not in the code map's `SKIP_DIRS`. The candidate review lists what was skipped, each with "add back". Built in Wave 15 (the import release). BMO was off when this was asked (checked twice on 2026-11-20: handoff backend, no provider, no credential), so the list was **not** checked with BMO, and the owner was told. The standing rule: whenever BMO is available to the owner, use it for this check and say whether it was available; manual-test-plan U26 and section 32 hold the steps.
+  - **N1, read against the code on 2026-11-20 (a clarification, [Proposal]; the owner may overrule).** Two facts. (a) The list is not in the code: `EXTRA_SKIP_DIRS` in `src/import/scan.ts` today holds `architecture`, `traces`, `static`, `coverage`, `target`, `vendor`, `out` (the owner's earlier "checked against the code" meant this, which is a different list), and the shared `SKIP_DIRS` in `codeMap.ts` holds `__pycache__`, `node_modules`, `.git`, `.venv`, `venv`, `dist`, `build`, `.idea`. (b) The two halves of the decision pull apart: `EXTRA_SKIP_DIRS` is applied in the scan's single file walk, so a name added to it vanishes from **every** fact (language counts, the C4 source-file facts, the file thresholds of the readiness analysis, Dockerfiles, compose files and manifests found under `examples/` or `scripts/`), while the decision says the skip is for **C3 candidates** only. **Reading taken:** the intent wins. Wave 15 keeps `EXTRA_SKIP_DIRS` and `SKIP_DIRS` unchanged and adds the N1 names as a separate set used only where component folders are chosen (the per-folder count that makes `component-dir` facts in `scan.ts`). The files in those folders still count as evidence. Each skipped folder is listed in the candidate review with its reason and "add back". Trade-off: one more list to maintain, against not hiding test and script folders from the rest of the scan. If the owner prefers the walk-wide skip, the cost is a smaller file count and no evidence from those folders, and the existing `ignored folder` reason and test (`tests/unit/import-scan.test.ts`) would carry it.
   - **N2, entry points.** Entry points and public interfaces become hints for key code from the Wave 5 pattern table, never components.
   - **N3, layered folders.** No rule; the Wave 15 interview asks "are these folders one component?" when the names look layered.
   - **N4, manifests.** Cargo, Gemfile, Composer and .NET project files are added to the manifest table (Wave 5). Maven and Gradle stay out (owner, Q5.3).
@@ -433,7 +434,7 @@ The running list of project decisions and the reasoning behind them, grouped by 
 - Date: 2026-11-20 · Status: Accepted (a rule for the wave agents; no wave is built yet) · Decided by: Owner ("whenever a wave is completed create a wave1-review.md file and delete the original wave-01-grounded-bmo file, and so on whenever each wave is implemented"). The file name `wave-NN-review.md`, the contents and the order of steps are Proposals. Replaces the owner's rule of 2026-11-19 that no wave file is deleted before 1.0.0.
 - Decision: when a wave is complete (everything built, checks passed, reviews done) its agent writes `docs/waves/wave-NN-review.md`, deletes the wave file, fixes every link to it, and commits by path. The review file holds what was built, how it was checked, differences from the plan, limits, notes for the release entry, questions, an empty owner-feedback part, and the wave file's "Questions, options and answers" section word for word. The steps are in [waves/README.md](waves/README.md#closing-a-wave). Parked waves and partly built waves keep their files.
 - Why: the wave file is a plan, and once the wave is built it describes what was meant, not what exists; the review says what is true. Copying the questions section keeps the options and the owner's words, which no other file holds.
-- Alternatives considered: a section per wave in `reviews.md` (the earlier rule; one big file, and the wave file would still have to be deleted by hand later); keeping wave files until 1.0.0 (plans and reality sit side by side and drift).
+- Alternatives considered: a section per wave in the old `reviews.md` (the earlier rule; one big file, and the wave file would still have to be deleted by hand later); keeping wave files until 1.0.0 (plans and reality sit side by side and drift).
 - Trade-offs: links must be fixed at each close, and a missed one breaks a document (the agent runs a link check); the plan is no longer there to compare with the result, so the review file records the differences; the file name differs from the owner's wording only by the dash (`wave-01-review.md` follows the `wave-01-...` names).
 
 #### PRO-22 · DEC-106 — The first release group is split, and Waves 23 to 27 are added from the planned features
@@ -499,7 +500,7 @@ The running list of project decisions and the reasoning behind them, grouped by 
 - Why: removes hand-copied API types between server and UI, and keeps model rules reusable in the browser later. This reasoning is the assistant's assessment, not a measurement.
 - Options rejected: Python backend with TypeScript UI (two languages, types copied by hand); Rust (Tauri) with TypeScript UI (full rewrite, slower iteration).
 - Trade-off: Python import scanning uses a hand-written tokenizer instead of `ast` (a file with a syntax error still shows its imports); numbers are written as JavaScript writes them, so a project saved by 0.2 gets a one-time diff.
-- Details: `reviews.md`.
+- Details: the old `reviews.md` (deleted 2026-11-20; in git at 24bbca1).
 
 #### STK-3 · DEC-014 — Built UI is committed
 
@@ -528,7 +529,7 @@ The running list of project decisions and the reasoning behind them, grouped by 
 - Decision: ESLint runs in CI (`npm run lint`) with the recommended rules for JavaScript and TypeScript and the two hook rules. Prettier is configured (print width 200) with `npm run format` and `format:check`, but it is not applied and CI does not check it. The 18 hook-dependency warnings were each reviewed and marked intentional with a reason. No dependency array was changed.
 - Why: lint finds real bugs at low cost. Applying Prettier now would re-wrap 58 of 113 source files and bury real changes in the history.
 - Trade-off: the code is not formatted to one style until the owner decides. The hook-dependency disables are only correct while callers keep passing state setters and refs.
-- Now: Prettier is enforced. CI runs `npm run format:check` (`.gitlab-ci.yml:38`, `scripts/ci-local.ts:47`) and the code was formatted (reviews.md, release 0.4.0). No decision records the change; this note does.
+- Now: Prettier is enforced. CI runs `npm run format:check` (`.gitlab-ci.yml:38`, `scripts/ci-local.ts:47`) and the code was formatted (old `reviews.md`, release 0.4.0). No decision records the change; this note does.
 
 
 ### Layout and naming
@@ -621,7 +622,7 @@ The running list of project decisions and the reasoning behind them, grouped by 
 
 #### MOD-8 · DEC-010 — Diagram content is computed from the model
 
-- Date: 2026-11-14 · Status: Accepted (open to revisit) · Decided by: assistant (decision, per `reviews.md`)
+- Date: 2026-11-14 · Status: Accepted (open to revisit) · Decided by: assistant (decision, per the old `reviews.md`)
 - Decision: each diagram shows everything at its level, like `include *` (a container diagram shows all containers of the system plus what they connect to). Lower-level relationships appear on higher-level diagrams as dashed derived lines, which are not written to the file. Positions are stored at twice the UI size in Structurizr units.
 - Why: a rename shows everywhere, and relationships are not duplicated in the file.
 - Trade-off: an element cannot be hidden from one diagram (per-diagram hiding is in the backlog); in Structurizr, our views show only explicit relationships.
@@ -652,7 +653,7 @@ The running list of project decisions and the reasoning behind them, grouped by 
 
 #### MOD-12 · DEC-011 — Active lens is remembered per browser
 
-- Date: 2026-11-14 · Status: Accepted · Decided by: assistant (per `reviews.md`)
+- Date: 2026-11-14 · Status: Accepted · Decided by: assistant (per the old `reviews.md`)
 - Decision: the active lens is stored in the browser (localStorage), not in the project files. Lens definitions stay in the sidecar.
 - Why: switching lenses should not create git changes.
 - Trade-off: the active lens does not follow the user to another browser.
@@ -672,7 +673,7 @@ The running list of project decisions and the reasoning behind them, grouped by 
 - Date: 2026-11-14 · Status: Accepted (open question: light/dark switch) · Decided by: owner asked for a closer-to-reference layout and for cost and "-ility" information; specific design choices by the assistant
 - Decision: dark theme only; per-object characteristic ratings (1–5, with a "driving" flag) and monthly cost lines; cost rolls up from contained objects; editable cost bands.
 - Trade-off: exports have a dark background; ratings and cost live on objects only (not on relationships or flows).
-- Details: `reviews.md`.
+- Details: the old `reviews.md` (deleted 2026-11-20; in git at 24bbca1).
 
 #### MOD-15 · DEC-083 — A diagram has colour of its own: lines by connection kind, a hue per pipeline, a tint per kind of box
 

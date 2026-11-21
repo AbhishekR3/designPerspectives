@@ -375,7 +375,7 @@ Facts as found on 2026-11-20. Kind: *planned* is meant to be built; *chore* is a
 | Make the 0.6.0 release change | chore | `package.json` and the README still say 0.5.0 while `docs/CHANGELOG.md` has a 0.6.0 section (DEC-098), and the repository has no tags. Follow [Making a release](CONTRIBUTING.md#making-a-release) once (version, README, tag `v0.6.0`, GitHub release) before Wave 1 starts. [Moved from the former open-questions file, 2026-11-20] |
 | Seal credentials by default | planned | Entry A7 above (DEC-101). Build before the first real provider call: [Wave 23](waves/wave-23-sealed-credentials.md), release 0.6.1; the first real call is the real-run gate of [Wave 1](waves/wave-01-grounded-bmo.md). |
 | Change a permission in `.claude/settings.json` | chore | It allows `npx vitest run:*`, but the tests need `--config config/vitest.config.ts` (DEC-066) and CLAUDE.md says `npm test`. Change it to `npm test:*` if the owner agrees. [Moved from the former open-questions file, 2026-11-20] |
-| Update the code map in `.claude/CLAUDE.md` | chore | It lacks the files added in the canvas feedback round (reviews.md, canvas round) and some test-file lists have drifted; CI does not check it. Do it with the next code change. [Moved from the former open-questions file, 2026-11-20] |
+| Update the code map in `.claude/CLAUDE.md` | chore | It lacks the files added in the canvas feedback round (the canvas feedback round, 0.6.0) and some test-file lists have drifted; CI does not check it. Do it with the next code change. [Moved from the former open-questions file, 2026-11-20] |
 
 Which import steps need an LLM today (facts):
 

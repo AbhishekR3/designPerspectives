@@ -325,7 +325,7 @@ Only one agent builds the UI or runs `cd ui && npm run build` at a time, because
 
 ## Decided (DEC-103, 2026-11-20; assistant's reasoning, the owner may overrule)
 
-- **N1.** The scan skips test, doc, example, script, migration, fixture, generated and third-party folders by name when it finds C3 candidates (list in DEC-103, in `EXTRA_SKIP_DIRS` of `scan.ts` only). The candidate review lists what was skipped, each with "add back".
+- **N1.** The scan skips test, doc, example, script, migration, fixture, generated and third-party folders by name when it finds C3 candidates (list in DEC-103). **Build it as a separate set used only where component folders are chosen (the `component-dir` step of `scan.ts`), not by adding the names to `EXTRA_SKIP_DIRS`:** that set is applied in the single file walk and would remove those folders from every fact (see the 2026-11-20 clarification under N1 in DEC-103). `EXTRA_SKIP_DIRS` and `SKIP_DIRS` stay as they are. The candidate review lists what was skipped, each with its reason and "add back".
 - **N3.** Layered folders get no rule: the interview asks "are these folders one component?" when names look layered.
 - **N6.** The readiness report keeps minutes, tokens and passes, and shows money only when `pricePerMTok` is set.
 - **N11.** Each import step shows a fixed "no LLM" or "needs an LLM" badge.

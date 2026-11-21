@@ -212,7 +212,7 @@ Proposed: Wave 1. See Q1.1 to Q1.4.
 - Proposed setup:
   - **Fixtures written by hand:** the demo and two small repositories, each with known right answers (the containers, the lines, which statements are true).
   - **CI checks the checkers:** the citation checker and the scorer, run on canned answers.
-  - **Real runs by you only:** `dp bmo eval --yes-send`, with the results written into the wave's reviews.md section.
+  - **Real runs by you only:** `dp bmo eval --yes-send`, with the results written into the wave's review file.
 
 **Recommended.** As proposed. Your thinking could add which providers you will run; each real run costs money.
 

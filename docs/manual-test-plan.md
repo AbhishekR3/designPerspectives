@@ -16,6 +16,7 @@
 3. Write the result in the last column: **Pass**, **Fail**, **Skip** (not run, say why) or **N/A** (does not apply). A row marked *needs own key*, *needs account*, *needs a second machine* or *needs a real repository* may be a Skip; the gap register (section 28) has a "Your decision" column (Test, Skip, Later) for those.
 4. Record the date and the version at the top of each test run. **Which build:** `package.json` says 0.5.0 but `docs/CHANGELOG.md` lists 0.6.0 as the newest version (the release change was not made yet). Test Mode, the checklist, the Work page, placed notes, the BMO chat and the $8,690 cost figure belong to 0.6.0, so test a clone of `main` and write its commit hash in the Notes column; `dp --version` alone will say 0.5.0.
 5. Some sections need the demo folder in a state the earlier sections changed. Start a fresh demo folder when a section says so.
+6. Checks that wait for BMO, Structurizr's tools, accounts or other machines are collected as a queue in [section 32](#32-run-later-your-queue).
 
 | Run date | dp version | Tester | Browser and OS | Notes |
 |---|---|---|---|---|
@@ -659,7 +660,7 @@ Added 2026-11-20. These are claims the docs make or assumptions the code carries
 | U23 | The demo's checklist rule "containers per own system" fails for four systems that are shown empty on purpose. | reviews.md checklist section | Decide: add containers to those systems, tag them external, or change the rule (see N8). | G-53 | |
 | U24 | `GET /api/checklist` runs every rule on every model change and on window focus. Not measured on a large model. | reviews.md checklist section | A 100+ container model (see the manual test plan, scale rows); the generated model and time budgets are [Wave 28a](waves/wave-28-quality-for-1-0.md). | G-29 | |
 | U25 | No browser test covers: the BMO chip and section order in the checklist, the bell item for BMO questions, the flow player following a paused call, Step into a pipeline, a stage's own intercept point, the trace picker, watched fields. They were only looked at. | reviews.md checklist and System Testing sections | Manual rows in the test plan; add browser tests if they break. | G-72, G-74 | |
-| U26 | **The folder-skip list of DEC-103 (N1) was not checked with BMO.** BMO was off on 2026-11-20 (handoff backend, no provider, no credential), so the list was checked against the code only. | DEC-103 N1; `src/import/scan.ts` (`EXTRA_SKIP_DIRS`) | Run `dp bmo status`. If BMO is on, run the C3 candidate task on a real repository and ask whether the fixed list skips a folder that holds real components or misses a technical folder; record the answer. If BMO is off, say so and do not turn it on without the architect. | | |
+| U26 | **The folder-skip list of DEC-103 (N1) was not checked with BMO.** BMO was off on 2026-11-20 (handoff backend, no provider, no credential). The list is not in the code yet (Wave 15 builds it as a separate, C3-only set; the code's `EXTRA_SKIP_DIRS` holds a different list), so what BMO judges is the list in DEC-103. | DEC-103 N1 and its 2026-11-20 clarification; `src/import/scan.ts` (`EXTRA_SKIP_DIRS`) | Run `dp bmo status`. If BMO is on, run the C3 candidate task on a real repository and ask whether the fixed list skips a folder that holds real components or misses a technical folder; record the answer. If BMO is off, say so and do not turn it on without the architect. | | |
 | U27 | Whether an Ollama server reports a model's own context window in a field dp can read (DEC-103, N15) is from training, not from a run. | DEC-103 N15 | Query a running Ollama server for one model and note the field name and value; only then let dp read it. | | |
 
 ## 30 Structurizr check: the steps behind MT-DRAFT-167
@@ -714,6 +715,127 @@ Why it matters for decisions: if it fails, either dp's storage choices change (f
 ### What to report back
 
 For each of steps 2 to 10: pass, fail or not checked, plus the tool and its version, any error text, and a screenshot of one container view. Put them in the Result column of MT-167 and the Notes column of the run log, and tell me; the DEC-007 note and the README wording follow from the table above.
+
+## 31 Known limits by area
+
+Carried over from the per-stage reviews when `docs/reviews.md` was deleted on 2026-11-20. The full text of those reviews is in git: `git show 24bbca1:docs/reviews.md`. Every citation of "reviews.md" elsewhere in this plan means that file at that commit.
+
+**How to read this section.** These are limits the stage authors wrote down at the time. They were **not** re-checked against the code on 2026-11-20 unless a row says so. A limit already in section 28 or 29 is not repeated here; the row names it. Limits that a later stage removed were left out (for example "credentials in plain text" is still true: DEC-101 plans encryption, not built; "linked work is entered by hand", "GitHub only", "no login" and "Prettier not applied" are no longer true). A limit is a fence for a test: if a limit stops being true, change the row.
+
+### Model, drafts and compare
+
+- Conflicts in a draft are reported, not resolved. No rebase of a draft onto a newer main ("main +N" only reports the gap, DEC-040; Wave 18). Two edits to one element on both sides conflict even when they do not overlap. Layout (positions, sizes, line shapes) never conflicts: the draft's layout wins; styles do conflict.
+- Undoing an apply restores the model only: not the code files written and not the deleted draft. Apply writes the model first, then the code; a failed file write leaves the model applied and the draft in place. Planned code edits are not part of the draft's undo history. Restore of code on apply is best effort (content and permissions, not modification times; a crash between steps is not covered).
+- The coding plan's progress check sees files and imports only. HTTP, queue and dependency-injection calls are checked by hand, and so is a step for a changed technology. Planned edits are compared with the code folder as it is now, not as it was when the draft started.
+- New objects from a draft go after the object that preceded them in the draft, so sibling order can differ.
+- A compare with a git ref reads the stored model, not a scan. It needs the `git` command; a repository created after the server started is found on the next request, one that disappears needs a restart (G-50). Model history reads the last 15 commits and assumes linear history. History's first load runs one model diff per commit (20 by default, 100 at most).
+- A project's files can change during a request that only reads: the first one after a catalog change. Git shows that as uncommitted and History lists it.
+- Drafts with no author (made before sign-in was turned on) are architect-only once sign-in is on. Two engineers cannot share one draft. The author comes from `git config user.name`: a label, not an identity check.
+- Renumbering a draft decision on apply changes its number and file name; links to the old number made outside the model go stale. The decision front-matter grammar is fixed: YAML beyond it (nested maps, multi-line strings) is a load error, YAML comments are dropped when a decision is rewritten here, and a `## ` line typed inside a section is saved as `###`. Unknown decision sections move after the known ones on first edit. Decision text is shown as written, without Markdown rendering.
+- Duplicates can be repaired only one at a time. Self-relationships are not flagged (imported workspaces may contain them). There is no kind or nesting check beyond what the format allows.
+- Sidecar `layouts` and connector stages do not exist in Structurizr: its views ignore line routing and show no stages. Derived lines are not written to the file, so a Structurizr container view shows fewer lines (section 30, step 7).
+
+### Compatibility with older files and Structurizr (see also section 30, G-11)
+
+- Numbers are written as JavaScript writes them (`40`, `3`). A project saved by 0.2 gets a one-time diff in `dp.cost` values, cost band limits and style widths the next time those objects are saved.
+- A request with a missing or malformed body returns 422 `{"detail": "<message>"}`. `/api/docs` (the old generated page) is gone. Scripts that call the API must send `Content-Type: application/json`.
+- Python import scanning uses a tokenizer, so a file with a syntax error still shows its imports. Import scanning reads Python and JS/TS relative imports only; other languages show files without lines (G-32). Function ranges are approximate.
+- Lenses saved before 0.2 list their sections explicitly, so they lack the Characteristics and Cost sections until those are ticked (G-73). Ratings live on objects only, not on relationships or whole flows. Cost totals add the roll-ups of the boxes shown; this is only correct while no box is drawn inside another.
+- Technology icons are generic symbols. No light theme: PNG and SVG exports have the dark background (planned_features B5).
+- Automatically placed positions are not undo steps; a manual Auto-layout is.
+
+### Canvas and editing
+
+- Line routing (right angles): lines can sit on top of each other in a shared gap; labels can sit on neighbouring lines; straight, curved and smooth lines are not routed around boxes or used for label placement; side switching is skipped for lines with a hand-set end or bend point (their path is still routed around boxes); a diagonal pair of boxes prefers an L shape, which can look busier than a Z in crowded rows; moving a box can move the ends of other lines on the same side; a bend point saved from an older curved line can add turns. Label size is an estimate and fonts differ across machines (the browser test allows up to 2 overlapping labels, U19). Existing diagrams change look on next open.
+- Lines shaped by hand are not put into lanes or routed around boxes, and other lines do not avoid them. Moving boxes saves positions and corners as two requests.
+- A guessed code file for a code-level connection can be wrong where components share files; a line with no known file ends at the component's own box.
+- The multi-selection panel has no box colours (styles are saved per object). Multi-select uses Shift for click and drag and does not select lines. Only containers and components can move between parents; people and systems cannot (DEC-037).
+- A connection dropped on empty space always adds the diagram's main kind (container, component or system) with no symbol; change it with the quick bar. A plain API client can still create a person that no lower diagram shows, because it has no line.
+- The fresh-ID mark lives only in the open page: after a reload, the first rename no longer renames the ID.
+- The diagram does not re-fit when only a dock panel opens. A toast can cover the second row of the top area on a narrow canvas. Below 760 px wide is unsupported (the canvas shows with both panels collapsed). At widths under about 1,100 px the details panel starts folded. Dark theme only (G-54, G-58).
+- Search is not a modal dialog and has no focus trap (G-54). A slow double-click on a selected box's name starts a rename, and arrow keys do not work in the Move dialog's list (planned_features B6).
+- The Selection filter of the checklist matches a selected box or line, not the diagram on screen.
+- A copy that is undone before it was shown stays "waiting to be shown"; a redo then shows it.
+- Exports: the selected box's outline is included; notes are not in image exports. The JS bundle is about 1.9 MB (elkjs, about 1.5 MB of it, loads only when a layout is needed).
+
+### Hub, catalog and credentials
+
+- Roles are global in a hub; there is no "no access" role, so every signed-in user sees every project (per-project roles were added later, DEC-060; check that the old statement no longer holds). A catalog architect changes names and descriptions in linked copies of projects where they have a lower role or none, because copies follow the catalog (DEC-057).
+- Every loaded project stays in memory. `dp check` runs per project on the first home load after a change, which is slow for large hubs (G-29). Thumbnails use stored positions only; a never-laid-out landscape shows a grid.
+- Data access is per relationship: a service that reaches a database without a modelled relationship is not counted. The "Catalog changes copied" list is in memory only (git has the changes). Linked copies are not marked on the canvas.
+- Credentials: no `--credentials FILE` option (the file is always `.dp/credentials.json` in the served folder); no "test connection"; plain text on disk (mode 0600) without `DP_SECRET_KEY` until DEC-101 is built (planned_features A7). A hand-written `hub.json` is trusted: its entries may point outside the hub folder (DEC-054, DEC-063).
+
+### Sign-in and roles (also G-23, G-24, G-28)
+
+- Not real-time: last write wins; the other user sees a change when the window regains focus (DEC-039). Undo history is per model version, not per user.
+- Sessions are lost on restart. Passwords travel in clear text unless the server is behind HTTPS. `dp users` commands must not run in parallel. Roles are fixed (no custom roles). Lenses do not hide data: a viewer can read costs and notes through the API.
+- The Host check and the origin check do not stop a local program or a user on the same machine. Hidden paths are blocked by name only (G-35); a component cannot be mapped to a dot folder such as `.github/workflows`. The UI cannot be embedded in a frame, including editor preview panes.
+- A non-loopback bind is protected by the sign-in rule and a warning (DEC-041).
+
+### Linked work and checklist
+
+- A status is a snapshot: refresh runs on request only, no polling, no webhooks. Unattended pushes from outside are not built: the server binds to 127.0.0.1 with session sign-in only, so CI uses the CLI and commits the model. A refresh reads at most 200 links. A finding in a file shared by several components goes to the first one in model order. Work across projects reads main models only and cannot refresh status. A changed severity mapping applies to the next import or refresh, not to items already in the model. SonarQube bearer tokens need SonarQube 10 or later (U4).
+- Linked work follows drafts, diffs and merges; the checklist does not (DEC-084): no versioning with drafts and no undo for ticks. A rule cannot be overridden except by skipping it (U23). BMO's questions are matched by exact words, so re-worded repeats are added again. `GET /api/checklist` runs the rules on every model change and on focus, even while the card is closed, because of the badge (U24).
+
+### Code import and BMO (also U1, U11 to U13)
+
+- No run against any real provider has been made (U1). The default model ids in the BMO settings had no source note when written; the request shapes were marked verified on 2026-11-16 except `store: false` and Ollama's `done_reason` at `num_predict`. Check the model ids before the first real run.
+- Redaction does not catch a secret written as a plain word outside a key and value form; use the must-not-open list for such files.
+- The import-edge check reads at most 60 files per component (U12). The thresholds (300 files, 5 containers, 2 passes) and the 20-second review estimate are guesses (section 28 B).
+- A layout-only change in an import draft (a moved box, a line shape) is not a review item: it goes with an accepted item and cannot be accepted on its own.
+- The BMO chat has no handoff mode, and `dp bmo run` has no `--ref` option. Code excerpts are capped at 24,000 tokens per message. Not built: the MCP backend, Structurizr DSL input, YAML.
+
+### System Testing, traces and the demo system (also U8, U9)
+
+- Plain HTTP/1.1 only: no HTTPS, HTTP/2 or gRPC intercept points; a caller in a container cannot reach 127.0.0.1 on the host. Bodies over 1 MB, compressed request bodies, event streams and WebSocket upgrades pass through and cannot be paused. `Accept-Encoding` is removed from forwarded requests so replies can be read.
+- A signed request fails once edited. A call held longer than the caller's timeout fails at the caller, and a retrying caller makes a second paused call. A relationship used by two steps of one flow cannot be told apart, so a step breakpoint stops both.
+- Masking is by field name: a secret in a plain-text body or under a field name that does not look secret is shown. dp can change live requests: an edit, a hand-written reply or a resend has real effects in the target.
+- One session per project, shared by everyone who may test: the first release of a paused call wins. Not against a draft. In a hub each project has its own session; the shared catalog has none.
+- `dp.run.url` is saved in the model, so it goes into git and is the same for everyone. One address per element; a service reached through two addresses cannot be described.
+- Samples are written by people and nothing checks them against real data; field marks compare top-level JSON fields only. Backtracking follows fields by name only: a renamed or computed field breaks the chain. The walk after a matched relationship shows every way on in the model, up to three steps; flows are the precise path.
+- Trace files only (no live collector); Jaeger and Zipkin formats are not read; cross-origin calls from the app carry no trace ID. The demo folder becomes a git repository with made-up commits; the demo app needs port 4200 free.
+
+### Tests and packaging
+
+- `npm audit` was clean for shipped dependencies at 0.4.0 but reported advisories in the test toolchain (development only; fixing needs a major upgrade of the test runner). Re-run it before 1.0.0.
+- The CSV's Kind (Unit, API, CLI) in `tests/TESTS.csv` is worked out from each test's own code: a test that calls the API only through a helper is listed as Unit. A test written inside a loop is one row; the runners count each repetition.
+- Not covered by a browser test: the BMO chip and section order in the checklist, the bell item for BMO questions, the "BMO asked N questions" notice (unit tests cover the server side).
+- The keyboard listeners are four separate ones, and the hook-dependency disables in the UI are only correct while callers keep passing state setters and refs.
+- The "0 projects" screen the owner once saw was never reproduced (U22). What was fixed is the mechanism: the rail's project list was loaded once, so a project that arrived another way left it behind.
+
+## 32 Run later: your queue
+
+Added 2026-11-20 at your request. Nothing here has been run. It collects the checks that wait for something (BMO turned on, tools installed, accounts, other machines) so you can work through them in one pass. Each item points to the row that holds the detail; write results in that row's Result column (section 29, U rows) or in MT-DRAFT-167, and tick the box here.
+
+### A. When you turn BMO on
+
+- [ ] **U26 / N1: confirm the folder-skip list of DEC-103 with BMO.** Not run on 2026-11-20 because BMO was off (`dp bmo status` said: backend handoff, no provider, sends to nowhere).
+  1. `npm run dp -- bmo status`. Write down whether BMO was available (backend, provider, model). If it is off, turn it on yourself: `dp bmo set --enabled --backend direct --provider <anthropic|openai|ollama> [--model NAME]` (the key comes from the credentials page or the environment; `dp bmo set --help` lists the options). Do not let an agent turn it on without you.
+  2. Pick a real repository with a few levels of folders (not the demo: the demo scan finds no component candidates, U13). `dp scan <project> --code-root <repo> --plan`.
+  3. Preview the C3 task, which sends nothing: `dp bmo run import-level --level c3 --container <container-id> <project>`. Read which folders and files it would send.
+  4. Judge the list. What the code skips today (read 2026-11-20): `SKIP_DIRS` in `src/core/codeMap.ts` (`__pycache__`, `node_modules`, `.git`, `.venv`, `venv`, `dist`, `build`, `.idea`) and `EXTRA_SKIP_DIRS` in `src/import/scan.ts` (`architecture`, `traces`, `static`, `coverage`, `target`, `vendor`, `out`), both applied to the whole file walk. DEC-103 N1 decides a longer list (`test`, `tests`, `__tests__`, `spec`, `docs`, `doc`, `examples`, `example`, `scripts`, `migrations`, `fixtures`, `generated`, `third_party`) that is **not in the code yet**: Wave 15 builds it as a separate set that only keeps those folders from becoming C3 candidates (see the clarification under N1). Judge that DEC-103 list on your repository: does it hide a folder that holds real components (a service called `scripts`, a `docs` app), or leave a technical folder as a candidate? Look at which `component-dir` candidates the scan lists today (`dp scan --plan`, or `architecture/import/evidence.json`) and which of them the list would remove.
+  5. Only with your go, send it (`--yes-send`) and ask BMO the same question about the list. Record both answers in U26's Result column.
+- [ ] **U1 to U3: one real run per provider** (Claude API, OpenAI API, Ollama), the real-run gate of Wave 1. Check the default model ids against each provider's current list first (U2). Also covers G-01 and G-04 (hash refusal, cut-off answer, Ollama non-loopback rule) and MT-113, MT-169.
+- [ ] **U27: Ollama context window.** Query a running Ollama server for one model; note the field name and value that gives the model's own context window (DEC-103 N15). Only then let dp read it.
+- [ ] **U11, U14: BMO sizes.** A real large model through the preview (U11); two repositories to see whether a small one produces 6 useful questions per level (U14).
+
+### B. Structurizr check (Q-A1, MT-DRAFT-167)
+
+- [ ] Follow [section 30](#30-structurizr-check-the-steps-behind-mt-draft-167) on a copy of the demo: `dp init --demo /tmp/dp-structurizr`, then open `/tmp/dp-structurizr/architecture/` in the Structurizr tool you choose.
+- [ ] **Which tool matters now.** The release checklist (section 7) notes, second-hand and not yet read first-hand, that Structurizr's hosted service closes on 30 September 2026 and that the successor local viewer looks for a `workspace.dsl` before `workspace.json`, while dp writes only the JSON. So: read the format's own end-of-life page first, then test against the current viewer, not the old Lite; if the viewer insists on a DSL file, write that down as the result, not as a dp bug.
+- [ ] Put pass, fail or not checked for steps 2 to 10, the tool and version, any error text and one container-view screenshot into MT-167's Result column. The table "What a pass and a fail look like" in section 30 says what each result changes (README wording, DEC-007 note).
+
+### C. The never-run checks (section 29 and gap register 28)
+
+Do these as the things they need become available. Order is a suggestion; the rest are in section 29.
+
+- [ ] **Own machine, no account:** U15 Windows (`dp serve --demo`); U17 install from the GitHub URL on a clean machine; U18 keyboard-only walkthrough and one automated accessibility audit; U19 the demo on two machines (label size, fonts); U20 masking with your own payloads; U22 watch for the "0 projects" screen; U23 decide what to do with the checklist rule that fails on four empty systems (add containers, tag them external, or change the rule: N8).
+- [ ] **Needs a real repository:** U10 `dp scan --plan` on three repositories of different size; U12 a repository with a large component; U13 a repository with folders two levels under a container (the demo has no C3 candidates).
+- [ ] **Needs a service of your own:** U9 System Testing against HTTPS, HTTP/2, gRPC, WebSocket, event streams, bodies over 1 MB, compressed bodies, a caller in a container, a call held past the caller's timeout; U8 one real OpenTelemetry Collector file (MT-125, MT-248).
+- [ ] **Needs accounts or a second machine:** U4 one real status link each for GitHub, GitLab, SonarQube (10 or later needs a bearer token) and Jira Cloud (email and token); U5 a real report from each scanner; U6 each sample CI job once in a scratch repository; U7 create the GitLab project and push once (this also settles U16, Node 20 and Linux).
+- [ ] **Needs a large model:** U24 and G-29, a 100 or more container model, timing `GET /api/checklist`, layout and `dp check` (MT-206).
+- [ ] **Decide, no test:** U21 accept the trusted hand-written `hub.json` or check entries on load.
+- [ ] Go through the "Your decision" column of section 28 (Test, Skip or Later) for the rows not covered above.
 
 ## Things I could not confirm from the files
 

@@ -106,7 +106,7 @@ Decided 2026-11-20 (DEC-100, answer D9). It applies to people and to coding-agen
 Decided 2026-11-20 (DEC-100, answer D7). The tag and the release are on GitHub, which holds the repository; the GitLab remote only runs CI (DEC-089). dp is installed from GitHub, not from npm (DEC-063), so the tag is the release. **Nothing below is pushed, merged or tagged until the owner says go.** The version is `0.X.Y` before 1.0.0 (DEC-098): a group of features raises X, a fix-only release raises Y. The first release made this way is 0.6.0, which also needs the version bump listed in step 2.
 
 **Before you start**
-- Every wave of the group is merged to `main`, and its notes are in its review file (`docs/waves/wave-NN-review.md`, DEC-105; the older stages are in `docs/reviews.md`).
+- Every wave of the group is merged to `main`, and its notes are in its review file (`docs/waves/wave-NN-review.md`, DEC-105; the older stages' limits are in section 31 of the manual test plan, and their full reviews are in git history: `git show 24bbca1:docs/reviews.md`).
 - `git fetch`; local `main` equals `origin/main`; `git status` is clean.
 - `gh auth status` shows the account that owns the repository.
 
@@ -181,7 +181,7 @@ The pull request template lists these items.
 
 ## Where things are
 
-`.claude/CLAUDE.md` has an Architecture section that maps each source folder and file to its job. `docs/README.md` indexes the rest of the documentation, including the decisions, the future tasks, and the stage reviews in `docs/reviews.md`. `demo/README.md` explains the demo and sample files.
+`.claude/CLAUDE.md` has an Architecture section that maps each source folder and file to its job. `docs/README.md` indexes the rest of the documentation, including the decisions, the future tasks, and the manual test plan. `demo/README.md` explains the demo and sample files.
 
 # Code of conduct
 

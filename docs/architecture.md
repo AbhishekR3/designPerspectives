@@ -4,6 +4,8 @@
 >
 > A real dp model of this repository does not exist yet. This page is a hand-written sketch for new contributors, for the owner to correct. Facts come from `.claude/CLAUDE.md`, the folder listing and the top comments of `src/cli.ts`, `src/server/app.ts`, `src/server/hub.ts` and `src/core/project.ts`. Anything not confirmed is marked "(unconfirmed)".
 >
+> **Checked 2026-11-20 against the source for six items that were unconfirmed** (where `users.json` and `credentials.json` live, the order of steps in `Project.edit`, how the CLI reaches the model, the work tool variants, two UI files, the `--hub` flag). Each is now stated as fact with its file. What is still unconfirmed is listed in section 6. The release checklist ([release-1.0.0-checklist.md](release-1.0.0-checklist.md), section 8) requires this page to be brought up to date again before 1.0.0, because the planned waves add folders, routes and containers.
+>
 > Diagram syntax: levels 1 and 2 use Mermaid's C4 syntax (`C4Context`, `C4Container`), which is experimental and may render differently between Mermaid versions. Level 3 uses a plain `flowchart LR`, because it needs more boxes than the C4 syntax lays out well.
 
 dp is an MIT-licensed, model-based C4 architecture tool. One model (a Structurizr workspace on disk) feeds every diagram, and lenses present the same model differently per audience. Everything is TypeScript.
@@ -39,7 +41,7 @@ C4Context
 Notes:
 - Git is used only to read (`src/core/git.ts`, via the git CLI, DEC-018). The CI pipeline of dp itself is GitLab (DEC-089); the CI box above is any CI that runs `dp work import` or `dp check`.
 - LLM calls happen only through BMO, which is off by default. The preview shows the exact prompt and its hash; a run is refused unless the hash matches.
-- Work tools: adapters `github`, `gitlab`, `sonar`, `jira` in `src/core/workTools/`. Whether a hosted or self-hosted variant of each is supported is (unconfirmed).
+- Work tools: adapters `github`, `gitlab`, `sonar`, `jira` in `src/core/workTools/`. Hosted and self-hosted variants both work through a connection with a base URL (`.dp/integrations.json`, `src/core/integrations.ts`): `github.com`, `gitlab.com` and `sonarcloud.io` are built in; GitHub Enterprise uses `<base>/api/v3`, self-hosted GitLab `<base>/api/v4`, SonarQube `<base>/api`, Jira `<base>/rest/api/2` and has no built-in host (`apiRoot` in each adapter). Whether each variant works against a real server has never been run (manual test plan U4).
 
 ## 2. Containers
 
@@ -75,9 +77,9 @@ Technologies from the sources: TypeScript throughout, Hono (server), commander (
 
 Other container-level facts:
 - `static/` (built UI) is committed and shipped in the npm package; `dist/` (compiled server and CLI) is not committed.
-- `.dp/` holds machine-local settings outside the model: `bmo.json`, `integrations.json`, `credentials.json`, `testing.json`, `users.json` (the last two in a project or hub folder, exact location (unconfirmed)).
+- `.dp/` holds machine-local settings outside the model, git-ignored: `bmo.json`, `integrations.json`, `testing.json`, `users.json` (`<project>/.dp/users.json`, `src/core/users.ts`) and `credentials.json` (`<hub or project>/.dp/credentials.json`, mode 0600, `src/core/credentials.ts`).
 - A hub (`dp serve --hub DIR`) serves several project folders from one server, with a shared catalog and one sign-in (DEC-054).
-- Whether the CLI and the server run in one process only for `dp serve`, and the other commands open the files directly, is the reading of `src/cli.ts` imports (unconfirmed).
+- Only `dp serve` builds the server app (`buildApp` or, with `--hub`, `createHubApp`, `src/cli.ts`). The other commands import `core/`, `import/` and `assistant/` directly and read or write the files themselves; none of them calls the server over HTTP.
 
 ## 3. Components of the backend
 
@@ -152,14 +154,14 @@ sequenceDiagram
   R->>P: edit(fn) via ctx.edit
   P->>M: run change on a copy (model rules)
   M-->>P: changed copy, or ModelError
-  P->>P: syncViews, syncFlows, validate
+  P->>P: syncViews, syncFlows, prune, validate
   P->>D: atomic write (workspace.json, sidecar, decisions)
   P-->>R: becomes current
   R-->>UI: JSON response (422 and message on ModelError)
   UI->>R: reload state (mutate reloads after every edit)
 ```
 
-Points from the sources: an edit is refused if it adds a validation error; errors already in a file opened from elsewhere do not block unrelated edits; one request at a time per project, so no lock is needed; each draft is its own `Project` with its own undo history. Exactly where `validate` runs relative to `syncViews` in code order is (unconfirmed).
+Points from the sources: an edit is refused if it adds a validation error; errors already in a file opened from elsewhere do not block unrelated edits; one request at a time per project, so no lock is needed; each draft is its own `Project` with its own undo history. In `Project.edit` (`src/core/project.ts`) the order is: reload if the files changed on disk, clone the workspace, sidecar and decisions, run the change, then `syncViews`, `syncFlows`, `prune`, sort the decisions, check `addedErrors` against the errors the files already had (a `ModelError` if any are new), push the undo snapshot (when recorded), and write.
 
 ## 5. Key rules
 
@@ -181,13 +183,10 @@ Not shown:
 - Per-route paths, the System Testing flow in detail, sign-in internals, `src/core/users.ts` and credentials encryption (`DP_SECRET_KEY`).
 
 Unconfirmed:
-- The link between the CLI and the server when a command other than `serve` runs (see section 2).
-- The location of `users.json` and `credentials.json` for a single project (the hub header names `DIR/.dp/` for a hub).
-- Which hosted or self-hosted variants of the work tools are supported.
-- The exact order of sync and validate inside `Project.edit`.
 - `src/server/routes/hub.ts` is described in CLAUDE.md as serving the hub-level routes; how a single project answers them "as a hub of one" is taken from CLAUDE.md, not read in code.
 - Whether the arrows in section 3 match the real import graph (drawn from CLAUDE.md descriptions, not from reading imports).
-- `ui/src/diagramCost.ts` and `ui/src/lineColours.ts` exist in the tree but are not described in CLAUDE.md.
+- `ui/src/diagramCost.ts` and `ui/src/lineColours.ts` are not described in CLAUDE.md. From their header comments: `diagramCost.ts` works out the cost line of a diagram (the scope's own total, plus a second row for costly boxes outside it); `lineColours.ts` works out a diagram's own colours from the kind or the ID, stored nowhere, with hand-set styles and overlays winning. Neither is drawn here.
+- Whether the UI folders and files added since 2026-11-20 are all listed (a tree comparison was made only for the two files above).
 
 ## 7. Questions for the owner
 

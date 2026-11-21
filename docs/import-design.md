@@ -49,7 +49,7 @@ Complexity, LCOM, abstractness and distance (they need bodies and fields, which 
 ### Where the scan is blind today [Fact, with source]
 
 - **Entry points and public interfaces.** No fact for `main()`, route registrations, CLI commands, queue consumers or schedulers. Only manifest entry facts and webhook-looking strings exist. BMO's excerpt ranking prefers files named `main`, `index`, `app`, `server` (`codeExcerpts.ts:67`) but that only picks what BMO reads, not what becomes a candidate.
-- **Ignore rules.** The scan skips the folders in `SKIP_DIRS` (`codeMap.ts:34`) and `EXTRA_SKIP_DIRS` (`scan.ts:146`), binary extensions, hidden paths ([DEC-031](decisions.md#sec-2--dec-031--hidden-paths-are-off-limits)), the intake's `scope.exclude` and `mustNotOpen`, and the import ignore list. It does **not** read `.gitignore` and does not detect generated code.
+- **Ignore rules.** The scan skips the folders in `SKIP_DIRS` (`codeMap.ts:34`) and `EXTRA_SKIP_DIRS` (`scan.ts:146`), binary extensions, hidden paths ([DEC-031](decisions.md#sec-2--dec-031--hidden-paths-are-off-limits)), the intake's `scope.exclude` and `mustNotOpen`, and the import ignore list. It does **not** read `.gitignore` and does not detect generated code. Planned (Wave 15, DEC-103 N1): test, doc, example, script, migration, fixture, generated and third-party folders are kept from becoming C3 candidates by a separate list, while their files still count as evidence.
 - **Two source-extension lists disagree.** `SOURCE_EXT` in `codeMap.ts:33` (16 extensions) and `LANG_BY_EXT` in `scan.ts` (wider; includes C, C++, Ruby, PHP, Swift, Scala).
 - **Files over the size limit** are counted but not parsed (`maxFileBytes` 512 KB, `maxFiles` 20,000, `maxDepth` 25: `intake.ts:21-30`).
 

@@ -488,7 +488,7 @@ Each wave file names the model for each step. Fable is used only if you ask.
 
 **Recommended**
 - `questions.md` is deleted once its answers live in the wave files or DECs.
-- Each wave file is deleted when its reviews.md section lands. CLAUDE.md says not to commit superseded plans, and commit 47b33a2 did the same with the earlier questions file.
+- Each wave file is deleted when its review file lands. CLAUDE.md says not to commit superseded plans, and commit 47b33a2 did the same with the earlier questions file.
 - The alternative is to keep these files in the git-ignored `local/`.
 
 **Owner's thinking:** Keep questions.md for now, and the relevant .md files in docs/. I will choose what to delete before the 1.0 release.
