@@ -1,5 +1,5 @@
 /**
- * SonarQube and SonarCloud (DEC-085): issues, security hotspots and a project's quality gate. Sonar links
+ * SonarQube and SonarCloud (WRK-02): issues, security hotspots and a project's quality gate. Sonar links
  * carry their keys in the query, so the link's query is read here (the path only says which page it is):
  *
  *   <base>/project/issues?id=P&issues=K (or &open=K)          → /api/issues/search?issues=K
@@ -11,7 +11,7 @@
  *
  * Keys have tight character classes and go into the API query encoded, never into its path. An issue that is
  * resolved or closed is done; a hotspot that is reviewed is done; a project whose gate passes is done and one
- * whose gate fails is open. Severity comes from the model's `sonar` severity table (DEC-087; by default BLOCKER
+ * whose gate fails is open. Severity comes from the model's `sonar` severity table (WRK-04; by default BLOCKER
  * and CRITICAL → critical, MAJOR → high, MINOR → medium, INFO → low): the issue's severity, else the worst of its
  * newer impact severities (BLOCKER, HIGH, MEDIUM, LOW, INFO); a hotspot's probability by the same table.
  */

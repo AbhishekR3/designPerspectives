@@ -1,5 +1,5 @@
-/** Hub-level routes (DEC-053, DEC-054): what the server serves and the home page summary, plus the integration
- *  credentials (DEC-056). The same routes answer for a single project (`dp serve PATH`) and for a hub (`dp serve --hub DIR`). */
+/** Hub-level routes (HUB-03, HUB-04): what the server serves and the home page summary, plus the integration
+ *  credentials (SEC-06). The same routes answer for a single project (`dp serve PATH`) and for a hub (`dp serve --hub DIR`). */
 
 import type { Context, Hono } from "hono";
 import { CredentialStore } from "../../core/credentials.js";
@@ -36,13 +36,13 @@ export interface HubCtx {
   readOnly: boolean;
   entries(): HubEntry[];
   catalogId: string | null;
-  /** Hub: copy catalog changes into every project first (DEC-057). */
+  /** Hub: copy catalog changes into every project first (HUB-07). */
   sync?(): void;
   /** Hub: catalog changes copied into projects, newest first. */
   updates?(): CatalogUpdate[];
 }
 
-/** The projects the request's user may see (DEC-060): all of them, except where their role is "none". */
+/** The projects the request's user may see (SEC-05): all of them, except where their role is "none". */
 export function visibleEntries(hub: HubCtx, c: Context): HubEntry[] {
   if (hub.mode !== "hub") return hub.entries();
   const name = whoOf(hub, c).user?.name;
@@ -177,7 +177,7 @@ export function registerHub(app: Hono, hub: HubCtx): void {
     return c.json(cat ? catalogEntries(cat.ctx().project.workspace) : []);
   });
 
-  /** Git history of the projects' models (DEC-058): `?project=<id>` for one, `?limit=` (default 20, at most 100). */
+  /** Git history of the projects' models (DRF-06): `?project=<id>` for one, `?limit=` (default 20, at most 100). */
   app.get("/api/history", (c) => {
     const want = c.req.query("project") || null;
     const limit = Math.max(1, Math.min(100, Number(c.req.query("limit")) || 20));
@@ -205,7 +205,7 @@ export function registerHub(app: Hono, hub: HubCtx): void {
   });
 }
 
-/** Integration credentials (DEC-056): architects list, add, rotate, edit and remove them. Values are write-only. */
+/** Integration credentials (SEC-06): architects list, add, rotate, edit and remove them. Values are write-only. */
 export function registerCredentials(app: Hono, hub: HubCtx, secret?: string | null): void {
   const store = new CredentialStore(hub.dir, secret === undefined ? (process.env.DP_SECRET_KEY ?? null) : secret);
   const name = (n: string) => decodeURIComponent(n);
@@ -236,7 +236,7 @@ export function registerCredentials(app: Hono, hub: HubCtx, secret?: string | nu
   });
 }
 
-/** Linked work of every project the user may see, from each main model (DEC-088): the rows of the hub's Work
+/** Linked work of every project the user may see, from each main model (WRK-05): the rows of the hub's Work
  *  page. A project that cannot be loaded is listed with its error and no rows. */
 export function hubWork(hub: HubCtx, c: Context, store: IntegrationsStore): HubWorkList {
   const connections = store.infos();
@@ -255,7 +255,7 @@ export function hubWork(hub: HubCtx, c: Context, store: IntegrationsStore): HubW
   return out;
 }
 
-/** Tool connections for linked work (DEC-085): architects list, replace and remove them. They name credentials
+/** Tool connections for linked work (WRK-02): architects list, replace and remove them. They name credentials
  *  by name only; a value never leaves the server. Kept in `.dp/integrations.json` of the hub (or the project).
  *  Also the hub's list of linked work (`GET /api/hub/work`, everyone), which labels links by these connections. */
 export function registerIntegrations(app: Hono, hub: HubCtx, store: IntegrationsStore): void {

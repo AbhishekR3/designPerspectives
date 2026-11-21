@@ -1,5 +1,5 @@
 /**
- * System testing mode: one session per project (DEC-075).
+ * System testing mode: one session per project (RUN-06).
  *
  * The session owns the intercept points, the calls that came through them (the run log), the calls that are
  * paused, the breakpoints and the watched fields. There is one stream of traffic, so everyone with the testing

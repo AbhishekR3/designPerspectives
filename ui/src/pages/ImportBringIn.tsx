@@ -1,5 +1,5 @@
 /**
- * The ways to bring a level into the model as a draft (DEC-051): hand the prompt to your own coding agent and read
+ * The ways to bring a level into the model as a draft (COD-02): hand the prompt to your own coding agent and read
  * its result.json back, paste or drop an import file, or ask BMO directly. Each ends as a draft that is reviewed
  * before anything reaches the main model. Errors are shown by field, with the text to send back to the agent.
  */

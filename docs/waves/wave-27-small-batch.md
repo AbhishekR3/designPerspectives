@@ -2,12 +2,12 @@
 
 | | |
 |---|---|
-| **Status** | Planned 2026-11-20. The small batch was kept in 1.0.0 by the owner (DEC-104, P2) but had no release or wave; this wave gives it one. Design is a Proposal (DEC-028 named the items). Two questions below carry recommendations that hold if left blank. **Moved on 2026-11-20 (the second look at the waves) from 0.10.0 to 0.8.0, to run right after Wave 4** (see "Why this wave runs after Wave 4"). Ready to run after Wave 4 |
+| **Status** | Planned 2026-11-20. The small batch was kept in 1.0.0 by the owner (PRO-20, P2) but had no release or wave; this wave gives it one. Design is a Proposal (PRO-14 named the items). Two questions below carry recommendations that hold if left blank. **Moved on 2026-11-20 (the second look at the waves) from 0.10.0 to 0.8.0, to run right after Wave 4** (see "Why this wave runs after Wave 4"). Ready to run after Wave 4 |
 | **Branch** | `feat/w27-small-batch`, from `main` after Wave 4 is merged |
 | **Size** | M (five small items, each S) |
 | **Release** | **0.8.0 (with Waves 3, 26, 16, 4); run after Wave 4** |
 | **Depends on** | Wave 4 (the shared CSV writer `src/core/csv.ts`, and the line-label work it does for conditions). If Wave 4 is not merged, build the writer here and say so in the review file; nothing else is needed |
-| **Owner items** | DEC-028 (the small batch), DEC-104 P2 (kept). [../planned_features.md](../planned_features.md) B2, task 2. Plain software architecture; it no longer waits for deployment diagrams |
+| **Owner items** | PRO-14 (the small batch), PRO-20 P2 (kept). the former backlog B2, task 2 (now "Carried from the backlog" below). Plain software architecture; it no longer waits for deployment diagrams |
 
 Read [README.md](README.md) first: its rules, agents and checks apply to this wave.
 
@@ -21,7 +21,7 @@ Five small additions that make the model easier to read and to take elsewhere:
 4. **An "appears in diagrams" list per object** in its panel.
 5. **CSV export of model objects** (name, type, technology, owner, tags).
 
-## What exists today [Fact; from planned_features B2, anchors not yet checked, re-anchor first]
+## What exists today [Fact; from the former backlog B2 (now in the wave files), anchors not yet checked, re-anchor first]
 
 - The `?` help card already lists every keyboard shortcut (done, not part of this wave).
 - Technology is a tag list on elements and relationships (`modelEdits.ts` rules); tag groups live in the sidecar `designperspectives.json`.
@@ -50,7 +50,7 @@ All computed. Add rows to `docs/determinism.md`.
 
 ## Owner answers
 
-DEC-104 P2: kept.
+PRO-20 P2: kept.
 
 ## Questions, options and answers
 
@@ -73,6 +73,10 @@ DEC-104 P2: kept.
 **Recommended.** Option 1 for 0.8.0, as the owner's list says "model objects (name, type, technology, owner, tags)". Add relationships when asked.
 
 **Owner's thinking:** *(blank: the recommendation holds)*
+
+## Carried from the backlog (moved from planned_features.md, 2026-11-21)
+
+- **The small batch** (was B2 task 2; small each): technology shown on connections (a toggle); owner inherited from the parent; descriptions on tag groups; an "appears in diagrams" list per object; CSV export of model objects (name, type, technology, owner, tags). Already done: the `?` help card lists every keyboard shortcut. Owner, 2026-11-20 (PRO-20, P2): kept in 1.0.0. No longer after the deployment stage, since the vision puts deployment after 1.0.0. Release 0.8.0, right after Wave 4 (moved from 0.10.0 in PRO-23). [Source: Proposal, PRO-14.]
 
 ## Stop and ask if
 
@@ -106,7 +110,7 @@ DEC-104 P2: kept.
 
 ## Docs
 
-- **New DEC** (MOD topic) only if Q27.1 is answered differently from the recommendation. **README**, **CLAUDE.md**, **manual-test-plan**, **planned_features.md** B2 task 2: mark built. `docs/determinism.md` rows.
+- **New decision entry** (MOD topic) only if Q27.1 is answered differently from the recommendation. **README**, **CLAUDE.md**, **manual-test-plan**, **planned_features.md** B2 task 2: mark built. `docs/determinism.md` rows.
 
 ## Out of scope
 

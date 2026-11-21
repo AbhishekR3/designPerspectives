@@ -226,7 +226,7 @@ under an object's Linked work, or on the Work page, reads the state of linked Gi
 Jira items. A built-in connection uses the stored credential of its provider that no connection names;
 without one, GitHub reads public repositories only.
 
-**Work** (DEC-086 to DEC-088): the **Work** button in a project's toolbar lists every linked work item with
+**Work** (WRK-03 to WRK-05): the **Work** button in a project's toolbar lists every linked work item with
 filters. Its **How it works** view explains where status comes from and how CI brings findings in, and edits
 the model's severity mapping (how SARIF, GitLab Code Quality, SonarQube and Jira severities become critical,
 high, medium or low). **Work** in the hub pages' left rail lists the linked work of every project you may see,
@@ -369,12 +369,12 @@ connector and code diagrams).
   *driving* ones, and note why. The list is editable.
 - Cost: monthly cost lines per object; systems and containers show the total of everything inside them.
   Cost bands (Free to Very high) and the currency are editable.
-- Linked work (DEC-085): pin security issues, pull requests, issues, backlog items, required updates and
+- Linked work (WRK-02): pin security issues, pull requests, issues, backlog items, required updates and
   quality gates to a box, a line, a diagram, a flow or the project. Each item has a title, link, status,
   severity and the tool's own status. **Refresh status** reads GitHub, GitLab, SonarQube and Jira on request.
   CI pushes findings with `dp work import` (SARIF, GitLab Code Quality, SonarQube issues). Boxes show open
   items; the **Work** overlay colours boxes by their most severe open item.
-- **Work page** (DEC-086): **Work** in the toolbar. It lists every linked work item with what
+- **Work page** (WRK-03): **Work** in the toolbar. It lists every linked work item with what
   it is pinned to, and filters by text, tool, type, status, severity and kind of target. Add an item, refresh
   the status, or use **Link work…** on a box, a line or the diagram background.
 
@@ -504,7 +504,7 @@ Layout:
 | `src/shared/types.ts` | API types and constants used by both the server and the UI |
 | `src/core/` | The model: `workspace.ts` file format, `designPerspectivesFile.ts` (designperspectives.json), `modelEdits.ts` all edits and rules, `diagrams.ts` what each level shows, `connectors.ts`, `flows.ts`, `validate.ts`, `project.ts` files and undo, `drafts.ts`, `merge.ts`, `diff.ts`, `codeMap.ts` code mapping, `codeFiles.ts`, `decisions.ts`, `catalog.ts`, `credentials.ts`, `users.ts`, `history.ts`, `git.ts` (read-only) |
 | `src/server/` | `app.ts` the HTTP app (Hono), `routeContext.ts` the shared context, `requestProtection.ts` request checks, `auth.ts` sign-in and roles, `hub.ts` the hub of projects, `interceptProxy.ts` and `testSession.ts` System Testing, `routes/` one module per area (readModel, drafts, model, sidecar, code, decisions, traces, testing, comments, checklist, hub, import, bmo, ui) |
-| `src/import/` | Codebase import (DEC-051): `scan.ts`, `knownServices.ts`, `intake.ts`, `analysis.ts`, `schema.ts`, `checks.ts`, `importer.ts`, `lastImport.ts`, `review.ts`, `importStatus.ts`, `unmappedCode.ts` |
+| `src/import/` | Codebase import (COD-02): `scan.ts`, `knownServices.ts`, `intake.ts`, `analysis.ts`, `schema.ts`, `checks.ts`, `importer.ts`, `lastImport.ts`, `review.ts`, `importStatus.ts`, `unmappedCode.ts` |
 | `src/assistant/` | BMO, the optional assistant: `tasks.ts`, `prompts.ts`, `runTask.ts`, `backend.ts`, `handoffBackend.ts`, `providerBackend.ts` (Claude API, OpenAI API, Ollama), `settings.ts`, `redact.ts`, `codeExcerpts.ts`, `modelText.ts`, `importTasks.ts`, `fakeBackend.ts` (tests) |
 | `src/cli.ts` | the `dp` command |
 | `src/demo/` | the made-up git history of the demo |

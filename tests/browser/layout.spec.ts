@@ -495,7 +495,7 @@ test.describe("collapsed palette", () => {
   });
 });
 
-// Import code and BMO (DEC-051): nothing spills or is cut off at the usual window sizes.
+// Import code and BMO (COD-02): nothing spills or is cut off at the usual window sizes.
 const IMPORT_FILE = {
   schemaVersion: 1,
   level: "c2",

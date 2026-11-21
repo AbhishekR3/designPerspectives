@@ -6,7 +6,7 @@
  * Sign-in is on only when this file exists. `password` is a scrypt hash in one string:
  * `scrypt$<N>$<r>$<p>$<salt>$<hash>` (salt and hash in base64url). The cost parameters are part
  * of the string, so they can be raised later without breaking stored passwords.
- * The file lives in a dot folder, so the code routes never read or write it (DEC-031).
+ * The file lives in a dot folder, so the code routes never read or write it (SEC-02).
  * The `dp users` commands read, change and rewrite the whole file without a lock: do not run two at once.
  */
 
@@ -34,7 +34,7 @@ export interface UserEntry {
   role: Role;
   /** The scrypt hash string (see the file header). */
   password: string;
-  /** In a hub: a different role in some projects, by project ID (DEC-057); "none": no access at all (DEC-060). */
+  /** In a hub: a different role in some projects, by project ID (HUB-07); "none": no access at all (SEC-05). */
   projects?: Record<string, ProjectRole>;
 }
 

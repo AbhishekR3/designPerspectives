@@ -1,4 +1,4 @@
-/** The checklist in the browser (DEC-084): the card, starter lists, items edited in place, items linked to a box, dp's own checks with Show, and a viewer. */
+/** The checklist in the browser (REC-05): the card, starter lists, items edited in place, items linked to a box, dp's own checks with Show, and a viewer. */
 
 import { callAs, confirmDialog, expect, node, openDiagram, ROLE_USERS, signIn, test, waitUntil, type Server } from "./fixtures.js";
 

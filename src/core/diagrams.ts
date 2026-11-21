@@ -458,7 +458,7 @@ export function diagramRefs(idx: Index): DiagramRef[] {
  *  Every software system is listed with its context and containers diagrams (the one that opens
  *  when the system is double-clicked), even before it has containers; only those stored as views
  *  (`diagramRefs`) are written to the workspace. */
-/** `{openWork: n}` for a view with open linked work of its own (DEC-085), else nothing. */
+/** `{openWork: n}` for a view with open linked work of its own (WRK-02), else nothing. */
 function openWorkOf(view: View | undefined): { openWork?: number } {
   const n = getJson<WorkItem>(view, WORK_KEY).filter((w) => w.status !== "done").length;
   return n ? { openWork: n } : {};

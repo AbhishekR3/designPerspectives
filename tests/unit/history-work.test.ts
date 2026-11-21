@@ -1,4 +1,4 @@
-/** History of model commits, and the linked work status refresh (DEC-059, DEC-085): status updates with the stored token, where the token may go, items pinned to diagrams, flows and the project, and role rules. */
+/** History of model commits, and the linked work status refresh (WRK-01, WRK-02): status updates with the stored token, where the token may go, items pinned to diagrams, flows and the project, and role rules. */
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";

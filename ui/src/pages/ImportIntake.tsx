@@ -1,5 +1,5 @@
 /**
- * "About this system" on the Import page (DEC-051): the answers the code cannot give, saved to the intake.
+ * "About this system" on the Import page (COD-02): the answers the code cannot give, saved to the intake.
  * Lists are typed one per line. What the form does not show (known services, scan limits) is kept as it is.
  */
 

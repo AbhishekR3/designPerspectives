@@ -1,5 +1,5 @@
 /**
- * GitHub issues and pull requests (DEC-059, DEC-085). github.com is read through api.github.com; a GitHub
+ * GitHub issues and pull requests (WRK-01, WRK-02). github.com is read through api.github.com; a GitHub
  * Enterprise server an architect connects is read through `<base>/api/v3`. Links:
  * `<base>/<owner>/<repo>/issues/<n>` and `<base>/<owner>/<repo>/pull/<n>`. Open → open; closed or merged → done.
  *

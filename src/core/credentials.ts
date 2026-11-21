@@ -1,9 +1,9 @@
 /**
- * Integration credentials (DEC-056): tokens dp itself will use to reach other services (a git host,
+ * Integration credentials (SEC-06): tokens dp itself will use to reach other services (a git host,
  * an issue tracker, an observability backend, an LLM). Never part of the model and never in git:
  *
  *   <hub or project>/.dp/credentials.json    mode 0600, in a hidden folder the code routes never open
- *                                            (DEC-031), and `.dp/` is added to .gitignore
+ *                                            (SEC-02), and `.dp/` is added to .gitignore
  *
  * A value is write-only: the API lists names, providers, scopes, dates and a masked hint, never the
  * value; only code in the server reads it (`get`). When the environment variable DP_SECRET_KEY is set,

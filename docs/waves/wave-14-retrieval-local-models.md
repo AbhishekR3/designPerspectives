@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Kept in 1.0.0 (scope decision P7, DEC-104). Owner answers applied (questions 0.4 and 0.5, 2026-11-18). No gate. Part B questions Q14.1 to Q14.5 are answered by them. The with-and-without-index measurement left this wave on 2026-11-19, with Wave 1's evaluation set (see Q1.3). **Split in two on 2026-11-20 (the second look at the waves): 14a is Part A (local runtimes, the typed context window, the size shown before a run) and runs in the import release, before Wave 15; 14b is Part B (the word index) and stays in the 0.12.0 group.** The context-window rule was settled by the owner on 2026-11-20 (see "Context window rule" below). 14a is ready after Wave 1; 14b is ready after Waves 1 and 2 |
+| **Status** | Kept in 1.0.0 (scope decision P7, PRO-20). Owner answers applied (questions 0.4 and 0.5, 2026-11-18). No gate. Part B questions Q14.1 to Q14.5 are answered by them. The with-and-without-index measurement left this wave on 2026-11-19, with Wave 1's evaluation set (see Q1.3). **Split in two on 2026-11-20 (the second look at the waves): 14a is Part A (local runtimes, the typed context window, the size shown before a run) and runs in the import release, before Wave 15; 14b is Part B (the word index) and stays in the 0.12.0 group.** The context-window rule was settled by the owner on 2026-11-20 (see "Context window rule" below). 14a is ready after Wave 1; 14b is ready after Waves 1 and 2 |
 | **Branch** | `feat/w14a-local-runtimes` and, later, `feat/w14b-word-index`, each from `main` after its predecessors are merged |
 | **Size** | M in all: 14a S–M (steps 2 and 4a), 14b M (steps 3 and 4b). The file stays until both parts are built; write "14a built" in the README table in between |
 | **Release** | **14a: 0.9.0 (with Waves 5 and 15; run before Wave 15). 14b: 0.12.0 (with Waves 13, 22, 20; run before Wave 22 and Wave 20)** |
@@ -38,8 +38,8 @@ Owner answers [2026-11-18]: "Make local runtimes first-class" (0.4) and "Do only
 - Host checks refuse link-local and cloud-metadata addresses, and remote hosts need https (`src/core/hosts.ts:33-51`).
 
 **BMO rules this wave must keep**
-- BMO settings live in `.dp/bmo.json`, mode 0600, and only architects change them (DEC-065).
-- The preview hash covers the provider, host and model (DEC-064).
+- BMO settings live in `.dp/bmo.json`, mode 0600, and only architects change them (COD-08).
+- The preview hash covers the provider, host and model (COD-03).
 - The server has three runtime dependencies (`package.json:39-43`). This wave adds none.
 
 **Ollama's GPU report** [Fact; docs.ollama.com/api/ps and ollama issues #8644, #19089, #19204, checked 2026-11-17]
@@ -59,11 +59,11 @@ Owner answers [2026-11-18]: "Make local runtimes first-class" (0.4) and "Do only
 1. **Local OpenAI-compatible server.** A new provider kind, `openai-compatible`, for local servers that speak the OpenAI chat API.
    - Loopback only by default. Any other host needs `allowCustomEndpoint`, as today, and the same host checks apply (`hosts.ts`).
    - The preview hash covers the provider, host and model.
-   - No API key is required for loopback; if one is set it goes through the credentials store (DEC-056).
+   - No API key is required for loopback; if one is set it goes through the credentials store (SEC-06).
 2. **GPU status** in the BMO settings, read from Ollama's `/api/ps`: "GPU share about N%, as reported by Ollama". A note says the value can be reported too low. Other servers show "not reported".
 3. **Bounded runtime settings.** A cap on the context size (`num_ctx`) and on how long a model stays loaded (`keep_alive`), validated against fixed limits and recorded in the run log. The preview shows them.
 4. **Setup notes** per platform in README: Apple Silicon (Metal is used by Ollama by itself), NVIDIA (drivers for CUDA), and CPU only. A short "is my model on the GPU?" check that uses the status above.
-5. **Context window and the size shown before a run** (planned_features B7). An optional typed context window per model next to the bounded runtime settings; the BMO sheet shows the approximate size of the request against it, or "limit not set". The rule above ("Context window rule") says when a run is refused. Tests: a window below the estimate refuses with the three facts in the message; no window never refuses on size alone; the window changes the preview hash.
+5. **Context window and the size shown before a run** (the former backlog B7 (now in the wave files)). An optional typed context window per model next to the bounded runtime settings; the BMO sheet shows the approximate size of the request against it, or "limit not set". The rule above ("Context window rule") says when a run is refused. Tests: a window below the estimate refuses with the three facts in the message; no window never refuses on size alone; the window changes the preview hash.
 
 ### Part B. Word index
 
@@ -74,7 +74,7 @@ Owner answers [2026-11-18]: "Make local runtimes first-class" (0.4) and "Do only
 3. **Stored** in `.dp/index/`, mode 0600, git-ignored, and rebuilt when content hashes change. A missing or stale index is rebuilt on demand.
 4. **Filtered at every query** by the current intake rules and file gate, so a file closed after indexing is never returned. Excerpts are redacted like all BMO context (`redact.ts`).
 5. **Using it.** `ask`, `explain` and `antipattern-review` add ranked excerpts within the code budget. The Wave 1 manifest lists each one as "found by search for …" with its rank and the terms that matched. Ties break by path, then line, so the order is stable.
-   - **Offline BMO too** (DEC-093). With the LLM off, a free-text question runs as `find` (Wave 2). Once the index exists, `find` also returns matching code chunks, shown as file chips that open the viewer at the line. Wave 5's exact `where <name>` stays separate: it needs no index and always gives every match.
+   - **Offline BMO too** (COD-10). With the LLM off, a free-text question runs as `find` (Wave 2). Once the index exists, `find` also returns matching code chunks, shown as file chips that open the viewer at the line. Wave 5's exact `where <name>` stays separate: it needs no index and always gives every match.
 6. **Measuring it is deferred.** Wave 1's evaluation set was deferred by the owner (Q1.3), so there is nothing to measure against yet. The index ships; whether it helps is part of "Testing and evaluating BMO" in ideas list I2.0. If that shows the index does not help, a next step (embeddings) is a separate plan.
 
 ## Determinism
@@ -92,11 +92,11 @@ Owner answers [2026-11-18]: "Make local runtimes first-class" (0.4) and "Do only
 - **0.5:** Do only the word indexing. No embeddings, vector file or fusion.
 - **Gate (Q14.1):** lifted by the two answers above.
 - **2026-11-20 (best thinking):** Q14.1 to Q14.5 stand. Two changes from the code-reading answers: chunks are language-neutral, and the index also serves offline BMO's free-text search.
-- Still open, with their recommendation as the default: nothing in this wave. (The route rule for building the index is decided in step 3 and recorded in the DEC.)
+- Still open, with their recommendation as the default: nothing in this wave. (The route rule for building the index is decided in step 3 and recorded in the decision entry.)
 
 ## Questions, options and answers (moved from questions.md)
 
-*Moved from the deleted `questions.md` on 2026-11-20, with the owner's words as written. In the quotes, `future_tasks.md` and `backlog.md` mean the old backlog, now [planned_features.md](../planned_features.md) and the owner's private ideas list; `docs/waves/v1-scope-review.md` was decided in DEC-104.*
+*Moved from the deleted `questions.md` on 2026-11-20, with the owner's words as written. In the quotes, `future_tasks.md` and `backlog.md` mean the old backlog, now [planned_features.md](../planned_features.md) and the owner's private ideas list; `docs/waves/v1-scope-review.md` was decided in PRO-20.*
 
 ### 0.4 What can GPU acceleration speed up here?
 
@@ -118,7 +118,7 @@ dp's own work is scanning files, import graphs, metrics, diffs and layout. That 
 |---|---|
 | CUDA or MPS code inside dp | Native add-ons per platform, to speed up work dp doesn't do. Not recommended |
 | A model in the browser on WebGPU | Large downloads, slower than a local runtime, a heavy dependency. Not now |
-| **Make local runtimes first-class** | Show whether the model sits on the GPU. Offer bounded runtime settings (context size, how long a model stays loaded). Add a provider for local servers that speak the OpenAI chat API, loopback only by default as DEC-065 pins hosts. Write setup notes per platform. **Recommended (Wave 14)** |
+| **Make local runtimes first-class** | Show whether the model sits on the GPU. Offer bounded runtime settings (context size, how long a model stays loaded). Add a provider for local servers that speak the OpenAI chat API, loopback only by default as COD-08 pins hosts. Write setup notes per platform. **Recommended (Wave 14)** |
 
 **Owner's thinking:** Make local runtimes first-class.
 
@@ -136,7 +136,7 @@ dp's own work is scanning files, import graphs, metrics, diffs and layout. That 
 **Trade-offs**
 - **Embeddings need a model.**
   - A local one, through Ollama, keeps code on the machine.
-  - A cloud embedding service would send the whole indexed codebase at once. The per-run preview and its hash can't show that (DEC-064).
+  - A cloud embedding service would send the whole indexed codebase at once. The per-run preview and its hash can't show that (COD-03).
 - **The index goes stale when code changes.** It must be rebuilt, and filtered by the current intake rules at every query.
 - **Similar is not the same as evidence.** Retrieval only picks what BMO reads. Citations (Wave 1) still decide what counts.
 - **A database server or a native extension adds install weight.** A flat file with exact cosine search in TypeScript is likely fast enough for tens of thousands of pieces [Proposal; to be measured].
@@ -188,19 +188,23 @@ dp's own work is scanning files, import graphs, metrics, diffs and layout. That 
 
 ## Added by the 2026-11-20 split
 
-- **Show LLM size information** (planned_features B7; DEC-099, DEC-103 N12 and N15). An optional typed "context window" per model in the bounded runtime settings, and "limit not set" when unknown (dp keeps no table of models). dp analyses the request and shows its approximate size before the person starts. It is part of **14a**, so the import release (0.9.0) has it: the import runs are where requests get large. The BMO preview already shows an estimated token count and a finished run shows tokens in and out (`ui/src/common/BmoSheet.tsx`).
+- **Show LLM size information** (the former backlog B7 (now in the wave files); PRO-16, PRO-19 N12 and N15). An optional typed "context window" per model in the bounded runtime settings, and "limit not set" when unknown (dp keeps no table of models). dp analyses the request and shows its approximate size before the person starts. It is part of **14a**, so the import release (0.9.0) has it: the import runs are where requests get large. The BMO preview already shows an estimated token count and a finished run shows tokens in and out (`ui/src/common/BmoSheet.tsx`).
 
-## Context window rule (owner, 2026-11-20; settles the disagreement between DEC-099 and DEC-103)
+## Context window rule (owner, 2026-11-20; settles the disagreement between PRO-16 and PRO-19)
 
-Two accepted decisions disagreed on what happens above the window: DEC-099 (Q-C1b) said refuse only above the chosen model's window (replacing the size refusal of DEC-065); DEC-103 (N12, N15) said the refusal stays tied to the pass budget and the window only warns. The owner chose to combine them. This is a Proposal made by the assistant and adopted by the owner:
+Two accepted decisions disagreed on what happens above the window: PRO-16 (Q-C1b) said refuse only above the chosen model's window (replacing the size refusal of COD-08); PRO-19 (N12, N15) said the refusal stays tied to the pass budget and the window only warns. The owner chose to combine them. This is a Proposal made by the assistant and adopted by the owner:
 
 1. **A window the person typed for the chosen model is a limit.** A run whose estimated size is above it is refused, and the refusal names the window, the estimate and what to narrow. The estimate is approximate and the message says so; the person typed the window and can change it.
 2. **No window typed: warn only.** The BMO sheet shows "limit not set" beside the estimate. dp never claims a limit it does not know.
-3. **The pass-budget refusal (`runTokenLimit`, DEC-065) stays** in both cases: it is a limit about effort, not about the model.
-4. **The window is part of the preview hash**, so what was shown is what is sent (DEC-064).
+3. **The pass-budget refusal (`runTokenLimit`, COD-08) stays** in both cases: it is a limit about effort, not about the model.
+4. **The window is part of the preview hash**, so what was shown is what is sent (COD-03).
 5. **Where the number comes from.** Typed by the person only. Reading an Ollama model's own value is allowed only after it has been checked against a real server (manual test plan U27).
 
-Record this in the DEC the wave writes, as an amendment of DEC-065 (the refusal), DEC-099 (Q-C1b) and DEC-103 (N12, N15).
+Record this in the decision entry the wave writes, as an amendment of COD-08 (the refusal), PRO-16 (Q-C1b) and PRO-19 (N12, N15).
+
+## Carried from the backlog (moved from planned_features.md, 2026-11-21)
+
+- **Show LLM information: context limit, token count, token usage** (owner note of 2026-11-20; planned, part 14a). Facts: the BMO preview shows an estimated token count (`ui/src/common/BmoSheet.tsx`, near line 198) and a finished run shows tokens in and out (near line 231); a per-run size limit exists (`runTokenLimit`, `src/assistant/settings.ts`); prices are typed by the person, none are built in; a model's context limit is not shown and dp keeps no table of models. Open choices were a small table of limits (goes stale), asking the provider (a network call), or letting the person type it. Decided: PRO-19 (N12, N15) an optional typed setting, a warning only, "limit not set" when unknown. Owner, 2026-11-20 (PRO-16): no token cap in the chat; dp analyses the request and shows the approximate size before the person starts. Follow-up Q-C1b: refuse only above the chosen model's context window (replaces the size refusal of COD-08). Settled by the owner on 2026-11-20 (PRO-23): a window the person typed is a limit and a larger request is refused; with none typed, dp warns and shows "limit not set"; the pass-budget refusal stays.
 
 ## Stop and ask if
 
@@ -223,8 +227,8 @@ Part A (**14a**) and Part B (**14b**) are now two runs on two branches in two re
 
 ## Required in this wave
 
-- **Routes.** `ROUTE_RULES` for building the index (decide: an architect, or anyone allowed to run BMO; record it in the DEC) and for the settings (architect).
-- **Hub.** Hub-level BMO settings (DEC-064). One index per project.
+- **Routes.** `ROUTE_RULES` for building the index (decide: an architect, or anyone allowed to run BMO; record it in the decision entry) and for the settings (architect).
+- **Hub.** Hub-level BMO settings (COD-03). One index per project.
 - **Read-only mode.** Queries are allowed; a missing index is built in memory, not on disk.
 - **CONTRIBUTING security model.** The new outbound path: the OpenAI-compatible provider, loopback by default. The word index makes no outbound call.
 - **Static export.** Not affected.
@@ -247,12 +251,12 @@ Part A (**14a**) and Part B (**14b**) are now two runs on two branches in two re
 
 ## Docs
 
-- **New DEC:** local runtimes first-class (OpenAI-compatible provider, GPU status, bounded settings); word index only, in `.dp/index/`; no embeddings, no vector file, no database server, no GPU code in dp.
+- **New decision entry:** local runtimes first-class (OpenAI-compatible provider, GPU status, bounded settings); word index only, in `.dp/index/`; no embeddings, no vector file, no database server, no GPU code in dp.
 - **README:** local models and GPU notes.
 - **CONTRIBUTING:** the outbound path.
 - **CLAUDE.md:** `retrieval/`.
 - **The review file** (not the CHANGELOG, which the release change writes): this wave's notes for the release entry, one set per part.
-- **DEC for the window rule:** the "Context window rule" above, as an amendment of DEC-065, DEC-099 and DEC-103 (N12, N15).
+- **decision entry for the window rule:** the "Context window rule" above, as an amendment of COD-08, PRO-16 and PRO-19 (N12, N15).
 - **`docs/determinism.md`:** rows for this wave.
 - **planned_features.md:** row 14 done; add "embeddings on top of the word index" as an idea, only if the later evaluation shows a gap.
 
@@ -262,7 +266,7 @@ Part A (**14a**) and Part B (**14b**) are now two runs on two branches in two re
 - CUDA or MPS code in dp.
 - Models running in the browser on WebGPU.
 - Database servers.
-- Multi-pass summarising (planned_features B4).
+- Multi-pass summarising (the former backlog B4 (now in the wave files)).
 
 ## Start prompt
 

@@ -1,5 +1,5 @@
 /**
- * Notes on the canvas: the open threads about this diagram that have a position (DEC-049, DEC-068), drawn as small
+ * Notes on the canvas: the open threads about this diagram that have a position (REC-01, MOD-09), drawn as small
  * sticky notes that pan and zoom with the diagram, and the box that starts a new one.
  *
  * A note is not a React Flow node: it lives in a `ViewportPortal`, so it takes no part in layout, line routing,

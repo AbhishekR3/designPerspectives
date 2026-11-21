@@ -1,4 +1,4 @@
-/* Pages over the diagram (decision records, DEC-050). Imported last: these rules add to the ones above. */
+/* Pages over the diagram (decision records, REC-04). Imported last: these rules add to the ones above. */
 
 .page {
   position: absolute;
@@ -406,7 +406,7 @@
   display: none;
 }
 
-/* ---------------------------------------------------------------- import code (DEC-051) */
+/* ---------------------------------------------------------------- import code (COD-02) */
 
 .import-body {
   flex: 1;
@@ -625,7 +625,7 @@
   white-space: nowrap;
 }
 
-/* The review of an import draft, in the changes panel (DEC-051). */
+/* The review of an import draft, in the changes panel (COD-02). */
 .panel-kind-row {
   display: flex;
   align-items: center;
@@ -728,7 +728,7 @@
   margin: 0 0 var(--space-2);
 }
 
-/* The BMO sheet and the BMO settings (DEC-051). */
+/* The BMO sheet and the BMO settings (COD-02). */
 .bmo-btn {
   font-weight: 600;
   letter-spacing: 0.04em;
@@ -941,7 +941,7 @@
   margin: 0;
 }
 
-/* The checklist card (DEC-084): it takes the place of the BMO chat (same position and size), and only one is open at a time. */
+/* The checklist card (REC-05): it takes the place of the BMO chat (same position and size), and only one is open at a time. */
 .checklist-card .checklist-head {
   gap: var(--space-3);
 }
@@ -1251,7 +1251,7 @@ button.cl-chip.target:hover {
   overflow-wrap: anywhere;
 }
 
-/* ---------------------------------------------------------------- linked work (DEC-085) */
+/* ---------------------------------------------------------------- linked work (WRK-02) */
 
 .work-add {
   margin: var(--space-4) var(--space-5) 0;
@@ -1337,7 +1337,7 @@ button.cl-chip.target:hover {
   max-width: 100%;
 }
 
-/* How it works (DEC-087) */
+/* How it works (WRK-04) */
 .work-guide {
   display: flex;
   flex-direction: column;
@@ -1413,7 +1413,7 @@ button.cl-chip.target:hover {
   min-width: 0;
 }
 
-/* Work across projects (DEC-088) */
+/* Work across projects (WRK-05) */
 .hub-work-stats {
   display: flex;
   flex-wrap: wrap;

@@ -1,8 +1,8 @@
 /**
- * The checklist (`architecture/checklist.json`, DEC-084): what to do, ask and confirm while a model is made, from
+ * The checklist (`architecture/checklist.json`, REC-05): what to do, ask and confirm while a model is made, from
  * starting a project or importing a codebase to the last label.
  *
- * Like the comments (DEC-049) the file sits next to the model and is not part of it: no undo step, not diffed
+ * Like the comments (REC-01) the file sits next to the model and is not part of it: no undo step, not diffed
  * or merged with drafts, one list for the project whatever version is shown. It is plain JSON with a stable
  * layout (items in the order they were added), so it reads well in `git diff` and the team shares it through git.
  *
@@ -12,7 +12,7 @@
  * rule passes, and a person may only skip it.
  *
  * What a person writes as an answer is text a person typed: `typedAnswers` gives it to the import review, where
- * a `user` note that quotes it counts as evidence (DEC-064), and `answerNotes` gives it to BMO's next turn.
+ * a `user` note that quotes it counts as evidence (COD-03), and `answerNotes` gives it to BMO's next turn.
  * The text of a BMO question or assumption is the model's and never counts, even after a person edits it.
  *
  * A file changed on disk (by `git checkout`, a merge, another process) is picked up on the next read.
@@ -466,7 +466,7 @@ export class ChecklistStore {
 /** Where a project keeps its checklist. */
 export const checklistPath = (root: string): string => path.join(root, "architecture", CHECKLIST_FILE);
 
-/** The answers people wrote on a project's checklist (for the import review's `user` notes, DEC-064). */
+/** The answers people wrote on a project's checklist (for the import review's `user` notes, COD-03). */
 export function typedAnswers(root: string): string[] {
   try {
     return parseChecklist(fs.readFileSync(checklistPath(root), "utf-8"))

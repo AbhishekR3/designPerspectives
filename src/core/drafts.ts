@@ -13,7 +13,7 @@
  * model since the draft was made are kept, and an object changed on both sides is a conflict.
  * Drafts are plain files, so they can be committed and reviewed like any other change.
  *
- * Partial apply (an import draft under review, DEC-051): the import module registers `DraftHooks`
+ * Partial apply (an import draft under review, COD-02): the import module registers `DraftHooks`
  * (import/review.ts). Its `applyGuard` names the review items that are not accepted; `apply` resets their
  * units, plus what depends on them (`revertClosure`), to the base before the merge, so they cannot reach
  * main whoever calls apply. When something is held, the draft is not deleted but rebased: base := the new
@@ -21,7 +21,7 @@
  * the draft's model files, the base copy, the import ledger, the review file. A crash after main is written
  * leaves the draft as it was (or rebased with the old base): applying it again finds the accepted items
  * already in main (no-ops) and still holds the rest. A failure while writing puts main, the draft and the
- * code back as they were. Undoing the apply restores main only (as for any apply, DEC-016).
+ * code back as they were. Undoing the apply restores main only (as for any apply, DRF-01).
  */
 
 import fs from "node:fs";

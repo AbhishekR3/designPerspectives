@@ -1,4 +1,4 @@
-/** A hub of projects in the browser (DEC-053 to DEC-056): home page, project, shared catalog, credentials. */
+/** A hub of projects in the browser (HUB-03, HUB-04, HUB-06 and SEC-06): home page, project, shared catalog, credentials. */
 
 import fs from "node:fs";
 import os from "node:os";
@@ -299,7 +299,7 @@ test("New project on a folder that already holds a model asks first, and a creat
   await expect(page).toHaveURL(/pr=cards/);
 });
 
-test("Work across projects: the demo hub's items, filtered by project and status, each linked to its project (DEC-088)", async ({ page, hub }) => {
+test("Work across projects: the demo hub's items, filtered by project and status, each linked to its project (WRK-05)", async ({ page, hub }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(String(e)));
   await page.goto(`${hub.url}#/home`);

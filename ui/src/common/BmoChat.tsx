@@ -1,9 +1,9 @@
 /**
  * The BMO chat (the `ask` task): an open question about the model, docked over the canvas so the diagram stays usable
  * while it is open. Objects are referred to as "[Name]": typing "[" opens a list of matching elements and relationships
- * (bmoChatText.ts), and the chosen ones are sent as IDs; the server builds the prompt from them (DEC-051).
+ * (bmoChatText.ts), and the chosen ones are sent as IDs; the server builds the prompt from them (COD-02).
  *
- * Every message is previewed before it goes (DEC-064, "what was shown is what goes"): Enter shows a card with what will
+ * Every message is previewed before it goes (COD-03, "what was shown is what goes"): Enter shows a card with what will
  * be sent (the objects, the file excerpts, the size, where it goes, the full prompt); Enter again or Send sends it with
  * the preview's hash. Editing the message, or anything else the request is made of, discards the preview.
  *

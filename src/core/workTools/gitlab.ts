@@ -1,5 +1,5 @@
 /**
- * GitLab issues and merge requests (DEC-085): gitlab.com, or a GitLab of the team's own, also under a path
+ * GitLab issues and merge requests (WRK-02): gitlab.com, or a GitLab of the team's own, also under a path
  * (`https://example.com/gitlab`). Links: `<base>/<group/sub/project>/-/issues/<iid>` and
  * `<base>/<group/sub/project>/-/merge_requests/<iid>`, read through
  * `<base>/api/v4/projects/<the project path, encoded as one part>/issues|merge_requests/<iid>`.

@@ -1,5 +1,5 @@
 /**
- * The direct backend (DEC-051, plan section 5): dp calls a model itself, opt in, through one of three
+ * The direct backend (COD-02, plan section 5): dp calls a model itself, opt in, through one of three
  * providers: the Claude API, the OpenAI API, or Ollama on this computer. Plain `fetch` (injectable), no SDK,
  * no new dependency: each provider is one small request shape.
  *

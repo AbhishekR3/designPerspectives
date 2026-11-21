@@ -2,12 +2,12 @@
 
 | | |
 |---|---|
-| **Status** | Accepted 2026-11-20 as an entry (planned_features A8, DEC-104: scope decisions B3, B4, B7) and made a wave on the owner's request the same evening, so that it has a start prompt like the others. DEC-104 had refused a wave for it ("one flag and some documents"); the owner overruled that. The two open choices below were decided by the assistant's reasoning at the owner's request and are Proposals. Ready to run |
+| **Status** | Accepted 2026-11-20 as an entry (planned_features A8, PRO-20: scope decisions B3, B4, B7) and made a wave on the owner's request the same evening, so that it has a start prompt like the others. PRO-20 had refused a wave for it ("one flag and some documents"); the owner overruled that. The two open choices below were decided by the assistant's reasoning at the owner's request and are Proposals. Ready to run |
 | **Branch** | `feat/w29-testing-switch`, from `main` |
 | **Size** | S–M |
 | **Release** | 0.7.0 (with Waves 24, 1, 2, 25). Run it **last in the group**, so the suites and docs of the other four waves are written first and this wave changes them once |
 | **Depends on** | Nothing in the code |
-| **Owner items** | The vision's non-goal ("debugging a running service in dp is not a 1.0.0 goal", [../product-vision.md](../product-vision.md)); DEC-104 B3, B4, B7. [../planned_features.md](../planned_features.md) A8 |
+| **Owner items** | The vision's non-goal ("debugging a running service in dp is not a 1.0.0 goal", [../product-vision.md](../product-vision.md)); PRO-20 B3, B4, B7. [../planned_features.md](../planned_features.md) A8 |
 
 Read [README.md](README.md) first: its rules, agents and checks apply to this wave.
 
@@ -17,10 +17,10 @@ System Testing is the largest part of dp outside software architecture and the o
 
 ## What exists today [Fact; counted on 2026-11-20 in planned_features A8, re-anchor first]
 
-- System Testing (DEC-075, DEC-076): `src/core/testing.ts`, `src/core/endpoints.ts`, `src/server/interceptProxy.ts`, `src/server/testSession.ts`, `src/server/routes/testing.ts`, `ui/src/testing/`, `ui/src/hooks/useTesting.ts`: 3,361 lines in 19 files, 13 routes, 74 automated test rows and 12 manual rows. Local targets only; architects and engineers only; main model only.
-- Traces (DEC-045, DEC-046): `src/core/traces.ts`, `src/server/routes/traces.ts`, `ui/src/testing/TraceView.tsx`: 608 lines in 3 files, 7 test rows. The viewer lives inside System Testing's screens.
-- The demo system (DEC-077): `src/demo/demoSystem.ts`, 283 lines, 9 test rows (`demo-system`, `demo-testing`); `dp serve --demo` starts its five services on ports 4200 to 4204.
-- `dp.run.url` (DEC-076) and `dp.endpoints` are model properties that other features read: `dp.run.url` is listed in the static export's review report (Wave 21) and Wave 13 has one optional "Live calls" step that uses it. They stay properties either way.
+- System Testing (RUN-06, RUN-07): `src/core/testing.ts`, `src/core/endpoints.ts`, `src/server/interceptProxy.ts`, `src/server/testSession.ts`, `src/server/routes/testing.ts`, `ui/src/testing/`, `ui/src/hooks/useTesting.ts`: 3,361 lines in 19 files, 13 routes, 74 automated test rows and 12 manual rows. Local targets only; architects and engineers only; main model only.
+- Traces (RUN-02, RUN-03): `src/core/traces.ts`, `src/server/routes/traces.ts`, `ui/src/testing/TraceView.tsx`: 608 lines in 3 files, 7 test rows. The viewer lives inside System Testing's screens.
+- The demo system (RUN-09): `src/demo/demoSystem.ts`, 283 lines, 9 test rows (`demo-system`, `demo-testing`); `dp serve --demo` starts its five services on ports 4200 to 4204.
+- `dp.run.url` (RUN-07) and `dp.endpoints` are model properties that other features read: `dp.run.url` is listed in the static export's review report (Wave 21) and Wave 13 has one optional "Live calls" step that uses it. They stay properties either way.
 - `createApp(projectDir, {codeRoot, readOnly})` builds the shared context and mounts the route modules in a fixed order; `registerTesting` and `registerTraces` are mounted there (`src/server/app.ts`, `src/server/routes/`). The hub builds one app per project (`src/server/hub.ts`).
 
 ## Design [Proposal]
@@ -38,7 +38,7 @@ Not applicable (a switch). Add a row to `docs/determinism.md` only if Wave 1's f
 
 ## Owner answers
 
-- **2026-11-20:** hide by default (DEC-104 B3, B4, B7); make it a wave with a start prompt ("Yes"); the two open choices are left to the assistant's reasoning, recorded above (flag only; `--with-system` separate).
+- **2026-11-20:** hide by default (PRO-20 B3, B4, B7); make it a wave with a start prompt ("Yes"); the two open choices are left to the assistant's reasoning, recorded above (flag only; `--with-system` separate).
 
 ## Questions, options and answers
 
@@ -71,7 +71,7 @@ Not applicable (a switch). Add a row to `docs/determinism.md` only if Wave 1's f
 | 2 | The switch: options, context, route registration, the state flag, the hub, `--testing`, `--with-system` | general-purpose · Opus | `src/server/app.ts`, `routeContext.ts`, `hub.ts`, `routes/testing.ts`, `routes/traces.ts`, `src/cli.ts`, `src/shared/types.ts` | Off: the routes answer 404 and no listener starts; on: nothing changes |
 | 3 | UI: hide the Test button, the strip and the trace picker when `testingEnabled` is false | general-purpose · Sonnet | `ui/src/App.tsx`, `ui/src/testing/`, `ui/src/hooks/useTesting.ts`, `ui/src/common/` (the help card and search entries) | Nothing of the mode is reachable by keyboard or search when off; `cd ui && npm run build` result committed |
 | 4 | Tests (not the author of 2 and 3): the suites run with the switch on; a few check the routes and the button are absent with it off | general-purpose · Sonnet | `tests/helpers.ts`, `tests/unit/testing-*.test.ts`, `demo-*.test.ts`, `tests/browser/testing-mode.spec.ts` | Both modes covered; `ROUTE_RULES` test still passes |
-| 5 | Docs and the manual test plan | general-purpose · Haiku | README, `demo/README.md`, CONTRIBUTING (security model), CLAUDE.md, decisions.md (a DEC amending DEC-075, DEC-077), manual-test-plan section 14 and the security rows ("start with `--testing`"), section 27 (the mode is hidden), planned_features A8 | All docs updated |
+| 5 | Docs and the manual test plan | general-purpose · Haiku | README, `demo/README.md`, CONTRIBUTING (security model), CLAUDE.md, decisions.md (a decision entry amending RUN-06, RUN-09), manual-test-plan section 14 and the security rows ("start with `--testing`"), section 27 (the mode is hidden), planned_features A8 | All docs updated |
 | 6 | Review | main session | — | `/code-review` (high) and `/security-review` (the listener cannot start with the switch off) findings fixed |
 
 Only one agent builds the UI or runs `cd ui && npm run build` at a time. Step 3 is the only UI step.
@@ -95,7 +95,7 @@ Only one agent builds the UI or runs `cd ui && npm run build` at a time. Step 3 
 
 ## Docs
 
-- **A new DEC** (RUN topic): the mode is off by default behind `dp serve --testing`; the demo services behind `--with-system`; a flag only; amends DEC-075 and DEC-077 (their "Now" lines already point at DEC-104).
+- **A new decision entry** (RUN topic): the mode is off by default behind `dp serve --testing`; the demo services behind `--with-system`; a flag only; amends RUN-06 and RUN-09 (their "Now" lines already point at PRO-20).
 - **README, `demo/README.md`, CONTRIBUTING (security model), CLAUDE.md**, the manual test plan (section 14, the security rows, section 27), planned_features A8: mark built.
 - **The review file** (not the CHANGELOG, which the release change writes): notes for the release entry.
 

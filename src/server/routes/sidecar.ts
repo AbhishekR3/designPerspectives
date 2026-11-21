@@ -160,7 +160,7 @@ export function registerSidecar(app: Hono, ctx: Ctx): void {
     return ok(c);
   });
 
-  /** Linked work settings (DEC-087): `severity`, how tools' severities become dp's; `null` puts back the defaults. */
+  /** Linked work settings (WRK-04): `severity`, how tools' severities become dp's; `null` puts back the defaults. */
   app.put("/api/work-settings", async (c) => {
     const b = await objBody(c);
     if (!("severity" in b)) throw new HttpError(422, 'Send {"severity": …} (or null for the defaults).');

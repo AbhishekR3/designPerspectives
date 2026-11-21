@@ -1,5 +1,5 @@
 /**
- * The import file, schema version 1 (DEC-051): a JSON file of proposed objects, relationships, flows and
+ * The import file, schema version 1 (COD-02): a JSON file of proposed objects, relationships, flows and
  * decisions that the importer (importer.ts) turns into a draft. Written by BMO, a script or by hand.
  *
  * `IMPORT_SCHEMA` is the JSON Schema (draft 2020-12) shipped in the package (`dp import --schema` prints it,

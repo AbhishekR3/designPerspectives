@@ -1,5 +1,5 @@
 /**
- * Integration credentials (DEC-056): tokens dp itself will use for other services. Values are typed
+ * Integration credentials (SEC-06): tokens dp itself will use for other services. Values are typed
  * once and never shown again; the list shows a masked hint, scopes and dates. Architects only.
  */
 
@@ -254,7 +254,7 @@ function RotateForm({ onCancel, onSave }: { onCancel(): void; onSave(v: string):
   );
 }
 
-/** Where linked work gets its status from (DEC-085): the tools dp ships with, and the ones an architect adds. */
+/** Where linked work gets its status from (WRK-02): the tools dp ships with, and the ones an architect adds. */
 function ToolConnections({ credentials }: { credentials: string[] }) {
   const [settings, setSettings] = useState<IntegrationsSettings | null>(null);
   const [rows, setRows] = useState<WorkConnection[]>([]);

@@ -1,4 +1,4 @@
-/** Integration credentials (DEC-056): write-only values, encryption with DP_SECRET_KEY, architect-only management, hub storage and `dp credentials`. */
+/** Integration credentials (SEC-06): write-only values, encryption with DP_SECRET_KEY, architect-only management, hub storage and `dp credentials`. */
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -22,7 +22,7 @@ describe("credentials", () => {
     for (const url of ["/api/credentials", "/api/state", "/api/hub", "/api/home"]) expect((await c.get(url)).text).not.toContain(SECRET);
     expect(fs.statSync(file(dir)).mode & 0o777).toBe(0o600);
     expect(fs.readFileSync(path.join(dir, ".gitignore"), "utf-8")).toContain(".dp/");
-    // The code routes never open .dp/ (DEC-031).
+    // The code routes never open .dp/ (SEC-02).
     expect((await c.get("/api/code/file", { path: ".dp/credentials.json" })).status).not.toBe(200);
 
     await ok(c.put("/api/credentials/github-token", { value: "ghp_NEWvalue000000000000wxyz" }));

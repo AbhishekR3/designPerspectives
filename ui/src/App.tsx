@@ -282,7 +282,7 @@ export default function App({ onSignOut, hub, project = null, initialReveal = nu
   // The checklist card and the BMO chat take the same place: opening one closes the other.
   const checklist = useChecklist(state);
   const [checklistOpen, setChecklistOpen] = useState(false);
-  // Linked work (DEC-085): the page, the number on its button, and a "Link work…" request waiting to open its form.
+  // Linked work (WRK-02): the page, the number on its button, and a "Link work…" request waiting to open its form.
   const work = useWork(state);
   const badge = useMemo(() => (work.data ? workBadge(work.data.rows) : { count: 0, urgent: false }), [work.data]);
   const [workAdd, setWorkAdd] = useState<WorkAddRequest | null>(null);

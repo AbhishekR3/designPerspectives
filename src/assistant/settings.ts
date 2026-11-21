@@ -2,7 +2,7 @@
  * BMO's server-side settings (plan section 5, owner answers 3 and 4): whether BMO may call a model itself,
  * which provider, model and endpoint, which stored credential, who may run it, and the limits of a run.
  *
- *   <hub or project>/.dp/bmo.json    mode 0600, next to `.dp/credentials.json` (DEC-056): the same folder the
+ *   <hub or project>/.dp/bmo.json    mode 0600, next to `.dp/credentials.json` (SEC-06): the same folder the
  *                                    `CredentialStore` is given (the hub in a hub, else the project)
  *
  * Not in the sidecar and not in git: an engineer can edit a draft's sidecar, and an endpoint there would send
@@ -63,7 +63,7 @@ export interface BmoSettings {
   credential?: string;
   /** Roles that may run BMO (default: all three). */
   allowedRoles: Role[];
-  /** Per hub project: its own `allowedRoles` (like the other per-project role rules, DEC-057). */
+  /** Per hub project: its own `allowedRoles` (like the other per-project role rules, HUB-07). */
   projects?: Record<string, { allowedRoles: Role[] }>;
   /** Digest budget per run (estimated tokens). */
   passBudgetTokens: number;

@@ -1,5 +1,5 @@
 /**
- * Decision records (DEC-050): one Markdown file per decision in `<model folder>/decisions/`,
+ * Decision records (REC-04): one Markdown file per decision in `<model folder>/decisions/`,
  * named `NNNN-slug.md`. The number is the decision's ID; the file keeps its name when the title
  * changes. Other files in the folder (a README) are ignored.
  *
@@ -32,7 +32,7 @@
  * formatting until it is edited here.
  *
  * Decisions are part of the model: they are units (`modelUnits.ts`), so drafts, diffs, the three-way
- * merge and git versions include them (DEC-050).
+ * merge and git versions include them (REC-04).
  */
 
 import fs from "node:fs";

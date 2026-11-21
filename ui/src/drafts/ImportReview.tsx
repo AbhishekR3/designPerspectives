@@ -1,5 +1,5 @@
 /**
- * Review of an import draft (DEC-051): how many items are verified, what is accepted, and the items with low
+ * Review of an import draft (COD-02): how many items are verified, what is accepted, and the items with low
  * confidence worked one at a time. The levels are computed by the tool from the files (never from what BMO
  * says about itself). Shown in the changes panel while an import draft is open; read-only when the draft is not yours.
  */
@@ -41,7 +41,7 @@ const counts = (review: ReviewState) => {
   };
 };
 
-/** What a reviewer can do about an item that is not verified, from the checks that failed (DEC-064: the tool, not the file, decides). */
+/** What a reviewer can do about an item that is not verified, from the checks that failed (COD-03: the tool, not the file, decides). */
 function nextStep(item: ReviewItem): string | null {
   if (item.level === "verified") return null;
   const failed = new Set(item.checks.filter((c) => !c.ok).map((c) => c.rule));

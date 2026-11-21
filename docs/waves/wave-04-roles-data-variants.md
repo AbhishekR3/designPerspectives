@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Owner answers applied (2026-11-19 for the variants, 2026-11-20 for the data half). The owner answered Q4.1 to Q4.3, so the data half (CRUD letters, role × data matrix) is **kept**; the scope decision for P4 is keep (DEC-104). Ready to run |
+| **Status** | Owner answers applied (2026-11-19 for the variants, 2026-11-20 for the data half). The owner answered Q4.1 to Q4.3, so the data half (CRUD letters, role × data matrix) is **kept**; the scope decision for P4 is keep (PRO-20). Ready to run |
 | **Branch** | `feat/w04-roles-data-variants`, from `main` after the previous wave is merged |
 | **Size** | M |
 | **Release** | 0.8.0 (with Waves 3, 26, 16, 27; run before Wave 27, see below) |
@@ -102,18 +102,18 @@ The explanation of A/B testing in C4 is in section 0.1 of the questions section 
 
 Applied 2026-11-19 (Part A) and 2026-11-20 (Part B, [the questions section below](#questions-options-and-answers-moved-from-questionsmd)).
 
-- **Split by the vision (2026-11-19).** Half of this wave is C4 modelling: conditions on lines and A/B variants as grouped flows (Q4.4, Q4.5). The other half is data architecture: CRUD letters (Q4.1), people as roles and the matrix (Q4.2). The scope review recommended **later** for the data half; the owner then answered Q4.1 to Q4.3 (2026-11-20), which was read as **keep**, and confirmed it on 2026-11-20 by taking the review's recommendation to keep it, together with the data catalog it edits (DEC-104, B1 and P4). Cutting one means cutting the other.
+- **Split by the vision (2026-11-19).** Half of this wave is C4 modelling: conditions on lines and A/B variants as grouped flows (Q4.4, Q4.5). The other half is data architecture: CRUD letters (Q4.1), people as roles and the matrix (Q4.2). The scope review recommended **later** for the data half; the owner then answered Q4.1 to Q4.3 (2026-11-20), which was read as **keep**, and confirmed it on 2026-11-20 by taking the review's recommendation to keep it, together with the data catalog it edits (PRO-20, B1 and P4). Cutting one means cutting the other.
 - **Q4.1 (2026-11-20):** "W should change to C U D right now. CRUD choosing works." Applied: no `W`; an old `write` reads as C, U and D, and the person narrows it by choosing letters.
 - **Q4.2 (best thinking):** as proposed. A role is a C4 person; a matrix page with the letters set on the person's own lines and, greyed, the letters they can reach through their containers; the checks as `dp check` warnings. No policy letters ("allowed"); that stays a stop-and-ask.
 - **Q4.3:** yes. A table of Architect, Engineer and Viewer in the help card, generated from `src/server/auth.ts`.
 - **Q4.4:** option 1. Each variant is its own flow; variants share a key and show as tabs in the flow player.
 - **Q4.5:** yes, an optional condition on a line, shown as a chip, with a diagram filter.
-- **Q4.6 (best thinking):** wait for deployment diagrams, which are infrastructure and after 1.0.0 (DEC-104, P1).
+- **Q4.6 (best thinking):** wait for deployment diagrams, which are infrastructure and after 1.0.0 (PRO-20, P1).
 - **The observed A/B split** belonged to the parked runtime work (ideas list I2.7) (answer A7).
 
 ## Questions, options and answers (moved from questions.md)
 
-*Moved from the deleted `questions.md` on 2026-11-20, with the owner's words as written. In the quotes, `future_tasks.md` and `backlog.md` mean the old backlog, now [planned_features.md](../planned_features.md) and the owner's private ideas list; `docs/waves/v1-scope-review.md` was decided in DEC-104.*
+*Moved from the deleted `questions.md` on 2026-11-20, with the owner's words as written. In the quotes, `future_tasks.md` and `backlog.md` mean the old backlog, now [planned_features.md](../planned_features.md) and the owner's private ideas list; `docs/waves/v1-scope-review.md` was decided in PRO-20.*
 
 ### 0.1 How do A/B tests, feature flags and other conditional services fit C4?
 
@@ -132,7 +132,7 @@ Measuring the experiment means sending exposure and conversion events to an anal
 - The only conditions are:
   - System Testing breakpoints, which pause a call (`src/core/testing.ts:319-362`);
   - the "conditional" kind of decision (`src/shared/types.ts:547-569`).
-- Deployment diagrams are decided (DEC-019, DEC-022) but not built.
+- Deployment diagrams are decided (MOD-06, MOD-07) but not built.
 
 **Telemetry** [Fact]
 - OpenTelemetry's feature-flag conventions (status: Release Candidate) record each flag evaluation as a `feature_flag.evaluation` event through the logs API.
@@ -234,7 +234,7 @@ See Q4.4 to Q4.6 and Q12.3.
 
 **Owner's thinking:** Go with your best thinking.
 
-**Applied [2026-11-20].** Wait for deployment diagrams, which are infrastructure and not scheduled before 1.0.0 (scope review P1; after 1.0.0, DEC-104). Until then a canary or blue/green split is modelled with the condition on a line (Q4.5) and a note.
+**Applied [2026-11-20].** Wait for deployment diagrams, which are infrastructure and not scheduled before 1.0.0 (scope review P1; after 1.0.0, PRO-20). Until then a canary or blue/green split is modelled with the condition on a line (Q4.5) and a note.
 
 ## Stop and ask if
 
@@ -290,7 +290,7 @@ See Q4.4 to Q4.6 and Q12.3.
 
 ## Docs
 
-- **New DEC:** CRUD letters and their compatibility; people as roles and "can reach"; variants as grouped flows; conditions on relationships.
+- **New decision entry:** CRUD letters and their compatibility; people as roles and "can reach"; variants as grouped flows; conditions on relationships.
 - **README:** the A/B guide.
 - **CLAUDE.md:** `access.ts` and `AccessPage.tsx`.
 - **The review file** (not the CHANGELOG, which the release change writes): notes for the release entry, including that an older dp sees only read or write.

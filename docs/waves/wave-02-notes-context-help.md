@@ -35,13 +35,13 @@ Notes are easy to write, read and find for three audiences: people, BMO and codi
 - They are cut to 2,000 characters and joined into one line (`oneLine`).
 - The Overview lens hides notes (`src/core/designPerspectivesFile.ts:146`).
 - The import summary leaves notes out (`modelText.ts:81-97`).
-- DEC-073 says BMO's context follows the lens.
+- COD-09 says BMO's context follows the lens.
 
-**Sticky notes on a diagram today (DEC-070)**
+**Sticky notes on a diagram today (REC-02)**
 - A placed note is a **comment** with a position (`src/core/comments.ts:73-79`, `:225-247`). Only a comment about a diagram can be placed, and it is stored in `comments.json`.
 - It is drawn above the lines and outside the diagram's own objects. A resolved one is hidden, and image exports leave it out.
 - It is not model data. It has no undo step, goes through no draft, and does not reach BMO today.
-- It does not follow a box that moves (DEC-070's own trade-off).
+- It does not follow a box that moves (REC-02's own trade-off).
 
 **Diagrams**
 - Views carry `properties`. Linked work is stored on a view through `holderOf` and `ensureView`, and a computed diagram gets a stored view when needed (`src/core/work.ts:48-75`).
@@ -64,17 +64,17 @@ Notes are easy to write, read and find for three audiences: people, BMO and codi
 1. **Sticky notes are model data** (★Q2.1).
    - **Stored** as `dp.stickies` on the diagram's view, the way `dp.work` is, through `holderOf` and `ensureView`. Each item is `{id, text, x, y, on?}`.
    - **Stuck to a diagram:** no `on`; `x, y` is the position on that diagram.
-   - **Stuck to an object:** `on` is an element or relationship id on that diagram, and `x, y` is the offset from the box (for a line, from its label point). The sticky moves with the object, which fixes DEC-070's "does not follow a box".
+   - **Stuck to an object:** `on` is an element or relationship id on that diagram, and `x, y` is the offset from the box (for a line, from its label point). The sticky moves with the object, which fixes REC-02's "does not follow a box".
    - **Caps** [Proposal]: 4,000 characters of text, 100 stickies per diagram. A breach is a `ModelError`.
    - **Deleting an object** turns its stickies into free stickies where they were. They are never deleted silently, and the change list shows it.
    - **They go through drafts, undo, `dp diff`, merge and the static export.** Each sticky is a unit in `modelUnits.ts`, with a label in `diff.ts`.
-   - **Drawn** like the placed notes of DEC-070: above the lines, outside layout and Make room. Left out of image exports, as placed notes are.
+   - **Drawn** like the placed notes of REC-02: above the lines, outside layout and Make room. Left out of image exports, as placed notes are.
    - **Written by** those who edit the model: architects on main, engineers in a draft. Viewers read, and use comments (C6a).
    - **UI**
      - Right-click on empty canvas gives "Add sticky note here"; right-click on a box or line gives "Add sticky note to this".
      - Edit in place, drag to move, delete.
      - A "Sticky notes" list in the diagram panel and in each object's panel makes every sticky reachable by keyboard.
-     - Placed comments stay (DEC-070), and the menu offers "Add comment here" beside the sticky entries. They are conversation, open to every role, and BMO reads them too (item 4).
+     - Placed comments stay (REC-02), and the menu offers "Add comment here" beside the sticky entries. They are conversation, open to every role, and BMO reads them too (item 4).
      - An architect can turn a placed comment into a sticky. The comment stays.
    - **`dp.notes` on objects stays** as it is: one note per box or line, the same on every diagram.
 2. **Markdown in notes and stickies.** A small renderer that builds React elements, never setting innerHTML. It supports:
@@ -83,19 +83,19 @@ Notes are easy to write, read and find for three audiences: people, BMO and codi
 
    It has no raw HTML and no images. [Wave 16](wave-16-attachments.md) adds `attachment:` images, never remote ones. Line breaks are kept. Wave 3 reuses it for decision prose.
 3. **Notes page** (`p=notes`). Every note and sticky, grouped by level: landscape and context, containers, components, relationships, diagrams. It has search, and a click reveals the object, or the diagram with the sticky.
-4. **BMO always sees notes and comments** (★Q2.2, screen parity DEC-094).
+4. **BMO always sees notes and comments** (★Q2.2, screen parity COD-11).
    - Every object note and every sticky in scope goes into the pack, whatever the lens shows. There is no switch.
    - **Comments too** (owner, 2026-11-19: "everything a person can visualize on screen should be reachable by BMO"). The threads on the object or diagram in scope go in, each with its kind (comment, idea, question), author, time, status and replies. Placed comments are included with their diagram. Resolved threads come last, marked resolved, and are the first dropped under budget.
-   - Comments are text from any account, so each goes in a data block labelled "comment by <author>, not reviewed" (the author can be "Anonymous"), after redaction. They are data, never instructions (DEC-064); BMO's output is still only a proposal, the preview shows the exact prompt, and citations are checked.
+   - Comments are text from any account, so each goes in a data block labelled "comment by <author>, not reviewed" (the author can be "Anonymous"), after redaction. They are data, never instructions (COD-03); BMO's output is still only a proposal, the preview shows the exact prompt, and citations are checked.
    - Two new cite kinds for the Wave 1 verifier: `comment:<thread id>` and `sticky:<id>`. A cite to a thread that was not in the pack is refused.
-   - The Overview lens still hides notes in the UI, but not from BMO. This amends DEC-073 for notes only.
+   - The Overview lens still hides notes in the UI, but not from BMO. This amends COD-09 for notes only.
    - A diagram's pack holds that diagram's stickies. An object's pack holds its note and the stickies stuck to it on any diagram.
    - Notes go in data blocks, after redaction, like all repository text.
    - Each block has its Wave 1 budget share. Whole notes are dropped, never cut, and the manifest lists any left out. Line breaks are kept, and the 2,000-character cut goes away.
 5. **`dp context <target> [--for explain|review|code] [--code] [--json]`.** Prints the Wave 1 pack for an object or diagram, without the system text.
    - Same redaction, same file gate, read-only. Markdown by default (Q2.3).
-   - It gives coding agents (such as Claude Code) the model without an MCP server (DEC-020).
-6. **BMO without an LLM** (★Q2.5, DEC-093).
+   - It gives coding agents (such as Claude Code) the model without an MCP server (PRO-12).
+6. **BMO without an LLM** (★Q2.5, COD-10).
    - **The setting:** the existing `enabled` flag, relabelled "Use an LLM" in the BMO settings. It stays off by default **in this wave** and architects change it. [Wave 25](wave-25-bmo-own-subscription.md) flips the default in the same release (0.7.0), so (second look at the waves, 2026-11-20): keep the default in the one constant `DEFAULT_SETTINGS`, make every test read that constant instead of writing "off" into the test, and do not write "off by default" into README, CLAUDE.md or the demo tour in this wave (describe the setting, not its default). That way Wave 25 changes one constant and the tests that follow it, and no text has to be changed twice.
    - **Off:** BMO is still in the UI, as a deterministic assistant. No prompt is built, nothing is sent, no handoff file is written, and the fake and provider backends are never called.
    - **Fixed commands** (`src/assistant/commands.ts`, new). Each is a pure function of the model, the docs corpus and its arguments:
@@ -140,14 +140,14 @@ Applied 2026-11-19 ([the questions section below](#questions-options-and-answers
 - **Q2.1:** sticky notes are stored as part of the architecture (`dp.stickies`), BMO reads them, and they can be stuck to an object or a diagram. The separate "one note per diagram" field is dropped; a sticky stuck to the diagram is that note. The vision's "notes on diagrams" (feature E) is this.
 - **Who writes notes (C6a, confirmed 2026-11-19):** model data, written by those who edit the model. Every other account uses comments, with images and files from [Wave 16](wave-16-attachments.md). Stickies follow the same rule.
 - **Q2.2:** always. BMO sees every note, whatever the lens. No switch.
-- **Follow-up (2026-11-19):** comments reach BMO too, and the general rule is screen parity: everything a person can see on screen is reachable by BMO (DEC-094). This reverses the C6a reasoning that kept comments away from BMO; the data-block treatment of DEC-064 is what keeps it safe.
+- **Follow-up (2026-11-19):** comments reach BMO too, and the general rule is screen parity: everything a person can see on screen is reachable by BMO (COD-11). This reverses the C6a reasoning that kept comments away from BMO; the data-block treatment of COD-03 is what keeps it safe.
 - **Q2.3:** `dp context` prints Markdown, with `--json` as an option (the assistant's choice, the owner said "what you think is best").
 - **Q2.4:** ship README, `planned-change.md`, the security model part of CONTRIBUTING, CHANGELOG and `decisions.md`, plus generated CLI help and the UI's hints. Leave out the backlog, the reviews and the book notes.
 - **Q2.5:** yes, and with an on/off setting for the LLM. Off: search and fixed commands only.
 
 ## Questions, options and answers (moved from questions.md)
 
-*Moved from the deleted `questions.md` on 2026-11-20, with the owner's words as written. In the quotes, `future_tasks.md` and `backlog.md` mean the old backlog, now [planned_features.md](../planned_features.md) and the owner's private ideas list; `docs/waves/v1-scope-review.md` was decided in DEC-104.*
+*Moved from the deleted `questions.md` on 2026-11-20, with the owner's words as written. In the quotes, `future_tasks.md` and `backlog.md` mean the old backlog, now [planned_features.md](../planned_features.md) and the owner's private ideas list; `docs/waves/v1-scope-review.md` was decided in PRO-20.*
 
 ### ★Q2.1 What does "a note for each object at each level" mean?
 
@@ -156,7 +156,7 @@ Applied 2026-11-19 ([the questions section below](#questions-options-and-answers
   - Stored at `src/core/modelEdits.ts:967`; edited in `ui/src/panels/listEditors.tsx:101-103`.
   - Boxes and lines show a badge when they have one.
 - A diagram can hold `dp.*` data, as linked work does (`src/core/work.ts:48-75`).
-- Sticky notes on a diagram (DEC-070) are comments, not model data. They never reach BMO.
+- Sticky notes on a diagram (REC-02) are comments, not model data. They never reach BMO.
 
 **Options**
 1. Keep one note per object, and add one note per diagram ("diagram notes"). These are model data, so they go through drafts and diffs.
@@ -175,21 +175,21 @@ Applied 2026-11-19 ([the questions section below](#questions-options-and-answers
 - **Object notes stay as they are.** `dp.notes` is one note per box or line, the same on every diagram, with a badge. [Proposal] A sticky is for a remark you want to see on one diagram.
 - **Two consequences** [Proposal]. The owner confirmed the first and changed the second on 2026-11-19 (see the follow-up below):
   1. **Who writes them.** Stickies are model data, so only those who edit the model write them: architects on main, engineers in a draft. This follows your C6a answer ("notes are model data; every other account uses comments"). Viewers keep comments. **Confirmed.**
-  2. **Placed comments (DEC-070) stay.** Comments placed on a diagram remain conversation, open to every role. The right-click menu offers both "Add sticky note here" and "Add comment here". An architect can turn a placed comment into a sticky. **They now reach BMO too** (follow-up below).
+  2. **Placed comments (REC-02) stay.** Comments placed on a diagram remain conversation, open to every role. The right-click menu offers both "Add sticky note here" and "Add comment here". An architect can turn a placed comment into a sticky. **They now reach BMO too** (follow-up below).
 - **A cost:** moving a sticky is a model edit, so it shows in a draft's change list. Moving a comment pin never did.
-- [Wave 2](wave-02-notes-context-help.md) and [Wave 16](wave-16-attachments.md) are updated. DEC-092 amends DEC-070.
+- [Wave 2](wave-02-notes-context-help.md) and [Wave 16](wave-16-attachments.md) are updated. REC-03 amends REC-02.
 
 ### ★Q2.2 Should BMO always see the notes?
 
 **Analysis** [Fact]
 - BMO gets notes only when the lens shows the notes section (`modelText.ts:112`, `:150`). The Overview lens hides them (`src/core/designPerspectivesFile.ts:146`).
-- DEC-073 says BMO's context follows the lens.
+- COD-09 says BMO's context follows the lens.
 - Notes are cut to 2,000 characters and joined into one line (`modelText.ts:112`).
 
 **Options**
 1. Always.
 2. Follow the lens.
-3. Follow the lens, with an "include notes" switch in the preview. The preview's hash covers the switch (DEC-064).
+3. Follow the lens, with an "include notes" switch in the preview. The preview's hash covers the switch (COD-03).
 
 **Recommended.** Option 3, with the switch on by default for the Engineer and Architect lenses. Keep the notes' line breaks.
 
@@ -199,21 +199,21 @@ Applied 2026-11-19 ([the questions section below](#questions-options-and-answers
 - **Lenses:** the Overview lens still hides notes in the UI, but not from BMO.
 - **How notes go in:** notes are text from people who edit the model, so they go in data blocks like all repository text, through redaction.
 - **Budget:** notes get a share of the pack budget. Whole notes are dropped, never cut, and the manifest lists any left out. Line breaks are kept.
-- **Amends** DEC-073 ("BMO's context follows the lens") for notes only (DEC-092).
+- **Amends** COD-09 ("BMO's context follows the lens") for notes only (REC-03).
 
-**Follow-up [2026-11-19].** You said: "Comments should be reachable by BMO; everything a person can visualize on screen should be reachable by BMO." Applied as a general rule, **screen parity** (DEC-094).
+**Follow-up [2026-11-19].** You said: "Comments should be reachable by BMO; everything a person can visualize on screen should be reachable by BMO." Applied as a general rule, **screen parity** (COD-11).
 - **The rule:** every kind of thing the UI shows about a scope has a place in that scope's pack, by default or through the lens and preview choices. The manifest says what was left out and why. A computed test walks the fields the panels show and checks each is in the pack or named in the manifest. [Wave 1](wave-01-grounded-bmo.md) builds the pack so a new kind of data is added in one place, and its first step lists the panel data no pack carries today.
 - **Comments now go to BMO:** the threads on the object or diagram in scope, with kind, author, time, status and replies. Placed comments are included with their diagram. Resolved threads come last and are dropped first under budget.
 - **How they go in:** each in a data block labelled "comment by <author>, not reviewed", after redaction. The author can be "Anonymous". New cite kinds `comment:<id>` and `sticky:<id>` are checked by the verifier.
-- **Why this is safe enough** [Proposal]: the worry behind C6a was text from any account steering BMO. dp already treats all repository text as data and never as instructions (DEC-064). BMO's output is only a proposal, the preview shows the exact prompt before anything is sent, and citations are checked. A comment is more data of the same kind. What remains is that a comment can mislead an answer, which the label and the cites make visible.
-- **One exception I kept** [Proposal; overrule it if you want]: attachments (Wave 16) are always listed to BMO with name, type, size and who added them, and a text file's content goes in after redaction. The contents of images, PDFs and Office files are not sent, because dp cannot scan them for secrets (DEC-064). Sending them would need a vision-capable model and a decision about unscannable content.
+- **Why this is safe enough** [Proposal]: the worry behind C6a was text from any account steering BMO. dp already treats all repository text as data and never as instructions (COD-03). BMO's output is only a proposal, the preview shows the exact prompt before anything is sent, and citations are checked. A comment is more data of the same kind. What remains is that a comment can mislead an answer, which the label and the cites make visible.
+- **One exception I kept** [Proposal; overrule it if you want]: attachments (Wave 16) are always listed to BMO with name, type, size and who added them, and a text file's content goes in after redaction. The contents of images, PDFs and Office files are not sent, because dp cannot scan them for secrets (COD-03). Sending them would need a vision-capable model and a decision about unscannable content.
 
 ### Q2.3 What `dp context` prints
 
 **Proposed**
 - The command is `dp context <object or diagram> [--for explain|review|code] [--json]`. It prints the same fixed pack BMO would get, without the system text.
 - The pack holds the object, its parents and lines, its notes, the decisions about it and its code paths. `--code` adds redacted excerpts.
-- It is for coding agents such as Claude Code, and for people. It gives agents the model without building an MCP server (DEC-020).
+- It is for coding agents such as Claude Code, and for people. It gives agents the model without building an MCP server (PRO-12).
 
 **Recommended.** Yes, as Markdown, with `--json` as an option.
 
@@ -247,7 +247,7 @@ Applied 2026-11-19 ([the questions section below](#questions-options-and-answers
 
 **Owner's thinking:** Yes. It should support non-LLM usage as well, and this can be turned on and off in the settings. If turned off, BMO can just be a simple search, or whatever deterministic commands you want to do.
 
-**Applied [2026-11-19].** Yes, and it reaches beyond help: BMO gets an LLM switch (DEC-093).
+**Applied [2026-11-19].** Yes, and it reaches beyond help: BMO gets an LLM switch (COD-10).
 - **The switch:** the existing `enabled` flag in the BMO settings (`src/assistant/settings.ts`), relabelled "Use an LLM". It stays off by default, and architects change it.
 - **Switch off:** BMO is still there, as a deterministic assistant. No prompt is built, nothing is sent, no handoff file is written. It answers a fixed list of commands from the model, notes, decisions, reference notes and docs: `find`, `help`, `show`, `notes`, `decisions about`. A free-text question is run as a search, and the chat says it searched and did not answer.
 - **Switch on:** handoff or direct, as today.
@@ -260,23 +260,23 @@ Applied 2026-11-19 ([the questions section below](#questions-options-and-answers
 **(a) Notes from every account.** The vision says different accounts add notes to diagrams.
 - Today `dp.notes` are model data: architects write them, and engineers write them in a draft. Notes also go into BMO's context when the lens shows them.
 - Comments are open to every account, but they are not model data and never reach BMO.
-- If every account wrote model notes, text from anyone would flow into BMO's context unreviewed. DEC-064 treats text from outside the architects as data, never as instructions, and a note is exactly that kind of text.
+- If every account wrote model notes, text from anyone would flow into BMO's context unreviewed. COD-03 treats text from outside the architects as data, never as instructions, and a note is exactly that kind of text.
 
 Options: (1) **notes are model data, written by those who edit the model; every other account uses comments** (with images and files from Wave 16); (2) every account writes notes, kept in a side file like comments, never sent to BMO.
 **Recommended.** Option 1.
 
 **(b) Pushing risk and telemetry to the ideas list (A7).** I read "push these to the ideas list" as parking Wave 10 (risk storming) and Wave 12 (runtime telemetry). Waves 11 and 13 do not depend on Wave 12. Wave 11 loses its risk parts. If you meant only the wider questions, not the first cuts, say so and the two waves return to the plan.
-**Recommended.** Keep both parked: neither is among the twelve features, and runtime telemetry is outside the software-architecture line (see DEC-104, P5 and P6).
+**Recommended.** Keep both parked: neither is among the twelve features, and runtime telemetry is outside the software-architecture line (see PRO-20, P5 and P6).
 
 **Owner's thinking:** (a) Yes. (b) The owner did not understand the question; it was asked again in plain words, and the answer was: **do not build either for 1.0** (stay parked).
 
-**Later change [2026-11-19].** You then said comments should be reachable by BMO ("everything a person can visualize on screen"). So the reasoning in (a) that kept comments away from BMO no longer holds: comments reach BMO as labelled data (see the follow-up under Q2.2, DEC-094). Who may write what is unchanged: model notes and stickies by those who edit the model, comments by every account.
+**Later change [2026-11-19].** You then said comments should be reachable by BMO ("everything a person can visualize on screen"). So the reasoning in (a) that kept comments away from BMO no longer holds: comments reach BMO as labelled data (see the follow-up under Q2.2, COD-11). Who may write what is unchanged: model notes and stickies by those who edit the model, comments by every account.
 
 **Applied [2026-11-19].** (a) Notes are model data, written by those who edit the model; every other account uses comments with images and files. (b) Waves 10 and 12 stay parked in the ideas list; nothing changes from last time. (Their wave files were deleted on 2026-11-20; the designs are in the ideas list, I2.3 and I2.7.)
 
 ## Added by the 2026-11-20 split
 
-- **[Wave 25](wave-25-bmo-own-subscription.md) turns BMO on by default** (planned_features A2) using the setting and the deterministic commands built here. Keep the "Use an LLM" setting of DEC-093 and the commands (`find`, `help`, `show`, `notes`, `decisions about`) stable and documented; Wave 25 depends on them and runs after this wave.
+- **[Wave 25](wave-25-bmo-own-subscription.md) turns BMO on by default** (planned_features A2) using the setting and the deterministic commands built here. Keep the "Use an LLM" setting of COD-10 and the commands (`find`, `help`, `show`, `notes`, `decisions about`) stable and documented; Wave 25 depends on them and runs after this wave.
 ## Stop and ask if
 
 - ★Q2.1 turns out to need a separate note per object per diagram. Nothing stores per-diagram, per-object text except layout.
@@ -296,18 +296,18 @@ Options: (1) **notes are model data, written by those who edit the model; every 
 | 6 | BMO without an LLM | general-purpose · Opus | `src/assistant/commands.ts` (new), `src/assistant/settings.ts`, `src/server/routes/bmo.ts`, `ui/src/hooks/useBmo.ts`, `ui/src/common/BmoChat.tsx`, BMO settings UI | With the switch off, nothing is built or sent and the commands work; free text runs as `find` |
 | 7 | `dp context`, `dp find`, help corpus, search, help task | general-purpose · Sonnet | `src/cli.ts`, `scripts/` (corpus build), `src/assistant/help.ts` (new), `prompts.ts` | Byte-stable output; search ranks deterministically; help answers cite sections |
 | 8 | Tests by another agent | general-purpose · Sonnet | `tests/unit/`, `tests/browser/` | Tests as listed below |
-| 9 | Docs | general-purpose · Haiku | decisions.md (update DEC-092 and DEC-093 if the build differs), the review file (notes for the release entry, not the CHANGELOG), CLAUDE.md, README, `docs/determinism.md` | All docs updated |
+| 9 | Docs | general-purpose · Haiku | decisions.md (update REC-03 and COD-10 if the build differs), the review file (notes for the release entry, not the CHANGELOG), CLAUDE.md, README, `docs/determinism.md` | All docs updated |
 | 10 | Review | main session | — | `/code-review` (high) and `/security-review` (the renderer, and what the LLM-off mode can send) findings fixed |
 
 ## Required in this wave
 
 - **Routes.** The help, find and context routes are GET only. Sticky edits go through the model edit routes, which need a `ROUTE_RULES` entry with the `edit` action. Moving, editing and deleting a sticky each count as an edit.
-- **Hub.** Search works per project and on hub pages; the help corpus is the same everywhere. BMO's LLM switch is a hub-level setting (DEC-064).
+- **Hub.** Search works per project and on hub pages; the help corpus is the same everywhere. BMO's LLM switch is a hub-level setting (COD-03).
 - **Read-only mode.** No sticky or note edits. Search and commands still work.
 - **Units.** Stickies need units in `modelUnits.ts`, labels in `diff.ts`, merging, the change list and `dp diff`.
 - **Packaging.** The help corpus is built into `dist/`, so the `package.json` `files` list covers it. Check that the package test still passes.
 - **Static export.** It includes stickies and object notes.
-- **Comments.** Placed comments keep working as they do today (DEC-070). Nothing in `comments.json` changes shape. BMO reads them; it never writes them.
+- **Comments.** Placed comments keep working as they do today (REC-02). Nothing in `comments.json` changes shape. BMO reads them; it never writes them.
 
 ## Tests
 
@@ -345,7 +345,7 @@ Options: (1) **notes are model data, written by those who edit the model; every 
 
 ## Docs
 
-- **DEC-092, DEC-093 and DEC-094** are already written (2026-11-19): sticky notes as model data and BMO always reading notes and comments (amends DEC-070 and DEC-073), BMO without an LLM, and screen parity (BMO can reach everything the UI shows). This wave adds one more DEC for the help corpus, what ships, and `dp context` as the alternative to MCP.
+- **REC-03, COD-10 and COD-11** are already written (2026-11-19): sticky notes as model data and BMO always reading notes and comments (amends REC-02 and COD-09), BMO without an LLM, and screen parity (BMO can reach everything the UI shows). This wave adds one more decision entry for the help corpus, what ships, and `dp context` as the alternative to MCP.
 - **README:** notes, stickies, `dp context`, `dp find`, help, the LLM switch.
 - **CLAUDE.md:** the new files (`commands.ts`, `help.ts`, `Markdown.tsx`, the Notes page) and a line that placed notes are comments while stickies are model data.
 - **The review file** (not the CHANGELOG, which the release change writes): this wave's entries.

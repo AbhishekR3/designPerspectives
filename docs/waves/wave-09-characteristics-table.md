@@ -98,7 +98,7 @@ Applied 2026-11-19: the owner answered Part A and left Part B blank, so every Q 
 
 ## Questions, options and answers (moved from questions.md)
 
-*Moved from the deleted `questions.md` on 2026-11-20, with the owner's words as written. In the quotes, `future_tasks.md` and `backlog.md` mean the old backlog, now [planned_features.md](../planned_features.md) and the owner's private ideas list; `docs/waves/v1-scope-review.md` was decided in DEC-104.*
+*Moved from the deleted `questions.md` on 2026-11-20, with the owner's words as written. In the quotes, `future_tasks.md` and `backlog.md` mean the old backlog, now [planned_features.md](../planned_features.md) and the owner's private ideas list; `docs/waves/v1-scope-review.md` was decided in PRO-20.*
 
 ### ★Q9.1 Scale and scope
 
@@ -111,7 +111,7 @@ Applied 2026-11-19: the owner answered Part A and left Part B blank, so every Q 
 - Add "needed" stars beside "current", per element.
 - A container without its own target shows its system's, labelled "from the system".
 - Gap = needed − current.
-- Ratings on lines and flows come later (planned_features B5).
+- Ratings on lines and flows come later (the former backlog B5 (now in the wave files)).
 
 **Recommended.** Yes.
 
@@ -155,6 +155,10 @@ Applied 2026-11-19: the owner answered Part A and left Part B blank, so every Q 
 
 **Applied [2026-11-20].** As recommended: accept it and say so in the CHANGELOG.
 
+## Carried from the backlog (moved from planned_features.md, 2026-11-21)
+
+- **Characteristic rating targets, one-off costs and cost per environment** (was B5; medium). So overlays can show gaps against a target. Targets ("needed" stars) are this wave; one-off costs and cost per environment stay later work (see "Work outside the waves" in [README.md](README.md)). **Ratings on relationships and whole flows** (today objects only; medium) are also later work. [Source: review stage-a3; Owner, 2026-11-17 (targets).]
+
 ## Stop and ask if
 
 - ★Q9.1 asks for half stars.
@@ -191,11 +195,11 @@ Applied 2026-11-19: the owner answered Part A and left Part B blank, so every Q 
 
 ## Docs
 
-- **New DEC:** needed and current; inheritance; `impacts` in decisions; hints are never written into ratings.
+- **New decision entry:** needed and current; inheritance; `impacts` in decisions; hints are never written into ratings.
 - **README:** the table.
 - **CLAUDE.md:** `CharacteristicsPage.tsx`.
 - **The review file** (not the CHANGELOG, which the release change writes): this wave's entries.
-- **planned_features.md:** B5 ("rating targets") done; ratings on relationships and flows stay.
+- **Backlog:** the "rating targets" item (see "Carried from the backlog" here) is done; ratings on relationships and flows stay.
 - **`docs/determinism.md`:** rows for this wave.
 
 ## Out of scope

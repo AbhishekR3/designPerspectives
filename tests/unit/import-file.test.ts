@@ -1,4 +1,4 @@
-/** The import file (DEC-051): the schema, the reader, and the checks that need no LLM. One fixture per error. */
+/** The import file (COD-02): the schema, the reader, and the checks that need no LLM. One fixture per error. */
 
 import path from "node:path";
 import { describe, expect, it } from "vitest";

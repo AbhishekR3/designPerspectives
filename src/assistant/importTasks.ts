@@ -1,5 +1,5 @@
 /**
- * The import tasks as the routes and the CLI run them without a model (DEC-051): build the inputs of a task
+ * The import tasks as the routes and the CLI run them without a model (COD-02): build the inputs of a task
  * from the stored scan, the intake, the review feedback and the model, write the handoff folder (a person's own
  * coding agent does the work), and check the result that comes back. Direct backends (`providerBackend.ts`) use the same inputs.
  *
@@ -79,7 +79,7 @@ export function parseHandoffRequest(b: unknown): HandoffRequest {
   return req;
 }
 
-/** Typed feedback on the import drafts' review items and drafts, then the answers on the checklist (DEC-084), for the next turn. */
+/** Typed feedback on the import drafts' review items and drafts, then the answers on the checklist (REC-05), for the next turn. */
 export function importFeedback(drafts: Drafts): FeedbackNote[] {
   const out: FeedbackNote[] = [];
   for (const d of drafts.list()) {

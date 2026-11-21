@@ -13,7 +13,7 @@ Read [README.md](README.md) first: its rules, agents and checks apply to this wa
 
 ## Goal
 
-Accounts can attach images and files to a diagram, a box or line, a decision, a note or a comment, and everyone who can see the project can see them. A whiteboard photo, a PDF of a contract, a spreadsheet, a screenshot of a console. BMO can reach what a person can see (DEC-094): every attachment is listed to it, and the text of text files goes in after redaction; images, PDFs and Office files are listed but their contents are never sent. Nothing attached is ever run or shown in a way that could execute.
+Accounts can attach images and files to a diagram, a box or line, a decision, a note or a comment, and everyone who can see the project can see them. A whiteboard photo, a PDF of a contract, a spreadsheet, a screenshot of a console. BMO can reach what a person can see (COD-11): every attachment is listed to it, and the text of text files goes in after redaction; images, PDFs and Office files are listed but their contents are never sent. Nothing attached is ever run or shown in a way that could execute.
 
 ## Owner request covered
 
@@ -21,18 +21,18 @@ Accounts can attach images and files to a diagram, a box or line, a decision, a 
 
 ## What exists today [Fact]
 
-- **No attachment of any kind.** Comments, notes and decisions are text. Sticky notes on a diagram (DEC-070) are comments with a position (`src/core/comments.ts`). Wave 2 turns them into model data (`dp.stickies`, DEC-092); placed comments stay.
-- **Comments are open to every role,** including viewers (`comment` in the action table, `src/server/auth.ts:11-27`; DEC-049). `comments.json` is capped at 10 MB (`comments.ts` `MAX_FILE_BYTES`).
+- **No attachment of any kind.** Comments, notes and decisions are text. Sticky notes on a diagram (REC-02) are comments with a position (`src/core/comments.ts`). Wave 2 turns them into model data (`dp.stickies`, REC-03); placed comments stay.
+- **Comments are open to every role,** including viewers (`comment` in the action table, `src/server/auth.ts:11-27`; REC-01). `comments.json` is capped at 10 MB (`comments.ts` `MAX_FILE_BYTES`).
 - **A request body must be JSON under 5 MB** (`src/server/requestProtection.ts:12`, `:94-102`). This rule is also the cross-site defence.
 - **Drafts copy the whole decisions folder** into the draft and into its base (`src/core/drafts.ts:208-212`), so a file kept inside `decisions/` would be stored three times per draft.
-- **Secrets.** A decision holding a secret is refused (DEC-064). Binary files cannot be scanned for secrets.
-- **The planned static export includes attachments** (DEC-024).
-- **Precedents for files beside the model** with a store, routes and UI: `comments.json` (DEC-049), `checklist.json` (DEC-084).
+- **Secrets.** A decision holding a secret is refused (COD-03). Binary files cannot be scanned for secrets.
+- **The planned static export includes attachments** (PRO-13).
+- **Precedents for files beside the model** with a store, routes and UI: `comments.json` (REC-01), `checklist.json` (REC-05).
 - **`dp.links`** holds `{label, url}` lists on elements (`src/core/modelEdits.ts:956-961`).
 
 ## Design [Proposal]
 
-1. **Store** (`src/core/attachments.ts`, new). Content-addressed files in `architecture/attachments/<sha256>.<ext>`. The same bytes are stored once. The store sits outside `decisions/` and outside every draft, so drafts never copy it. Like `comments.json` and `checklist.json`, it is beside the model, not in it; a DEC adds it to CLAUDE.md's list of files outside the workspace.
+1. **Store** (`src/core/attachments.ts`, new). Content-addressed files in `architecture/attachments/<sha256>.<ext>`. The same bytes are stored once. The store sits outside `decisions/` and outside every draft, so drafts never copy it. Like `comments.json` and `checklist.json`, it is beside the model, not in it; a decision entry adds it to CLAUDE.md's list of files outside the workspace.
 2. **References are model data.** An object that has attachments carries a `dp.attachments` property: a list of `{hash, name, type, size, by, at}`. A decision lists them in an `## Attachments` section. A comment holds the same list in `comments.json`. So references go through drafts, undo, `dp diff` and merge; the file store itself does not.
 3. **Upload, up to 10 MB per file.** Base64 inside the 5 MB JSON limit cannot carry 10 MB, so the upload is a raw body on its own route, `POST /api/attachments`, with its own limit. The cross-site defence has to survive that change, because today it rests on "the body must be JSON" (`requestProtection.ts:94-102`):
    - the request must be `Content-Type: application/octet-stream` **and** carry a custom header (`X-DP-Upload: 1`, with the file name in `X-DP-Name`, URL-encoded). A web page on another origin cannot send a custom header without a preflight, and this server refuses preflights, so a cross-site page still cannot upload. (A multipart form would not be safe: a page can post one without asking.)
@@ -47,19 +47,19 @@ Accounts can attach images and files to a diagram, a box or line, a decision, a 
    - **Refused:** SVG, HTML, scripts, archives, executables and anything else. SVG is refused, not downloaded, because a saved SVG can run script when opened.
 5. **Serving.** `GET /api/attachments/<hash>` always sends `X-Content-Type-Options: nosniff`. Images are served with `Content-Security-Policy: sandbox; default-src 'none'` and shown only through an `<img>` tag. A PDF is served inline as above. Text types are fetched by the page and shown as text. Office files get `Content-Disposition: attachment`. The type sent is the one the server worked out, never the client's.
 6. **Who may attach** (owner, C4: anyone).
-   - **Every role, viewers included, can attach to a comment**, because every role can comment (DEC-049).
+   - **Every role, viewers included, can attach to a comment**, because every role can comment (REC-01).
    - To a decision, a note or an object: whoever may edit that thing, as before. Engineers do it in a draft. A viewer cannot edit those, so a viewer's files go on comments.
    - The route gets a `ROUTE_RULES` entry for the `attach` action, open to every role. Because a viewer's upload writes to the disk, the limits in item 7 matter more.
 7. **Limits.** 10 MB per file; a total cap per project (proposal: 500 MB, a warning at 80%); an allowlist of types; a limit on uploads per minute for one session. A breach is a `ModelError` with the reason. Files live in a git repository, so large totals make it heavy: `dp check` says so, and an architect can remove files.
 8. **Orphans.** `dp check` warns about files that nothing references. An architect action removes them. A file that is referenced is never removed.
 9. **Markdown.** Wave 2's renderer gains `![alt](attachment:<hash>)`, which resolves only to a stored attachment. It never loads a remote image: no tracking, no request leaving the machine.
-10. **BMO** (screen parity, DEC-094).
+10. **BMO** (screen parity, COD-11).
     - **Always in the pack:** every attachment on the scope, listed with name, type, size, who and when.
     - **Text files** (txt, md, csv, json): their content goes in as a data block, through redaction and the pack's budget, like a code file. The manifest says "included" or "left out: budget".
-    - **Images, PDFs and Office files:** listed only. dp cannot look inside them for secrets, so DEC-064's rule keeps their contents out. The manifest says "N attachments, contents not sent".
+    - **Images, PDFs and Office files:** listed only. dp cannot look inside them for secrets, so COD-03's rule keeps their contents out. The manifest says "N attachments, contents not sent".
     - **A local reference** is listed by file name and never read.
     - `dp context` does the same.
-11. **Static export.** Includes only attachments referenced by what is exported, and only after the review step DEC-024 asks for.
+11. **Static export.** Includes only attachments referenced by what is exported, and only after the review step PRO-13 asks for.
 12. **Reference a file on this computer** (owner, Q3.5), so a large file need not be copied, and **open it in the system's default app** (owner, 2026-11-19: "if I click a PDF it opens in Adobe Acrobat, a .xls in Excel").
     - **Storing.** Beside "Upload" in every attach widget there is "Reference a file on this computer". It stores the path (the `local:` kind Wave 3 builds for decision links): an absolute path or one starting with `~/`. It appears in `dp.attachments` as `{local, name, by, at}` beside uploaded entries `{hash, …}`.
     - **Never read.** dp does not read, copy, hash or upload the file, and never sends its contents to BMO. A path in git only helps on that machine, and shows a user name unless written with `~/`.
@@ -84,18 +84,18 @@ Accounts can attach images and files to a diagram, a box or line, a decision, a 
 ## Owner answers
 
 - **C4:** anyone can attach (every role, viewers on comments).
-- **Q3.5 (2026-11-19):** also allow a reference to a file on the user's own machine, so nothing is duplicated (item 12). **Follow-up the same day:** a click opens it in the system's default app, with the limits in item 12 (DEC-095).
-- **D5 (2026-11-20, DEC-100):** the owner confirmed "open in the default app" when offered "Copy path only" as the safer default. Item 12 stays as written; Copy path only is the fallback on a server that is not on the reader's machine and, if the security review finds the route unsafe, everywhere (the stop condition below still applies).
-- **Screen parity (2026-11-19):** BMO can reach everything a person can see. For attachments that means they are listed, text files' content goes in redacted, and images, PDFs and Office files are listed only (item 10, DEC-094). The assistant kept that last exception because dp cannot scan those files for secrets; the owner may overrule it.
+- **Q3.5 (2026-11-19):** also allow a reference to a file on the user's own machine, so nothing is duplicated (item 12). **Follow-up the same day:** a click opens it in the system's default app, with the limits in item 12 (SEC-03).
+- **D5 (2026-11-20, PRO-17):** the owner confirmed "open in the default app" when offered "Copy path only" as the safer default. Item 12 stays as written; Copy path only is the fallback on a server that is not on the reader's machine and, if the security review finds the route unsafe, everywhere (the stop condition below still applies).
+- **Screen parity (2026-11-19):** BMO can reach everything a person can see. For attachments that means they are listed, text files' content goes in redacted, and images, PDFs and Office files are listed only (item 10, COD-11). The assistant kept that last exception because dp cannot scan those files for secrets; the owner may overrule it.
 - **C5:** up to 10 MB per file. Files are stored locally in the project and open directly from it. This needed a raw upload route with its own cross-site rule (item 3); that design and the PDF-inline choice are the assistant's proposals for the security review.
 
 ## Questions, options and answers (moved from questions.md)
 
-*Moved from the deleted `questions.md` on 2026-11-20, with the owner's words as written. In the quotes, `future_tasks.md` and `backlog.md` mean the old backlog, now [planned_features.md](../planned_features.md) and the owner's private ideas list; `docs/waves/v1-scope-review.md` was decided in DEC-104.*
+*Moved from the deleted `questions.md` on 2026-11-20, with the owner's words as written. In the quotes, `future_tasks.md` and `backlog.md` mean the old backlog, now [planned_features.md](../planned_features.md) and the owner's private ideas list; `docs/waves/v1-scope-review.md` was decided in PRO-20.*
 
 ### ★C4. Who may attach images and files?
 
-**Analysis.** Attaching writes a file to the repository's disk (see [Wave 16](wave-16-attachments.md)). Comments are open to every role, viewers included (DEC-049). A viewer's text comment is a few kilobytes; a viewer's upload is up to a file cap.
+**Analysis.** Attaching writes a file to the repository's disk (see [Wave 16](wave-16-attachments.md)). Comments are open to every role, viewers included (REC-01). A viewer's text comment is a few kilobytes; a viewer's upload is up to a file cap.
 
 **Options**
 1. Whoever may comment may attach to a comment, viewers included. Others attach where they may edit.
@@ -167,7 +167,7 @@ Accounts can attach images and files to a diagram, a box or line, a decision, a 
 
 ## Docs
 
-- **New DEC:** the attachment store, the raw upload route and its cross-site rule, the type rules, and who may attach (anyone). DEC-094 (screen parity) and DEC-095 (opening local files) are already written; update them if the build differs.
+- **New decision entry:** the attachment store, the raw upload route and its cross-site rule, the type rules, and who may attach (anyone). COD-11 (screen parity) and SEC-03 (opening local files) are already written; update them if the build differs.
 - **The review file** (not the CHANGELOG, which the release change writes): notes for the release entry.
 - **CLAUDE.md:** `attachments.ts` and its route module.
 - **README:** the collaboration paragraph.

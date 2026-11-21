@@ -7,7 +7,7 @@
 | **Size** | M |
 | **Release** | 0.7.0 (with Waves 1, 2, 25, 29) |
 | **Depends on** | Nothing |
-| **Owner items** | A new hub includes the demo project (DEC-082) and a person must be able to remove it, or any project, without editing a file by hand. [../planned_features.md](../planned_features.md) A3. Amends DEC-082 |
+| **Owner items** | A new hub includes the demo project (HUB-05) and a person must be able to remove it, or any project, without editing a file by hand. [../planned_features.md](../planned_features.md) A3. Amends HUB-05 |
 
 Read [README.md](README.md) first: its rules, agents and checks apply to this wave.
 
@@ -17,11 +17,11 @@ An architect can remove a project from a hub in the UI: first "Remove from this 
 
 ## What exists today [Fact; anchors from planned_features A3, re-anchor first]
 
-- `initHub` adds the demo project to a new hub (`src/server/hub.ts`, near lines 172 to 193). A single-project `dp serve` starts empty unless `--demo` is given (`src/cli.ts`, DEC-036).
-- No `Hub` method, route, button or command removes a project. DEC-082 says it "can be removed by hand from `hub.json`".
+- `initHub` adds the demo project to a new hub (`src/server/hub.ts`, near lines 172 to 193). A single-project `dp serve` starts empty unless `--demo` is given (`src/cli.ts`, HUB-01).
+- No `Hub` method, route, button or command removes a project. HUB-05 says it "can be removed by hand from `hub.json`".
 - `Hub.addProject` and `POST /api/hub/projects` add one; the new-project dialog offers "Demo bank" as a template.
 - The hub keeps one app per project (`apps` in `src/server/hub.ts`), each with a System Testing session that must be closed.
-- Per-project roles are `Auth.projectRole` (users file `projects`, DEC-057); BMO settings have a per-project `projects` part in `.dp/bmo.json`.
+- Per-project roles are `Auth.projectRole` (users file `projects`, HUB-07); BMO settings have a per-project `projects` part in `.dp/bmo.json`.
 
 ## Design [Proposal]
 
@@ -84,7 +84,7 @@ The unlist-plus-optional-delete choice (planned_features A3, 2026-11-20).
 
 ## Docs
 
-- **New DEC** (HUB topic, Projects): amends DEC-082 ("Now:" line). **README**, **CLAUDE.md** code map (`hub.ts`), **manual-test-plan**, **planned_features.md** A3: mark built.
+- **New decision entry** (HUB topic, Projects): amends HUB-05 ("Now:" line). **README**, **CLAUDE.md** code map (`hub.ts`), **manual-test-plan**, **planned_features.md** A3: mark built.
 
 ## Out of scope
 

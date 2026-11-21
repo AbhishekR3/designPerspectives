@@ -1,5 +1,5 @@
 /**
- * What the import routes and the `dp scan` command share (DEC-051): the scan of a project, the analysis as it
+ * What the import routes and the `dp scan` command share (COD-02): the scan of a project, the analysis as it
  * stands now, the summary of the import drafts, the ignore list and the finalize rule. Nothing here reads
  * the network or calls a model.
  *

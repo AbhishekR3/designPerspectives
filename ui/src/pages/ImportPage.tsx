@@ -1,5 +1,5 @@
 /**
- * Import code (DEC-051): a page over the diagram. Scan the code, see what is decided and what is left, answer
+ * Import code (COD-02): a page over the diagram. Scan the code, see what is decided and what is left, answer
  * what the code cannot say, then bring one level at a time into the model as a draft (your own coding agent, an
  * import file, or BMO). Nothing here changes the main model: every way ends as a draft that is reviewed first.
  */
@@ -26,7 +26,7 @@ interface Props {
   onClose(): void;
   /** Open an import draft (closes the page). */
   onOpenDraft(draftId: string): void;
-  /** The checklist (DEC-084): BMO's questions land on it, and the import list is one of its starters. */
+  /** The checklist (REC-05): BMO's questions land on it, and the import list is one of its starters. */
   checklist: ChecklistApi;
   /** Close this page and open the checklist card. */
   onOpenChecklist(): void;

@@ -39,7 +39,7 @@ C4Context
 ```
 
 Notes:
-- Git is used only to read (`src/core/git.ts`, via the git CLI, DEC-018). The CI pipeline of dp itself is GitLab (DEC-089); the CI box above is any CI that runs `dp work import` or `dp check`.
+- Git is used only to read (`src/core/git.ts`, via the git CLI, DRF-05). The CI pipeline of dp itself is GitLab (PRO-10); the CI box above is any CI that runs `dp work import` or `dp check`.
 - LLM calls happen only through BMO, which is off by default. The preview shows the exact prompt and its hash; a run is refused unless the hash matches.
 - Work tools: adapters `github`, `gitlab`, `sonar`, `jira` in `src/core/workTools/`. Hosted and self-hosted variants both work through a connection with a base URL (`.dp/integrations.json`, `src/core/integrations.ts`): `github.com`, `gitlab.com` and `sonarcloud.io` are built in; GitHub Enterprise uses `<base>/api/v3`, self-hosted GitLab `<base>/api/v4`, SonarQube `<base>/api`, Jira `<base>/rest/api/2` and has no built-in host (`apiRoot` in each adapter). Whether each variant works against a real server has never been run (manual test plan U4).
 
@@ -78,7 +78,7 @@ Technologies from the sources: TypeScript throughout, Hono (server), commander (
 Other container-level facts:
 - `static/` (built UI) is committed and shipped in the npm package; `dist/` (compiled server and CLI) is not committed.
 - `.dp/` holds machine-local settings outside the model, git-ignored: `bmo.json`, `integrations.json`, `testing.json`, `users.json` (`<project>/.dp/users.json`, `src/core/users.ts`) and `credentials.json` (`<hub or project>/.dp/credentials.json`, mode 0600, `src/core/credentials.ts`).
-- A hub (`dp serve --hub DIR`) serves several project folders from one server, with a shared catalog and one sign-in (DEC-054).
+- A hub (`dp serve --hub DIR`) serves several project folders from one server, with a shared catalog and one sign-in (HUB-04).
 - Only `dp serve` builds the server app (`buildApp` or, with `--hub`, `createHubApp`, `src/cli.ts`). The other commands import `core/`, `import/` and `assistant/` directly and read or write the files themselves; none of them calls the server over HTTP.
 
 ## 3. Components of the backend
@@ -93,7 +93,7 @@ flowchart LR
     ctx["routeContext.ts<br/>shared Ctx, per-request model version"]
     routes["routes/*<br/>one register-Area per area"]
     prot["requestProtection.ts, auth.ts<br/>headers, Host checks, sign-in, roles"]
-    test["interceptProxy.ts, testSession.ts<br/>System Testing, DEC-075"]
+    test["interceptProxy.ts, testSession.ts<br/>System Testing, RUN-06"]
   end
   subgraph core["src/core"]
     proj["project.ts<br/>Project: load, edit, undo/redo"]

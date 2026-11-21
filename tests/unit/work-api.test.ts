@@ -1,4 +1,4 @@
-/** The linked work routes (DEC-085): list, replace a target's list, push items, import a report; drafts, roles and limits. */
+/** The linked work routes (WRK-02): list, replace a target's list, push items, import a report; drafts, roles and limits. */
 
 import { describe, expect, it } from "vitest";
 import { client, demoDir, ok, type Client } from "./helpers.js";

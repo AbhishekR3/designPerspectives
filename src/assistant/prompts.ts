@@ -1,5 +1,5 @@
 /**
- * BMO's prompt templates (DEC-051: the prompt ships in the package, versioned with it). TypeScript string
+ * BMO's prompt templates (COD-02: the prompt ships in the package, versioned with it). TypeScript string
  * builders, not loose .md files, because the package ships only `dist/`.
  *
  * Every prompt has two parts:

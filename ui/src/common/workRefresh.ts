@@ -1,4 +1,4 @@
-// Reading the status of linked work from its tools (DEC-059, DEC-085): which links a known connection reads, and the toast after a refresh.
+// Reading the status of linked work from its tools (WRK-01, WRK-02): which links a known connection reads, and the toast after a refresh.
 import { api } from "../api";
 import { connectionFor } from "../../../src/shared/workLinks";
 import { errorMessage, notify } from "./notify";

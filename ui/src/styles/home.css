@@ -1,5 +1,5 @@
-/* The hub-level pages (DEC-053): the shell with its left rail, the home page, the catalog and credentials
-   pages, and the data rows of the panels (DEC-055). Imported after pages.css. */
+/* The hub-level pages (HUB-03): the shell with its left rail, the home page, the catalog and credentials
+   pages, and the data rows of the panels (HUB-06). Imported after pages.css. */
 
 .hub {
   display: grid;
@@ -476,7 +476,7 @@ a.home-link:hover {
   }
 }
 
-/* History (DEC-058). */
+/* History (DRF-06). */
 .hist {
   list-style: none;
   margin: 0;

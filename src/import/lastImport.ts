@@ -1,6 +1,6 @@
 /**
  * The import ledger: what the importer last wrote, so a re-import can tell a person's edit from its own
- * value without any label in the model (DEC-051).
+ * value without any label in the model (COD-02).
  *
  *   architecture/import/ledger.json              per element / relationship ID and field, the canonical
  *                                                value the importer wrote and main now holds

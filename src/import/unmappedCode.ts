@@ -1,6 +1,6 @@
 /**
  * `dp check` warning for source files that sit under a mapped container but that no component maps
- * (DEC-051). Read from the stored scan (`evidence.json`), so it needs no file walk, and only once an import
+ * (COD-02). Read from the stored scan (`evidence.json`), so it needs no file walk, and only once an import
  * has been started (a scan exists) and only when the intake's depth reaches components (C3 or C4). Files
  * on the import ignore list do not count. A warning, never an error.
  */

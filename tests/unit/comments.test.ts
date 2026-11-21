@@ -1,4 +1,4 @@
-/** Comments, ideas and questions on elements, relationships and diagrams (DEC-049). */
+/** Comments, ideas and questions on elements, relationships and diagrams (REC-01). */
 
 import fs from "node:fs";
 import path from "node:path";

@@ -1053,7 +1053,7 @@ if (invokedDirectly) {
   void p.parseAsync();
 }
 
-/** `dp work ...`: linked work (DEC-085) from the command line, for scripts and CI. Nothing here uses the network: a report is a file. */
+/** `dp work ...`: linked work (WRK-02) from the command line, for scripts and CI. Nothing here uses the network: a report is a file. */
 function workCommands(p: Command): void {
   const work = p
     .command("work")

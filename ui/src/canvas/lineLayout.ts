@@ -39,7 +39,7 @@ import {
   type Side,
 } from "./routing.js";
 
-/** Jogs shorter than this are made straight by the planner: the same 12px as the near-straight rule of planPorts and separateRoutes (DEC-061). */
+/** Jogs shorter than this are made straight by the planner: the same 12px as the near-straight rule of planPorts and separateRoutes (CAN-07). */
 const PLANNED_JOG = 12;
 
 export interface LineInput extends RouteEdge {

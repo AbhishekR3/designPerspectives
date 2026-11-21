@@ -1,9 +1,9 @@
 /**
- * Jira issues (DEC-085), only through a connection an architect adds (every Jira site has its own host, so
+ * Jira issues (WRK-02), only through a connection an architect adds (every Jira site has its own host, so
  * there is no built-in one). Link: `<base>/browse/KEY-123`, read through
  * `<base>/rest/api/2/issue/KEY-123?fields=status,summary,priority`. The status category decides the state:
  * new → open, indeterminate → in-progress, done → done; the status name is the tool's own words. The priority
- * gives the severity through the model's `jira` table (DEC-087; by default Highest → critical, High → high,
+ * gives the severity through the model's `jira` table (WRK-04; by default Highest → critical, High → high,
  * Medium → medium, Low and Lowest → low; a site's own priority names can be added). Jira Cloud signs
  * in with basic auth (`auth: "basic"`, the credential `email:api-token`); Jira Data Center with a bearer token.
  */

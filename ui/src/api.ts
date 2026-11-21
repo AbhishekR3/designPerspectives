@@ -213,7 +213,7 @@ export const api = {
   updateRelationship: (id: string, patch: object) => request("PATCH", `/relationships/${enc(id)}`, patch),
   traces: (limit = 30) => request<TraceList>("GET", `/traces?limit=${limit}`),
   trace: (id: string, ui: string | null) => request<ObservedTrace>("GET", `/traces/${enc(id)}${ui ? `?ui=${enc(ui)}` : ""}`),
-  // System testing mode (DEC-075): always about the main model.
+  // System testing mode (RUN-06): always about the main model.
   testing: (signal?: AbortSignal) => request<TestingState>("GET", "/testing", undefined, { main: true, signal }),
   testingEvents: (since: number, signal?: AbortSignal) => request<TestingState>("GET", `/testing/events?since=${since}&wait=25`, undefined, { main: true, signal }),
   testingCall: (id: string) => request<TestCallDetail>("GET", `/testing/calls/${enc(id)}`, undefined, { main: true }),
@@ -261,21 +261,21 @@ export const api = {
   deleteFlow: (key: string) => request("DELETE", `/flows/${enc(key)}`),
   changes: () => request<ChangeSet>("GET", "/changes"),
   decisions: () => request<Decision[]>("GET", "/decisions"),
-  // Hub-level: the same in a hub and for one project (DEC-053 to DEC-056).
+  // Hub-level: the same in a hub and for one project (HUB-03, HUB-04, HUB-06 and SEC-06).
   // About the server, not a project or a model version: asked the same way whatever is open (a refresh while a project or a draft is shown).
   hub: () => request<HubInfo>("GET", "/hub", undefined, { project: null, main: true }),
   home: () => request<HomeSummary>("GET", "/home", undefined, { project: null, main: true }),
   catalog: () => request<CatalogEntry[]>("GET", "/catalog"),
   catalogUsage: () => request<SharedUsage>("GET", "/catalog/usage"),
   history: (project?: string | null) => request<HistoryList>("GET", `/history${project ? `?project=${enc(project)}` : ""}`),
-  // Linked work (DEC-085, DEC-086): every item with what it is pinned to, one target's list, items pushed by a tool, a report import, the status refresh.
+  // Linked work (WRK-02, WRK-03): every item with what it is pinned to, one target's list, items pushed by a tool, a report import, the status refresh.
   work: () => request<WorkList>("GET", "/work"),
   setWork: (target: WorkTarget, work: WorkItem[]) => request<{ ok: boolean; work: WorkItem[] }>("PUT", "/work/target", { target, work }),
   pushWork: (body: { items: WorkPush[]; source?: string; closeMissing?: boolean; dryRun?: boolean }) => request<WorkPushResult>("POST", "/work/items", body),
   importWork: (body: { format: WorkImportFormat; report: string; source?: string; closeMissing?: boolean; dryRun?: boolean }) => request<WorkPushResult>("POST", "/work/import", body),
   /** `tools`: only links of these tools (absent: every tool). */
   setWorkSettings: (severity: WorkSeverityMaps | null) => request<{ ok: boolean }>("PUT", "/work-settings", { severity }),
-  /** Linked work of every project this person may see (the hub's Work page, DEC-088). */
+  /** Linked work of every project this person may see (the hub's Work page, WRK-05). */
   hubWork: () => request<HubWorkList>("GET", "/hub/work", undefined, { project: null, main: true }),
   refreshWork: (tools?: WorkToolId[]) => request<WorkRefresh>("POST", "/work/refresh", tools ? { tools } : undefined),
   // Tool connections (architects): the same in a hub and for one project.
@@ -304,7 +304,7 @@ export const api = {
   applyPreview: (id: string, code = true) => request<ApplyPreview>("GET", `/drafts/${enc(id)}/apply-preview${code ? "" : "?code=0"}`),
   applyDraft: (id: string, code = true) => request<ApplyResponse>("POST", `/drafts/${enc(id)}/apply`, { code }),
   plan: (id: string, against: string | null) => request<CodingPlan>("GET", `/drafts/${enc(id)}/plan${against ? `?against=${enc(against)}` : ""}`),
-  // Import (DEC-051): the page, an import file, the handoff, the review of an import draft (the draft the context selects).
+  // Import (COD-02): the page, an import file, the handoff, the review of an import draft (the draft the context selects).
   importOverview: () => request<ImportOverview>("GET", "/import"),
   importExample: () => request<ImportExample>("GET", "/import/example"),
   importScan: () => request<ImportOverview>("POST", "/import/scan"),
@@ -324,7 +324,7 @@ export const api = {
   reviewVerifyAll: () => request<{ review: ImportReviewResponse["review"] }>("POST", "/import/review/verify", {}),
   reviewAcceptAll: () => request<AcceptAllResult>("POST", "/import/review/accept-all", {}),
   reviewDraftFeedback: (text: string) => request<{ review: ImportReviewResponse["review"] }>("POST", "/import/review/feedback", { text }),
-  // BMO (DEC-051): the status, the settings, a preview of what would be sent, a run.
+  // BMO (COD-02): the status, the settings, a preview of what would be sent, a run.
   /** `project`: the project whose role list applies (the run button); the settings page uses `bmoHub`. */
   bmo: (project?: string | null) => request<BmoStatus>("GET", "/bmo", undefined, project ? { project } : {}),
   /** The settings page: the hub's own settings (no project header; a hub answers them itself, a single project is its own hub). */

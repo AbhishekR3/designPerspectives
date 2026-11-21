@@ -1,5 +1,5 @@
 /**
- * The home page (DEC-053): every project as a card with a picture of its landscape, what needs a look,
+ * The home page (HUB-03): every project as a card with a picture of its landscape, what needs a look,
  * what is being watched (revisit triggers and dates), the latest decisions, and the shared catalog.
  */
 

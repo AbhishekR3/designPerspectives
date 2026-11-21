@@ -45,9 +45,9 @@ Decision records stay on the **Decisions** page (architecture decision records, 
   | :368-375 | Patterns |
 
 - Precedents for files kept beside the model, each with a store, routes and UI:
-  - `architecture/comments.json` (DEC-049): `src/core/comments.ts`, `src/server/routes/comments.ts`;
-  - `architecture/checklist.json` (DEC-084): `src/core/checklist.ts`, starter lists `STARTERS` at `:85-134`, `addStarter` at `:351-375`.
-- Hub-wide sharing exists for the catalog (DEC-055): `src/server/hub.ts`, `src/server/routes/hub.ts`, `ui/src/pages/CatalogPage.tsx`.
+  - `architecture/comments.json` (REC-01): `src/core/comments.ts`, `src/server/routes/comments.ts`;
+  - `architecture/checklist.json` (REC-05): `src/core/checklist.ts`, starter lists `STARTERS` at `:85-134`, `addStarter` at `:351-375`.
+- Hub-wide sharing exists for the catalog (HUB-06): `src/server/hub.ts`, `src/server/routes/hub.ts`, `ui/src/pages/CatalogPage.tsx`.
 - Hub page plumbing: `ui/src/Router.tsx:17-24`, `ui/src/pages/Shell.tsx:16`, `:34-38`, `:63-67`.
 
 **Permissions**
@@ -55,7 +55,7 @@ Decision records stay on the **Decisions** page (architecture decision records, 
 - The checklist action is open to engineers (`:26`).
 - A route without a rule is architect-only, and a test fails (`tests/unit/auth.test.ts:733-734`).
 
-**Decisions (DEC-050)**
+**Decisions (REC-04)**
 - `src/core/decisions.ts` has:
 
   | Lines | What |
@@ -109,7 +109,7 @@ Decision records stay on the **Decisions** page (architecture decision records, 
    - It is parsed into a `links` field, which gets a diff label and merges field by field.
    - Checks:
      - web links must be http or https;
-     - repository paths must stay inside the code root and obey the hidden-path rule (DEC-031);
+     - repository paths must stay inside the code root and obey the hidden-path rule (SEC-02);
      - a `local:` path is text only: an absolute path or one starting with `~/`, at most 500 characters, no control characters. dp never reads, copies, uploads or sends it to BMO.
    - Display: web links open in a new tab with `rel="noopener noreferrer"`; repository paths open the file panel; a `local:` path shows its file name and a Copy path button. **Open in the system's default app is built in [Wave 16](wave-16-attachments.md)** (item 12), not here, because it needs its own security review.
    - `local:` link text goes to BMO as part of the decision (the path text only, never the file).
@@ -136,22 +136,22 @@ Decision records stay on the **Decisions** page (architecture decision records, 
 
 Applied 2026-11-19: the owner answered Part A and Q3.1 to Q3.5 ([the questions section below](#questions-options-and-answers-moved-from-questionsmd)). Q3.6 was left blank, so it uses its recommendation.
 
-- **Q3.1:** the owner asked "What is a library?". It is the reference library of pattern and anti-pattern write-ups (see Goal); the page is called "Reference notes". The recommendation stands: option 4. Per project in `architecture/reference/` and hub-wide in `<hub>/reference/`; a project entry overrides a hub entry with the same name; architects edit, everyone reads; a DEC adds it to CLAUDE.md's list of files outside the workspace.
+- **Q3.1:** the owner asked "What is a library?". It is the reference library of pattern and anti-pattern write-ups (see Goal); the page is called "Reference notes". The recommendation stands: option 4. Per project in `architecture/reference/` and hub-wide in `<hub>/reference/`; a project entry overrides a hub entry with the same name; architects edit, everyone reads; a decision entry adds it to CLAUDE.md's list of files outside the workspace.
 - **Q3.2:** yes for now; an opt-in starter set of about 10 anti-patterns and 5 patterns, in our own words, with book and page references; an Opus subagent checks that no text is copied. The owner wants to review the starters later: it is an item in ideas list O.
 - **Q3.3:** the entry template as proposed (the owner said "whatever you think is best").
 - **Q3.4:** the page stays "Decisions" (option 2). Search for "ADR" finds it.
-- **Q3.5:** links in decisions here, files in [Wave 16](wave-16-attachments.md) (which also covers diagrams, notes and comments), and a reference to a file on the owner's own computer so nothing is duplicated (the `local:` link kind). The owner also wants a click to open it in the system's default app; that is Wave 16's item 12 (DEC-095). Splitting files out keeps this wave at M and gives the security work its own review.
+- **Q3.5:** links in decisions here, files in [Wave 16](wave-16-attachments.md) (which also covers diagrams, notes and comments), and a reference to a file on the owner's own computer so nothing is duplicated (the `local:` link kind). The owner also wants a click to open it in the system's default app; that is Wave 16's item 12 (SEC-03). Splitting files out keeps this wave at M and gives the security work its own review.
 - **Q3.6:** yes, an optional Compliance section that can name a rule.
 
 ## Questions, options and answers (moved from questions.md)
 
-*Moved from the deleted `questions.md` on 2026-11-20, with the owner's words as written. In the quotes, `future_tasks.md` and `backlog.md` mean the old backlog, now [planned_features.md](../planned_features.md) and the owner's private ideas list; `docs/waves/v1-scope-review.md` was decided in DEC-104.*
+*Moved from the deleted `questions.md` on 2026-11-20, with the owner's words as written. In the quotes, `future_tasks.md` and `backlog.md` mean the old backlog, now [planned_features.md](../planned_features.md) and the owner's private ideas list; `docs/waves/v1-scope-review.md` was decided in PRO-20.*
 
 ### ★Q3.1 Where does the library live, and who edits it?
 
 **Analysis**
-- The library isn't data about one object, so the `dp.*` rule doesn't fit. It is like `comments.json` (DEC-049) and `checklist.json` (DEC-084).
-- Hubs already share a catalog across projects (DEC-055).
+- The library isn't data about one object, so the `dp.*` rule doesn't fit. It is like `comments.json` (REC-01) and `checklist.json` (REC-05).
+- Hubs already share a catalog across projects (HUB-06).
 
 **Options**
 1. Per project, in `architecture/reference/`.
@@ -164,7 +164,7 @@ Applied 2026-11-19: the owner answered Part A and Q3.1 to Q3.5 ([the questions s
 - **Which wins:** a project entry overrides a hub entry with the same name.
 - **Kept beside the model:** no drafts and no undo, like the checklist.
 - **Who edits:** architects only, through a new permission (engineers' checklist rights don't cover it). Everyone can read it.
-- **A DEC** adds it to CLAUDE.md's list of files outside the workspace.
+- **A decision entry** adds it to CLAUDE.md's list of files outside the workspace.
 
 **Owner's thinking:** What is a library?
 
@@ -220,7 +220,7 @@ Applied 2026-11-19: the owner answered Part A and Q3.1 to Q3.5 ([the questions s
 
 **Analysis** [Fact]
 - The toolbar button and the page are called "Decisions" (`ui/src/App.tsx:946-950`, `:357`).
-- The files are `architecture/decisions/NNNN-slug.md` (DEC-050). The CLI and the API say "decisions".
+- The files are `architecture/decisions/NNNN-slug.md` (REC-04). The CLI and the API say "decisions".
 - You asked for "a section called ADR Architectural Decision Records".
 
 **Options**
@@ -241,11 +241,11 @@ Applied 2026-11-19: the owner answered Part A and Q3.1 to Q3.5 ([the questions s
 - **A decision can hold neither links nor files today.** Its prose shows as plain text (`ui/src/pages/DecisionsPage.tsx:351-353`).
 - **Drafts copy the whole decisions folder,** into the draft and into its base (`src/core/drafts.ts:208-212`). A file kept there would be stored three times per draft.
 - **A request body must be JSON under 5 MB** (`src/server/requestProtection.ts:12`, `:94-102`). That rule also stops other websites sending requests to dp.
-- **Secrets:** a decision holding a secret is refused (DEC-064), and binary files can't be scanned for secrets.
-- **The planned static export would include attachments** (DEC-024).
+- **Secrets:** a decision holding a secret is refused (COD-03), and binary files can't be scanned for secrets.
+- **The planned static export would include attachments** (PRO-13).
 
 **Options**
-1. **Links now.** A Links section with web links (http and https only) and repository paths. Paths are checked against the code root and the hidden-path rule (DEC-031).
+1. **Links now.** A Links section with web links (http and https only) and repository paths. Paths are checked against the code root and the hidden-path rule (SEC-02).
 2. **Files as well.**
    - Uploaded as base64 inside JSON, into a shared `architecture/attachments/` folder named by content. It sits outside `decisions/`, so drafts don't copy it.
    - A size cap and a list of allowed types.
@@ -265,7 +265,7 @@ Applied 2026-11-19: the owner answered Part A and Q3.1 to Q3.5 ([the questions s
   - It shows the file name and a Copy path button.
   - `dp check` gives an info line if the file does not exist on the machine running the check.
   - Wave 3 builds the link kind for decisions. Wave 16 adds "Reference a file on this computer" beside "Upload" wherever you can attach.
-- **Opening it (follow-up, 2026-11-19):** you asked that a click open the file in the system's default app, such as a PDF in Acrobat or a spreadsheet in Excel. Yes, in [Wave 16](wave-16-attachments.md) (item 12, DEC-095), with limits.
+- **Opening it (follow-up, 2026-11-19):** you asked that a click open the file in the system's default app, such as a PDF in Acrobat or a spreadsheet in Excel. Yes, in [Wave 16](wave-16-attachments.md) (item 12, SEC-03), with limits.
   - A web page cannot open `file:` links [Training], so dp's server asks the operating system to open it, the way the CLI already opens the browser (`src/cli.ts:57-60`).
   - **The danger:** a decision from a cloned repository could point at a program or script, and "open" would start it. So:
     - only a short list of document types opens (PDF, Word, Excel, PowerPoint, CSV, text, Markdown, common images). Programs, scripts, shortcuts, `.app` bundles, `.html`, `.svg` and macro-enabled Office files are refused;
@@ -329,15 +329,15 @@ Applied 2026-11-19: the owner answered Part A and Q3.1 to Q3.5 ([the questions s
 
 ## Docs
 
-- **New DEC:** the library is kept beside the model with a precedence rule and architect-only edits; links in decisions, including `local:` references; the page keeps the name "Decisions". It amends DEC-050 where decisions change.
+- **New decision entry:** the library is kept beside the model with a precedence rule and architect-only edits; links in decisions, including `local:` references; the page keeps the name "Decisions". It amends REC-04 where decisions change.
 - **README:** the reference notes and Decisions (ADRs).
 - **CLAUDE.md:** the map and the list of files outside the workspace.
 - **The review file** (not the CHANGELOG, which the release change writes): the wave's entries.
 - **`docs/determinism.md`:** rows for this wave.
 
-## Decided (DEC-103, 2026-11-20; assistant's reasoning, the owner may overrule)
+## Decided (PRO-19, 2026-11-20; assistant's reasoning, the owner may overrule)
 
-- **N14.** The assumption work of DEC-099 (a decision cites assumption items, a "wrong" state, "needs a look" on the decisions that cite one) is built here, because the decision record and its page hold the link. The "wrong" state is a small checklist change that rides with it. Wave 6 reads that state and does not define it.
+- **N14.** The assumption work of PRO-16 (a decision cites assumption items, a "wrong" state, "needs a look" on the decisions that cite one) is built here, because the decision record and its page hold the link. The "wrong" state is a small checklist change that rides with it. Wave 6 reads that state and does not define it.
 
 ## Out of scope
 

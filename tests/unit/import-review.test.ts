@@ -1,4 +1,4 @@
-/** The review of an import draft (DEC-051): computed levels, per-item decisions, reject with what depends on it, and partial apply. */
+/** The review of an import draft (COD-02): computed levels, per-item decisions, reject with what depends on it, and partial apply. */
 
 import fs from "node:fs";
 import path from "node:path";

@@ -1,6 +1,6 @@
 /**
- * Tool connections for linked work (DEC-085): where links get a live status, and which stored credential
- * (DEC-056) each one sends. Built in: github.com, gitlab.com and sonarcloud.io. Others (a GitLab or SonarQube
+ * Tool connections for linked work (WRK-02): where links get a live status, and which stored credential
+ * (SEC-06) each one sends. Built in: github.com, gitlab.com and sonarcloud.io. Others (a GitLab or SonarQube
  * of the team's own, GitHub Enterprise, a Jira site) are added by architects:
  *
  *   <hub or project>/.dp/integrations.json    {"version": 1, "connections": [WorkConnection...]}

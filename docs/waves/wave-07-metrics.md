@@ -27,7 +27,7 @@ Show coupling numbers for every system, container and component: who depends on 
 - **The model graph:** elements with a parent, relationships between them, and diagrams that lift a lower-level relationship to a higher level as a derived edge (`src/core/diagrams.ts`, documented at its top).
 - **Where numbers can show:** overlays (`ui/src/colourOverlays.ts:8-14`, `:128-196`); the badge row on boxes (`ui/src/canvas/BoxesAndLines.tsx:461-503`); `ElementSummary` (`src/shared/types.ts:264-300`).
 - **What the book says** (notes `fundamentals-of-software-architecture-richards-ford.md`): instability I = Ce ÷ (Ca + Ce) (`:51`); the ideas for dp are at `:55-56`.
-- A relationship through a broker is two relationships, source → broker → target (DEC-065 `via`).
+- A relationship through a broker is two relationships, source → broker → target (COD-08 `via`).
 
 ## Design [Proposal; rewritten after the owner answers]
 
@@ -64,7 +64,7 @@ Show coupling numbers for every system, container and component: who depends on 
 
 ## Questions, options and answers (moved from questions.md)
 
-*Moved from the deleted `questions.md` on 2026-11-20, with the owner's words as written. In the quotes, `future_tasks.md` and `backlog.md` mean the old backlog, now [planned_features.md](../planned_features.md) and the owner's private ideas list; `docs/waves/v1-scope-review.md` was decided in DEC-104.*
+*Moved from the deleted `questions.md` on 2026-11-20, with the owner's words as written. In the quotes, `future_tasks.md` and `backlog.md` mean the old backlog, now [planned_features.md](../planned_features.md) and the owner's private ideas list; `docs/waves/v1-scope-review.md` was decided in PRO-20.*
 
 *The questions of this wave were asked about code metrics, before the owner chose model coupling only (Q7.1 to Q7.4). Wave 7 was then rewritten; the "Applied" lines say what changed.*
 
@@ -166,7 +166,7 @@ A chart of abstractness against instability (the "main sequence") comes later.
 
 ## Docs
 
-- **New DEC:** metrics are computed from the model, not from code; which ones, with the coverage note; limits live in Wave 8. (DEC-096 records the decision not to parse code.)
+- **New decision entry:** metrics are computed from the model, not from code; which ones, with the coverage note; limits live in Wave 8. (COD-06 records the decision not to parse code.)
 - **README:** metrics. **CLAUDE.md:** `metrics.ts`. **The review file** (not the CHANGELOG, which the release change writes): this wave's notes for the release entry.
 - **planned_features.md:** the brownfield-metrics line in 2.2 is closed for coupling and cycles; abstractness, complexity and cohesion stay as report-import ideas.
 - **`docs/determinism.md`:** rows for this wave.
@@ -176,7 +176,7 @@ A chart of abstractness against instability (the "main sequence") comes later.
 - Complexity, LCOM, abstractness, distance, and a main-sequence chart.
 - Anything read from code.
 - Trends over time (the ideas list: architecture vitality).
-- Importing metric reports (ideas list I2.5). Coverage (planned_features B5).
+- Importing metric reports (ideas list I2.5). Coverage (the former backlog B5 (now in the wave files)).
 
 ## Start prompt
 

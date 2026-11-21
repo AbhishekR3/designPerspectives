@@ -1,5 +1,5 @@
 /**
- * Checks on an import file that need the model or the code but no LLM (DEC-051, backlog section 4 "Checks
+ * Checks on an import file that need the model or the code but no LLM (COD-02, backlog section 4 "Checks
  * the tool does without trusting the LLM"). Run after `parseImportFile` and before the importer, which
  * refuses a file with errors. Nothing is guessed or repaired: an error is something provably wrong (an ID
  * that does not resolve, a name already used, a path that does not exist, a secret); a warning is
@@ -33,7 +33,7 @@ export interface ModelView {
   decisions?: Decision[];
 }
 
-/** A relationship description that says nothing: refused (DEC-051, no inferred labels). */
+/** A relationship description that says nothing: refused (COD-02, no inferred labels). */
 export const isUses = (d: string): boolean => d.trim().toLowerCase() === "uses";
 
 /** Technology names written the project's way when it already has them in another letter case

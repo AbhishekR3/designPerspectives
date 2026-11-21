@@ -205,17 +205,17 @@ export interface AppOptions {
   testingOff?: string | null;
   /** Sign-in shared with other projects (a hub); default: this project's own. */
   auth?: Auth;
-  /** This project's ID in a hub: requests act with the user's role in it (DEC-057). */
+  /** This project's ID in a hub: requests act with the user's role in it (HUB-07). */
   projectId?: string | null;
-  /** The hub's shared catalog model (DEC-055); absent or null: no catalog. */
+  /** The hub's shared catalog model (HUB-06); absent or null: no catalog. */
   catalog?: () => Workspace | null;
-  /** Key for credentials at rest (DEC-056); default: the DP_SECRET_KEY environment variable (tests set it). */
+  /** Key for credentials at rest (SEC-06); default: the DP_SECRET_KEY environment variable (tests set it). */
   secretKey?: string | null;
   /** Where credentials are kept (a hub's store); default: this project's `.dp/credentials.json`. */
   credentials?: CredentialStore;
   /** How the server calls other services (tests replace it); default: the global fetch. */
   fetch?: Fetch;
-  /** Where linked work gets a live status (a hub's store, DEC-085); default: this project's `.dp/integrations.json`. */
+  /** Where linked work gets a live status (a hub's store, WRK-02); default: this project's `.dp/integrations.json`. */
   integrations?: IntegrationsStore;
   /** A backend for BMO runs, plugged in by code (tests and e2e: a fake). Never chosen by a request or the settings; without it BMO uses the direct backend the settings name. */
   bmoBackend?: Backend;
@@ -249,14 +249,14 @@ export interface Ctx {
   testing: TestSession;
   /** Comments, ideas and questions (comments.ts); one store for the project, whatever version a request shows. */
   comments: CommentStore;
-  /** The checklist (checklist.ts, DEC-084); one list for the project, whatever version a request shows. */
+  /** The checklist (checklist.ts, REC-05); one list for the project, whatever version a request shows. */
   checklist: ChecklistStore;
   /** The hub's shared catalog model, or null (no hub, no catalog, or this is the catalog). */
   catalog: () => Workspace | null;
-  /** Integration credentials (DEC-056): the hub's, or the project's own. */
+  /** Integration credentials (SEC-06): the hub's, or the project's own. */
   credentials: CredentialStore;
   fetch: Fetch;
-  /** Where linked work links get a live status (DEC-085), without credentials: the built-in connections plus
+  /** Where linked work links get a live status (WRK-02), without credentials: the built-in connections plus
    *  those of `.dp/integrations.json` (the hub's in a hub). */
   workConnections: () => WorkConnectionInfo[];
   /** The connections file (with credential names: server only), the hub's in a hub. */

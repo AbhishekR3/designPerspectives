@@ -1,9 +1,9 @@
 /**
- * The demo hub (`demo/hub/`, DEC-054, DEC-055): a shared catalog and two projects that use the same
+ * The demo hub (`demo/hub/`, HUB-04, HUB-06): a shared catalog and two projects that use the same
  * customer database. Each project reads or writes shared tables and has a private table of its own;
  * both projects write the audit log (flagged on the home page), and one project's copy of the identity
  * provider has drifted from the catalog (the hub brings it up to date when it first serves the demo, and
- * the home page lists that under "Catalog changes copied", DEC-057). Written by `npm run make-demo`;
+ * the home page lists that under "Catalog changes copied", HUB-07). Written by `npm run make-demo`;
  * `dp init --hub --demo` copies it.
  */
 
@@ -45,7 +45,7 @@ function model(name: string, description: string) {
     },
     U: (id: string, patch: Record<string, unknown>) => ops.updateElement(ws, sc, id, patch),
     D: (input: Record<string, unknown>) => decisions.createDecision(decs, input),
-    /** Linked work (DEC-085) on an element or the project; links on example.com, so a status refresh calls no real tool. */
+    /** Linked work (WRK-02) on an element or the project; links on example.com, so a status refresh calls no real tool. */
     W: (id: string | null, items: WorkItem[]) => setWork(ws, id ? { type: "element", id } : { type: "project" }, items),
   };
 }

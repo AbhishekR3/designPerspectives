@@ -1,4 +1,4 @@
-/** BMO in the browser (DEC-051), with a fake backend plugged into the server by the fixture: no model, no network. */
+/** BMO in the browser (COD-02), with a fake backend plugged into the server by the fixture: no model, no network. */
 
 import fs from "node:fs";
 import path from "node:path";

@@ -1,5 +1,5 @@
 /**
- * Linked work pinned to any target (DEC-085): an element, a relationship, a diagram (its Structurizr view), a
+ * Linked work pinned to any target (WRK-02): an element, a relationship, a diagram (its Structurizr view), a
  * flow (its dynamic view) or the project (the workspace). Every target keeps the same `dp.work` JSON list
  * (`cleanWork` in modelEdits.ts holds the item rules); this module finds the holder of a target, lists every
  * item in the model, and merges items that tools push (`dp work add|import`, POST /api/work/items).

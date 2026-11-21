@@ -1,5 +1,5 @@
 /**
- * BMO routes (DEC-051, owner answers 3 and 4): the settings, a preview of exactly what would be sent, and a run.
+ * BMO routes (COD-02, owner answers 3 and 4): the settings, a preview of exactly what would be sent, and a run.
  *
  *   GET  /api/bmo            the settings without anything secret, what the caller may do, the tasks
  *   PUT  /api/bmo/settings   architects only (action `admin`); replaces `.dp/bmo.json`; never answers with a key

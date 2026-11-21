@@ -1,4 +1,4 @@
-/** Linked work settings and the hub's work list (DEC-087, DEC-088): the severity mapping in the sidecar, used by imports and the status refresh, and open work across projects. */
+/** Linked work settings and the hub's work list (WRK-04, WRK-05): the severity mapping in the sidecar, used by imports and the status refresh, and open work across projects. */
 
 import fs from "node:fs";
 import path from "node:path";

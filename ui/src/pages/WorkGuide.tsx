@@ -1,5 +1,5 @@
 /**
- * "How it works" on the Work page (DEC-087): what linked work is, where its status comes from and how it changes,
+ * "How it works" on the Work page (WRK-04): what linked work is, where its status comes from and how it changes,
  * how CI brings findings in, and the model's severity mapping, which people with edit rights can change. The
  * mapping is part of the model (the sidecar's `work.severity`), so a change is drafted and reviewed like any other.
  */

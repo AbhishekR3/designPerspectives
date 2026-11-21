@@ -1,5 +1,5 @@
 /**
- * The intake: the answers to the questions the code cannot give (DEC-051), saved as
+ * The intake: the answers to the questions the code cannot give (COD-02), saved as
  * `architecture/import/intake.json` so a re-run is repeatable and the answers are editable.
  * JSON only. The parser is strict: unknown keys are rejected and every problem names its field
  * (`scope.include[1]`). Missing fields take their defaults, so an empty or absent file is valid.

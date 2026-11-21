@@ -1,5 +1,5 @@
 /**
- * BMO's backend interface (DEC-051): BMO has no model of its own; it reaches an LLM through a `Backend`.
+ * BMO's backend interface (COD-02): BMO has no model of its own; it reaches an LLM through a `Backend`.
  * A backend gets one fixed request (system text, user text, an optional JSON Schema for the answer, an
  * output cap) and returns the answer as text. It never sees files, tools, endpoints chosen by a model or
  * anything else: what goes is exactly the prompt the person was shown (`preview` in tasks.ts).

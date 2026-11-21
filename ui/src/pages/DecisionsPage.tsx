@@ -1,5 +1,5 @@
 /**
- * Decision records (DEC-050): a page over the diagram listing the decisions of the shown model version,
+ * Decision records (REC-04): a page over the diagram listing the decisions of the shown model version,
  * one decision's record, and its editor. Decisions are part of the model, so in a draft this shows and
  * edits the draft's decisions.
  */

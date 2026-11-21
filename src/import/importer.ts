@@ -1,5 +1,5 @@
 /**
- * The importer (DEC-051): an import file becomes a new draft, through the model operations only.
+ * The importer (COD-02): an import file becomes a new draft, through the model operations only.
  *
  * `importToDraft` checks the file (checks.ts) against the main model and the code, refuses it on any error,
  * creates a draft (drafts.ts) and applies the file inside ONE `Project.edit` on the draft, so the import is
@@ -8,7 +8,7 @@
  * `via` relationship becomes two (source→via with `description`, via→target with `viaDescription`).
  *
  * Never written to the model: `evidence`, `confidence`, `source`, `ignore`, `questions`, `assumptions`. The questions and
- * assumptions become open items on the checklist (checklist.ts, DEC-084), so a person sees them and their answers reach the next turn.
+ * assumptions become open items on the checklist (checklist.ts, REC-05), so a person sees them and their answers reach the next turn.
  * Code paths are, through `updateElement` / `updateRelationship` (so `cleanPaths` applies).
  *
  * Re-import (an ID, or a relationship's source, target and description, already in the model): each field
@@ -81,7 +81,7 @@ export interface ImportResult {
 
 const RANK: Record<Kind, number> = { person: 0, softwareSystem: 1, container: 2, component: 3 };
 const LEVEL_KINDS: Record<ImportLevel, Kind[]> = { c1: ["person", "softwareSystem"], c2: ["container"], c3: ["component"], all: ["person", "softwareSystem", "container", "component"] };
-/** Fields of a linked catalog copy that come from the catalog (DEC-055). */
+/** Fields of a linked catalog copy that come from the catalog (HUB-06). */
 const CATALOG_FIELDS = new Set(["name", "description", "technologies"]);
 
 const KEPT_MESSAGE: Record<ImportKeptReason, string> = {

@@ -7,7 +7,7 @@
 | **Size** | M |
 | **Release** | 0.8.0 (with Waves 3, 16, 4, 27); run **before Wave 16**, so "anyone can attach" has people to attach |
 | **Depends on** | Nothing |
-| **Owner items** | Feature E of [../product-vision.md](../product-vision.md) ("different accounts adding notes, images and files"): only architects change things by default, and architects must be able to give other people other roles, which today works only on the command line. Local accounts for 1.0.0 (D2, DEC-100). [../planned_features.md](../planned_features.md) A5 |
+| **Owner items** | Feature E of [../product-vision.md](../product-vision.md) ("different accounts adding notes, images and files"): only architects change things by default, and architects must be able to give other people other roles, which today works only on the command line. Local accounts for 1.0.0 (D2, PRO-17). [../planned_features.md](../planned_features.md) A5 |
 
 Read [README.md](README.md) first: its rules, agents and checks apply to this wave.
 
@@ -17,7 +17,7 @@ An architect manages users from a Users page: add, set a role, set a role per hu
 
 ## What exists today [Fact; anchors from planned_features A5, re-anchor first]
 
-- With sign-in off, every request acts as architect (`src/server/auth.ts`). With sign-in on there are three roles: architect, engineer and viewer (DEC-041). In a hub there is also a role per project, which can be `none` (the project is hidden; DEC-057).
+- With sign-in off, every request acts as architect (`src/server/auth.ts`). With sign-in on there are three roles: architect, engineer and viewer (SEC-04). In a hub there is also a role per project, which can be `none` (the project is hidden; HUB-07).
 - Users are managed only with `dp users init|add|passwd|remove|role|list`. `dp users add` requires `--role`; there is no default.
 - BMO settings and integration settings are changed by architects only.
 - There is no users route in the API and no Users page in the UI. The users file is read by `src/core/users.ts`.
@@ -27,7 +27,7 @@ An architect manages users from a Users page: add, set a role, set a role per hu
 1. **Users routes** (architects only): list, add, set role, set project roles, set password, remove. They call the same functions as `dp users`, so the rules (last architect cannot be removed or demoted, valid roles, password rules) live in one place.
 2. **A Users page** (architects only), reached from the user chip and the Credentials page area.
 3. **A guard** that an architect cannot remove or demote the last architect, in the core function and in the UI.
-4. **Passwords** are set through the page and never returned or logged; hashes stay scrypt (DEC-041).
+4. **Passwords** are set through the page and never returned or logged; hashes stay scrypt (SEC-04).
 
 ## Determinism
 
@@ -35,7 +35,7 @@ Computed: roles and rules are fixed. Nothing here is BMO's.
 
 ## Owner answers
 
-Local accounts now, hosted later (D2, DEC-100).
+Local accounts now, hosted later (D2, PRO-17).
 
 ## Questions, options and answers
 
@@ -56,13 +56,13 @@ Local accounts now, hosted later (D2, DEC-100).
 1. A short explanation and a button that creates the first architect and turns sign-in on.
 2. Only an explanation that points to `dp users init`.
 
-**Recommended.** Option 2 for now: turning sign-in on from the page is a lock-out risk on a remote host (DEC-063); the command keeps it deliberate.
+**Recommended.** Option 2 for now: turning sign-in on from the page is a lock-out risk on a remote host (PRO-15); the command keeps it deliberate.
 
 **Owner's thinking:** *(blank: the recommendation holds)*
 
 ### Q26.3. Should sign-in be on by default?
 
-**Recommended.** No. It stays off for a local, loopback-only server (DEC-041, DEC-063) and is required for a non-loopback host, as today.
+**Recommended.** No. It stays off for a local, loopback-only server (SEC-04, PRO-15) and is required for a non-loopback host, as today.
 
 **Owner's thinking:** *(blank: the recommendation holds)*
 
@@ -84,7 +84,7 @@ Local accounts now, hosted later (D2, DEC-100).
 ## Required in this wave
 
 - Every route has a `ROUTE_RULES` entry; all of them are architects only.
-- Works in a hub with per-project roles (DEC-057) and refuses with `--read-only`.
+- Works in a hub with per-project roles (HUB-07) and refuses with `--read-only`.
 - No response, log line or error contains a password or hash.
 - New UI is keyboard reachable; the page is hidden for non-architects.
 
@@ -99,7 +99,7 @@ Local accounts now, hosted later (D2, DEC-100).
 
 ## Docs
 
-- **New DEC** (SEC topic, Sign-in and roles). **README**, **CONTRIBUTING** security model, **CLAUDE.md** code map, **manual-test-plan**, **planned_features.md** A5: mark built; A6 stays the later hosted entry.
+- **New decision entry** (SEC topic, Sign-in and roles). **README**, **CONTRIBUTING** security model, **CLAUDE.md** code map, **manual-test-plan**, **planned_features.md** A5: mark built; A6 stays the later hosted entry.
 
 ## Out of scope
 

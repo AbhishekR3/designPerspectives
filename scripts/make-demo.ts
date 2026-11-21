@@ -1066,7 +1066,7 @@ export function build(): [Workspace, Sidecar] {
     ],
   });
 
-  // Linked work on the project, a diagram and a flow (DEC-085), and a scan's quality gate as the tool last reported it.
+  // Linked work on the project, a diagram and a flow (WRK-02), and a scan's quality gate as the tool last reported it.
   syncViews(ws);
   workOps.setWork(ws, { type: "project" }, [
     {
@@ -1142,7 +1142,7 @@ function history(ws: Workspace): DemoHistory {
   };
 }
 
-/** Decision records for the demo (DEC-050): one of each kind, written through the same operations the API uses. */
+/** Decision records for the demo (REC-04): one of each kind, written through the same operations the API uses. */
 export function demoDecisions(): Decision[] {
   const decs: Decision[] = [];
   const add = (input: Record<string, unknown>) => {

@@ -41,12 +41,12 @@ Consumers are told on the diagram, on the home page, in the bell, in CI and, if 
 - The shape of samples is compared at the top level only (`compareFields`, `ui/src/inspect/SamplePayload.tsx:26-33`).
 - Readers and writers of data are known (`sharedUsage`, `src/core/catalog.ts:118-137`).
 - Wave 4 adds CRUD letters to data access.
-- A relationship through a broker is two relationships: source → broker → target (DEC-065 `via`).
+- A relationship through a broker is two relationships: source → broker → target (COD-08 `via`).
 
 **Ways to tell people**
 - Home-page `AttentionItem` (`types.ts:1166-1172`; `src/core/homeSummary.ts:168-240`).
-- The bell's "Now" list, built in the browser (`ui/src/App.tsx:591-610`). It stores no list per person (DEC-080).
-- Linked work (DEC-085, `src/core/work.ts`).
+- The bell's "Now" list, built in the browser (`ui/src/App.tsx:591-610`). It stores no list per person (CAN-11).
+- Linked work (WRK-02, `src/core/work.ts`).
 - Badges on boxes and lines (`ui/src/canvas/BoxesAndLines.tsx:461-503`, `:1141-1151`).
 
 **Other facts this wave relies on**
@@ -80,7 +80,7 @@ Consumers are told on the diagram, on the home page, in the bell, in CI and, if 
        - a new required request field;
        - a removed endpoint.
      - Anything else is "changed, impact unknown".
-   - **Live calls.** During System Testing, a body whose top-level shape differs from the sample gives an information Finding. System Testing is off by default in 1.0.0 (DEC-104, [planned_features.md](../planned_features.md) A8), so this step runs only when the mode is switched on; it is the one optional part of this wave and nothing else depends on it.
+   - **Live calls.** During System Testing, a body whose top-level shape differs from the sample gives an information Finding. System Testing is off by default in 1.0.0 (PRO-20, [planned_features.md](../planned_features.md) A8), so this step runs only when the mode is switched on; it is the one optional part of this wave and nothing else depends on it.
 5. **Marking as checked** (★Q13.3). "Mark as checked" sets `dp.contract.seen` on the consumer's relationship. It is a model edit: engineers make it in drafts, architects on main.
 6. **Telling people** (Q13.4).
    - A "needs a look" item of kind `contract-change` on the home page, and a count in the bell's "Now".
@@ -103,7 +103,7 @@ Applied 2026-11-19: the owner answered Part A and left Part B blank, so every Q 
 
 - **Q13.1 (best thinking, 2026-11-20):** JSON only (OpenAPI and JSON Schema). No YAML dependency now; the server keeps three runtime dependencies. Trade-off: most real OpenAPI files are YAML, so those teams need the JSON export step. "Read YAML contracts" is a line in ideas list I2.1.
 - **Q13.2 to Q13.5 (best thinking, 2026-11-20):** hold as recommended, below.
-- **Q13.2:** a service's output is its endpoint responses, the messages it publishes and the data it writes; impact is found through endpoints and data, not line direction. The "data it writes" part depends on the data access built in DEC-055; Wave 4's CRUD letters are not needed.
+- **Q13.2:** a service's output is its endpoint responses, the messages it publishes and the data it writes; impact is found through endpoints and data, not line direction. The "data it writes" part depends on the data access built in HUB-06; Wave 4's CRUD letters are not needed.
 - **Q13.3:** the consumer's line stores the fingerprint it has checked (`dp.contract.seen`); marking it is an ordinary edit.
 - **Q13.4:** a computed "needs a look" item, a badge, optional linked work, `dp contracts --fail-on breaking`; no email or webhooks.
 - **Q13.5:** dp computes removed fields, type changes, new required request fields and removed endpoints; anything else is "changed, impact unknown".
@@ -111,7 +111,7 @@ Applied 2026-11-19: the owner answered Part A and left Part B blank, so every Q 
 
 ## Questions, options and answers (moved from questions.md)
 
-*Moved from the deleted `questions.md` on 2026-11-20, with the owner's words as written. In the quotes, `future_tasks.md` and `backlog.md` mean the old backlog, now [planned_features.md](../planned_features.md) and the owner's private ideas list; `docs/waves/v1-scope-review.md` was decided in DEC-104.*
+*Moved from the deleted `questions.md` on 2026-11-20, with the owner's words as written. In the quotes, `future_tasks.md` and `backlog.md` mean the old backlog, now [planned_features.md](../planned_features.md) and the owner's private ideas list; `docs/waves/v1-scope-review.md` was decided in PRO-20.*
 
 ### ★Q13.1 Which contract formats first?
 
@@ -137,8 +137,8 @@ Applied 2026-11-19: the owner answered Part A and left Part B blank, so every Q 
 
 **Proposed.** A's output is three things:
 1. **The responses of A's endpoints,** read by the callers.
-2. **The messages A publishes,** read by whoever reads the topic, through the broker (DEC-065 `via`).
-3. **The data A writes,** read by its readers (DEC-055).
+2. **The messages A publishes,** read by whoever reads the topic, through the broker (COD-08 `via`).
+3. **The data A writes,** read by its readers (HUB-06).
 
 So dp finds who is affected through endpoints and data, not through which way a line points.
 
@@ -170,9 +170,9 @@ Requests and responses break in opposite ways:
 **Recommended**
 - A computed "needs a look" item, on the home page and in the bell's "Now".
 - A badge on the consumer.
-- Optional linked work on the consumer (DEC-085).
+- Optional linked work on the consumer (WRK-02).
 - `dp contracts --fail-on breaking` in CI.
-- No email, chat or webhooks: the bell keeps no stored list per person (DEC-080).
+- No email, chat or webhooks: the bell keeps no stored list per person (CAN-11).
 
 **Owner's thinking:** Go with what you think is best.
 
@@ -227,7 +227,7 @@ Anything else is "changed, impact unknown".
 
 ## Docs
 
-- **New DEC:**
+- **New decision entry:**
   - what "A's output" means;
   - contracts and fingerprints;
   - impact keyed on endpoints and data;

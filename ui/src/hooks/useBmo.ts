@@ -1,4 +1,4 @@
-/** BMO from the UI (DEC-051): the status of BMO, one run (preview what would be sent, send it, show the result), and the chat's conversation. */
+/** BMO from the UI (COD-02): the status of BMO, one run (preview what would be sent, send it, show the result), and the chat's conversation. */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError } from "../api";

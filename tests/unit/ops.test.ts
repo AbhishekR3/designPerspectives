@@ -290,7 +290,7 @@ describe("re-slugging a new element on its first rename", () => {
   });
 });
 
-describe("explicit IDs (the importer, DEC-051)", () => {
+describe("explicit IDs (the importer, COD-02)", () => {
   test("createElement and createRelationship use a given ID", () => {
     const w = ws();
     const s = ops.createElement(w, { kind: "softwareSystem", name: "Shop", id: "web-shop" });

@@ -65,12 +65,12 @@ export interface WorkItem {
   checked?: string;
 }
 
-/** What linked work is pinned to (DEC-085): the targets of comments and checklist items, plus the project
+/** What linked work is pinned to (WRK-02): the targets of comments and checklist items, plus the project
  *  itself. A flow is a diagram (`flow-<name>`). Diagram items need a stored view: landscape, context,
  *  container, component diagrams and flows (not connector or code diagrams). */
 export type WorkTarget = CommentTarget | { type: "project" };
 
-/** Tools whose links get a live status (DEC-059, DEC-085). */
+/** Tools whose links get a live status (WRK-01, WRK-02). */
 export const WORK_TOOLS = ["github", "gitlab", "sonar", "jira"] as const;
 export type WorkToolId = (typeof WORK_TOOLS)[number];
 export const WORK_TOOL_LABEL: Record<WorkToolId, string> = { github: "GitHub", gitlab: "GitLab", sonar: "SonarQube", jira: "Jira" };
@@ -91,7 +91,7 @@ export interface WorkConnection {
   tool: WorkToolId;
   /** https (http only for this machine), no user, query or fragment. */
   baseUrl: string;
-  /** Name of a stored credential (DEC-056); none: public data only. */
+  /** Name of a stored credential (SEC-06); none: public data only. */
   credential?: string;
   /** "basic" sends the credential value `user:token` (Jira Cloud: email and API token); default "bearer". */
   auth?: "bearer" | "basic";
@@ -144,7 +144,7 @@ export interface WorkPushResult {
 export type WorkSeverityChoice = "critical" | "high" | "medium" | "low" | "";
 
 /**
- * How dp turns a tool's own severity words into its four levels (DEC-087). Kept in the sidecar as
+ * How dp turns a tool's own severity words into its four levels (WRK-04). Kept in the sidecar as
  * `work.severity`, so a team can change it and the change is drafted and reviewed like the rest of the model.
  * Names are matched in lower case. A name not in a table gives no severity.
  */
@@ -241,7 +241,7 @@ export interface EdgeLayout {
   routing?: "straight" | "curved" | "smooth" | "orthogonal" | "rounded";
 }
 
-/** Kinds of data held by an element (a database's tables, a broker's topics, ...); DEC-055. */
+/** Kinds of data held by an element (a database's tables, a broker's topics, ...); HUB-06. */
 export const DATA_KINDS = ["table", "view", "topic", "queue", "bucket", "collection", "file", "index", "other"] as const;
 export type DataKind = (typeof DATA_KINDS)[number];
 
@@ -376,7 +376,7 @@ export interface Flow {
   scope: string | null;
   warnings: string[];
   steps: FlowStep[];
-  /** Linked work pinned to the flow itself (DEC-085). */
+  /** Linked work pinned to the flow itself (WRK-02). */
   work: WorkItem[];
 }
 
@@ -408,7 +408,7 @@ export interface Diagram {
     archType?: string;
   };
   code?: { ownerName: string; paths: string[]; missing: string[]; hasRoot: boolean; truncated: boolean };
-  /** Linked work pinned to this diagram (DEC-085); absent where a diagram cannot hold any (connector, code). */
+  /** Linked work pinned to this diagram (WRK-02); absent where a diagram cannot hold any (connector, code). */
   work?: WorkItem[];
   /** Set when compared with another version; `removed`: this diagram exists only in that version. */
   compare?: { against: string; removed: boolean };
@@ -521,15 +521,15 @@ export interface Permissions {
   writeCode: boolean;
   /** Add comments, ideas and questions, reply, and resolve them (every role; not on a --read-only server). */
   comment: boolean;
-  /** Scan the code and bring an import file in as a new draft (architects and engineers; DEC-051). */
+  /** Scan the code and bring an import file in as a new draft (architects and engineers; COD-02). */
   import: boolean;
   /** Open intercept points and pause, change or answer live calls in the testing mode (architects and engineers; not on a --read-only server). */
   test: boolean;
-  /** Add, change, tick and delete checklist items (architects and engineers; not on a --read-only server; DEC-084). */
+  /** Add, change, tick and delete checklist items (architects and engineers; not on a --read-only server; REC-05). */
   checklist: boolean;
 }
 
-// ------------------------------------------------------------------ decision records (DEC-050)
+// ------------------------------------------------------------------ decision records (REC-04)
 
 export const DECISION_STATUSES = ["proposed", "accepted", "rejected", "deprecated", "superseded"] as const;
 export type DecisionStatus = (typeof DECISION_STATUSES)[number];
@@ -649,7 +649,7 @@ export interface DecisionSummary {
 /** Fields a client may send when creating or replacing a decision. */
 export type DecisionInput = Partial<Omit<Decision, "id" | "file" | "error" | "supersededBy">>;
 
-// ------------------------------------------------------------------ comments (DEC-049)
+// ------------------------------------------------------------------ comments (REC-01)
 
 export const COMMENT_KINDS = ["comment", "idea", "question"] as const;
 /** A note on the model: a remark, a suggestion for a change, or something to be answered. */
@@ -689,7 +689,7 @@ export interface CommentList {
   threads: CommentThread[];
 }
 
-// ------------------------------------------------------------------ the checklist (DEC-084)
+// ------------------------------------------------------------------ the checklist (REC-05)
 
 /** A thing to do, a question to answer, or an assumption to confirm or correct. */
 export const CHECKLIST_KINDS = ["task", "question", "assumption"] as const;
@@ -822,11 +822,11 @@ export interface AppState {
   compare: { against: string; title: string; summary: ChangeSummary } | null;
   /** Null when the model folder is not in a git repository. */
   git: { branch: string | null; refs: string[] } | null;
-  /** Linked work pinned to the project itself (DEC-085). */
+  /** Linked work pinned to the project itself (WRK-02). */
   projectWork: WorkItem[];
-  /** Where links get a live status (DEC-085), to label links by tool; no credentials. */
+  /** Where links get a live status (WRK-02), to label links by tool; no credentials. */
   workConnections: WorkConnectionInfo[];
-  /** How tools' severities become dp's (DEC-087): the sidecar's `work.severity`, or the defaults. */
+  /** How tools' severities become dp's (WRK-04): the sidecar's `work.severity`, or the defaults. */
   workSeverity: WorkSeverityMaps;
 }
 
@@ -1099,7 +1099,7 @@ export interface TraceList {
   traces: TraceSummary[];
 }
 
-// ------------------------------------------------------------------ home page and hub (DEC-053, DEC-054)
+// ------------------------------------------------------------------ home page and hub (HUB-03, HUB-04)
 
 /** What the server serves: one project (`dp serve PATH`) or a hub of projects (`dp serve --hub DIR`). */
 export interface HubInfo {
@@ -1192,7 +1192,7 @@ export interface HomeSummary {
   decisions: (DecisionSummary & { project: string })[];
   /** Shared elements and data assets (hub with a catalog); null otherwise. */
   shared: { elements: number; linkedCopies: number; assets: number; sharedAssets: number; multiWriter: number } | null;
-  /** Catalog changes copied into the projects since the server started, newest first (DEC-057). */
+  /** Catalog changes copied into the projects since the server started, newest first (HUB-07). */
   catalogUpdates: CatalogUpdate[];
 }
 
@@ -1207,7 +1207,7 @@ export interface CatalogUpdate {
   projects: { project: string; elementId: string }[];
 }
 
-// ------------------------------------------------------------------ shared catalog and data (DEC-055)
+// ------------------------------------------------------------------ shared catalog and data (HUB-06)
 
 /** A catalog element and the projects that have a linked copy of it. */
 export interface SharedElementUse {
@@ -1262,9 +1262,9 @@ export interface CatalogEntry {
   data: DataAsset[];
 }
 
-// ------------------------------------------------------------------ integration credentials (DEC-056)
+// ------------------------------------------------------------------ integration credentials (SEC-06)
 
-/** "anthropic", "openai" and "ollama": the LLM backends BMO calls directly (DEC-051); "llm" is any other. */
+/** "anthropic", "openai" and "ollama": the LLM backends BMO calls directly (COD-02); "llm" is any other. */
 export const CREDENTIAL_PROVIDERS = ["github", "gitlab", "jira", "sonarqube", "issue-tracker", "observability", "llm", "anthropic", "openai", "ollama", "ci", "other"] as const;
 export type CredentialProvider = (typeof CREDENTIAL_PROVIDERS)[number];
 
@@ -1293,7 +1293,7 @@ export interface CredentialList {
   file: string;
 }
 
-// ------------------------------------------------------------------ history (DEC-058)
+// ------------------------------------------------------------------ history (DRF-06)
 
 /** One changed object in a commit, as the history lists it. */
 export interface HistoryItem {
@@ -1328,7 +1328,7 @@ export interface HistoryList {
   commits: HistoryEntry[];
 }
 
-// ------------------------------------------------------------------ linked work status from GitHub (DEC-059)
+// ------------------------------------------------------------------ linked work status from GitHub (WRK-01)
 
 export interface WorkRefresh {
   /** Links looked up, all tools together. */
@@ -1341,7 +1341,7 @@ export interface WorkRefresh {
   unknown: number;
 }
 
-// ------------------------------------------------------------------ import file (DEC-051, Stage B)
+// ------------------------------------------------------------------ import file (COD-02, Stage B)
 
 /** One problem found in an import file: where it is (a JSON pointer, RFC 6901, "" = the whole file) and what is wrong. */
 export interface FieldError {
@@ -1468,7 +1468,7 @@ export interface ImportCheck {
   warnings: FieldError[];
 }
 
-// ------------------------------------------------------------------ import review (DEC-051, Stage B)
+// ------------------------------------------------------------------ import review (COD-02, Stage B)
 
 /** Computed by the tool from evidence it can check (src/import/review.ts), never taken from the file's `confidence`. */
 export const REVIEW_LEVELS = ["verified", "partly", "unverified"] as const;
@@ -1525,7 +1525,7 @@ export interface ReviewState {
   draftFeedback?: string;
 }
 
-// ------------------------------------------------------------------ import: scan, intake, analysis, handoff (DEC-051, Stage B)
+// ------------------------------------------------------------------ import: scan, intake, analysis, handoff (COD-02, Stage B)
 
 /** The C4 levels the scan and the analysis count: c4 is the files. */
 export type ScanLevel = "c1" | "c2" | "c3" | "c4";
@@ -1768,7 +1768,7 @@ export interface ImportDraftResult {
   draftId: string;
   report: ImportReport;
   warnings: FieldError[];
-  /** How many of the file's questions and assumptions were added to the checklist (DEC-084). */
+  /** How many of the file's questions and assumptions were added to the checklist (REC-05). */
   checklistAdded: number;
 }
 
@@ -1798,7 +1798,7 @@ export interface ApplyResponse extends ApplyOutcome {
   ok: true;
 }
 
-// ------------------------------------------------------------------ BMO routes (DEC-051, owner answers 3 and 4)
+// ------------------------------------------------------------------ BMO routes (COD-02, owner answers 3 and 4)
 
 export type BmoProvider = "anthropic" | "openai" | "ollama";
 
@@ -1950,7 +1950,7 @@ export interface BmoStaleFailure {
   stale: true;
 }
 
-// ------------------------------------------------------------------ system testing mode (DEC-075)
+// ------------------------------------------------------------------ system testing mode (RUN-06)
 
 /**
  * A local port of dp that a calling service is pointed at instead of the real target. Calls that arrive are

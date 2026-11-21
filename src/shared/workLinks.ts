@@ -1,4 +1,4 @@
-// Which tool a linked work item's link belongs to (DEC-085), shared by the server and the UI. Pure functions:
+// Which tool a linked work item's link belongs to (WRK-02), shared by the server and the UI. Pure functions:
 // no Node or DOM imports. This only labels a link; whether a token may be sent is decided on the server by
 // the tool's adapter (src/core/workTools/), which also checks the exact path.
 
@@ -39,7 +39,7 @@ export function connectionFor(url: string | undefined, connections: readonly Wor
 /** Not done. */
 export const isOpenWork = (w: Pick<WorkItem, "status">): boolean => w.status !== "done";
 
-/** A tool's own severity word through one of the model's severity tables (DEC-087): matched in lower case;
+/** A tool's own severity word through one of the model's severity tables (WRK-04): matched in lower case;
  *  a name the table does not hold, or one mapped to "", gives none. */
 export function severityOf(table: Readonly<Record<string, WorkSeverityChoice>>, name: string): WorkSeverityChoice | undefined {
   const key = name.trim().toLowerCase();

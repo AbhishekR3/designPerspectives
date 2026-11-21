@@ -1,5 +1,5 @@
 /**
- * Linked work (DEC-085): a page over the diagram listing every work item of the shown model version, whatever it is
+ * Linked work (WRK-02): a page over the diagram listing every work item of the shown model version, whatever it is
  * pinned to (a box, a line, a diagram, a flow or the project), with filters, status editing, a way to add an item
  * and the status refresh from the tools.
  */

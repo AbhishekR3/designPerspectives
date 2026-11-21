@@ -1,4 +1,4 @@
-/** Tool connections for linked work (DEC-085): `.dp/integrations.json` (private, checked addresses), architect-only routes, the hub's shared store, the refresh through a connection, and `dp integrations`. */
+/** Tool connections for linked work (WRK-02): `.dp/integrations.json` (private, checked addresses), architect-only routes, the hub's shared store, the refresh through a connection, and `dp integrations`. */
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";

@@ -108,15 +108,15 @@ not applied until you run "Check again", which makes every item pending.
   there is no merge editor. (An import draft that is applied in part is rebased automatically, see
   "Import drafts" above.)
 
-Work planned to lift these limits is in [planned_features.md](planned_features.md) (B3).
+Work planned to lift these limits is in the former backlog (B3 (now in the wave files)).
 
 ### Other known limits of dp
 
 Facts about what dp does today, not only about drafts. They are not tasks; some are covered by items in [planned_features.md](planned_features.md).
 
 - Line routing is drawn by the app. Structurizr ignores the sidecar `layouts`, and connector stages are not model elements, so they do not appear in Structurizr views [Review, stage-a2].
-- Reading a private linked-work item needs a stored credential, and a tool outside the built-in connections needs an entry in `.dp/integrations.json`. Without a GitHub credential only public repositories are read (DEC-059, DEC-085).
+- Reading a private linked-work item needs a stored credential, and a tool outside the built-in connections needs an entry in `.dp/integrations.json`. Without a GitHub credential only public repositories are read (WRK-01, WRK-02).
 - Import scanning reads Python and JS/TS relative imports only today; Wave 5 part C replaces that with one generic reader [Review, stage-a2].
 - The CLI's browser opening and paths were written for Windows and not run there [Review, rewrite-ts]. The packed tarball install was run for 0.4.0; the GitHub URL install, Windows and Structurizr's own tools were not (the owner's steps).
-- Shared libraries and services are modelled as their own container or system (DEC-023); an element has one parent. The built UI (`static/`) is committed (DEC-063).
+- Shared libraries and services are modelled as their own container or system (MOD-02); an element has one parent. The built UI (`static/`) is committed (PRO-15).
 

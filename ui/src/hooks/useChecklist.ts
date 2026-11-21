@@ -1,4 +1,4 @@
-// The checklist's server state and actions (DEC-084), for the card, the top bar and the bell.
+// The checklist's server state and actions (REC-05), for the card, the top bar and the bell.
 // Like the comments: it reloads when the model changes (rule results follow the model) and when the window regains focus.
 
 import { useCallback, useEffect, useRef, useState } from "react";

@@ -750,7 +750,7 @@ export function ExampleFields({
   );
 }
 
-/** "Refresh status" under Linked work (DEC-059, DEC-085): reads the status of every link in the model that a known tool (GitHub, GitLab, SonarQube, Jira) serves. */
+/** "Refresh status" under Linked work (WRK-01, WRK-02): reads the status of every link in the model that a known tool (GitHub, GitLab, SonarQube, Jira) serves. */
 export function WorkRefreshButton({ state, mutate, extra }: { state: AppState; mutate: Common["mutate"]; extra?: WorkItem[] }) {
   const [busy, setBusy] = useState(false);
   if (state.readOnly || knownLinkCount(state, extra) === 0) return null;

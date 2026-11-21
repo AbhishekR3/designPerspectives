@@ -9,7 +9,7 @@
 | **Depends on** | Wave 1 (templates, packs, citations, labels), Wave 5 (key code and code search), Wave 15 (the interview, `interview.json` and the context file). Wave 7 (model coupling), Wave 2 (notes), Wave 14b (the word index for choosing excerpts), Wave 14a (the typed context window, already merged in 0.9.0, which caps each round's size) and Wave 22 (digests of the parts not in focus) improve it and are not required |
 | **Owner items** | Feature H and the vision's opening problem: "understanding an existing system architecture/codebase is difficult" (answer C8) |
 
-Read [README.md](README.md) first: its rules, agents and checks apply to this wave. Also read [../import-design.md](../import-design.md) (what the import is for and what matters to C4 at each level) and the import choices N1 to N15 in [DEC-103](../decisions.md#pro-19--dec-103--code-import-and-bmo-choices-and-the-080-split-n1-to-n15), which change what this wave builds (see its "Decided" section if it has one).
+Read [README.md](README.md) first: its rules, agents and checks apply to this wave. Also read [../import-design.md](../import-design.md) (what the import is for and what matters to C4 at each level) and the import choices N1 to N15 in [PRO-19](../decisions.md#pro---19---code-import-and-bmo-choices-n1-to-n15), which change what this wave builds (see its "Decided" section if it has one).
 
 ## Goal
 
@@ -21,17 +21,17 @@ Understanding an existing system is a conversation, not one question about one s
 
 ## What exists today [Fact]
 
-- **BMO chat** (DEC-073): ask about named objects; every message is previewed (the exact prompt and its hash) and sent only when confirmed (DEC-064). A chat message gets at most 24,000 tokens of code (`src/assistant/runTask.ts:324`).
-- **A run over the size limit is refused**; there is no multi-pass (`src/assistant/settings.ts:100-103`, DEC-065, planned_features B4).
+- **BMO chat** (COD-09): ask about named objects; every message is previewed (the exact prompt and its hash) and sent only when confirmed (COD-03). A chat message gets at most 24,000 tokens of code (`src/assistant/runTask.ts:324`).
+- **A run over the size limit is refused**; there is no multi-pass (`src/assistant/settings.ts:100-103`, COD-08, the former backlog B4 (now in the wave files)).
 - **Import tasks** work one C4 level at a time, with a scan that decides what it can without a model (`src/import/scan.ts`, `analysis.ts`).
-- **The checklist** (DEC-084) already holds BMO's questions from an import (`checklist.ts` `addFromImport`).
+- **The checklist** (REC-05) already holds BMO's questions from an import (`checklist.ts` `addFromImport`).
 - **Wave 15 (planned)** is the deterministic interview: plain questions, then approve/disapprove cards; BMO's cards come last (15b). It is one pass, per level.
 - **Answers a person types** reach BMO as user text inside data blocks, never in system text (`prompts.ts`, `tests/unit/bmo-core.test.ts:89`).
 
 ## Design [Proposal]
 
 1. **Rounds, planned by dp.** A round is one BMO run with one scope: the system, then each container, then the components that matter in it. dp plans the rounds from facts, with no model: the number of containers, components and files, unmapped code, key code pinned or missing (Wave 5), and, where Wave 7 is merged, the model's cycles and coupling. None of these needs a language reader. A small system gets a few rounds; a large one gets one per container and extra rounds where the facts show something tangled. The plan is shown as "Round 3 of about 12", and the person can add a round for any object ("go deeper here") or skip one.
-2. **Every round is previewed and confirmed**, as everywhere (DEC-064): the sheet shows the prompt, the files and bytes, and a hash. A plan of rounds is not a blanket permission. Each round stays under the run limit by construction: dp splits a scope that would not fit, and never sends a cut-off one.
+2. **Every round is previewed and confirmed**, as everywhere (COD-03): the sheet shows the prompt, the files and bytes, and a hash. A plan of rounds is not a blanket permission. Each round stays under the run limit by construction: dp splits a scope that would not fit, and never sends a cut-off one.
 3. **A fixed template per round kind** (Wave 1's registry): system overview, container, component, and "follow up". Each has a version and its own answer shape.
 4. **The answer is two lists, both checked.**
    - **Statements** with citations, checked by the Wave 1 verifier, shown with the usual labels.
@@ -41,7 +41,7 @@ Understanding an existing system is a conversation, not one question about one s
 7. **Memory between rounds.** A fixed block, "What you told me", holds the person's answers in order, as user text in a data block, within a budget (the oldest are dropped whole and listed in the manifest). The statements BMO made earlier and the person accepted are carried the same way.
 8. **Nothing is written until a button is pressed.** After a round the person can:
    - **save an answer as a note** on an object (`dp.notes`, through a draft for engineers);
-   - **turn the round into model changes**: an import file for the objects it found or corrected, through the existing import path, check and review (DEC-051, DEC-064), so it ends in a draft;
+   - **turn the round into model changes**: an import file for the objects it found or corrected, through the existing import path, check and review (COD-02, COD-03), so it ends in a draft;
    - **propose a decision** from an answer (the `decision-from-draft` path, in a draft);
    - **add an open question to the checklist** (the existing route).
 9. **State.** `architecture/import/conversation.json`, next to `interview.json`, outside the model, fixed key order: the plan, each round's selectors and hash, the person's answers and who gave them, and what was saved where. It never holds a prompt, a code excerpt or a secret (the prompt is rebuilt from selectors and answers).
@@ -65,11 +65,11 @@ Understanding an existing system is a conversation, not one question about one s
 
 ## Questions, options and answers (moved from questions.md)
 
-*Moved from the deleted `questions.md` on 2026-11-20, with the owner's words as written. In the quotes, `future_tasks.md` and `backlog.md` mean the old backlog, now [planned_features.md](../planned_features.md) and the owner's private ideas list; `docs/waves/v1-scope-review.md` was decided in DEC-104.*
+*Moved from the deleted `questions.md` on 2026-11-20, with the owner's words as written. In the quotes, `future_tasks.md` and `backlog.md` mean the old backlog, now [planned_features.md](../planned_features.md) and the owner's private ideas list; `docs/waves/v1-scope-review.md` was decided in PRO-20.*
 
 ### C8. Does "understanding an existing system" need more than the import and the explain tasks?
 
-**Analysis** [Fact]. The vision's first problem is understanding an existing system. What dp has or plans: the scan and the guided interview build the model (Waves 5, 6, 15); BMO explains an object, a diagram or a draft from the model and code excerpts (Wave 1 makes them cited); `dp context` prints the same pack for coding agents (Wave 2). A run over the token limit is refused, and multi-pass summarising for a whole large repository is not built (DEC-065, planned_features B4, Large).
+**Analysis** [Fact]. The vision's first problem is understanding an existing system. What dp has or plans: the scan and the guided interview build the model (Waves 5, 6, 15); BMO explains an object, a diagram or a draft from the model and code excerpts (Wave 1 makes them cited); `dp context` prints the same pack for coding agents (Wave 2). A run over the token limit is refused, and multi-pass summarising for a whole large repository is not built (COD-08, the former backlog B4 (now in the wave files), Large).
 
 **Options**
 1. As planned: explain one scope at a time.
@@ -82,11 +82,15 @@ Understanding an existing system is a conversation, not one question about one s
 
 **Applied [2026-11-19].** A new wave, [Wave 20: a real back-and-forth about an existing system](wave-20-system-conversation.md). dp plans rounds from facts about the system (containers, components, files, cycles, unmapped code); each round is one previewed BMO run on one scope that returns cited statements and questions for the person; the number of questions allowed grows with size and tangle, and the person can ask for more, go deeper or stop; the person's answers carry into later rounds. Nothing is written until a button is pressed. "Add this to the checklist" is applied twice: an item on the in-app "Importing a codebase" list that ticks itself when every round is answered, skipped or ended, and a line on the 1.0.0 release checklist in ideas list I2.0.
 
+## Carried from the backlog (moved from planned_features.md, 2026-11-21)
+
+- **Massive codebases and "unsure" answers** (owner notes of 2026-11-20). This wave plans rounds, each small enough to fit, with the person in the loop, and more questions as the code grows. See the matching items in [Wave 5](wave-05-code-search.md), [Wave 15](wave-15-guided-import-interview.md) and [Wave 22](wave-22-digests.md).
+
 ## Stop and ask if
 
-- A round would need more code than the run limit allows even for the smallest scope. That is the multi-pass design (planned_features B4), a separate decision.
+- A round would need more code than the run limit allows even for the smallest scope. That is the multi-pass design (the former backlog B4 (now in the wave files)), a separate decision.
 - The conversation file would need to hold a prompt, an excerpt or a secret.
-- A question's answer would be written into the model without a button press, or labelled in the model as BMO's (DEC-051, DEC-064 forbid it).
+- A question's answer would be written into the model without a button press, or labelled in the model as BMO's (COD-02, COD-03 forbid it).
 - The person asks for the plan to run without a preview per round.
 
 ## Steps and agents
@@ -105,8 +109,8 @@ Understanding an existing system is a conversation, not one question about one s
 
 ## Required in this wave
 
-- **Routes.** Each new non-GET route has a `ROUTE_RULES` entry; BMO's allowed roles apply (DEC-065).
-- **Hub.** BMO settings are hub-level (DEC-064); the conversation is per project.
+- **Routes.** Each new non-GET route has a `ROUTE_RULES` entry; BMO's allowed roles apply (COD-08).
+- **Hub.** BMO settings are hub-level (COD-03); the conversation is per project.
 - **Read-only mode.** Rounds still run; every writing action is refused.
 - **Security model.** In CONTRIBUTING: answers are user text in data blocks; the conversation file holds no prompts or code; every round is previewed.
 - **Static export.** Not included.
@@ -124,12 +128,12 @@ Understanding an existing system is a conversation, not one question about one s
 
 ## Docs
 
-- **New DEC:** the conversation (rounds, question cap, memory, actions, state file). **The review file** (not the CHANGELOG, which the release change writes), **CLAUDE.md** (`conversation.ts`, `Conversation.tsx`), **README** (BMO section).
+- **New decision entry:** the conversation (rounds, question cap, memory, actions, state file). **The review file** (not the CHANGELOG, which the release change writes), **CLAUDE.md** (`conversation.ts`, `Conversation.tsx`), **README** (BMO section).
 - **docs/determinism.md:** rows. **checklist.ts** `STARTERS` and ideas list I2.0: the checklist items.
 
 ## Out of scope
 
-- Multi-pass summarising of a whole repository in one run (planned_features B4).
+- Multi-pass summarising of a whole repository in one run (the former backlog B4 (now in the wave files)).
 - Questions asked without a preview.
 - Voice or email.
 - Keeping BMO's chat history across sessions beyond this file.

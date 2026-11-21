@@ -1,5 +1,5 @@
 /**
- * BMO as the server routes and the CLI run it (DEC-051): from a few selectors (a task, a level, a diagram, an
+ * BMO as the server routes and the CLI run it (COD-02): from a few selectors (a task, a level, a diagram, an
  * object, a lens, a pasted description, a chat question with the IDs it refers to and the earlier turns) the server itself assembles the task's inputs from the model, the code and the
  * drafts, builds the prompt, shows it (`previewOf`), and, when the person confirms its hash, sends it through the
  * backend the server chose and takes the answer (`runBmo`). Nothing a client sends is ever prompt text, an endpoint,

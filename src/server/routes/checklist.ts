@@ -1,4 +1,4 @@
-/** Checklist routes (DEC-084): the items with their checks for the version shown, starter lists, and changes to items. */
+/** Checklist routes (REC-05): the items with their checks for the version shown, starter lists, and changes to items. */
 
 import type { Context, Hono } from "hono";
 import { STARTERS } from "../../core/checklist.js";

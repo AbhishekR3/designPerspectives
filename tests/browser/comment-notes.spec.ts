@@ -1,4 +1,4 @@
-/** Notes on the diagram canvas: add one with a right-click, drag it, click it open (DEC-049, DEC-068). */
+/** Notes on the diagram canvas: add one with a right-click, drag it, click it open (REC-01, MOD-09). */
 
 import type { Page } from "@playwright/test";
 import { expect, openDiagram, test, waitUntil } from "./fixtures.js";

@@ -6,7 +6,7 @@
  *   (structurizr-core SequentialIntegerIdGeneratorStrategy: "any non-numeric IDs are ignored").
  *   New elements get the slug of their name, new relationships `<source>--<destination>` (numbered
  *   when taken). `createElement` and `createRelationship` also take an explicit `id` (the importer,
- *   DEC-051): it must match EXPLICIT_ID, be its own slug (a relationship's: slugs joined by "--") and
+ *   COD-02): it must match EXPLICIT_ID, be its own slug (a relationship's: slugs joined by "--") and
  *   be free among elements and relationships (`isCleanId`).
  * - Names must be unique among people + software systems, among containers of one system, and
  *   among components of one container (structurizr-core Model.hydrate).
@@ -30,7 +30,7 @@
  *   dp.characteristics JSON [{"name","rating","driving","note"}] elements; rating 1-5 per characteristic
  *   dp.cost          JSON [{"item","monthly","note"}]            elements; monthly cost line items
  *   dp.work          JSON [{"type","title","url","status","severity","note","key","remote","checked"}]  elements,
- *                    relationships, views (a diagram or flow) and the workspace (the project), DEC-085 (work.ts);
+ *                    relationships, views (a diagram or flow) and the workspace (the project), WRK-02 (work.ts);
  *                    linked work: security issues, pull requests, issues, backlog items, required updates
  *   dp.code.paths    JSON ["path/relative/to/code/root", ...]    elements, relationships
  *   dp.code.from     a path in the SOURCE element's code paths: where the call leaves it    relationships (C4 code
@@ -44,7 +44,7 @@
  *   dp.run.url       address it runs at (http/https, no path)     elements; where an intercept point of the testing mode
  *                    forwards to. Read from the older dp.ui.url when absent; a write removes the older key
  *   dp.otel.service  service.name in trace files                  elements; when it differs from the ID and name
- *   dp.catalog       ID of the shared catalog element this copies   elements (hub, DEC-055); its name, description
+ *   dp.catalog       ID of the shared catalog element this copies   elements (hub, HUB-06); its name, description
  *                    and technology come from the catalog and are refused here
  *   dp.data          JSON [{"name","kind","description","owner","sensitive"}]  elements; tables, topics, buckets
  *   dp.data.access   JSON [{"asset","mode"}]                       relationships; data of the element at either
@@ -159,7 +159,7 @@ export const WORK_TYPES: [string, string][] = [
   ["quality", "Quality gate / scan"],
 ];
 export const WORK_STATUSES = ["open", "in-progress", "blocked", "done"];
-/** Limits on linked work (DEC-085): items per object, items in a model, and the length of a key and a remote status. */
+/** Limits on linked work (WRK-02): items per object, items in a model, and the length of a key and a remote status. */
 export const WORK_MAX_PER_TARGET = 500;
 export const WORK_MAX_TOTAL = 5000;
 export const WORK_KEY_MAX = 200;
@@ -650,7 +650,7 @@ export function normpath(p: string): string {
 
 /**
  * A clean list of code paths. A hidden path (a segment starting with ".", e.g. `.github/workflows`) is
- * refused: hidden files are never read (DEC-031), so it would map nothing. `existing`: the object's
+ * refused: hidden files are never read (SEC-02), so it would map nothing. `existing`: the object's
  * current paths; a hidden one already there (from an older model) may stay, so other edits still work.
  */
 export function cleanPaths(paths: unknown, existing: readonly string[] = []): string[] {
@@ -926,7 +926,7 @@ export function updateElement(ws: Workspace, sidecar: Sidecar, elementId: string
   const oldName = el.name;
   const linked = getProps(el)[CATALOG_KEY];
   if (linked) {
-    // A linked copy's name, description and technology come from the shared catalog (DEC-055).
+    // A linked copy's name, description and technology come from the shared catalog (HUB-06).
     const same = (k: string, now: string) => !(k in patch) || str(patch[k]).trim() === now;
     if (!same("name", el.name) || !same("description", el.description || "") || ("technology" in patch && joinTech(patch.technology) !== (el.technology ?? null))) {
       throw new ModelError(`"${el.name}" is a copy of the shared catalog element "${linked}": change its name, description and technology in the catalog, then update this copy from the catalog.`);
@@ -1292,7 +1292,7 @@ export function updateRelationship(ws: Workspace, relId: string, patch: Obj): vo
   if ("dataAccess" in patch) setJson(r, ACCESS_KEY, cleanAccess(patch.dataAccess));
 }
 
-// --------------------------------------------------------------------------- data assets and the shared catalog (DEC-055)
+// --------------------------------------------------------------------------- data assets and the shared catalog (HUB-06)
 
 /** Data an element holds: names unique and non-empty; kind from DATA_KINDS (default "table"). */
 export function cleanData(items: unknown): DataAsset[] {

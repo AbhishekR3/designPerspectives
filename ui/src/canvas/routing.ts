@@ -1037,7 +1037,7 @@ const boxMeets = (r: Box, a: Bounds) => r.x <= a[2] && a[0] <= r.x + r.w && r.y 
  * the lanes follows where each line comes from and goes to, so the lines do not cross at the ends of
  * the bundle; when that order adds crossings, bundles of up to 5 lines try every order and take the one with
  * the fewest. Separate lines win over a clean crossing count: the best order is applied even when it adds a
- * crossing (DEC-061). A bundle is left alone only when no order fits: a line would be pushed into a box (or
+ * crossing (CAN-07). A bundle is left alone only when no order fits: a line would be pushed into a box (or
  * closer to one than 5px, or than it was), or a neighbouring piece would get shorter than 12px or turn round.
  * Only the moved pieces and their neighbours are counted, against pieces of other lines near them, so the time
  * grows with the bundles, not with every pair of lines.

@@ -1,5 +1,5 @@
 /**
- * Work across projects (DEC-088): the linked work of every project this person may see, from each main model,
+ * Work across projects (WRK-05): the linked work of every project this person may see, from each main model,
  * with filters (project, status, type, severity, tool, what it is pinned to, text). Read-only: each row links to
  * its project, where items are edited and their status refreshed.
  */

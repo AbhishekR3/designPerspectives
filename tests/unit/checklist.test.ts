@@ -1,4 +1,4 @@
-/** The checklist (DEC-084): items, starter lists, checks dp makes itself, roles, and BMO's questions from an import with their answers. */
+/** The checklist (REC-05): items, starter lists, checks dp makes itself, roles, and BMO's questions from an import with their answers. */
 
 import fs from "node:fs";
 import path from "node:path";

@@ -1,5 +1,5 @@
 /**
- * Findings from other tools become linked work (DEC-085): SARIF, GitLab code quality, SonarQube issues
+ * Findings from other tools become linked work (WRK-02): SARIF, GitLab code quality, SonarQube issues
  * and dp's own push format are read here into `WorkPush`es, and a finding's file is mapped to the element
  * whose code paths hold it (the most specific path, then the deepest element); a file no element holds is
  * pinned to the project and counted as unmapped. `pushWork` merges the pushes into a model, writing only
@@ -237,7 +237,7 @@ function dpPushes(doc: unknown, ws: Workspace): WorkPush[] {
 // ---------------------------------------------------------------- reading a report
 
 /** Read a report into pushes. A bad report is a ModelError that says what is wrong. `maps`: the model's severity
- *  mapping (the sidecar's `work.severity`, DEC-087). */
+ *  mapping (the sidecar's `work.severity`, WRK-04). */
 export function parseWorkReport(format: WorkImportFormat | string, text: string, ws: Workspace, maps: WorkSeverityMaps = DEFAULT_WORK_SEVERITY): ParsedReport {
   if (!(WORK_IMPORT_FORMATS as readonly string[]).includes(format)) throw new ModelError(`Unknown format "${format}". Use ${WORK_IMPORT_FORMATS.join(", ")}.`);
   if (typeof text !== "string") throw new ModelError("The report must be text.");

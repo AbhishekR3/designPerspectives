@@ -1,11 +1,11 @@
 /**
- * A hub of projects (DEC-054): `dp serve --hub DIR` serves several project folders from one server.
+ * A hub of projects (HUB-04): `dp serve --hub DIR` serves several project folders from one server.
  *
  *   DIR/hub.json            {"version": 1, "name": "...", "catalog": "catalog", "projects": [{"id", "path", "name"?}]}
  *   DIR/catalog/            the shared catalog: a normal project folder (H4)
  *   DIR/.dp/users.json      one sign-in for every project (optional)
  *   DIR/.dp/credentials.json  integration credentials (H5)
- *   DIR/.dp/integrations.json tool connections for linked work status (DEC-085)
+ *   DIR/.dp/integrations.json tool connections for linked work status (WRK-02)
  *
  * Each project is served by its own app (`buildApp`, unchanged route modules), built on first use.
  * This app answers sign-in, the hub-level routes and the UI itself, and passes every other API
@@ -91,7 +91,7 @@ function belowCommon(base: string, real: string, ci: boolean): string {
  * itself lives in a hidden folder is fine). `strict` (a folder sent to `POST /api/hub/projects`): a relative
  * path with no `..`, inside the hub after following links. Otherwise (an entry in `hub.json`, which only
  * someone with the hub folder can write) a folder outside the hub (`../x`, or an absolute path) is allowed
- * too (DEC-054).
+ * too (HUB-04).
  */
 export function folderProblem(dir: string, p: string, strict: boolean): string | null {
   const written = p.trim();
@@ -197,14 +197,14 @@ export class Hub {
   private file!: HubFile;
   private stamp = "";
   private apps = new Map<string, { root: string; app: Hono; ctx: Ctx }>();
-  /** Per project: the catalog and project revisions last brought in step (DEC-057). */
+  /** Per project: the catalog and project revisions last brought in step (HUB-07). */
   private syncKeys = new Map<string, string>();
   /** Catalog changes copied into projects, newest first. */
   readonly updates: CatalogUpdate[] = [];
 
-  /** The hub's credentials (DEC-056), used by every project's integrations. */
+  /** The hub's credentials (SEC-06), used by every project's integrations. */
   readonly credentials: CredentialStore;
-  /** The hub's tool connections for linked work (DEC-085), used by every project. */
+  /** The hub's tool connections for linked work (WRK-02), used by every project. */
   readonly integrations: IntegrationsStore;
 
   constructor(
@@ -304,7 +304,7 @@ export class Hub {
   }
 
   /**
-   * Copy catalog changes into the projects' main models (DEC-057): every linked copy takes its catalog
+   * Copy catalog changes into the projects' main models (HUB-07): every linked copy takes its catalog
    * element's name, description and technology as soon as the catalog's main model has them. Checked
    * before each project request and after each catalog request, cheaply (by revisions). Not on a
    * read-only server. Drafts get the change when they are applied, like any change made on main.

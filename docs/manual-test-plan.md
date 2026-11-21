@@ -251,7 +251,7 @@ BMO is off by default. **No real provider call has ever been made.** The direct 
 
 ## 14 System Testing mode
 
-**Hidden by default in 1.0.0 (DEC-104, [planned_features.md](planned_features.md) A8): not built yet; planned as [Wave 29](waves/wave-29-system-testing-switch.md) (DEC-107).** Today the mode is always on and these rows pass as written. Once A8 is built, start the demo with `dp serve --demo --testing --with-system` for sections 14, 20 and 21, and add rows that check the mode is absent without the flags: no **Test** button, no intercept listener, the testing and trace routes answer as if they did not exist, and `dp serve --demo` alone starts no service on ports 4200 to 4204.
+**Hidden by default in 1.0.0 (PRO-20, [planned_features.md](planned_features.md) A8): not built yet; planned as [Wave 29](waves/wave-29-system-testing-switch.md) (PRO-23).** Today the mode is always on and these rows pass as written. Once A8 is built, start the demo with `dp serve --demo --testing --with-system` for sections 14, 20 and 21, and add rows that check the mode is absent without the flags: no **Test** button, no intercept listener, the testing and trace routes answer as if they did not exist, and `dp serve --demo` alone starts no service on ports 4200 to 4204.
 
 | # | Do this (in the demo) | You should see | Automated check | Result / date |
 |---|---|---|---|---|
@@ -293,7 +293,7 @@ Start a fresh copy of the demo for this section.
 | MT-DRAFT-147 | Run `dp users add sam --role engineer`, `dp users role sam viewer`, `dp users passwd sam`, `dp users list`, `dp users remove sam`. | Each works. The last architect cannot be removed. | tests/unit/auth.test.ts | |
 | MT-DRAFT-148 | Start `dp serve --read-only` on a fresh demo. | Nothing can be changed. Escape, fit and zoom still work. | tests/unit/security.test.ts | |
 | MT-DRAFT-149 | In a hub run `dp users role NAME ROLE HUB --project ID` with `none`. | The project is hidden from that person. | tests/unit/hub.test.ts | |
-| MT-DRAFT-150 | In a non-demo folder run `dp serve --host 0.0.0.0` without sign-in. | dp refuses to start: exit code 1 and a message (`exposureProblem`, `src/cli.ts:88`, DEC-063). It starts with `--read-only`, after `dp users init`, or with `--insecure`. | tests/unit/security.test.ts | |
+| MT-DRAFT-150 | In a non-demo folder run `dp serve --host 0.0.0.0` without sign-in. | dp refuses to start: exit code 1 and a message (`exposureProblem`, `src/cli.ts:88`, PRO-15). It starts with `--read-only`, after `dp users init`, or with `--insecure`. | tests/unit/security.test.ts | |
 
 ## 17 History and git compare
 
@@ -337,7 +337,7 @@ From the owner's list of checks that only the owner can run (the private ideas l
 
 ## 20 Security and request protection
 
-Added 2026-11-20. Most rows use `curl` against a running `dp serve` (default `http://127.0.0.1:8765`). The facts come from DEC-030, DEC-031, DEC-032, DEC-056, DEC-063, DEC-075, DEC-085 and `docs/CONTRIBUTING.md` (the security model). These checks are automated in `tests/unit/security.test.ts` and `tests/unit/auth.test.ts`; a manual run proves the real server, not the test harness.
+Added 2026-11-20. Most rows use `curl` against a running `dp serve` (default `http://127.0.0.1:8765`). The facts come from SEC-01, SEC-02, DRF-02, SEC-06, PRO-15, RUN-06, WRK-02 and `docs/CONTRIBUTING.md` (the security model). These checks are automated in `tests/unit/security.test.ts` and `tests/unit/auth.test.ts`; a manual run proves the real server, not the test harness.
 
 | # | Do this | You should see | Automated check | Result / date |
 |---|---|---|---|---|
@@ -347,19 +347,19 @@ Added 2026-11-20. Most rows use `curl` against a running `dp serve` (default `ht
 | MT-DRAFT-174 | Large body: `head -c 6000000 /dev/zero \| curl -i -X POST -H 'Content-Type: application/json' --data-binary @- http://127.0.0.1:8765/api/undo`. | `413` ("over 5 MB"). | tests/unit/security.test.ts | |
 | MT-DRAFT-175 | Start with `dp serve --allow-host dp.test --no-open`, then `curl -i -H 'Host: dp.test:8765' http://127.0.0.1:8765/api/state` and the same with `Host: other.test`. | The allowed name answers `200`; the other is `403`. Needs a proxy or tunnel in real use; this only checks the rule. | tests/unit/security.test.ts | |
 | MT-DRAFT-176 | Bind to another interface: `dp serve --host 0.0.0.0` with no users file; then with `--read-only`; then after `dp users init`; then with `--insecure`. | The first exits with 1 and a message. The other three start; `--insecure` should say that anyone who can reach the server can change everything (check the wording). | tests/unit/security.test.ts | |
-| MT-DRAFT-177 | Hidden path: `curl -i 'http://127.0.0.1:8765/api/code/file?path=.git/config'` and `...?path=.env`. | Refused for both (DEC-031: names starting with a dot are never read). Try `...?path=../README.md` as well: refused (outside the code folder). | tests/unit/security.test.ts, tests/unit/code-level.test.ts | |
+| MT-DRAFT-177 | Hidden path: `curl -i 'http://127.0.0.1:8765/api/code/file?path=.git/config'` and `...?path=.env`. | Refused for both (SEC-02: names starting with a dot are never read). Try `...?path=../README.md` as well: refused (outside the code folder). | tests/unit/security.test.ts, tests/unit/code-level.test.ts | |
 | MT-DRAFT-178 | Symlink out of the code folder: in `sample_code/` run `ln -s /etc/hosts link.txt`, then read `...?path=link.txt`. Also a symlink to a dot folder. | Refused (symlinks are resolved and checked). Remove the link afterwards. | tests/unit/security.test.ts | |
-| MT-DRAFT-179 | Map a component to `.github/workflows` in its code paths (panel, "Code" section). | Refused when entered (DEC-063). A path a model already has still loads and `dp check` warns. | tests/unit/security.test.ts | |
+| MT-DRAFT-179 | Map a component to `.github/workflows` in its code paths (panel, "Code" section). | Refused when entered (PRO-15). A path a model already has still loads and `dp check` warns. | tests/unit/security.test.ts | |
 | MT-DRAFT-180 | Credentials at rest: add a credential (page or `dp credentials add`), then `ls -l .dp .dp/credentials.json`, `cat .gitignore`, and `curl http://127.0.0.1:8765/api/credentials`. | Folder mode `drwx------`, file mode `-rw-------`; `.dp/` is listed in `.gitignore`; the API answer holds names, providers, dates and a masked hint, never the value. | tests/unit/credentials.test.ts | |
 | MT-DRAFT-181 | Wrong key: start with `DP_SECRET_KEY=one`, add a credential, stop, start with `DP_SECRET_KEY=two`. | The credential shows as "locked" and is never sent. Without any key the file holds the value in plain text (the page says so). | tests/unit/credentials.test.ts | |
 | MT-DRAFT-182 | Tool connection rules: `dp integrations set t1 --tool jira --url http://example.com`, then `--url https://user:pass@example.com`, then `--url https://169.254.169.254`. | Each is refused with a reason (https only, no user or password in the address, no link-local or metadata address; CONTRIBUTING.md "Linked work status"). Check the exact wording. | tests/unit/integrations.test.ts | |
 | MT-DRAFT-183 | System Testing target rules (needs MT-124 first): give an element `Address it runs at` = `http://example.com:80`, then try **Open intercept point**. Repeat after restarting with `--allow-target-host example.com`. Then try `http://169.254.169.254`. | The first is refused (not this machine). With the flag it opens. The link-local address is refused always. A draft's address is never used (see MT-135). | tests/unit/testing-core.test.ts | |
-| MT-DRAFT-184 | Redaction by shape and its limit: put `API_KEY=abcdef1234567890` and the sentence `the admin password is hunter2` in a file under `sample_code/` that a component maps; open **BMO → Explain** on that component and read the preview. | The `API_KEY` value is masked and counted under "values hidden". The plain word `hunter2` is **not** masked (known limit, DEC-064); decide whether that is acceptable. | tests/unit/bmo-redact.test.ts, tests/unit/redact-gaps.test.ts | |
+| MT-DRAFT-184 | Redaction by shape and its limit: put `API_KEY=abcdef1234567890` and the sentence `the admin password is hunter2` in a file under `sample_code/` that a component maps; open **BMO → Explain** on that component and read the preview. | The `API_KEY` value is masked and counted under "values hidden". The plain word `hunter2` is **not** masked (known limit, COD-03); decide whether that is acceptable. | tests/unit/bmo-redact.test.ts, tests/unit/redact-gaps.test.ts | |
 | MT-DRAFT-185 | Hostile handoff result: write a `result.json` with an unknown key, then one with a field of the wrong type, then one that holds a secret-looking value; press **Read result.json** each time. | Each is refused with the field named. Nothing reaches the model. | tests/unit/import-file.test.ts, tests/unit/import-security.test.ts | |
 
 ## 21 Concurrency and sessions
 
-Added 2026-11-20. dp has no live push (DEC-039): another tab, the CLI or a git checkout shows up when the window regains focus. Last write wins (DEC-041).
+Added 2026-11-20. dp has no live push (CAN-09): another tab, the CLI or a git checkout shows up when the window regains focus. Last write wins (SEC-04).
 
 | # | Do this | You should see | Automated check | Result / date |
 |---|---|---|---|---|
@@ -367,9 +367,9 @@ Added 2026-11-20. dp has no live push (DEC-039): another tab, the CLI or a git c
 | MT-DRAFT-187 | Edit the **same** description in both tabs (A first, then B, without clicking into A in between). | Last write wins; no error. Write down what tab A shows after you focus it. | none | |
 | MT-DRAFT-188 | While serving, run `dp work add --to project --title "From CLI"` in another terminal. Focus the browser, open **Work**. | The new item is listed. | none | |
 | MT-DRAFT-189 | Undo is per model version, not per person: edit box X in tab A, edit box Y in tab B, press Ctrl/Cmd+Z in tab A. | Y's edit is undone (the newest edit on that model), not X's (reviews.md, Stage P4). | none | |
-| MT-DRAFT-190 | With sign-in (section 16), two engineers: engineer 1 starts a draft; engineer 2 tries to change it. | Engineer 2 can read it but not change or discard it (DEC-063); architects can. | tests/browser/roles.spec.ts | |
-| MT-DRAFT-191 | System Testing in two browsers: pause a call (MT-127); release it from the second browser. | One session per project; the first release wins (DEC-075). The other browser shows the call as released. | none | |
-| MT-DRAFT-192 | Restart `dp serve` while signed in. | The browser asks for the name and password again (sessions live in memory). Also run two `dp users` commands at once and check the users file is still valid (DEC-041 says do not). Skip the second part if you are unsure. | tests/unit/auth.test.ts | |
+| MT-DRAFT-190 | With sign-in (section 16), two engineers: engineer 1 starts a draft; engineer 2 tries to change it. | Engineer 2 can read it but not change or discard it (PRO-15); architects can. | tests/browser/roles.spec.ts | |
+| MT-DRAFT-191 | System Testing in two browsers: pause a call (MT-127); release it from the second browser. | One session per project; the first release wins (RUN-06). The other browser shows the call as released. | none | |
+| MT-DRAFT-192 | Restart `dp serve` while signed in. | The browser asks for the name and password again (sessions live in memory). Also run two `dp users` commands at once and check the users file is still valid (SEC-04 says do not). Skip the second part if you are unsure. | tests/unit/auth.test.ts | |
 
 ## 22 Failure modes
 
@@ -378,17 +378,17 @@ Added 2026-11-20. What happens when something breaks. Take backups first: severa
 | # | Do this | You should see | Automated check | Result / date |
 |---|---|---|---|---|
 | MT-DRAFT-193 | In the sample draft, plan a code edit, tick "Also write the planned code edits" in the Apply dialog, apply. | The model and the code files change together; undo restores the model only, not the code files or the draft (planned-change.md, limits). | tests/unit/planned-code.test.ts | |
-| MT-DRAFT-194 | Repeat MT-193 after `chmod 444` on the code file the draft edits. | Apply fails, the model is unchanged, the draft is still there and files are restored (DEC-032; restore is best effort: write down what you see). | tests/unit/planned-code.test.ts | |
+| MT-DRAFT-194 | Repeat MT-193 after `chmod 444` on the code file the draft edits. | Apply fails, the model is unchanged, the draft is still there and files are restored (DRF-02; restore is best effort: write down what you see). | tests/unit/planned-code.test.ts | |
 | MT-DRAFT-195 | Break a draft: delete `architecture/drafts/<id>/base/` (or make its `workspace.json` invalid JSON). Reload. | An error names the draft; the main model still opens; the other drafts still list. | none | |
-| MT-DRAFT-196 | Import a draft (MT-97), then delete its file under `architecture/import/reviews/`. Try **Apply**. | Apply is refused; "Check again" rebuilds the review with every item pending (DEC-064, fail closed). | tests/unit/import-review.test.ts | |
-| MT-DRAFT-197 | Damage a decision file: delete the closing quote of a front-matter value in `architecture/decisions/*.md`. Reload. | A model error names the file; dp never rewrites it; other decisions still work (DEC-050). Restore the file. | tests/unit/decisions.test.ts | |
+| MT-DRAFT-196 | Import a draft (MT-97), then delete its file under `architecture/import/reviews/`. Try **Apply**. | Apply is refused; "Check again" rebuilds the review with every item pending (COD-03, fail closed). | tests/unit/import-review.test.ts | |
+| MT-DRAFT-197 | Damage a decision file: delete the closing quote of a front-matter value in `architecture/decisions/*.md`. Reload. | A model error names the file; dp never rewrites it; other decisions still work (REC-04). Restore the file. | tests/unit/decisions.test.ts | |
 | MT-DRAFT-198 | In a hub, make `hub.json` invalid JSON; then give two projects the same folder; then point one inside another. | A clear error each time; the hub does not start with a half-read file. | tests/unit/hub.test.ts | |
 | MT-DRAFT-199 | Start `dp serve` twice on port 8765. | The second says the port is in use and exits. | none | |
 | MT-DRAFT-200 | Block one demo port (`nc -l 4202`), then `dp serve --demo` in a new folder. | dp names the busy port and runs without that service or the whole demo system (MT-134 covers 4200; check which here). | tests/unit/demo-system.test.ts | |
 | MT-DRAFT-201 | Hide git: start dp with a PATH that has `node` but no `git` (for example `env PATH="$(dirname "$(command -v node)")" ...`; check that this works on your machine). | The Git compare row and History are hidden or empty; nothing crashes (reviews.md, Stage C). | tests/unit/git-compare.test.ts (9 tests skip without git) | |
 | MT-DRAFT-202 | Turn the network off. Press **Refresh status** on a GitHub link. | The link is listed as unreadable with a reason; no token is shown; no status changes. *needs account* for a private repository. | tests/unit/work-tools.test.ts (fake servers) | |
 | MT-DRAFT-203 | BMO direct with a wrong key, then an unreachable Ollama endpoint (`--endpoint http://127.0.0.1:9`). *needs own key* | A short error each time. The prompt shown matched the hash. Nothing is retried more than once. | tests/unit/bmo-direct.test.ts (fake) | |
-| MT-DRAFT-204 | In `workspace.json` of a copy, delete a view the diagram list shows, then open its address (`#/d/<key>`). | The landscape opens with a notice, and Back does not loop (DEC-078). A server error shows an error instead. | tests/browser/canvas-fixes.spec.ts | |
+| MT-DRAFT-204 | In `workspace.json` of a copy, delete a view the diagram list shows, then open its address (`#/d/<key>`). | The landscape opens with a notice, and Back does not loop (MOD-10). A server error shows an error instead. | tests/browser/canvas-fixes.spec.ts | |
 | MT-DRAFT-205 | Try to trigger the error screen (`ErrorBoundary.tsx`): for example edit `workspace.json` so an element has an unknown `dp.archType` or huge `dp.example`. | If a page crashes it shows the error screen and a way back, not a blank page. If you cannot trigger it, mark Skip. | none | |
 
 ## 23 Scale and performance
@@ -397,9 +397,9 @@ Added 2026-11-20. Nothing in the repository measures how dp behaves on a large m
 
 | # | Do this | You should see | Automated check | Result / date |
 |---|---|---|---|---|
-| MT-DRAFT-206 | Build a model with about 150 containers, 500 components and 600 relationships (a script that writes `workspace.json`). Open the landscape, a containers diagram, press **Auto-layout**, then run `dp check`. | Write down: time to open, time of Auto-layout, time of `dp check`, whether dragging stays smooth. (DEC-063 measured only a BMO prompt on such a model.) | none | |
-| MT-DRAFT-207 | In a repository with 500 or more commits touching `architecture/`, open `#/history`. | The first page loads (20 commits by default, 100 at most; DEC-058). Write down the time; each commit is a model diff. | none | |
-| MT-DRAFT-208 | A hub with 10 projects: open `#/home` cold, then again. | Write down the first and second load times (`dp check` runs per project on the first load, DEC-053); drafts and errors are counted. | none | |
+| MT-DRAFT-206 | Build a model with about 150 containers, 500 components and 600 relationships (a script that writes `workspace.json`). Open the landscape, a containers diagram, press **Auto-layout**, then run `dp check`. | Write down: time to open, time of Auto-layout, time of `dp check`, whether dragging stays smooth. (PRO-15 measured only a BMO prompt on such a model.) | none | |
+| MT-DRAFT-207 | In a repository with 500 or more commits touching `architecture/`, open `#/history`. | The first page loads (20 commits by default, 100 at most; DRF-06). Write down the time; each commit is a model diff. | none | |
+| MT-DRAFT-208 | A hub with 10 projects: open `#/home` cold, then again. | Write down the first and second load times (`dp check` runs per project on the first load, HUB-03); drafts and errors are counted. | none | |
 | MT-DRAFT-209 | `dp scan` on a real repository with more than 5,000 source files in several languages (any open source repository you have). | "Limits hit" and "unparsed" are listed; the scan finishes; write down the time and the number of C1, C2 and C3 candidates (the demo finds no C3 candidates). | none | |
 | MT-DRAFT-210 | In that repository add `.env`, `secrets.yaml`, a `*.pem` file and a symlink to a folder outside it, then run **BMO → import level** preview. | None of those is read; hidden values are counted; the preview lists the files it would send. | tests/unit/import-security.test.ts | |
 
@@ -410,11 +410,11 @@ Added 2026-11-20. **No accessibility audit has ever been run** (reviews.md, Stag
 | # | Do this | You should see | Automated check | Result / date |
 |---|---|---|---|---|
 | MT-DRAFT-211 | Keyboard only (no mouse). Reach the top bar, open **Diagrams**, select a box, rename with F2, move with arrow keys, delete, undo, open the checklist with L. | Every step can be done. Write down every place focus is lost or invisible. | tests/browser/interactions.spec.ts (some keys) | |
-| MT-DRAFT-212 | Open each dialog in turn (New draft, Apply, Move to…, a Settings dialog, Add credential). Press Tab repeatedly, then Escape. | Tab stays inside, Escape closes and gives focus back (DEC-033). Only the search dialog is tested for this. | tests/browser/overlays.spec.ts (search only) | |
-| MT-DRAFT-213 | In **Move to…** press the arrow keys in the list. | Known: rows have `role="option"` but arrow keys do not move (`planned_features.md` B6). Confirm it still does not. | none | |
+| MT-DRAFT-212 | Open each dialog in turn (New draft, Apply, Move to…, a Settings dialog, Add credential). Press Tab repeatedly, then Escape. | Tab stays inside, Escape closes and gives focus back (CAN-01). Only the search dialog is tested for this. | tests/browser/overlays.spec.ts (search only) | |
+| MT-DRAFT-213 | In **Move to…** press the arrow keys in the list. | Known: rows have `role="option"` but arrow keys do not move (the former backlog B6 (now in the wave files)). Confirm it still does not. | none | |
 | MT-DRAFT-214 | Turn on VoiceOver (macOS). Move through the diagram, the right panel and the toolbar. | Boxes, lines and buttons are announced with useful names. Write down the ones that are not. | none | |
 | MT-DRAFT-215 | Browser dev tools → "Emulate vision deficiencies" (blurred, no colour). Look at the Tier overlay and the **Colour** legend. | Overlay boxes carry a text badge, and line kinds that are easy to confuse have a pattern; check that values are still told apart. | none | |
-| MT-DRAFT-216 | Resize the window to 1280, 1100, 1024, 800 and 760 px wide. | Bars wrap instead of scrolling, the draft strip keeps Apply, Discard and Back to main visible, the right panel folds under 1100 px (DEC-042). Under 760 px dp is not supported: note what happens. | tests/browser/layout.spec.ts (viewport loops) | |
+| MT-DRAFT-216 | Resize the window to 1280, 1100, 1024, 800 and 760 px wide. | Bars wrap instead of scrolling, the draft strip keeps Apply, Discard and Back to main visible, the right panel folds under 1100 px (CAN-05). Under 760 px dp is not supported: note what happens. | tests/browser/layout.spec.ts (viewport loops) | |
 | MT-DRAFT-217 | Zoom the browser to 150% and 200%. | The canvas stays usable; dialogs fit. Write down what overflows. | none | |
 | MT-DRAFT-218 | On a touch device (if you have one): add a box from the palette, drag a line, open a menu. | The palette needs a tap rather than a drag (reviews.md, release 0.2.0). Skip if you have no touch device. | none | |
 
@@ -424,7 +424,7 @@ Added 2026-11-20. Automated browser tests run Chromium only, on Linux or macOS, 
 
 | # | Do this | You should see | Automated check | Result / date |
 |---|---|---|---|---|
-| MT-DRAFT-219 | Firefox: run sections 1 to 3 (start-up, modelling, lines). | Everything works. Label positions may differ a little: label sizes are an estimate and fonts differ (DEC-052). Write down overlapping labels. | none (Chromium only) | |
+| MT-DRAFT-219 | Firefox: run sections 1 to 3 (start-up, modelling, lines). | Everything works. Label positions may differ a little: label sizes are an estimate and fonts differ (CAN-06). Write down overlapping labels. | none (Chromium only) | |
 | MT-DRAFT-220 | Safari: the same rows as MT-219. *needs a Mac* | Same as MT-219. | none | |
 | MT-DRAFT-221 | Windows (more than MT-166): map a component to `src\app` (backslashes), save a decision file, edit it in an editor that writes CRLF, run `dp scan` and read paths in the result. *needs Windows* | Paths work; results use forward slashes; a CRLF decision file loads and is not rewritten until edited; the browser opens. | none | |
 | MT-DRAFT-222 | Run `npm run ci` once on Node 20 and once on Node 22 (for example with `nvm use`). | Both pass (CI runs both; the pipeline has not run yet: see the gap register). | scripts/ci-local.ts | |
@@ -432,8 +432,8 @@ Added 2026-11-20. Automated browser tests run Chromium only, on Linux or macOS, 
 | MT-DRAFT-224 | `npm pack`, then install the tarball into a clean prefix (`npm install -g --prefix /tmp/dpx ./designperspectives-*.tgz`), run `dp --version`, `dp init`, `dp check`, `dp import --schema`. | All work; the schema prints (it ships in the package). | scripts/ci-local.ts | |
 | MT-DRAFT-225 | Run `dp --version` with Node 18. | A clear refusal naming the Node version needed (`engines`: 20.11 or later); check the wording. | none | |
 | MT-DRAFT-226 | `npm link` from a clone (README), then `dp --version` in another folder. | `dp` runs from anywhere. | none | |
-| MT-DRAFT-227 | Change a UI file, run `npm run build` in `ui/`, reload the page normally (no hard refresh). | The new UI loads (assets are `no-cache` with an ETag, DEC-066). Check `git status`: `static/` is the only change. | tests/unit/api.test.ts (cache headers) | |
-| MT-DRAFT-228 | Download a diagram as SVG and as PNG (see MT-24). Open the SVG in a browser and a vector editor; open the PNG. | Dark background (DEC-013), all boxes, lines and labels present, placed notes **not** included (DEC-070), the PNG is sharp at 100%. Write down anything missing. | none | |
+| MT-DRAFT-227 | Change a UI file, run `npm run build` in `ui/`, reload the page normally (no hard refresh). | The new UI loads (assets are `no-cache` with an ETag, STK-07). Check `git status`: `static/` is the only change. | tests/unit/api.test.ts (cache headers) | |
+| MT-DRAFT-228 | Download a diagram as SVG and as PNG (see MT-24). Open the SVG in a browser and a vector editor; open the PNG. | Dark background (MOD-14), all boxes, lines and labels present, placed notes **not** included (REC-02), the PNG is sharp at 100%. Write down anything missing. | none | |
 
 ## 26 Commands, flags and features with no step so far
 
@@ -454,17 +454,17 @@ Added 2026-11-20. Each row is a flag or feature found in the code or the docs wi
 | MT-DRAFT-239 | `printf 'pw-1234567890\n' \| dp users add sam --role viewer --password-stdin`, then sign in as sam; also `dp users init --file ./u.json`. | The password you gave works; the file is created where named. | tests/unit/auth.test.ts | |
 | MT-DRAFT-240 | `dp credentials rotate test-token < new.txt` after adding `test-token`. | The value is replaced; the hint changes; the name stays. There is no automated test for `rotate`, so this is the only check. | none | |
 | MT-DRAFT-241 | The notification bell in three states: a fresh demo; after breaking a decision file (MT-197); with a draft that is behind main. Also cause an error toast, then open the bell. | "Now" lists load errors, drafts behind main and the decisions that need a look; "Earlier in this tab" lists the errors shown, newest first, up to 50, with an unseen count; Escape closes it. | none | |
-| MT-DRAFT-242 | Decision renumbering: create decision `0008` on main and another `0008` in a draft; apply the draft. | The draft's decision is renumbered to the next free number and its links follow (DEC-050). | tests/unit/decisions.test.ts | |
-| MT-DRAFT-243 | In a decision's Context section type a line starting with `## `. Save and reopen. | It is saved as `###` so it is not read as a new section (DEC-050). | tests/unit/decisions.test.ts | |
+| MT-DRAFT-242 | Decision renumbering: create decision `0008` on main and another `0008` in a draft; apply the draft. | The draft's decision is renumbered to the next free number and its links follow (REC-04). | tests/unit/decisions.test.ts | |
+| MT-DRAFT-243 | In a decision's Context section type a line starting with `## `. Save and reopen. | It is saved as `###` so it is not read as a new section (REC-04). | tests/unit/decisions.test.ts | |
 | MT-DRAFT-244 | Checklist: add *Starting a project*; try to tick an item that has a rule; skip it; then import `demo/import-example.json` and look for "Questions from BMO". | A rule item cannot be ticked by hand, only skipped. Questions from an import appear under "Questions from BMO" and in the bell. The **Selection** filter shows only items about the selection. | tests/unit/checklist.test.ts | |
 | MT-DRAFT-245 | Delete the lens you are using, and a lens that has a saved choice. | Check what happens (reviews and the changelog say a deleted lens that is in use is kept). Write down the behaviour. | none | |
-| MT-DRAFT-246 | A relationship used by two steps of one flow: set a breakpoint on one step in Test mode. | It stops on both steps (DEC-075, known limit). | tests/unit/testing-decor.test.ts | |
-| MT-DRAFT-247 | Open a flow that visits one element in two steps; open the step info of the first and of the second. | The "before" and "after" links go to the nearest earlier or later step at the same element (DEC-099, Q-C3). Note any wrong jump. | tests/unit/flow-step-info.test.ts | |
+| MT-DRAFT-246 | A relationship used by two steps of one flow: set a breakpoint on one step in Test mode. | It stops on both steps (RUN-06, known limit). | tests/unit/testing-decor.test.ts | |
+| MT-DRAFT-247 | Open a flow that visits one element in two steps; open the step info of the first and of the second. | The "before" and "after" links go to the nearest earlier or later step at the same element (PRO-16, Q-C3). Note any wrong jump. | tests/unit/flow-step-info.test.ts | |
 | MT-DRAFT-248 | Traces: put two trace files in the folder, cut the last line of one in half, add a span with `dp.otel.service` on an element. | The cut line is skipped, both files are read, the span is matched by the service name. | tests/unit/traces.test.ts | |
-| MT-DRAFT-249 | Place a note (MT-74), then move the box under it. | The note stays where it was (DEC-070, known limit) and can now point at the wrong place. | tests/browser/comment-notes.spec.ts | |
-| MT-DRAFT-250 | Shape a line by hand (MT-26), then run Auto-layout, then **Make room** twice in a row. | The hand-shaped line is not routed around boxes (known limit, DEC-071); the second **Make room** may still find a little to do (DEC-061). | tests/unit/line-editing.test.ts | |
-| MT-DRAFT-251 | Right-click a person and a software system. | **Move to…** is not offered (people and systems are top level, DEC-037). | tests/unit/ops.test.ts | |
-| MT-DRAFT-252 | Add a box, rename it (its ID changes), reload, rename it again. | The first rename changes the ID; after the reload the ID stays (DEC-035: the fresh mark lives only in the open page). | tests/unit/ops.test.ts | |
+| MT-DRAFT-249 | Place a note (MT-74), then move the box under it. | The note stays where it was (REC-02, known limit) and can now point at the wrong place. | tests/browser/comment-notes.spec.ts | |
+| MT-DRAFT-250 | Shape a line by hand (MT-26), then run Auto-layout, then **Make room** twice in a row. | The hand-shaped line is not routed around boxes (known limit, CAN-08); the second **Make room** may still find a little to do (CAN-07). | tests/unit/line-editing.test.ts | |
+| MT-DRAFT-251 | Right-click a person and a software system. | **Move to…** is not offered (people and systems are top level, MOD-05). | tests/unit/ops.test.ts | |
+| MT-DRAFT-252 | Add a box, rename it (its ID changes), reload, rename it again. | The first rename changes the ID; after the reload the ID stays (CAN-02: the fresh mark lives only in the open page). | tests/unit/ops.test.ts | |
 
 ## 27 Not built yet: do not test
 
@@ -475,8 +475,8 @@ Listed so nobody adds rows for features that do not exist. Sources: `docs/planne
 - Code search, key code and the one generic regex reader (Wave 5); the guided import interview (Wave 15); findings and acknowledgements (Wave 6); metrics (Wave 7); rules and presets (Wave 8); the characteristics table (Wave 9); BMO reviews (Wave 11); contracts (Wave 13); local runtimes and the word index (Wave 14); `dp commit` and the Commit button (Wave 17); rebase and a merge editor (Wave 18); DevOps, Security and Business lenses as built-ins (Wave 19); the system conversation (Wave 20).
 - Wave 14a and 14b (local runtimes with the typed context window; the word index); the small batch (Wave 27, now in 0.8.0); the guard rails, the accessibility audit and the stable-surface statement (Wave 28); hiding System Testing, traces and the demo system by default (Wave 29, 0.7.0). Risk storming and runtime telemetry are parked ideas, not waves.
 - Deployment diagrams, groups, saved test cases and `dp test`, risk storming, runtime telemetry, drift detection.
-- The static export (Wave 21, in 1.0.0 by DEC-100); hosted accounts (A6, after 1.0.0); always-encrypted credentials (A7, DEC-101: until it is built, MT-DRAFT-163 and MT-DRAFT-181 test the optional key).
-- Hiding System Testing, traces and the demo system by default, with the `--testing` and `--with-system` switches (A8, DEC-104). Until it is built, the mode is on and sections 14, 20 and 21 apply as written.
+- The static export (Wave 21, in 1.0.0 by PRO-17); hosted accounts (A6, after 1.0.0); always-encrypted credentials (A7, SEC-07: until it is built, MT-DRAFT-163 and MT-DRAFT-181 test the optional key).
+- Hiding System Testing, traces and the demo system by default, with the `--testing` and `--with-system` switches (A8, PRO-20). Until it is built, the mode is on and sections 14, 20 and 21 apply as written.
 - MT-DRAFT-170 already says that waves 15 and 3 are not built.
 
 ## 28 Gap register: everything not confirmed, including borderline items
@@ -492,30 +492,30 @@ Added 2026-11-20 from a read of the plan, the docs, `tests/TESTS.csv` and the co
 | G-03 | BMO request shapes | `store: false` (OpenAI) and `done_reason: "length"` at `num_predict` (Ollama) are marked "Not verified" in code | `src/assistant/providerBackend.ts:436,478` | | Part of MT-113 | |
 | G-04 | BMO limits | The hash refusal, a cut-off answer and the Ollama non-loopback rule were never tried against a real server; `--allow-custom-endpoint` has no step | reviews.md 0.5.0 | Fence | MT-203, MT-232 | |
 | G-05 | Status refresh | GitHub, GitLab, SonarQube and Jira were tested against fake servers only; MT-121 covers one public GitHub issue | `work-tools.test.ts`; section 29 U4 | | MT-121 plus one real link per other tool, *needs account* | |
-| G-06 | Status refresh auth | SonarQube 10 or later needs a bearer token (older servers use `basic`); Jira Cloud needs email and token; GitHub Enterprise; private repository with a credential | reviews.md linked work; DEC-085 | | Per tool, *needs account* | |
+| G-06 | Status refresh auth | SonarQube 10 or later needs a bearer token (older servers use `basic`); Jira Cloud needs email and token; GitHub Enterprise; private repository with a credential | reviews.md linked work; WRK-02 | | Per tool, *needs account* | |
 | G-07 | Status refresh limits | At most 200 links, 4 at a time, 10 s each, no redirects, answers over 1 MB refused | CONTRIBUTING.md "Linked work status" | Fence | A work item list of 250 links to one host | |
 | G-08 | Import formats | The SARIF example is hand-made; GitLab Code Quality, SonarQube issues and dp JSON have no step with a real report | manual-test-plan (old line 334); section 29 U5 | | MT-119, MT-235 with real reports | |
 | G-09 | CI samples | `github-actions.yml`, `gitlab-ci.yml` and `work-import.yml` in `demo/ci-examples/` were never run; `gh pr comment --edit-last` is [Training] | file headers; section 29 U6 | | MT-168 | |
-| G-10 | This repository's CI | `.gitlab-ci.yml` says "NOT RUN YET"; free-runner terms and identity verification unchecked | `.gitlab-ci.yml:4`; DEC-089; section 29 U7 | | Push once to a GitLab project; MT-164, MT-222 | |
+| G-10 | This repository's CI | `.gitlab-ci.yml` says "NOT RUN YET"; free-runner terms and identity verification unchecked | `.gitlab-ci.yml:4`; PRO-10; section 29 U7 | | Push once to a GitLab project; MT-164, MT-222 | |
 | G-11 | Structurizr | The `dp.*` properties, `dp.level` and positions stored ×2 were never opened in Structurizr's own tools | reviews.md (five places); MT-167; section 30 | | MT-167 (name the tool and command you use) | |
-| G-12 | Trace files | The reader only saw files in its documented format, never a real Collector file; Jaeger and Zipkin formats are not read | reviews.md traces; DEC-046; section 29 U8 | | MT-125, MT-248 with a real OTLP file | |
-| G-13 | System Testing limits | HTTPS, HTTP/2, gRPC, WebSocket, event streams, bodies over 1 MB, compressed bodies, a caller in a container and a hold past the caller's timeout pass through or fail; no step covers any | DEC-075 trade-offs; section 29 U9 | Fence | A service of your own; MT-127 holds only briefly | |
+| G-12 | Trace files | The reader only saw files in its documented format, never a real Collector file; Jaeger and Zipkin formats are not read | reviews.md traces; RUN-03; section 29 U8 | | MT-125, MT-248 with a real OTLP file | |
+| G-13 | System Testing limits | HTTPS, HTTP/2, gRPC, WebSocket, event streams, bodies over 1 MB, compressed bodies, a caller in a container and a hold past the caller's timeout pass through or fail; no step covers any | RUN-06 trade-offs; section 29 U9 | Fence | A service of your own; MT-127 holds only briefly | |
 
 ### B. Thresholds and numbers that are guesses
 
 | ID | Area | What is unconfirmed | Where seen | Fence | Suggested check | Your decision |
 |---|---|---|---|---|---|---|
-| G-14 | Import thresholds | 300 files, 5 containers, 2 passes, 20 seconds per item, tokens ≈ bytes ÷ 4 | `import-design.md`; DEC-051; section 29 U10 | | MT-209 on real repositories; compare effort | |
-| G-15 | Run size limit | The 32,000-token room was measured only on the demo (3,000 to 10,000 tokens) and a synthetic model | DEC-065; section 29 U11 | | MT-206 then a preview | |
+| G-14 | Import thresholds | 300 files, 5 containers, 2 passes, 20 seconds per item, tokens ≈ bytes ÷ 4 | `import-design.md`; COD-02; section 29 U10 | | MT-209 on real repositories; compare effort | |
+| G-15 | Run size limit | The 32,000-token room was measured only on the demo (3,000 to 10,000 tokens) and a synthetic model | COD-08; section 29 U11 | | MT-206 then a preview | |
 | G-16 | Component scan | `MAX_FILES` = 60 per component for import edges is untested by hand | `src/core/codeMap.ts`; U12 | Fence | A repository with a big component | |
 | G-17 | Demo scan result | The demo scan finds 4 C1 and 5 C2 candidates and **no C3 candidates**; MT-93 states no expected numbers | reviews.md 0.5.0; U13 | | Write the numbers you see into MT-93 | |
-| G-18 | Chat size | The 24,000-token code cap is dropped (DEC-099); the preview should show the approximate size before sending. Not built yet; the estimate is tokens ≈ bytes ÷ 4 | DEC-073, DEC-099; DEC-099 (Q-C1, Q-C1b) | | MT-111 on a large component: read the estimate, then compare with the provider's reported tokens | |
+| G-18 | Chat size | The 24,000-token code cap is dropped (PRO-16); the preview should show the approximate size before sending. Not built yet; the estimate is tokens ≈ bytes ÷ 4 | COD-09, PRO-16; PRO-16 (Q-C1, Q-C1b) | | MT-111 on a large component: read the estimate, then compare with the provider's reported tokens | |
 
 ### C. Platform differences
 
 | ID | Area | What is unconfirmed | Where seen | Fence | Suggested check | Your decision |
 |---|---|---|---|---|---|---|
-| G-19 | Windows | Never run: paths, line endings (MT-88 says they are kept), browser opening, `nc -l` in MT-134 (a Unix tool) | reviews.md 0.3.0; DEC-095; U15 | | MT-166, MT-221 | |
+| G-19 | Windows | Never run: paths, line endings (MT-88 says they are kept), browser opening, `nc -l` in MT-134 (a Unix tool) | reviews.md 0.3.0; SEC-03; U15 | | MT-166, MT-221 | |
 | G-20 | Node and OS | Node 20 and Linux only through CI that has not run; macOS only locally | reviews.md Stage P6; U16 | | MT-222 | |
 | G-21 | Function keys | F8, F9, F10 may be taken by the browser or macOS (they need Fn on a Mac) | MT-127, MT-128; old line 339 | Fence | MT-127 with and without Fn | |
 | G-22 | Case-insensitive disks | `TESTS.csv` has a skip rule for case-insensitive disks; no step uses one | `tests/TESTS.csv` | Fence | Same names in two cases in a code folder on macOS | |
@@ -524,49 +524,49 @@ Added 2026-11-20 from a read of the plan, the docs, `tests/TESTS.csv` and the co
 
 | ID | Area | What is unconfirmed | Where seen | Fence | Suggested check | Your decision |
 |---|---|---|---|---|---|---|
-| G-23 | Two tabs or CLI plus UI | Last write wins; MT-07 checks only a hand edit then focus | reviews.md Stage P4; DEC-041 | | MT-186 to MT-188 | |
+| G-23 | Two tabs or CLI plus UI | Last write wins; MT-07 checks only a hand edit then focus | reviews.md Stage P4; SEC-04 | | MT-186 to MT-188 | |
 | G-24 | Undo | Undo is per model version, not per person | reviews.md Stage P4 | Fence | MT-189 | |
-| G-25 | Drafts | Two engineers cannot share one draft; drafts with no author become architect-only after sign-in | DEC-063; MT-144 covers one engineer | | MT-190 | |
-| G-26 | System Testing session | One session per project, first release wins | DEC-075 | Fence | MT-191 | |
+| G-25 | Drafts | Two engineers cannot share one draft; drafts with no author become architect-only after sign-in | PRO-15; MT-144 covers one engineer | | MT-190 | |
+| G-26 | System Testing session | One session per project, first release wins | RUN-06 | Fence | MT-191 | |
 | G-27 | Hub | A project added elsewhere shows on the rail after focus; the "0 projects" screenshot was never explained | reviews.md interaction fixes; U22 | | Add a project from the CLI while the hub runs | |
-| G-28 | Sessions and users file | Sessions are lost on restart; passwords travel in clear text over plain HTTP; `dp users` commands must not run in parallel | DEC-041; reviews.md Stage P4 | Fence | MT-192 | |
+| G-28 | Sessions and users file | Sessions are lost on restart; passwords travel in clear text over plain HTTP; `dp users` commands must not run in parallel | SEC-04; reviews.md Stage P4 | Fence | MT-192 | |
 
 ### E. Scale
 
 | ID | Area | What is unconfirmed | Where seen | Fence | Suggested check | Your decision |
 |---|---|---|---|---|---|---|
 | G-29 | Large model | No step or test measures a model with 100 or more containers; layout, `dp check`, checklist rules (`GET /api/checklist` runs all rules on every change and on focus) | reviews.md checklist; U24 | | MT-206 | |
-| G-30 | Long history | History runs one model diff per commit (20 by default, 100 at most) | DEC-058 | Fence | MT-207 | |
-| G-31 | Big hub | Every loaded project stays in memory; `dp check` runs per project on the first home load | DEC-053, DEC-054 | Fence | MT-208 | |
+| G-30 | Long history | History runs one model diff per commit (20 by default, 100 at most) | DRF-06 | Fence | MT-207 | |
+| G-31 | Big hub | Every loaded project stays in memory; `dp check` runs per project on the first home load | HUB-03, HUB-04 | Fence | MT-208 | |
 | G-32 | Real repositories | The scan was only run on the demo's sample code; symlinks, binary files, deny-listed names, monorepos, mixed languages; only Python and JS/TS imports are read | reviews.md Stage A | | MT-209, MT-210 | |
 
 ### F. Security
 
 | ID | Area | What is unconfirmed | Where seen | Fence | Suggested check | Your decision |
 |---|---|---|---|---|---|---|
-| G-33 | Request protection | Host header, cross-origin and cross-site refusal, content type, 5 MB, `--allow-host` are tested in code, not on a real server | `security.test.ts`; DEC-030 | | MT-171 to MT-175 | |
-| G-34 | Network bind | `--host` on another interface without sign-in, `--read-only` or `--insecure` | DEC-063 | | MT-150, MT-176 | |
-| G-35 | Hidden paths and links | A name that starts with a dot is blocked, a secret under an ordinary name (for example `config/secrets.yaml`) is **not** | DEC-031; reviews.md Stage P1 | | MT-177 to MT-179 | |
-| G-36 | Credentials | File mode, `.gitignore`, locked values, write-only API, plain text without `DP_SECRET_KEY` (to change: DEC-101 makes encryption always on; add rows for the key file, a plain file that gets sealed, and a missing config folder when it is built) | DEC-056, DEC-101 | | MT-180, MT-181 | |
-| G-37 | Connection rules | https only, no user or password in the address, no link-local or metadata address, a token never sent to a public host | CONTRIBUTING.md; DEC-085 | | MT-182 | |
-| G-38 | System Testing targets | `dp.run.url` only from the main model; this machine unless `--allow-target-host`; viewers and read-only refused; the browser must be on the same machine; session cookie never forwarded; secret fields shown as `•••` | DEC-075 | | MT-183, MT-135, MT-133 | |
-| G-39 | Redaction | A secret written as a plain word is not caught; masking is by field name only | DEC-064, DEC-045; U20 | | MT-184 | |
-| G-40 | Untrusted model output | A hostile `result.json`; an answer is shown as text, never HTML; review levels are computed by dp | DEC-064 | | MT-185 | |
+| G-33 | Request protection | Host header, cross-origin and cross-site refusal, content type, 5 MB, `--allow-host` are tested in code, not on a real server | `security.test.ts`; SEC-01 | | MT-171 to MT-175 | |
+| G-34 | Network bind | `--host` on another interface without sign-in, `--read-only` or `--insecure` | PRO-15 | | MT-150, MT-176 | |
+| G-35 | Hidden paths and links | A name that starts with a dot is blocked, a secret under an ordinary name (for example `config/secrets.yaml`) is **not** | SEC-02; reviews.md Stage P1 | | MT-177 to MT-179 | |
+| G-36 | Credentials | File mode, `.gitignore`, locked values, write-only API, plain text without `DP_SECRET_KEY` (to change: SEC-07 makes encryption always on; add rows for the key file, a plain file that gets sealed, and a missing config folder when it is built) | SEC-06, SEC-07 | | MT-180, MT-181 | |
+| G-37 | Connection rules | https only, no user or password in the address, no link-local or metadata address, a token never sent to a public host | CONTRIBUTING.md; WRK-02 | | MT-182 | |
+| G-38 | System Testing targets | `dp.run.url` only from the main model; this machine unless `--allow-target-host`; viewers and read-only refused; the browser must be on the same machine; session cookie never forwarded; secret fields shown as `•••` | RUN-06 | | MT-183, MT-135, MT-133 | |
+| G-39 | Redaction | A secret written as a plain word is not caught; masking is by field name only | COD-03, RUN-02; U20 | | MT-184 | |
+| G-40 | Untrusted model output | A hostile `result.json`; an answer is shown as text, never HTML; review levels are computed by dp | COD-03 | | MT-185 | |
 | G-41 | Roles through the API | A route with no rule is architect-only; the plan only checks the UI | `auth.test.ts` | Fence | Use `curl` with a viewer's cookie to POST a change | |
 | G-42 | Read-only in a hub | `--read-only` with `--hub`; the role chip on a read-only hub; `--users FILE`; a missing users file | CHANGELOG (Fixed); MT-148 covers a fresh demo only | Fence | MT-148 in a hub; MT-231 | |
-| G-43 | Local file opener | DEC-095 (planned): the owner chose "open in the default app" (DEC-100, D5); the security review of Wave 16 can still cut it to "Copy path only" | DEC-095, DEC-100 | Fence | Not built: test it with Wave 16 (a PDF, a spreadsheet, a refused type, a symlink, a hub server) | |
-| G-44 | Hand-written `hub.json` | A path outside the hub folder is trusted | DEC-054, DEC-063; U21 | Fence | MT-198 | |
+| G-43 | Local file opener | SEC-03 (planned): the owner chose "open in the default app" (PRO-17, D5); the security review of Wave 16 can still cut it to "Copy path only" | SEC-03, PRO-17 | Fence | Not built: test it with Wave 16 (a PDF, a spreadsheet, a refused type, a symlink, a hub server) | |
+| G-44 | Hand-written `hub.json` | A path outside the hub folder is trusted | HUB-04, PRO-15; U21 | Fence | MT-198 | |
 
 ### G. Failure modes
 
 | ID | Area | What is unconfirmed | Where seen | Fence | Suggested check | Your decision |
 |---|---|---|---|---|---|---|
-| G-45 | Apply with code | Apply writes code first with a best-effort restore; undo does not restore code files or the draft | DEC-032; planned-change.md | | MT-193, MT-194 | |
+| G-45 | Apply with code | Apply writes code first with a best-effort restore; undo does not restore code files or the draft | DRF-02; planned-change.md | | MT-193, MT-194 | |
 | G-46 | Corrupt draft | A missing `base/` or a broken draft file | none | | MT-195 | |
-| G-47 | Import review lost | An import draft whose review file is missing is not applied | DEC-064 | | MT-196 | |
-| G-48 | Decision file | An unreadable file is reported and never rewritten; YAML beyond the grammar becomes a load error | DEC-050 | | MT-197 | |
+| G-47 | Import review lost | An import draft whose review file is missing is not applied | COD-03 | | MT-196 | |
+| G-48 | Decision file | An unreadable file is reported and never rewritten; YAML beyond the grammar becomes a load error | REC-04 | | MT-197 | |
 | G-49 | Ports | 8765 busy; 4201 to 4204 busy | MT-134 covers 4200 | Fence | MT-199, MT-200 | |
-| G-50 | No git | The Git row is hidden without git; 9 tests skip; a repository that disappears needs a restart | DEC-018; reviews.md Stage C | | MT-201 | |
+| G-50 | No git | The Git row is hidden without git; 9 tests skip; a repository that disappears needs a restart | DRF-05; reviews.md Stage C | | MT-201 | |
 | G-51 | Network failures | Timeout, 3xx, 5xx, wrong token for refresh and BMO direct | none | | MT-202, MT-203 | |
 | G-52 | Error screen | `ErrorBoundary.tsx` is never triggered by a test | `ui/src/common/ErrorBoundary.tsx` | Fence | MT-205 | |
 | G-53 | Demo checklist | The "containers per own system" rule fails on four systems shown empty on purpose (what should `dp check --strict` on the demo say?) | reviews.md checklist; U23 | | Run MT-137 and MT-157 and write down the result | |
@@ -576,16 +576,16 @@ Added 2026-11-20 from a read of the plan, the docs, `tests/TESTS.csv` and the co
 | ID | Area | What is unconfirmed | Where seen | Fence | Suggested check | Your decision |
 |---|---|---|---|---|---|---|
 | G-54 | Accessibility audit | None ever run; names, roles, focus order, contrast | reviews.md Stage P5; U18 | | MT-211 to MT-215 | |
-| G-55 | Keyboard | Arrow keys in **Move to…**; focus traps in dialogs other than search | `planned_features.md` B6 | | MT-212, MT-213 | |
-| G-56 | Themes | Dark theme only; exports have a dark background; no light theme | DEC-013 | Fence | MT-228 | |
-| G-57 | Window size | Under 760 px dp is unsupported; the right panel folds under 1100 px | DEC-042 | Fence | MT-216 | |
+| G-55 | Keyboard | Arrow keys in **Move to…**; focus traps in dialogs other than search | the former backlog B6 (now in the wave files) | | MT-212, MT-213 | |
+| G-56 | Themes | Dark theme only; exports have a dark background; no light theme | MOD-14 | Fence | MT-228 | |
+| G-57 | Window size | Under 760 px dp is unsupported; the right panel folds under 1100 px | CAN-05 | Fence | MT-216 | |
 | G-58 | Touch | Palette drag needs a mouse (a tap works) | reviews.md 0.2.0 | Fence | MT-218 | |
 
 ### I. Browsers
 
 | ID | Area | What is unconfirmed | Where seen | Fence | Suggested check | Your decision |
 |---|---|---|---|---|---|---|
-| G-59 | Firefox, Safari | Only Chromium is automated; label sizes are an estimate and fonts differ | `config/playwright.config.ts`; DEC-052 | | MT-219, MT-220 | |
+| G-59 | Firefox, Safari | Only Chromium is automated; label sizes are an estimate and fonts differ | `config/playwright.config.ts`; CAN-06 | | MT-219, MT-220 | |
 | G-60 | Export files | SVG and PNG export has no test and no list of what to check | MT-24 | | MT-228 | |
 
 ### J. Package and install
@@ -593,9 +593,9 @@ Added 2026-11-20 from a read of the plan, the docs, `tests/TESTS.csv` and the co
 | ID | Area | What is unconfirmed | Where seen | Fence | Suggested check | Your decision |
 |---|---|---|---|---|---|---|
 | G-61 | Package contents | The `files` list in `package.json` is not checked by a test | `package.json` | | MT-223, MT-224 | |
-| G-62 | GitHub install | The `prepare` script builds `dist/` on the user's machine and needs dev dependencies; never tried; the only install route (DEC-063) | MT-165; U17 | | MT-165, MT-225 | |
+| G-62 | GitHub install | The `prepare` script builds `dist/` on the user's machine and needs dev dependencies; never tried; the only install route (PRO-15) | MT-165; U17 | | MT-165, MT-225 | |
 | G-63 | Upgrade | A stale UI after an upgrade (the owner saw one from 0.1) | reviews.md 0.2.0 | Fence | MT-227 | |
-| G-64 | Version | The plan targets 0.5.0 in `package.json` while the changelog says 0.6.0 | planned_features B7 | | Make the release change, then re-run | |
+| G-64 | Version | The plan targets 0.5.0 in `package.json` while the changelog says 0.6.0 | the former backlog B7 (now in the wave files) | | Make the release change, then re-run | |
 
 ### K. Features and flags with no step so far (now added)
 
@@ -606,14 +606,14 @@ Added 2026-11-20 from a read of the plan, the docs, `tests/TESTS.csv` and the co
 | G-67 | `dp work` | `add` options (`--type`, `--severity`, `--status`, `--key`, `--source`, `--draft`, `--check`), `import` formats other than SARIF | `src/cli.ts:1059-1160` | | MT-234, MT-235 | |
 | G-68 | `dp check --hub`, `dp scan --container`, `dp import --title`, `dp users` flags | no step | `src/cli.ts` | | MT-236 to MT-239 | |
 | G-69 | `dp credentials rotate` | No automated test and no other step | `tests/unit/credentials.test.ts` | | MT-240 | |
-| G-70 | Notification bell | Only "it opens" (MT-09); no test | DEC-080 | | MT-241 | |
-| G-71 | Decisions | Renumbering on apply, `## ` in a section, unknown sections moving after known ones, `dec:` units in drafts | DEC-050 | | MT-242, MT-243 | |
-| G-72 | Checklist details | Rule items cannot be ticked; BMO questions from an import; the Selection filter; no browser test for the BMO chip, the bell item or the notice | DEC-084; U25 | | MT-244 | |
+| G-70 | Notification bell | Only "it opens" (MT-09); no test | CAN-11 | | MT-241 | |
+| G-71 | Decisions | Renumbering on apply, `## ` in a section, unknown sections moving after known ones, `dec:` units in drafts | REC-04 | | MT-242, MT-243 | |
+| G-72 | Checklist details | Rule items cannot be ticked; BMO questions from an import; the Selection filter; no browser test for the BMO chip, the bell item or the notice | REC-05; U25 | | MT-244 | |
 | G-73 | Lens editing | Deleting a lens in use; lenses saved before 0.2 miss two sections | reviews.md Stage A3 | Fence | MT-245 | |
-| G-74 | Flows | A relationship used by two steps; chaining to the nearest step; no browser test for the flow player following a paused call, Step into a pipeline or a stage's own intercept point | DEC-075; Q-C3; U25 | | MT-246, MT-247 | |
-| G-75 | Known limits worth a negative test | Placed notes do not follow boxes; hand-shaped lines are not routed; Make room twice; people and systems cannot move; the fresh-ID rename mark is lost on reload | DEC-070, DEC-071, DEC-061, DEC-037, DEC-035 | Fence | MT-249 to MT-252 | |
-| G-76 | Hub work and roles | Work across projects reads main models only and cannot refresh; a `none` role should hide the project from the home summary, the catalog usage and Work | DEC-060, DEC-088; MT-149 | | Extend MT-149 | |
-| G-77 | MT-81 wording | "The copy follows the catalog at once" (DEC-057) conflicts with the older review text that says drift stays until "Update from catalog"; the later DEC wins | DEC-057; reviews.md Stage H2–H5 | | Run MT-81 and say which you see | |
+| G-74 | Flows | A relationship used by two steps; chaining to the nearest step; no browser test for the flow player following a paused call, Step into a pipeline or a stage's own intercept point | RUN-06; Q-C3; U25 | | MT-246, MT-247 | |
+| G-75 | Known limits worth a negative test | Placed notes do not follow boxes; hand-shaped lines are not routed; Make room twice; people and systems cannot move; the fresh-ID rename mark is lost on reload | REC-02, CAN-08, CAN-07, MOD-05, CAN-02 | Fence | MT-249 to MT-252 | |
+| G-76 | Hub work and roles | Work across projects reads main models only and cannot refresh; a `none` role should hide the project from the home summary, the catalog usage and Work | SEC-05, WRK-05; MT-149 | | Extend MT-149 | |
+| G-77 | MT-81 wording | "The copy follows the catalog at once" (HUB-07) conflicts with the older review text that says drift stays until "Update from catalog"; the later decision entry wins | HUB-07; reviews.md Stage H2–H5 | | Run MT-81 and say which you see | |
 | G-78 | Unmapped code warning | `dp check` prints it only once a scan has stored `evidence.json` | `src/core/cliReports.ts:59` | | MT-92 (now says so) | |
 
 
@@ -628,19 +628,19 @@ Added 2026-11-20. These are claims the docs make or assumptions the code carries
 | U1 | **No real LLM provider has ever been called.** Claude API, OpenAI API and Ollama are tested against fakes only. | reviews.md 0.5.0 limits; manual-test-plan MT-113, MT-169 | One run per provider with your own key (or a local Ollama). **The first of these is the real-run gate of [Wave 1](waves/wave-01-grounded-bmo.md)** (one route you use, before that wave closes); a real handoff round trip is the gate of Wave 25. | G-01 | |
 | U2 | The default model ids `claude-opus-5-5` and `gpt-6-astra` have no source note. | `src/assistant/settings.ts:45-46` | Compare with each provider's current model list before the first run. | G-02 | |
 | U3 | Two request details are marked "Not verified" in code: `store: false` for OpenAI and `done_reason: "length"` at `num_predict` for Ollama. | `src/assistant/providerBackend.ts:436,478` | Part of U1. | G-03 | |
-| U4 | Status refresh for GitHub, GitLab, SonarQube and Jira was tested against fake servers only. Unchecked: SonarQube 10 or later needs a bearer token (older servers use `basic`), Jira Cloud's email-and-token `basic` auth, GitHub Enterprise, a private repository with a credential, GitLab self-hosted. | reviews.md linked work; `work-tools.test.ts`; DEC-085 | One real link per tool. Needs accounts or a self-hosted instance. | G-05, G-06 | |
+| U4 | Status refresh for GitHub, GitLab, SonarQube and Jira was tested against fake servers only. Unchecked: SonarQube 10 or later needs a bearer token (older servers use `basic`), Jira Cloud's email-and-token `basic` auth, GitHub Enterprise, a private repository with a credential, GitLab self-hosted. | reviews.md linked work; `work-tools.test.ts`; WRK-02 | One real link per tool. Needs accounts or a self-hosted instance. | G-05, G-06 | |
 | U5 | The minimal SARIF example, the GitLab Code Quality, SonarQube issues and dp JSON import formats were written from format descriptions and hand-made examples. | manual-test-plan lines 334, 349 | Import a real report from each scanner. | G-08 | |
 | U6 | The three sample CI jobs (`github-actions.yml`, `gitlab-ci.yml`, `work-import.yml` in `demo/ci-examples/`) were never run in a real repository. `gh pr comment --edit-last` is marked [Training]. | file headers; reviews.md 0.4.0 | Run each once in a scratch repository. | G-09 | |
-| U7 | **This repository's own GitLab CI has never run.** The file says "NOT RUN YET". The claim that free runners are Linux only and the identity-verification step are unchecked. | `.gitlab-ci.yml:4`; DEC-089 | Create the GitLab project and push once. | G-10 | |
-| U8 | The trace reader was only given files in its documented format. Never a real OpenTelemetry Collector file. Jaeger and Zipkin formats are not read. | reviews.md traces; DEC-046 | One real file from a Collector's file exporter. | G-12 | |
-| U9 | System Testing passes these through unpaused and unverified: HTTPS, HTTP/2, gRPC, WebSocket, event streams, bodies over 1 MB, compressed bodies, a caller inside a container, a call held past the caller's timeout. | DEC-075 trade-offs; reviews.md System Testing | Against a service of your own. | G-13 | |
+| U7 | **This repository's own GitLab CI has never run.** The file says "NOT RUN YET". The claim that free runners are Linux only and the identity-verification step are unchecked. | `.gitlab-ci.yml:4`; PRO-10 | Create the GitLab project and push once. | G-10 | |
+| U8 | The trace reader was only given files in its documented format. Never a real OpenTelemetry Collector file. Jaeger and Zipkin formats are not read. | reviews.md traces; RUN-03 | One real file from a Collector's file exporter. | G-12 | |
+| U9 | System Testing passes these through unpaused and unverified: HTTPS, HTTP/2, gRPC, WebSocket, event streams, bodies over 1 MB, compressed bodies, a caller inside a container, a call held past the caller's timeout. | RUN-06 trade-offs; reviews.md System Testing | Against a service of your own. | G-13 | |
 
 ### Import thresholds and guesses
 
 | ID | What was never run or measured | Where seen | How to verify | Gap row | Result / date |
 |---|---|---|---|---|---|
-| U10 | The step-by-step rule (more than 300 source files, more than 5 container candidates, more than 2 BMO passes), the 20 seconds per review item, and tokens ≈ bytes ÷ 4 are guesses. | `import-design.md`; DEC-051 | Run `dp scan --plan` on three real repositories of different size and compare with the effort you actually spend. | G-14 | |
-| U11 | The 32,000-token room that sets the run size limit was measured only on the demo (3,000–10,000 tokens) and a synthetic model with 300 more containers. | DEC-065; reviews.md 0.5.0 | A real large model through the preview. | G-15 | |
+| U10 | The step-by-step rule (more than 300 source files, more than 5 container candidates, more than 2 BMO passes), the 20 seconds per review item, and tokens ≈ bytes ÷ 4 are guesses. | `import-design.md`; COD-02 | Run `dp scan --plan` on three real repositories of different size and compare with the effort you actually spend. | G-14 | |
+| U11 | The 32,000-token room that sets the run size limit was measured only on the demo (3,000–10,000 tokens) and a synthetic model with 300 more containers. | COD-08; reviews.md 0.5.0 | A real large model through the preview. | G-15 | |
 | U12 | `MAX_FILES` = 60 files per component for import edges. | `src/core/codeMap.ts`; reviews.md 0.5.0 | A repository with a large component. | G-16 | |
 | U13 | The demo scan finds 4 C1 and 5 C2 candidates and **no C3 candidates**, so component scanning was never exercised on the demo. | reviews.md 0.5.0 | Scan a real repository with folders two levels under a container. | G-17 | |
 | U14 | Wave 15's floor of 6 questions per level has no basis beyond a decision. | wave-15 | Try on two repositories; does a small one produce 6 useful questions? | none (Wave 15 is not built) | |
@@ -649,19 +649,19 @@ Added 2026-11-20. These are claims the docs make or assumptions the code carries
 
 | ID | What was never run or measured | Where seen | How to verify | Gap row | Result / date |
 |---|---|---|---|---|---|
-| U15 | Windows has never been run (paths, line endings, browser opening, `nc` in the demo tour). | reviews.md 0.3.0, 0.4.0; DEC-095 ("the Windows path is written, not run") | One Windows machine, `dp serve --demo`. | G-19 | |
+| U15 | Windows has never been run (paths, line endings, browser opening, `nc` in the demo tour). | reviews.md 0.3.0, 0.4.0; SEC-03 ("the Windows path is written, not run") | One Windows machine, `dp serve --demo`. | G-19 | |
 | U16 | Node 20 and Linux have only been run through CI that has not run (U7). | reviews.md Stage P6 | Same as U7. | G-20 | |
-| U17 | Install from the GitHub URL (the only install route, DEC-063) was never tested. The `prepare` script builds `dist/` on the user's machine, which needs the dev dependencies. | reviews.md 0.3.0 and 0.4.0; MT-165 | `npm install -g github:AbhishekR3/designPerspectives` on a clean machine. | G-62 | |
-| U18 | No accessibility audit was ever run. Screen-reader names, focus traps in dialogs other than search, keyboard-only canvas editing and colour contrast are unchecked. Widths under 760 px are unsupported. Dark theme only. | reviews.md Stage P5; DEC-013, DEC-042 | A keyboard-only walkthrough and one automated audit (built as [Wave 28b](waves/wave-28-quality-for-1-0.md), run last). | G-54 | |
-| U19 | Label size is an estimate and fonts differ across machines. The 12 px, 8 px and 2° snap constants, the cost bands (0/100/1,000/5,000) and the 12 default characteristics are marked interpretation and were never confirmed. | reviews.md routing, A3; DEC-052, DEC-071, DEC-013 | Open the demo on two machines; confirm the numbers you care about. | none (look at the diagrams on two machines) | |
-| U20 | Masking hides values by field name only. A secret under an ordinary name, or inside a plain-text body, is shown. | DEC-045, DEC-075 | Test with your own payloads. | G-39 | |
-| U21 | A hand-written `hub.json` can point outside the hub and is trusted. | DEC-054, DEC-063 | Accept, or check the entries on load (the browser path already does). | G-44 | |
+| U17 | Install from the GitHub URL (the only install route, PRO-15) was never tested. The `prepare` script builds `dist/` on the user's machine, which needs the dev dependencies. | reviews.md 0.3.0 and 0.4.0; MT-165 | `npm install -g github:AbhishekR3/designPerspectives` on a clean machine. | G-62 | |
+| U18 | No accessibility audit was ever run. Screen-reader names, focus traps in dialogs other than search, keyboard-only canvas editing and colour contrast are unchecked. Widths under 760 px are unsupported. Dark theme only. | reviews.md Stage P5; MOD-14, CAN-05 | A keyboard-only walkthrough and one automated audit (built as [Wave 28b](waves/wave-28-quality-for-1-0.md), run last). | G-54 | |
+| U19 | Label size is an estimate and fonts differ across machines. The 12 px, 8 px and 2° snap constants, the cost bands (0/100/1,000/5,000) and the 12 default characteristics are marked interpretation and were never confirmed. | reviews.md routing, A3; CAN-06, CAN-08, MOD-14 | Open the demo on two machines; confirm the numbers you care about. | none (look at the diagrams on two machines) | |
+| U20 | Masking hides values by field name only. A secret under an ordinary name, or inside a plain-text body, is shown. | RUN-02, RUN-06 | Test with your own payloads. | G-39 | |
+| U21 | A hand-written `hub.json` can point outside the hub and is trusted. | HUB-04, PRO-15 | Accept, or check the entries on load (the browser path already does). | G-44 | |
 | U22 | The "0 projects" screen the owner saw was never reproduced or explained. | reviews.md interaction fixes | Probably the 2026-11-16 fixes; watch for it. | G-27 | |
 | U23 | The demo's checklist rule "containers per own system" fails for four systems that are shown empty on purpose. | reviews.md checklist section | Decide: add containers to those systems, tag them external, or change the rule (see N8). | G-53 | |
 | U24 | `GET /api/checklist` runs every rule on every model change and on window focus. Not measured on a large model. | reviews.md checklist section | A 100+ container model (see the manual test plan, scale rows); the generated model and time budgets are [Wave 28a](waves/wave-28-quality-for-1-0.md). | G-29 | |
 | U25 | No browser test covers: the BMO chip and section order in the checklist, the bell item for BMO questions, the flow player following a paused call, Step into a pipeline, a stage's own intercept point, the trace picker, watched fields. They were only looked at. | reviews.md checklist and System Testing sections | Manual rows in the test plan; add browser tests if they break. | G-72, G-74 | |
-| U26 | **The folder-skip list of DEC-103 (N1) was not checked with BMO.** BMO was off on 2026-11-20 (handoff backend, no provider, no credential). The list is not in the code yet (Wave 15 builds it as a separate, C3-only set; the code's `EXTRA_SKIP_DIRS` holds a different list), so what BMO judges is the list in DEC-103. | DEC-103 N1 and its 2026-11-20 clarification; `src/import/scan.ts` (`EXTRA_SKIP_DIRS`) | Run `dp bmo status`. If BMO is on, run the C3 candidate task on a real repository and ask whether the fixed list skips a folder that holds real components or misses a technical folder; record the answer. If BMO is off, say so and do not turn it on without the architect. | | |
-| U27 | Whether an Ollama server reports a model's own context window in a field dp can read (DEC-103, N15) is from training, not from a run. | DEC-103 N15 | Query a running Ollama server for one model and note the field name and value; only then let dp read it. | | |
+| U26 | **The folder-skip list of PRO-19 (N1) was not checked with BMO.** BMO was off on 2026-11-20 (handoff backend, no provider, no credential). The list is not in the code yet (Wave 15 builds it as a separate, C3-only set; the code's `EXTRA_SKIP_DIRS` holds a different list), so what BMO judges is the list in PRO-19. | PRO-19 N1 and its 2026-11-20 clarification; `src/import/scan.ts` (`EXTRA_SKIP_DIRS`) | Run `dp bmo status`. If BMO is on, run the C3 candidate task on a real repository and ask whether the fixed list skips a folder that holds real components or misses a technical folder; record the answer. If BMO is off, say so and do not turn it on without the architect. | | |
+| U27 | Whether an Ollama server reports a model's own context window in a field dp can read (PRO-19, N15) is from training, not from a run. | PRO-19 N15 | Query a running Ollama server for one model and note the field name and value; only then let dp read it. | | |
 
 ## 30 Structurizr check: the steps behind MT-DRAFT-167
 
@@ -671,11 +671,11 @@ Moved here from the former open-questions file on 2026-11-20 (it was question Q-
 
 ### What this is for
 
-dp stores its model as a Structurizr workspace (`architecture/workspace.json`, DEC-007). The reasons given were: the format is open and plain JSON, so dp does not add a new C4 format, and a model made by dp or by Structurizr can in principle go either way. That claim has never been checked against Structurizr's own software. This check settles four things:
+dp stores its model as a Structurizr workspace (`architecture/workspace.json`, STK-04). The reasons given were: the format is open and plain JSON, so dp does not add a new C4 format, and a model made by dp or by Structurizr can in principle go either way. That claim has never been checked against Structurizr's own software. This check settles four things:
 
-1. **Does Structurizr load what dp writes?** If not, "a Structurizr workspace" in the README and DEC-007 is only half true.
-2. **Do the choices dp made hold up?** dp replaces Structurizr's numeric IDs with readable slugs (DEC-007); stores box positions at twice the UI size so a layout "looks the same" in Structurizr (reviews.md Stage A, deviation 3); keeps extra data as `dp.*` properties and a `dp.level` view property; stores flows as dynamic views (deviation 6); and does not store the dashed derived lines (deviation 2).
-3. **Is data kept on a round trip?** DEC-007 says unknown fields are kept when dp reads and writes a file; this tests it from the other side.
+1. **Does Structurizr load what dp writes?** If not, "a Structurizr workspace" in the README and STK-04 is only half true.
+2. **Do the choices dp made hold up?** dp replaces Structurizr's numeric IDs with readable slugs (STK-04); stores box positions at twice the UI size so a layout "looks the same" in Structurizr (reviews.md Stage A, deviation 3); keeps extra data as `dp.*` properties and a `dp.level` view property; stores flows as dynamic views (deviation 6); and does not store the dashed derived lines (deviation 2).
+3. **Is data kept on a round trip?** STK-04 says unknown fields are kept when dp reads and writes a file; this tests it from the other side.
 4. **Is it safe to claim compatibility, or import a workspace made elsewhere?** Importing keeps views already in a workspace unchanged (deviation 9).
 
 Why it matters for decisions: if it fails, either dp's storage choices change (for example, numeric IDs) or the docs stop saying the files open in Structurizr. Nothing in the product depends on the result today, which is why it is an owner check and not a blocker.
@@ -710,21 +710,21 @@ Why it matters for decisions: if it fails, either dp's storage choices change (f
 | Loads, layout wrong | The ×2 factor or box size is off | Change the factor or the default size (a small change in dp's position code); re-test |
 | Loads, some views or flows missing | Rules like deviation 6 | Document which flows work; consider a warning in dp's flow panel (it exists for dynamic-view rules) |
 | Does not load | Probably IDs or properties | A decision: switch to numeric IDs on write (keeping slugs as properties), or drop the compatibility claim |
-| Not checked | No tools available | Leave the README and DEC-007 wording as "not verified" |
+| Not checked | No tools available | Leave the README and STK-04 wording as "not verified" |
 
 ### What to report back
 
-For each of steps 2 to 10: pass, fail or not checked, plus the tool and its version, any error text, and a screenshot of one container view. Put them in the Result column of MT-167 and the Notes column of the run log, and tell me; the DEC-007 note and the README wording follow from the table above.
+For each of steps 2 to 10: pass, fail or not checked, plus the tool and its version, any error text, and a screenshot of one container view. Put them in the Result column of MT-167 and the Notes column of the run log, and tell me; the STK-04 note and the README wording follow from the table above.
 
 ## 31 Known limits by area
 
 Carried over from the per-stage reviews when `docs/reviews.md` was deleted on 2026-11-20. The full text of those reviews is in git: `git show 24bbca1:docs/reviews.md`. Every citation of "reviews.md" elsewhere in this plan means that file at that commit.
 
-**How to read this section.** These are limits the stage authors wrote down at the time. They were **not** re-checked against the code on 2026-11-20 unless a row says so. A limit already in section 28 or 29 is not repeated here; the row names it. Limits that a later stage removed were left out (for example "credentials in plain text" is still true: DEC-101 plans encryption, not built; "linked work is entered by hand", "GitHub only", "no login" and "Prettier not applied" are no longer true). A limit is a fence for a test: if a limit stops being true, change the row.
+**How to read this section.** These are limits the stage authors wrote down at the time. They were **not** re-checked against the code on 2026-11-20 unless a row says so. A limit already in section 28 or 29 is not repeated here; the row names it. Limits that a later stage removed were left out (for example "credentials in plain text" is still true: SEC-07 plans encryption, not built; "linked work is entered by hand", "GitHub only", "no login" and "Prettier not applied" are no longer true). A limit is a fence for a test: if a limit stops being true, change the row.
 
 ### Model, drafts and compare
 
-- Conflicts in a draft are reported, not resolved. No rebase of a draft onto a newer main ("main +N" only reports the gap, DEC-040; Wave 18). Two edits to one element on both sides conflict even when they do not overlap. Layout (positions, sizes, line shapes) never conflicts: the draft's layout wins; styles do conflict.
+- Conflicts in a draft are reported, not resolved. No rebase of a draft onto a newer main ("main +N" only reports the gap, DRF-03; Wave 18). Two edits to one element on both sides conflict even when they do not overlap. Layout (positions, sizes, line shapes) never conflicts: the draft's layout wins; styles do conflict.
 - Undoing an apply restores the model only: not the code files written and not the deleted draft. Apply writes the model first, then the code; a failed file write leaves the model applied and the draft in place. Planned code edits are not part of the draft's undo history. Restore of code on apply is best effort (content and permissions, not modification times; a crash between steps is not covered).
 - The coding plan's progress check sees files and imports only. HTTP, queue and dependency-injection calls are checked by hand, and so is a step for a changed technology. Planned edits are compared with the code folder as it is now, not as it was when the draft started.
 - New objects from a draft go after the object that preceded them in the draft, so sibling order can differ.
@@ -741,7 +741,7 @@ Carried over from the per-stage reviews when `docs/reviews.md` was deleted on 20
 - A request with a missing or malformed body returns 422 `{"detail": "<message>"}`. `/api/docs` (the old generated page) is gone. Scripts that call the API must send `Content-Type: application/json`.
 - Python import scanning uses a tokenizer, so a file with a syntax error still shows its imports. Import scanning reads Python and JS/TS relative imports only; other languages show files without lines (G-32). Function ranges are approximate.
 - Lenses saved before 0.2 list their sections explicitly, so they lack the Characteristics and Cost sections until those are ticked (G-73). Ratings live on objects only, not on relationships or whole flows. Cost totals add the roll-ups of the boxes shown; this is only correct while no box is drawn inside another.
-- Technology icons are generic symbols. No light theme: PNG and SVG exports have the dark background (planned_features B5).
+- Technology icons are generic symbols. No light theme: PNG and SVG exports have the dark background (the former backlog B5 (now in the wave files)).
 - Automatically placed positions are not undo steps; a manual Auto-layout is.
 
 ### Canvas and editing
@@ -749,33 +749,33 @@ Carried over from the per-stage reviews when `docs/reviews.md` was deleted on 20
 - Line routing (right angles): lines can sit on top of each other in a shared gap; labels can sit on neighbouring lines; straight, curved and smooth lines are not routed around boxes or used for label placement; side switching is skipped for lines with a hand-set end or bend point (their path is still routed around boxes); a diagonal pair of boxes prefers an L shape, which can look busier than a Z in crowded rows; moving a box can move the ends of other lines on the same side; a bend point saved from an older curved line can add turns. Label size is an estimate and fonts differ across machines (the browser test allows up to 2 overlapping labels, U19). Existing diagrams change look on next open.
 - Lines shaped by hand are not put into lanes or routed around boxes, and other lines do not avoid them. Moving boxes saves positions and corners as two requests.
 - A guessed code file for a code-level connection can be wrong where components share files; a line with no known file ends at the component's own box.
-- The multi-selection panel has no box colours (styles are saved per object). Multi-select uses Shift for click and drag and does not select lines. Only containers and components can move between parents; people and systems cannot (DEC-037).
+- The multi-selection panel has no box colours (styles are saved per object). Multi-select uses Shift for click and drag and does not select lines. Only containers and components can move between parents; people and systems cannot (MOD-05).
 - A connection dropped on empty space always adds the diagram's main kind (container, component or system) with no symbol; change it with the quick bar. A plain API client can still create a person that no lower diagram shows, because it has no line.
 - The fresh-ID mark lives only in the open page: after a reload, the first rename no longer renames the ID.
 - The diagram does not re-fit when only a dock panel opens. A toast can cover the second row of the top area on a narrow canvas. Below 760 px wide is unsupported (the canvas shows with both panels collapsed). At widths under about 1,100 px the details panel starts folded. Dark theme only (G-54, G-58).
-- Search is not a modal dialog and has no focus trap (G-54). A slow double-click on a selected box's name starts a rename, and arrow keys do not work in the Move dialog's list (planned_features B6).
+- Search is not a modal dialog and has no focus trap (G-54). A slow double-click on a selected box's name starts a rename, and arrow keys do not work in the Move dialog's list (the former backlog B6 (now in the wave files)).
 - The Selection filter of the checklist matches a selected box or line, not the diagram on screen.
 - A copy that is undone before it was shown stays "waiting to be shown"; a redo then shows it.
 - Exports: the selected box's outline is included; notes are not in image exports. The JS bundle is about 1.9 MB (elkjs, about 1.5 MB of it, loads only when a layout is needed).
 
 ### Hub, catalog and credentials
 
-- Roles are global in a hub; there is no "no access" role, so every signed-in user sees every project (per-project roles were added later, DEC-060; check that the old statement no longer holds). A catalog architect changes names and descriptions in linked copies of projects where they have a lower role or none, because copies follow the catalog (DEC-057).
+- Roles are global in a hub; there is no "no access" role, so every signed-in user sees every project (per-project roles were added later, SEC-05; check that the old statement no longer holds). A catalog architect changes names and descriptions in linked copies of projects where they have a lower role or none, because copies follow the catalog (HUB-07).
 - Every loaded project stays in memory. `dp check` runs per project on the first home load after a change, which is slow for large hubs (G-29). Thumbnails use stored positions only; a never-laid-out landscape shows a grid.
 - Data access is per relationship: a service that reaches a database without a modelled relationship is not counted. The "Catalog changes copied" list is in memory only (git has the changes). Linked copies are not marked on the canvas.
-- Credentials: no `--credentials FILE` option (the file is always `.dp/credentials.json` in the served folder); no "test connection"; plain text on disk (mode 0600) without `DP_SECRET_KEY` until DEC-101 is built (planned_features A7). A hand-written `hub.json` is trusted: its entries may point outside the hub folder (DEC-054, DEC-063).
+- Credentials: no `--credentials FILE` option (the file is always `.dp/credentials.json` in the served folder); no "test connection"; plain text on disk (mode 0600) without `DP_SECRET_KEY` until SEC-07 is built (planned_features A7). A hand-written `hub.json` is trusted: its entries may point outside the hub folder (HUB-04, PRO-15).
 
 ### Sign-in and roles (also G-23, G-24, G-28)
 
-- Not real-time: last write wins; the other user sees a change when the window regains focus (DEC-039). Undo history is per model version, not per user.
+- Not real-time: last write wins; the other user sees a change when the window regains focus (CAN-09). Undo history is per model version, not per user.
 - Sessions are lost on restart. Passwords travel in clear text unless the server is behind HTTPS. `dp users` commands must not run in parallel. Roles are fixed (no custom roles). Lenses do not hide data: a viewer can read costs and notes through the API.
 - The Host check and the origin check do not stop a local program or a user on the same machine. Hidden paths are blocked by name only (G-35); a component cannot be mapped to a dot folder such as `.github/workflows`. The UI cannot be embedded in a frame, including editor preview panes.
-- A non-loopback bind is protected by the sign-in rule and a warning (DEC-041).
+- A non-loopback bind is protected by the sign-in rule and a warning (SEC-04).
 
 ### Linked work and checklist
 
 - A status is a snapshot: refresh runs on request only, no polling, no webhooks. Unattended pushes from outside are not built: the server binds to 127.0.0.1 with session sign-in only, so CI uses the CLI and commits the model. A refresh reads at most 200 links. A finding in a file shared by several components goes to the first one in model order. Work across projects reads main models only and cannot refresh status. A changed severity mapping applies to the next import or refresh, not to items already in the model. SonarQube bearer tokens need SonarQube 10 or later (U4).
-- Linked work follows drafts, diffs and merges; the checklist does not (DEC-084): no versioning with drafts and no undo for ticks. A rule cannot be overridden except by skipping it (U23). BMO's questions are matched by exact words, so re-worded repeats are added again. `GET /api/checklist` runs the rules on every model change and on focus, even while the card is closed, because of the badge (U24).
+- Linked work follows drafts, diffs and merges; the checklist does not (REC-05): no versioning with drafts and no undo for ticks. A rule cannot be overridden except by skipping it (U23). BMO's questions are matched by exact words, so re-worded repeats are added again. `GET /api/checklist` runs the rules on every model change and on focus, even while the card is closed, because of the badge (U24).
 
 ### Code import and BMO (also U1, U11 to U13)
 
@@ -809,21 +809,21 @@ Added 2026-11-20 at your request. Nothing here has been run. It collects the che
 
 ### A. When you turn BMO on
 
-- [ ] **U26 / N1: confirm the folder-skip list of DEC-103 with BMO.** Not run on 2026-11-20 because BMO was off (`dp bmo status` said: backend handoff, no provider, sends to nowhere).
+- [ ] **U26 / N1: confirm the folder-skip list of PRO-19 with BMO.** Not run on 2026-11-20 because BMO was off (`dp bmo status` said: backend handoff, no provider, sends to nowhere).
   1. `npm run dp -- bmo status`. Write down whether BMO was available (backend, provider, model). If it is off, turn it on yourself: `dp bmo set --enabled --backend direct --provider <anthropic|openai|ollama> [--model NAME]` (the key comes from the credentials page or the environment; `dp bmo set --help` lists the options). Do not let an agent turn it on without you.
   2. Pick a real repository with a few levels of folders (not the demo: the demo scan finds no component candidates, U13). `dp scan <project> --code-root <repo> --plan`.
   3. Preview the C3 task, which sends nothing: `dp bmo run import-level --level c3 --container <container-id> <project>`. Read which folders and files it would send.
-  4. Judge the list. What the code skips today (read 2026-11-20): `SKIP_DIRS` in `src/core/codeMap.ts` (`__pycache__`, `node_modules`, `.git`, `.venv`, `venv`, `dist`, `build`, `.idea`) and `EXTRA_SKIP_DIRS` in `src/import/scan.ts` (`architecture`, `traces`, `static`, `coverage`, `target`, `vendor`, `out`), both applied to the whole file walk. DEC-103 N1 decides a longer list (`test`, `tests`, `__tests__`, `spec`, `docs`, `doc`, `examples`, `example`, `scripts`, `migrations`, `fixtures`, `generated`, `third_party`) that is **not in the code yet**: Wave 15 builds it as a separate set that only keeps those folders from becoming C3 candidates (see the clarification under N1). Judge that DEC-103 list on your repository: does it hide a folder that holds real components (a service called `scripts`, a `docs` app), or leave a technical folder as a candidate? Look at which `component-dir` candidates the scan lists today (`dp scan --plan`, or `architecture/import/evidence.json`) and which of them the list would remove.
+  4. Judge the list. What the code skips today (read 2026-11-20): `SKIP_DIRS` in `src/core/codeMap.ts` (`__pycache__`, `node_modules`, `.git`, `.venv`, `venv`, `dist`, `build`, `.idea`) and `EXTRA_SKIP_DIRS` in `src/import/scan.ts` (`architecture`, `traces`, `static`, `coverage`, `target`, `vendor`, `out`), both applied to the whole file walk. PRO-19 N1 decides a longer list (`test`, `tests`, `__tests__`, `spec`, `docs`, `doc`, `examples`, `example`, `scripts`, `migrations`, `fixtures`, `generated`, `third_party`) that is **not in the code yet**: Wave 15 builds it as a separate set that only keeps those folders from becoming C3 candidates (see the clarification under N1). Judge that PRO-19 list on your repository: does it hide a folder that holds real components (a service called `scripts`, a `docs` app), or leave a technical folder as a candidate? Look at which `component-dir` candidates the scan lists today (`dp scan --plan`, or `architecture/import/evidence.json`) and which of them the list would remove.
   5. Only with your go, send it (`--yes-send`) and ask BMO the same question about the list. Record both answers in U26's Result column.
 - [ ] **U1 to U3: one real run per provider** (Claude API, OpenAI API, Ollama), the real-run gate of Wave 1. Check the default model ids against each provider's current list first (U2). Also covers G-01 and G-04 (hash refusal, cut-off answer, Ollama non-loopback rule) and MT-113, MT-169.
-- [ ] **U27: Ollama context window.** Query a running Ollama server for one model; note the field name and value that gives the model's own context window (DEC-103 N15). Only then let dp read it.
+- [ ] **U27: Ollama context window.** Query a running Ollama server for one model; note the field name and value that gives the model's own context window (PRO-19 N15). Only then let dp read it.
 - [ ] **U11, U14: BMO sizes.** A real large model through the preview (U11); two repositories to see whether a small one produces 6 useful questions per level (U14).
 
 ### B. Structurizr check (Q-A1, MT-DRAFT-167)
 
 - [ ] Follow [section 30](#30-structurizr-check-the-steps-behind-mt-draft-167) on a copy of the demo: `dp init --demo /tmp/dp-structurizr`, then open `/tmp/dp-structurizr/architecture/` in the Structurizr tool you choose.
 - [ ] **Which tool matters now.** The release checklist (section 7) notes, second-hand and not yet read first-hand, that Structurizr's hosted service closes on 30 September 2026 and that the successor local viewer looks for a `workspace.dsl` before `workspace.json`, while dp writes only the JSON. So: read the format's own end-of-life page first, then test against the current viewer, not the old Lite; if the viewer insists on a DSL file, write that down as the result, not as a dp bug.
-- [ ] Put pass, fail or not checked for steps 2 to 10, the tool and version, any error text and one container-view screenshot into MT-167's Result column. The table "What a pass and a fail look like" in section 30 says what each result changes (README wording, DEC-007 note).
+- [ ] Put pass, fail or not checked for steps 2 to 10, the tool and version, any error text and one container-view screenshot into MT-167's Result column. The table "What a pass and a fail look like" in section 30 says what each result changes (README wording, STK-04 note).
 
 ### C. The never-run checks (section 29 and gap register 28)
 

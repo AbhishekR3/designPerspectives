@@ -1,4 +1,4 @@
-/** Linked work status adapters (DEC-085): GitHub, GitLab, SonarQube and Jira links, their API addresses, states, errors, and where a token may go. No network. */
+/** Linked work status adapters (WRK-02): GitHub, GitLab, SonarQube and Jira links, their API addresses, states, errors, and where a token may go. No network. */
 import { describe, expect, it } from "vitest";
 import { checkServiceUrl } from "../../src/core/hosts.js";
 import { getWork, setWork } from "../../src/core/work.js";

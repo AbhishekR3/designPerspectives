@@ -22,19 +22,19 @@ With several accounts proposing changes in drafts, main moves while a draft is o
 
 ## What exists today [Fact]
 
-- **Drafts** are folders `architecture/drafts/<id>/` with their own two files, `draft.json` and `base/`, a copy of main when the draft was made (DEC-016). The change list compares the draft with its base ("Since it started") or with main now ("Against main now"), and shows "main +N" (DEC-040).
+- **Drafts** are folders `architecture/drafts/<id>/` with their own two files, `draft.json` and `base/`, a copy of main when the draft was made (DRF-01). The change list compares the draft with its base ("Since it started") or with main now ("Against main now"), and shows "main +N" (DRF-03).
 - **Apply is a three-way merge** (`src/core/merge.ts`): base, main now, the draft, object by object (units from `modelUnits.ts`). A change on one side wins; the same on both is kept; different changes to the same object are a conflict and nothing is applied (`Drafts.apply`, `src/core/drafts.ts:336`; `planApply`). Reference checks follow the merge (an element inside a removed element, a line to a removed element, a flow step over a removed line).
-- **A partial apply of an import draft already rebases what it keeps** (`hold.rebased`, DEC-065). The general rebase is not built.
-- **Apply is one undo step on main** (`Project.undo`, `src/core/project.ts:184`), and **deletes the draft**. Undo restores the model only: not the draft, and not the code files the apply wrote (DEC-032: code first, then model, with rollback).
+- **A partial apply of an import draft already rebases what it keeps** (`hold.rebased`, COD-08). The general rebase is not built.
+- **Apply is one undo step on main** (`Project.undo`, `src/core/project.ts:184`), and **deletes the draft**. Undo restores the model only: not the draft, and not the code files the apply wrote (DRF-02: code first, then model, with rollback).
 - **UI:** `ui/src/drafts/` (`DraftList.tsx`, `ChangeList.tsx`, `ApplyDialog.tsx`). The apply dialog lists conflicts as text.
-- **Roles.** Engineers edit any draft and discard only their own; only architects apply (DEC-063).
+- **Roles.** Engineers edit any draft and discard only their own; only architects apply (PRO-15).
 
 ## Design [Proposal]
 
 1. **Rebase** (`Drafts.rebase(id, resolutions?)`). Run the same three-way merge with the draft's base, main now and the draft. The result becomes the draft's new content and main-now becomes its new `base/`. The change list afterwards shows only the draft's own changes against the new main.
    - With no conflicts it is one step, and one undo step for that draft (the draft keeps its own undo stack, as now).
    - With conflicts nothing changes until each is resolved.
-2. **Merge editor.** A dialog listing each conflict by object: what main changed, what the draft changed, and a choice: **keep the draft's version**, **take main's version** or **keep both where possible** (for list-like fields such as tags and notes, shown only where the merge can do it without guessing). Positions and layout never conflict (DEC-016).
+2. **Merge editor.** A dialog listing each conflict by object: what main changed, what the draft changed, and a choice: **keep the draft's version**, **take main's version** or **keep both where possible** (for list-like fields such as tags and notes, shown only where the merge can do it without guessing). Positions and layout never conflict (DRF-01).
    - After every choice dp re-runs the merge; the dialog shows what is left. A resolution is never guessed.
    - The choices are applied in one rebase.
 3. **Rebase before apply is offered, not forced.** The apply dialog, when it finds conflicts, offers "Rebase this draft first".
@@ -43,7 +43,7 @@ With several accounts proposing changes in drafts, main moves while a draft is o
    - Undoing that apply restores the model, brings the draft back, and restores a code file **only if it still holds what the apply wrote**; if someone changed it since, dp leaves it and says which file.
    - Redo applies again and removes the recovery copy again.
    - The recovery copy is dropped after a limit (the last 5 applies) and on `dp` start if older than 30 days.
-6. **Not in this wave:** comparing a draft's planned code edits with the code as it was when the draft started (planned_features B3, later).
+6. **Not in this wave:** comparing a draft's planned code edits with the code as it was when the draft started (the former backlog B3 (now in the wave files), later).
 
 ## Determinism
 
@@ -58,11 +58,11 @@ With several accounts proposing changes in drafts, main moves while a draft is o
 
 ## Questions, options and answers (moved from questions.md)
 
-*Moved from the deleted `questions.md` on 2026-11-20, with the owner's words as written. In the quotes, `future_tasks.md` and `backlog.md` mean the old backlog, now [planned_features.md](../planned_features.md) and the owner's private ideas list; `docs/waves/v1-scope-review.md` was decided in DEC-104.*
+*Moved from the deleted `questions.md` on 2026-11-20, with the owner's words as written. In the quotes, `future_tasks.md` and `backlog.md` mean the old backlog, now [planned_features.md](../planned_features.md) and the owner's private ideas list; `docs/waves/v1-scope-review.md` was decided in PRO-20.*
 
 ### ★C2. Which gaps in the change-proposal feature (C) go into 1.0.0?
 
-**Analysis** [Fact]. [planned_features.md](../planned_features.md) B3 lists what drafts cannot do yet:
+**Analysis** [Fact]. the former backlog B3 (now in the wave files) lists what drafts cannot do yet:
 - rebase a draft onto a main that has moved, and a merge editor for conflicts (today a conflict is reported only when the draft is applied) [Medium];
 - undo of an apply restores the model but not the code files it wrote nor the deleted draft [Small–medium];
 - compare a draft's planned code edits with the code as it was when the draft started [Medium].
@@ -79,7 +79,13 @@ With several accounts working in drafts (feature E), the first is the one people
 
 ## Added by the 2026-11-20 split
 
-- **Optional 18c, compare a draft's planned code edits with the code as it was when the draft started** (planned_features B3). Today they are compared with the code folder as it is now, so a file changed since the draft began shows as a conflict. It is the same stale-draft problem as the rebase; build it here if 18a leaves room, otherwise leave it in planned_features B3 (it is not needed for 1.0.0).
+- **Optional 18c, compare a draft's planned code edits with the code as it was when the draft started** (the former backlog B3 (now in the wave files)). Today they are compared with the code folder as it is now, so a file changed since the draft began shows as a conflict. It is the same stale-draft problem as the rebase; build it here if 18a leaves room, otherwise leave it in the former backlog B3 (now in the wave files) (it is not needed for 1.0.0).
+## Carried from the backlog (moved from planned_features.md, 2026-11-21)
+
+- **Rebase a draft onto the current main and a merge editor for conflicts** (was B3; medium; feature C of the vision). Today a conflict is only reported when the draft is applied, and "main +N" is shown but cannot be resolved in place. A partial apply of an import draft already rebases what it keeps (COD-08); the general case is not built. Also open in the sign-in notes. [Source: review stage-c, prod-p4.]
+- **Undoing an apply also restores the draft** (was B3; small to medium). Undo restores the model only, not the code files the apply wrote and not the deleted draft. [Source: review stage-c.]
+- **Compare a draft's planned code edits with the code as it was when the draft started** (was B3; medium). Today they are compared with the code folder as it is now, so a file changed since then is a conflict. Optional third part of this wave (18c); not needed for 1.0.0. [Source: planned-change.md limits.]
+
 ## Stop and ask if
 
 - A resolution would need dp to combine two different edits of one field (for example two different descriptions). dp offers a choice, never a blend.
@@ -121,7 +127,7 @@ With several accounts working in drafts (feature E), the first is the one people
 
 ## Docs
 
-- **New DEC:** rebase and the merge editor; the recovery copy for undo; limits.
+- **New decision entry:** rebase and the merge editor; the recovery copy for undo; limits.
 - **`docs/planned-change.md`:** update "what it cannot do yet".
 - **The review file** (not the CHANGELOG, which the release change writes), **CLAUDE.md** (`MergeEditor.tsx`), **README**.
 - **planned_features.md:** mark the rebase and undo rows built; keep the code comparison.

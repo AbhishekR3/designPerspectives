@@ -1,4 +1,4 @@
-/** Linked work in the browser (DEC-085, DEC-087): the Work page (toolbar button), its How it works view and severity mapping, filters, reveal from a row, adding an item, work on a diagram and on a flow, "Link work…" in the right-click menu, and the refresh button. */
+/** Linked work in the browser (WRK-02, WRK-04): the Work page (toolbar button), its How it works view and severity mapping, filters, reveal from a row, adding an item, work on a diagram and on a flow, "Link work…" in the right-click menu, and the refresh button. */
 
 import { api, expect, node, openDiagram, test, waitUntil, type Server } from "./fixtures.js";
 
@@ -200,7 +200,7 @@ test.describe("linked work", () => {
     await expect(box.getByTestId("connection-row-0")).toHaveCount(0);
   });
 
-  test("How it works explains the tools and edits the severity mapping, which is saved in the model (DEC-087)", async ({ page, server }) => {
+  test("How it works explains the tools and edits the severity mapping, which is saved in the model (WRK-04)", async ({ page, server }) => {
     await openDiagram(page, KEY);
     await page.getByTestId("open-work").click();
     await page.getByTestId("work-tab-guide").click();

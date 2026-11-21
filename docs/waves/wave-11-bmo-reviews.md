@@ -41,8 +41,8 @@ Every result is cited, labelled and shown next to what dp found by itself. Nothi
 
 **BMO's existing machinery**
 - Runs: preview, hash confirmation and the run log (`src/assistant/runTask.ts:501-506`, `:605-606`; `providerBackend.ts:635-689`).
-- What each task does to the project: `EFFECT` (`runTask.ts:152-161`). Allowed roles: `allowedRoles` (DEC-065).
-- A run over the size limit is refused, and there is no multi-pass (`src/assistant/settings.ts:100-103`, DEC-065).
+- What each task does to the project: `EFFECT` (`runTask.ts:152-161`). Allowed roles: `allowedRoles` (COD-08).
+- A run over the size limit is refused, and there is no multi-pass (`src/assistant/settings.ts:100-103`, COD-08).
 - The fake backend serves tests (`src/assistant/fakeBackend.ts`).
 - Text a person or the repository wrote must stay inside data blocks (`tests/unit/bmo-core.test.ts:89`).
 
@@ -69,8 +69,8 @@ Every result is cited, labelled and shown next to what dp found by itself. Nothi
      - A results sheet showing dp's own findings beside BMO's verdicts, with disagreements pointed out ("dp found a cycle; BMO says not found").
 2. **Actions on a result** (★Q11.2). Each result offers:
    - add as a checklist item;
-   - add as linked work (DEC-085);
-   - add as a comment (DEC-049).
+   - add as linked work (WRK-02);
+   - add as a comment (REC-01).
 
    Nothing is written until an action is pressed.
 3. **Task `propose-ratings`** (Q11.3).
@@ -105,13 +105,13 @@ Applied 2026-11-19: Part B was left blank, so each Q uses its recommendation ([t
 
 ## Questions, options and answers (moved from questions.md)
 
-*Moved from the deleted `questions.md` on 2026-11-20, with the owner's words as written. In the quotes, `future_tasks.md` and `backlog.md` mean the old backlog, now [planned_features.md](../planned_features.md) and the owner's private ideas list; `docs/waves/v1-scope-review.md` was decided in DEC-104.*
+*Moved from the deleted `questions.md` on 2026-11-20, with the owner's words as written. In the quotes, `future_tasks.md` and `backlog.md` mean the old backlog, now [planned_features.md](../planned_features.md) and the owner's private ideas list; `docs/waves/v1-scope-review.md` was decided in PRO-20.*
 
 ### ★Q11.1 The anti-pattern review needs a scope
 
 **Analysis** [Fact]
 - A run over the size limit is refused.
-- There is no multi-pass yet (DEC-065).
+- There is no multi-pass yet (COD-08).
 
 **Proposed**
 - **You pick entries from the library.** Entries marked "check by default" are pre-selected.
@@ -149,7 +149,7 @@ Applied 2026-11-19: Part B was left blank, so each Q uses its recommendation ([t
 ### ★C7. How does BMO tell that a decision is "broken or violated"?
 
 **Analysis** [Fact]
-- A decision links to elements and relationships it is about, with a status, alternatives and triggers (DEC-050). `decisionsAbout` finds the decisions for an object (`src/core/decisions.ts`).
+- A decision links to elements and relationships it is about, with a status, alternatives and triggers (REC-04). `decisionsAbout` finds the decisions for an object (`src/core/decisions.ts`).
 - Nothing today compares a decision with the model or the code.
 - Wave 3 adds an optional Compliance section that can name a rule (Q3.6). Wave 8 adds rules that produce Findings.
 
@@ -166,7 +166,7 @@ Applied 2026-11-19: Part B was left blank, so each Q uses its recommendation ([t
 
 ## Stop and ask if
 
-- ★Q11.1 asks for whole-project reviews. These would need multi-pass, which isn't built (DEC-065).
+- ★Q11.1 asks for whole-project reviews. These would need multi-pass, which isn't built (COD-08).
 - ★Q11.2 asks for results to be saved automatically.
 
 ## Steps and agents
@@ -184,7 +184,7 @@ Applied 2026-11-19: Part B was left blank, so each Q uses its recommendation ([t
 ## Required in this wave
 
 - **Routes.** The BMO preview and run routes take the new task ids. Check that their `ROUTE_RULES` and `allowedRoles` cover them. Tasks that write only through actions need nothing new.
-- **Hub.** Hub-level BMO settings (DEC-064).
+- **Hub.** Hub-level BMO settings (COD-03).
 - **Read-only mode.** Text results are shown, and actions are refused.
 - **Model data.** Accepted rows are ordinary edits of `dp.characteristics`, and of checklist and work items.
 - **Static export.** Not affected.
@@ -201,7 +201,7 @@ Applied 2026-11-19: Part B was left blank, so each Q uses its recommendation ([t
 
 ## Docs
 
-- **New DEC:** the three review tasks (anti-patterns, decisions, ratings), the required scope, actions only, and labels.
+- **New decision entry:** the three review tasks (anti-patterns, decisions, ratings), the required scope, actions only, and labels.
 - **README:** the BMO section.
 - **CLAUDE.md:** `BmoReview.tsx` and the new tasks.
 - **The review file** (not the CHANGELOG, which the release change writes): this wave's entries.

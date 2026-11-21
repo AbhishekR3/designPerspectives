@@ -9,7 +9,7 @@
 | **Depends on** | Wave 5 (code search and key code: the "main files and functions" cards), Wave 1 (labels and citations for the BMO cards in 15b). Wave 3's `local:` link kind is reused for file references. **Wave 14a** (the typed context window and the size shown before a run) should be merged first: this wave's BMO cards and the split prompts below send the largest requests of the import, and the refusal rule in Wave 14 ("Context window rule") applies to them. [Wave 27](wave-27-small-batch.md) (the inherited owner, 0.8.0) is merged before this wave |
 | **Owner items** | Answer 0.3 ([README.md](README.md#where-each-item-went)) |
 
-Read [README.md](README.md) first: its rules, agents and checks apply to this wave. Also read [../import-design.md](../import-design.md) (what the import is for and what matters to C4 at each level) and the import choices N1 to N15 in [DEC-103](../decisions.md#pro-19--dec-103--code-import-and-bmo-choices-and-the-080-split-n1-to-n15), which change what this wave builds (see its "Decided" section if it has one).
+Read [README.md](README.md) first: its rules, agents and checks apply to this wave. Also read [../import-design.md](../import-design.md) (what the import is for and what matters to C4 at each level) and the import choices N1 to N15 in [PRO-19](../decisions.md#pro---19---code-import-and-bmo-choices-n1-to-n15), which change what this wave builds (see its "Decided" section if it has one).
 
 ## Goal
 
@@ -32,7 +32,7 @@ Which levels are exact and which are guesses is in [import-design.md](../import-
 **Intake** (`src/import/intake.ts`)
 - The shape: system name and purpose, audience, scope, depth, ownership, runtime, glossary, `mustNotOpen`, services and settings (`:32-46`). The file is `architecture/import/intake.json` (`:283`). The parser is strict: unknown keys are errors (`:83-90`).
 - Limits: 5,000 characters of text, 500 list entries, 300 characters per glob (`:72-74`).
-- **DEC-064 rule:** `intakeLoosened()` (`:310-336`) says what counts as loosening: removing `mustNotOpen` or `scope.exclude` entries, widening `scope.include`, raising caps. `PUT /api/import/intake` refuses a loosening unless the caller is an architect (`src/server/routes/import.ts:106-117`).
+- **COD-03 rule:** `intakeLoosened()` (`:310-336`) says what counts as loosening: removing `mustNotOpen` or `scope.exclude` entries, widening `scope.include`, raising caps. `PUT /api/import/intake` refuses a loosening unless the caller is an architect (`src/server/routes/import.ts:106-117`).
 - Routes: `POST /api/import/scan` (`:101`), `GET /api/import` (`:87`). `ROUTE_RULES` (`src/server/auth.ts:164-176`): action `import` for scan and intake, `edit` for review items, `import.final` (architect only) for ignore and levels.
 
 **Analysis** (`src/import/analysis.ts`)
@@ -46,18 +46,18 @@ Which levels are exact and which are guesses is in [import-design.md](../import-
 
 **Review and apply**
 - `review.ts`: the review level (verified, partly verified, unverified) comes from evidence (`:174`); `setDecision` (`:717`) records accept or reject per item, with who decided; unverified items need an explicit accept (`:754`).
-- Typed text counts as evidence (`typedTexts`, `:496-516`), so what the user types in the interview can back an item (DEC-064).
+- Typed text counts as evidence (`typedTexts`, `:496-516`), so what the user types in the interview can back an item (COD-03).
 - `importer.ts`: `importToDraft()` (`:339`) turns a checked import file into a draft. The import file also carries `questions` and `assumptions` (`schema.ts:199-200`), which go to the checklist (`importer.ts:351-353`), never to the model.
-- The checklist (`src/core/checklist.ts`) already holds BMO's questions, with `typedAnswers()` and `answerNotes()` (`:470`, `:481`) feeding the next BMO turn (DEC-084).
+- The checklist (`src/core/checklist.ts`) already holds BMO's questions, with `typedAnswers()` and `answerNotes()` (`:470`, `:481`) feeding the next BMO turn (REC-05).
 
 **UI**
 - `ui/src/pages/ImportPage.tsx` is **not a stepper**. It is a list of collapsible sections: scan, readiness, "about" (the intake form), bring in a level, describe, better labels, import drafts (`:151-188`).
 - Reusable parts: `Section`, `Fields`, `TextField`, `TagInput`, `Modal` in `ui/src/panels/formParts.tsx`. There is no import hook; `App.tsx:1090` passes state down.
 
 **Decisions that bind this wave**
-- DEC-051: one level at a time, and no inferred labels.
-- DEC-064: typed-text rule; who may loosen limits.
-- DEC-084: the checklist, and typed answers as evidence.
+- COD-02: one level at a time, and no inferred labels.
+- COD-03: typed-text rule; who may loosen limits.
+- REC-05: the checklist, and typed answers as evidence.
 
 ## Design [Proposal; settle Q15.1 to Q15.5 first]
 
@@ -115,8 +115,8 @@ Questions that come from the guesses in questions 0.3, asked as choices or text:
 ### Step 4. Names, descriptions and line labels
 
 - **Names** are already proposed by the scan (Step 2). Here the user fixes them.
-- **Descriptions.** dp offers text it can quote (a README line, a docstring) with its source shown, or the user types one. A skipped description stays empty, and the checklist rule for descriptions (DEC-084) picks it up later.
-- **Line labels.** A fixed choice per line kind ("reads from", "writes to", "calls", "publishes to", "sends email through") chosen by the user from rules on the evidence (a host in a database setting suggests "reads from and writes to"), or typed. dp never invents a label (DEC-051).
+- **Descriptions.** dp offers text it can quote (a README line, a docstring) with its source shown, or the user types one. A skipped description stays empty, and the checklist rule for descriptions (REC-05) picks it up later.
+- **Line labels.** A fixed choice per line kind ("reads from", "writes to", "calls", "publishes to", "sends email through") chosen by the user from rules on the evidence (a host in a database setting suggests "reads from and writes to"), or typed. dp never invents a label (COD-02).
 - In 15b, BMO can propose names, descriptions and labels as cards marked "BMO suggests", shown beside dp's own proposal. Nothing from BMO is pre-approved.
 
 ### How many questions, and where they come from (owner, 2026-11-20)
@@ -130,11 +130,11 @@ Questions that come from the guesses in questions 0.3, asked as choices or text:
 
 The card approval is the final accept. Beside it the person can add context:
 
-- **A note on a card.** Free text that stays with that item. It counts as typed text, so it can back the item as evidence (DEC-064). It is stored in `interview.json`.
-- **General context.** A "Anything else dp should know?" box at the end of Step 1 and at the end of each level: free text up to 5,000 characters. It is stored in `interview.json`, which is committed, so dp refuses to save a text that contains a secret-looking value (as a decision does, DEC-064) and the screen says "saved in the project and committed with it". It does not count as evidence for any item. It reaches BMO (15b, Wave 20) only inside data blocks, after redaction, and the preview shows it.
+- **A note on a card.** Free text that stays with that item. It counts as typed text, so it can back the item as evidence (COD-03). It is stored in `interview.json`.
+- **General context.** A "Anything else dp should know?" box at the end of Step 1 and at the end of each level: free text up to 5,000 characters. It is stored in `interview.json`, which is committed, so dp refuses to save a text that contains a secret-looking value (as a decision does, COD-03) and the screen says "saved in the project and committed with it". It does not count as evidence for any item. It reaches BMO (15b, Wave 20) only inside data blocks, after redaction, and the preview shows it.
 - **File references**, on a card or in the general context. Two kinds:
   - **A file inside the code root.** Stored as a path. Text files up to 100 KB are read through the file gate (hidden-path rule, the intake's closed paths, redaction) and can go to BMO as data. Other types are listed by name only.
-  - **A file anywhere else on this computer** (`local:`, Wave 3's link kind; DEC-095). dp keeps the path text only. It never reads, copies or sends the file. It shows the name with Copy path, and Open where DEC-095 allows.
+  - **A file anywhere else on this computer** (`local:`, Wave 3's link kind; SEC-03). dp keeps the path text only. It never reads, copies or sends the file. It shows the name with Copy path, and Open where SEC-03 allows.
 
 ### Parts the code only hints at (moved from backlog.md, 2026-11-20) [Proposal]
 
@@ -143,7 +143,7 @@ Code shows outside parts only as clients, URLs and settings, so the interview as
 - **Kinds to ask about:**
   - third-party services and APIs (payments, identity and login, email and SMS, analytics, search, maps, LLM providers, feature flags, monitoring and error tracking);
   - cloud-managed services the team configures and a provider runs (databases, queues, object storage, CDN, DNS), modelled as the team's own containers, tagged as managed, with the provider noted;
-  - other teams' internal services and shared platforms, modelled as separate systems (DEC-023);
+  - other teams' internal services and shared platforms, modelled as separate systems (MOD-02);
   - inbound parties: customers' systems calling the API, webhook senders, partner file drops, browsers and mobile apps as people or systems;
   - things outside any repository: jobs set up in a console, manual steps, spreadsheets, people in the loop.
 - **For each one, ask:** direction; what flows ("Sends payment requests", not "Uses"); protocol; who owns it; whether the team controls the contract; and the evidence (an SDK dependency, a host or variable name in configuration, a route for a webhook, an infrastructure resource).
@@ -155,9 +155,9 @@ Code shows outside parts only as clients, URLs and settings, so the interview as
 
 1. Each answer is stored by a stable id taken from the scan fact (so a re-scan keeps answers for unchanged items).
 2. **`src/import/fromInterview.ts`** turns the approved cards and typed answers into an import file (schema v1) and runs it through the existing `checks.ts` and `importToDraft()`. This works with no BMO.
-3. An approval in the interview is the user's explicit accept: it records an `accepted` decision with who made it (`setDecision`). Items the user typed carry the typed text as evidence (DEC-064). The review screen afterwards still lists every item, with its review level computed from evidence as today.
+3. An approval in the interview is the user's explicit accept: it records an `accepted` decision with who made it (`setDecision`). Items the user typed carry the typed text as evidence (COD-03). The review screen afterwards still lists every item, with its review level computed from evidence as today.
 4. "Not right" and "Not used" are remembered in the interview file, and the item is not imported. A re-import keeps the person's edits (`lastImport.ts`).
-5. Nothing about the interview, confidence or BMO is written into the model (DEC-051, DEC-064). Answers are saved **locally**, on this machine and sent nowhere (Q15.3): all of it in `architecture/import/interview.json`, next to the intake and committed with it so a team and CI see what was decided: the answers, the card notes, the general context and the paths of referenced files (paths written with `~/` where possible).
+5. Nothing about the interview, confidence or BMO is written into the model (COD-02, COD-03). Answers are saved **locally**, on this machine and sent nowhere (Q15.3): all of it in `architecture/import/interview.json`, next to the intake and committed with it so a team and CI see what was decided: the answers, the card notes, the general context and the paths of referenced files (paths written with `~/` where possible).
 6. **Key code.** An approved "main files and functions" card becomes `dp.code.key` on the component (Wave 5). The import file schema (v1) gets an optional `keyCode` list per element. Old files stay valid; a file that uses it is refused by an older dp, which the notes for the release entry say.
 
 ### Rules for the question list
@@ -184,7 +184,7 @@ Code shows outside parts only as clients, URLs and settings, so the interview as
 ## Owner answers
 
 - **0.3:** Make all the deterministic calls first, then ask the user. A UI with "x of y" questions. Show what dp would label and let the user approve or disapprove. Grouped questions. More questions rather than fewer. Preliminary text and choice questions. Assume the user knows basic information about the project.
-- **Q15.1 (2026-11-20):** "The interview should be dependent on the codebase. Tend to lean towards more questions than less. Definitely need at least a few questions per interview." Applied: questions come from what the scan finds; dp asks when in doubt; a floor of 6 per level's interview, filled from a fixed bank of standing questions. The "one interview, a draft per level" shape (option 1) is kept, since the answer says "per interview" and DEC-051 wants one level at a time.
+- **Q15.1 (2026-11-20):** "The interview should be dependent on the codebase. Tend to lean towards more questions than less. Definitely need at least a few questions per interview." Applied: questions come from what the scan finds; dp asks when in doubt; a floor of 6 per level's interview, filled from a fixed bank of standing questions. The "one interview, a draft per level" shape (option 1) is kept, since the answer says "per interview" and COD-02 wants one level at a time.
 - **Q15.2:** "Yes it is final accept, but users can also add some additional context as a free-form text or reference local files." Applied: the card approval is the accept (still not for items the scan could not back with evidence under "Approve all of these"); a note on each card, general context, and file references (see "Adding context").
 - **Q15.3 ("save the answers locally", then "include it as well"):** everything in `architecture/import/interview.json`, committed with the intake, including the general context and file references. Because it is committed, a context text with a secret-looking value is refused and the screen says where it is saved.
 - **Q15.4 and Q15.5 (best thinking):** as recommended. A "Guide me" button at the top of the Import page, with the current sections under "Advanced"; 15a (the interview and the draft without BMO) first, then 15b (BMO cards, "BMO suggests", never pre-approved, BMO's own questions last).
@@ -194,23 +194,23 @@ Code shows outside parts only as clients, URLs and settings, so the interview as
 
 ## Questions, options and answers (moved from questions.md)
 
-*Moved from the deleted `questions.md` on 2026-11-20, with the owner's words as written. In the quotes, `future_tasks.md` and `backlog.md` mean the old backlog, now [planned_features.md](../planned_features.md) and the owner's private ideas list; `docs/waves/v1-scope-review.md` was decided in DEC-104.*
+*Moved from the deleted `questions.md` on 2026-11-20, with the owner's words as written. In the quotes, `future_tasks.md` and `backlog.md` mean the old backlog, now [planned_features.md](../planned_features.md) and the owner's private ideas list; `docs/waves/v1-scope-review.md` was decided in PRO-20.*
 
 *New: it comes from your answer to 0.3. These have recommendations and none changes the direction you set.*
 
 ### ★Q15.1 One interview, or one per level?
 
-**Analysis.** DEC-051 brings a codebase in one C4 level at a time, with a draft per level. Your answer asks for one flow with "x of y" questions.
+**Analysis.** COD-02 brings a codebase in one C4 level at a time, with a draft per level. Your answer asks for one flow with "x of y" questions.
 
 **Options**
-1. **One interview, a draft per level.** Steps 1 and 2 are asked once. Then each level is answered and imported on its own, so the model stays reviewable (DEC-051). "x of y" counts the current level, with the later levels listed as "still to come".
+1. **One interview, a draft per level.** Steps 1 and 2 are asked once. Then each level is answered and imported on its own, so the model stays reviewable (COD-02). "x of y" counts the current level, with the later levels listed as "still to come".
 2. **One interview, one draft.** Faster to click through, but one very large draft to review.
 
 **Recommended.** Option 1.
 
 **Owner's thinking:** The interview should be dependent on the codebase. Tend to lean towards more questions than less. Definitely need at least a few questions per interview.
 
-**Applied [2026-11-20].** Questions come from what the scan finds, so a codebase with a broker gets broker questions and one without gets none. When a fact could be asked or assumed, dp asks, and dp asks about every object it would create. **A floor of 6 questions per level's interview**: if the scan yields fewer, dp fills up from a fixed bank of standing questions (at least 8 per level, worded in code, never generated), and the screen says it did. The wording of the bank is added to ideas list O for your review. I kept 'one interview, a draft per level' (option 1), reading 'per interview' that way and because DEC-051 wants one level at a time. [Wave 15](wave-15-guided-import-interview.md) is updated.
+**Applied [2026-11-20].** Questions come from what the scan finds, so a codebase with a broker gets broker questions and one without gets none. When a fact could be asked or assumed, dp asks, and dp asks about every object it would create. **A floor of 6 questions per level's interview**: if the scan yields fewer, dp fills up from a fixed bank of standing questions (at least 8 per level, worded in code, never generated), and the screen says it did. The wording of the bank is added to ideas list O for your review. I kept 'one interview, a draft per level' (option 1), reading 'per interview' that way and because COD-02 wants one level at a time. [Wave 15](wave-15-guided-import-interview.md) is updated.
 
 ### ★Q15.2 Is a click in the interview the final accept?
 
@@ -224,7 +224,7 @@ Code shows outside parts only as clients, URLs and settings, so the interview as
 
 **Owner's thinking:** Yes it is final accept, but users can also add some additional context as a free-form text or reference local files.
 
-**Applied [2026-11-20].** The card approval is the final accept (a group's 'Approve all of these' still never covers items the scan could not back with evidence). Beside it: a **note on each card** (typed text, which can back that item as evidence), **general context** in a free-text box, and **file references**. A file inside the code root is read through the file gate (text only, redacted) and can go to BMO as data; a file elsewhere on the computer is kept as a path only, never read or sent (the `local:` kind of Q3.5, DEC-095).
+**Applied [2026-11-20].** The card approval is the final accept (a group's 'Approve all of these' still never covers items the scan could not back with evidence). Beside it: a **note on each card** (typed text, which can back that item as evidence), **general context** in a free-text box, and **file references**. A file inside the code root is read through the file gate (text only, redacted) and can go to BMO as data; a file elsewhere on the computer is kept as a path only, never read or sent (the `local:` kind of Q3.5, SEC-03).
 
 ### Q15.3 Where the answers live
 
@@ -232,7 +232,7 @@ Code shows outside parts only as clients, URLs and settings, so the interview as
 
 **Owner's thinking:** Save the answers to the questions locally, go with your best thinking
 
-**Applied [2026-11-20].** Everything goes in `architecture/import/interview.json`, committed with the intake: the answers, the card notes, the general context and the file references (your 'include it as well'; the earlier split with a git-ignored file is dropped). Nothing is sent anywhere. **Because it is committed,** dp refuses to save a context text that contains a secret-looking value (as a decision does, DEC-064), and the screen says 'saved in the project and committed with it'. A file outside the code root is kept as a path, written with `~/` where possible, so a user name does not end up in git.
+**Applied [2026-11-20].** Everything goes in `architecture/import/interview.json`, committed with the intake: the answers, the card notes, the general context and the file references (your 'include it as well'; the earlier split with a git-ignored file is dropped). Nothing is sent anywhere. **Because it is committed,** dp refuses to save a context text that contains a secret-looking value (as a decision does, COD-03), and the screen says 'saved in the project and committed with it'. A file outside the code root is kept as a path, written with `~/` where possible, so a user name does not end up in git.
 
 ### Q15.4 Where it sits on the Import page
 
@@ -252,7 +252,7 @@ Code shows outside parts only as clients, URLs and settings, so the interview as
 
 ## Added by the 2026-11-20 split
 
-These small items sit on the code this wave rewrites; build them here (sources: planned_features B4 and B7, DEC-103 N11, [Wave 25](wave-25-bmo-own-subscription.md)).
+These small items sit on the code this wave rewrites; build them here (sources: the former backlog B4 (now in the wave files) and B7, PRO-19 N11, [Wave 25](wave-25-bmo-own-subscription.md)).
 
 - **A fixed "no LLM" / "needs an LLM" badge on each import step** (N11). Steps that read the code, analyse, check, import to a draft or review are deterministic; the "Ask BMO", "Describe" and "Suggest labels" runs need an LLM (the handoff route needs the person's own agent).
 - **A per-level URL on the Import page**, so a level can be linked to or reloaded directly.
@@ -260,11 +260,26 @@ These small items sit on the code this wave rewrites; build them here (sources: 
 - **CODEOWNERS to owner proposals:** the scan already reads `CODEOWNERS` as evidence; show a proposed `owner` card for each mapped object, accepted by a person. **The card is not shown when the proposed owner equals the owner the object already shows**, typed or inherited from its parent ([Wave 27](wave-27-small-batch.md) builds the inherited owner before this wave). So a team that owns a whole container gets one card on the container, not one on every component. Test: a child with an inherited owner equal to the `CODEOWNERS` entry gets no card; a child whose entry differs gets one.
 - **The second half of planned_features A4, for chat users:** a long prompt split into numbered parts that each fit a limit the person sets, and an interview that continues across several pasted replies (Wave 25 builds the single-block paste box). Includes the smaller import for chat-only users: paste the evidence digest, get the import file back in one reply. The limit the person sets here is the same number as the context window of [Wave 14a](wave-14-retrieval-local-models.md) when one is typed; do not add a second size setting.
 
+## Carried from the backlog (moved from planned_features.md, 2026-11-21)
+
+- **Codebase import without BMO: what needs an LLM** (owner note of 2026-11-20; planned). Nothing blocks import when BMO is off. Decided, PRO-19 (N11): a fixed "no LLM" / "needs an LLM" badge on each step. Facts today:
+
+  | Step | Needs an LLM? |
+  |---|---|
+  | `dp scan`, the readiness analysis, intake, import file check, import to a draft, review, writing the handoff prompt, reading `result.json` | No: deterministic, no network |
+  | The "Ask BMO" tab, "Describe", "Suggest labels" run directly, `dp bmo run` | Yes: the direct backend with a provider (the handoff route needs the person's own agent) |
+
+- **What are the questions and the chat like? What happens when the model is unsure?** (owner note; the model defers to the user; planned). Facts: the importer rejects what it can prove wrong, lists what it cannot check and does not guess or repair (COD-02); review levels (verified, partly verified, unverified) come from checkable evidence (`src/import/review.ts`); an item without a decision waits and a partial apply keeps it (COD-08). This wave plans the "question x of y" interview with a bank of standing questions per level; [Wave 20](wave-20-system-conversation.md) plans rounds sized from the repository. Proposal [interpretation]: an answer that is unsure must say so and carry a question; dp shows each as a card and writes nothing to the model until the person answers; the answer is stored as an ordinary intake or review decision. Open: how the chat and the cards share one state; how "unsure" is expressed (a field in the import file schema, or a separate list of questions); how many questions per round.
+- **A per-level URL on the Import page** (was B4; small), so a level can be linked to or reloaded directly.
+- **Who keeps the known-services list up to date** (was B4; small). `src/import/knownServices.ts` turns SDK package names into external systems and makes C1 candidates deterministic; it needs upkeep. Here: a project can add its own entries.
+- **A smaller import for chat-only users** (was B4; small). A user whose assistant cannot read files pastes the evidence digest and gets the import file back in one reply. Weaker than the file route, but it works. Built together with the second half of the subscription work (copying between dp and a chat app: splitting a long prompt into numbered parts, replies across several turns).
+- **CODEOWNERS to owner proposals** (was B5; small). The scan already reads `CODEOWNERS` as evidence; turning it into proposed `owner` values on mapped objects is not done. The Owner card is here. [Proposal]
+
 ## Stop and ask if
 
-- The interview would need to write anything into the model that is not an element, relationship, view or `dp.*` property (for example a confidence label or a BMO marker). DEC-051 and DEC-064 forbid it.
-- An answer would loosen the intake for someone who is not an architect (DEC-064). The card should say who can approve it instead.
-- Q15.1 (one interview or one per level) is changed to something that breaks "one level at a time" (DEC-051).
+- The interview would need to write anything into the model that is not an element, relationship, view or `dp.*` property (for example a confidence label or a BMO marker). COD-02 and COD-03 forbid it.
+- An answer would loosen the intake for someone who is not an architect (COD-03). The card should say who can approve it instead.
+- Q15.1 (one interview or one per level) is changed to something that breaks "one level at a time" (COD-02).
 - The general context or a referenced file's content would reach BMO anywhere but inside a data block after redaction, or a file outside the code root would be read.
 
 ## Steps and agents
@@ -288,7 +303,7 @@ Only one agent builds the UI or runs `cd ui && npm run build` at a time, because
 ## Required in this wave
 
 - **Routes.** Roughly: `GET /api/import/interview` (the plan and the answers), `PUT /api/import/interview/answers` (a batch), `POST /api/import/interview/build` (make the draft). Each needs a `ROUTE_RULES` entry in `src/server/auth.ts`; the first two use action `import`, building uses the same as the existing import to draft route. Settle in step 4.
-- **Roles.** Answers that change `mustNotOpen` or scope follow the DEC-064 loosening rule. Viewers cannot answer.
+- **Roles.** Answers that change `mustNotOpen` or scope follow the COD-03 loosening rule. Viewers cannot answer.
 - **Hub** and **`--read-only`.** The interview is shown read-only with the answers so far; building a draft is refused.
 - **Model units, diff, merge.** The model is unchanged by the interview itself, so `modelUnits.ts` is not touched. The draft it builds goes through the normal path.
 - **Byte-stable.** `interview.json` has a fixed key order.
@@ -316,16 +331,16 @@ Only one agent builds the UI or runs `cd ui && npm run build` at a time, because
 
 ## Docs
 
-- **New DEC:** the guided interview; deterministic first; answers stored in `architecture/import/interview.json` and never in the model; an approval in the interview is the explicit accept; the question list is computed, not generated. Amends how DEC-051 describes the intake.
+- **New decision entry:** the guided interview; deterministic first; answers stored in `architecture/import/interview.json` and never in the model; an approval in the interview is the explicit accept; the question list is computed, not generated. Amends how COD-02 describes the intake.
 - **README:** the import section ("Guide me" and the question flow).
 - **CLAUDE.md:** the new files in `src/import/` and the UI.
 - **The review file** (not the CHANGELOG, which the release change writes): this wave's entries, including what was asked of a real codebase (the owner runs one).
 - **`docs/determinism.md`:** rows for this wave.
 - **planned_features.md:** row 15 done; the "skeleton import without BMO" idea (2.0) is answered.
 
-## Decided (DEC-103, 2026-11-20; assistant's reasoning, the owner may overrule)
+## Decided (PRO-19, 2026-11-20; assistant's reasoning, the owner may overrule)
 
-- **N1.** The scan skips test, doc, example, script, migration, fixture, generated and third-party folders by name when it finds C3 candidates (list in DEC-103). **Build it as a separate set used only where component folders are chosen (the `component-dir` step of `scan.ts`), not by adding the names to `EXTRA_SKIP_DIRS`:** that set is applied in the single file walk and would remove those folders from every fact (see the 2026-11-20 clarification under N1 in DEC-103). `EXTRA_SKIP_DIRS` and `SKIP_DIRS` stay as they are. The candidate review lists what was skipped, each with its reason and "add back".
+- **N1.** The scan skips test, doc, example, script, migration, fixture, generated and third-party folders by name when it finds C3 candidates (list in PRO-19). **Build it as a separate set used only where component folders are chosen (the `component-dir` step of `scan.ts`), not by adding the names to `EXTRA_SKIP_DIRS`:** that set is applied in the single file walk and would remove those folders from every fact (see the 2026-11-20 clarification under N1 in PRO-19). `EXTRA_SKIP_DIRS` and `SKIP_DIRS` stay as they are. The candidate review lists what was skipped, each with its reason and "add back".
 - **N3.** Layered folders get no rule: the interview asks "are these folders one component?" when names look layered.
 - **N6.** The readiness report keeps minutes, tokens and passes, and shows money only when `pricePerMTok` is set.
 - **N11.** Each import step shows a fixed "no LLM" or "needs an LLM" badge.

@@ -1,5 +1,5 @@
 /**
- * The review of an import draft (DEC-051; backlog section 4, "Review level and low-confidence items").
+ * The review of an import draft (COD-02; backlog section 4, "Review level and low-confidence items").
  *
  * Every object, relationship, flow and decision an import created or changed in its draft is a review item,
  * keyed `object:<id>`, `relationship:<id>`, `flow:<flow key>` or `decision:<slug>` (the decision's file name
@@ -509,7 +509,7 @@ function typedTexts(modelDir: string, draftId: string, state: ReviewState): stri
     // Not a description draft.
   }
   if (state.draftFeedback) out.push(state.draftFeedback);
-  // What people wrote on the checklist: answers, corrections, notes, and the items they typed (DEC-084).
+  // What people wrote on the checklist: answers, corrections, notes, and the items they typed (REC-05).
   out.push(...typedAnswers(path.dirname(modelDir)));
   return out;
 }

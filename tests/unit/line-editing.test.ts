@@ -315,7 +315,7 @@ describe("lines with corners set by hand in the planner", () => {
     expect(onBox(r[r.length - 1]!, one.b!)).toBe(true);
   });
 
-  test("changing the corners plans that line again and leaves the others exactly as they were (DEC-067)", () => {
+  test("changing the corners plans that line again and leaves the others exactly as they were (CAN-03)", () => {
     const first = layoutLines(boxes, lines, size);
     const changed: LineInput[] = [
       {

@@ -1,5 +1,5 @@
 /**
- * The import readiness analysis (Stage B, DEC-051): reads only the evidence, the model, the intake and the
+ * The import readiness analysis (Stage B, COD-02): reads only the evidence, the model, the intake and the
  * import state files, never BMO, so the same inputs always give the same numbers.
  *
  * Per C4 level it counts candidates (what the scan found), how many are decided (accepted into the model, or

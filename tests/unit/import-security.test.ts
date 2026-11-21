@@ -101,7 +101,7 @@ describe("a model cannot mark its own output verified", () => {
     // Next to the import file, written by the server; the import file itself does not hold it.
     expect(fs.readFileSync(path.join(importDir(dir), "files", `${id}.source.txt`), "utf-8")).toBe(description);
     expect(fs.readFileSync(path.join(importDir(dir), "files", `${id}.json`), "utf-8")).not.toContain("Customers pay");
-    // What a person typed is git-ignored (DEC-064); the import file is not.
+    // What a person typed is git-ignored (COD-03); the import file is not.
     expect(fs.readFileSync(path.join(importDir(dir), ".gitignore"), "utf-8").split("\n")).toContain("files/*.source.txt");
     // Discarding the draft removes it.
     await ok(c.delete(`/api/drafts/${id}`));

@@ -1,4 +1,4 @@
-/** A hub of projects (DEC-053 to DEC-057): requests routed per project, the home page, shared catalog usage and copies, roles per project, hub.json checks. */
+/** A hub of projects (HUB-03, HUB-04, HUB-06 and HUB-07): requests routed per project, the home page, shared catalog usage and copies, roles per project, hub.json checks. */
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -132,7 +132,7 @@ describe("hub", () => {
     expect((await ok(pay.get("/api/state"))).elements.find((e: any) => e.id === id).name).toBe("E-mail Service");
     expect((await pay.post(`/api/elements/${id}/catalog`, { catalogId: "customer-db" })).status).toBe(422); // a container, not a system
 
-    // A catalog change reaches every copy as soon as it is saved (DEC-057), and the home page lists it.
+    // A catalog change reaches every copy as soon as it is saved (HUB-07), and the home page lists it.
     await ok(pay.patch("/api/elements/customer-db", { owner: "Data team" }));
     await ok(on(c, "catalog").patch("/api/elements/customer-db", { description: "Customers, accounts and the audit log." }));
     for (const p of ["onboarding", "payments"]) {
@@ -329,7 +329,7 @@ describe("hub", () => {
       expect(() => checkHub(dir, { projects: [{ id: "a", path: p }] }), p).toThrow(HubError);
     }
     expect(() => checkHub(dir, { projects: [], catalog: ".dp" })).toThrow(/catalog folder ".dp".*hidden/);
-    // Written by hand by whoever has the hub folder: a folder outside the hub (DEC-054), relative or absolute.
+    // Written by hand by whoever has the hub folder: a folder outside the hub (HUB-04), relative or absolute.
     const sibling = path.join(outside, "proj");
     expect(checkHub(dir, { projects: [{ id: "a", path: sibling }] }).projects).toHaveLength(1);
     expect(checkHub(dir, { projects: [{ id: "a", path: path.relative(dir, sibling) }] }).projects).toHaveLength(1);

@@ -1,6 +1,6 @@
 # UI/UX research: making diagrams easier to edit and quicker to understand
 
-Input for a follow-up session that improves the UI. It collects what was seen in a commercial C4 tool (a product video and its public interactive diagram viewer, called "the reference tool" here, per DEC-029) and compares it with designPerspectives as it is today. It then proposes changes in our own terms.
+Input for a follow-up session that improves the UI. It collects what was seen in a commercial C4 tool (a product video and its public interactive diagram viewer, called "the reference tool" here, per PRO-09) and compares it with designPerspectives as it is today. It then proposes changes in our own terms.
 
 Labels used below:
 - **[Observed]**: seen directly in the video frames, the reference tool's viewer, or our running app (demo model, `dp serve`, 1600×900 viewport, 2026-11-14).
@@ -13,14 +13,14 @@ Owner goals for this work (from the request):
 4. The **C4 code level** must let the user add things and relationships, not only show scanned files.
 5. Note what makes the UI **not simple**, both in ours and in the reference.
 
-**Owner answers (2026-11-14).** These settle the open questions of the first draft. The follow-up session should record them in `docs/decisions.md` as new DEC entries.
+**Owner answers (2026-11-14).** These settle the open questions of the first draft. The follow-up session should record them in `docs/decisions.md` as new decision entries.
 - **Code level**: show the **internal code**, **which functions are called from which files**, **when the output of file A is the input of file B**, and each file's **inputs, outputs and other relevant info**. Adding items and relationships by hand stays in scope. See §5.
 - **Colour**: on the diagram, colour comes from **overlays**. The **chrome around the diagram** (menus, options, navigation, the add/create flow, panels) is "bland and monochromatic" and must get colour too. See §3.2.
 - **Technology logos**: use the **real logos**, downloaded from open icon sets. See §3.3.
 - **Right panel**: it can be **minimised** by the user. See F1/F6.
 - **Box cards**: the owner delegated the design to the assistant ("do what you think is best"). See §3.4.
 
-Constraints to respect: dark theme only (DEC-013); diagram content is computed from the model (DEC-010); all edits go through `src/core/modelEdits.ts`; per-object data goes in `dp.*` properties; the built UI in `static/` must be rebuilt and committed; competitors are not named in repository files, commits or PRs (DEC-029).
+Constraints to respect: dark theme only (MOD-14); diagram content is computed from the model (MOD-08); all edits go through `src/core/modelEdits.ts`; per-object data goes in `dp.*` properties; the built UI in `static/` must be rebuilt and committed; competitors are not named in repository files, commits or PRs (PRO-09).
 
 ---
 
@@ -44,7 +44,7 @@ Chrome in the video (all floating over a full-bleed canvas):
 
 ### 1.2 Interactive diagram viewer (web page with four diagram tabs)
 
-[Observed] **How it is built.** The page's "interactive diagrams" are not standalone page code. Each tab sets the `src` of one `<iframe>` to a **public read-only share link of the product itself**. The tabs are Microservice, Event-based, Deployment and Network, plus Full screen. The marketing page's own scripts only switch tabs and play Lottie animations for the hero and feature cards. So there is no separate source code to copy. The behaviour lives in the vendor's proprietary, minified app, and copying it would not be appropriate anyway. [Proposal] Rebuild the behaviours below with our own stack (React 19 + @xyflow/react + ELK), which already supports everything listed. A "share a read-only interactive view" feature is close to our planned static HTML export (DEC-024).
+[Observed] **How it is built.** The page's "interactive diagrams" are not standalone page code. Each tab sets the `src` of one `<iframe>` to a **public read-only share link of the product itself**. The tabs are Microservice, Event-based, Deployment and Network, plus Full screen. The marketing page's own scripts only switch tabs and play Lottie animations for the hero and feature cards. So there is no separate source code to copy. The behaviour lives in the vendor's proprietary, minified app, and copying it would not be appropriate anyway. [Proposal] Rebuild the behaviours below with our own stack (React 19 + @xyflow/react + ELK), which already supports everything listed. A "share a read-only interactive view" feature is close to our planned static HTML export (PRO-13).
 
 [Observed] viewer features (the viewer uses a light theme; the editor in the video is dark):
 - **Coloured diagram-type tabs.** Each type has its own hue and icon: microservice teal, event-based amber, deployment green, network indigo. Inactive tabs are a dim tint; the active tab is a brighter fill with a border.
@@ -83,7 +83,7 @@ Screens checked: landscape, context, containers (Internet Banking System), compo
 
 | # | Friction [Observed] | Why it hurts | Direction [Proposal] |
 |---|---|---|---|
-| F1 | **Canvas is squeezed by three permanent columns**: left sidebar (~250 px: diagram tree, drafts, lenses, tag groups, ratings), right panel (~320 px, always open even with nothing selected), plus floating bars. On 1600 px the canvas gets about 1000 px. | The diagram is the product, but it gets the least space. | Make the left sidebar collapsible and collapsed by default after first use (it has a toggle already). **Owner: the right panel can be minimised.** Add a minimise control (and a shortcut, for example `]`) that folds it into a ~40 px rail of icon tabs (Details, Connections, Changes). Clicking a tab or selecting an object while minimised opens it as an overlay drawer, so the canvas keeps its width. Remember the state per browser (`localStorage`, like the active lens, DEC-011). Animate with width/transform (180 ms). Move "diagram summary" (objects, connections, cost) into a small header chip or the empty-selection state. |
+| F1 | **Canvas is squeezed by three permanent columns**: left sidebar (~250 px: diagram tree, drafts, lenses, tag groups, ratings), right panel (~320 px, always open even with nothing selected), plus floating bars. On 1600 px the canvas gets about 1000 px. | The diagram is the product, but it gets the least space. | Make the left sidebar collapsible and collapsed by default after first use (it has a toggle already). **Owner: the right panel can be minimised.** Add a minimise control (and a shortcut, for example `]`) that folds it into a ~40 px rail of icon tabs (Details, Connections, Changes). Clicking a tab or selecting an object while minimised opens it as an overlay drawer, so the canvas keeps its width. Remember the state per browser (`localStorage`, like the active lens, MOD-12). Animate with width/transform (180 ms). Move "diagram summary" (objects, connections, cost) into a small header chip or the empty-selection state. |
 | F2 | **Text unreadable at fit** on tall diagrams. The containers diagram fits at roughly 40% zoom; box names are ~6 px and descriptions ~4 px. | You cannot tell what the diagram shows without zooming. Fails goal 2. | ELK layout that prefers a landscape aspect ratio for a landscape viewport; a minimum fit zoom (for example 0.6) with scrolling past it; **level-of-detail** rendering: below about 0.5 zoom show only icon + name in large text and hide badges and descriptions. |
 | F3 | **The Add palette is open by default** and covers ~170×500 px of the canvas's left side on every diagram. | It hides diagram content and adds noise when you only want to read. | Collapse it to a slim left rail with "+" (opens the palette as a popover), as in the reference. Keep drag-from-palette. Also show **"+" handles on the hovered box** to add a connected box (we have drag-from-dot already; make it visible). |
 | F4 | **Selection does not show relationships.** Selecting a box gives orange corner handles and a floating toolbar; nothing else changes. Dimming exists only for flows and overlay focus (`Canvas.tsx:216`, `:286`). | "What talks to this?" is the most common question, and the canvas does not answer it. | **Selection focus**: dim non-neighbours to ~30%, colour connected edges with the accent (incoming vs outgoing in two tints), and run a moving glow along them. See §4. |
@@ -180,7 +180,7 @@ Keep it subtle: hues appear in icon tiles, strips, dots and badges (small areas)
 
 ### 3.4 Box cards (owner: assistant decides)
 
-[Proposal, decided under owner delegation; record as a DEC] Three levels of detail, chosen by zoom, so a card is never both tiny and busy:
+[Proposal, decided under owner delegation; record as a decision entry] Three levels of detail, chosen by zoom, so a card is never both tiny and busy:
 
 | Zoom | Card shows |
 |---|---|
@@ -231,7 +231,7 @@ Rules: 120–250 ms for UI and 300–450 ms for camera moves; `cubic-bezier(0.2,
 ### 5.3 Design [Proposal]
 
 **Two layers on one diagram.**
-- **Scanned layer** (derived, read-only, recomputed on every load, never stored, like today's imports, DEC-010): files, the symbols in them, calls, data flow and I/O.
+- **Scanned layer** (derived, read-only, recomputed on every load, never stored, like today's imports, MOD-08): files, the symbols in them, calls, data flow and I/O.
 - **Hand layer** (stored): items and links the user adds, kept in `dp.*` properties on the component or connector. This is option A from the first draft: `dp.code.items` `[{id, name, kind: function | class | interface | module | table | file | artefact, file?, symbol?, description?}]` and `dp.code.links` `[{from, to, kind: calls | dataflow | implements | extends | uses | reads | writes, description?}]`. `from`/`to` can point to a scanned symbol (`path#symbol`), a scanned file (`path`) or a hand item id. So the user can annotate the real code, or sketch code that doesn't exist yet. `units.ts` must flatten each item and link into its own unit, so diff, drafts, merge and the changes overlay work per item.
 
 **What the scan extracts** (deterministic, no LLM; everything in TypeScript):
@@ -246,11 +246,11 @@ Rules: 120–250 ms for UI and 300–450 ms for camera moves; `cubic-bezier(0.2,
 
 Every scanned fact carries **confidence**: `exact` (a resolved import plus a call), `likely` (name match only) or `literal` (string-literal artefact match). Only `exact` facts draw by default; a "Show likely links" toggle adds the rest, drawn dashed. Unresolvable dynamic calls are ignored. That is a stated limit, not a bug.
 
-**Parser choice (trade-off; needs a DEC):**
+**Parser choice (trade-off; needs a decision entry):**
 - **(i) Extend our own tokenizer/regex.** No new dependency. Python is feasible for `def`/`class`/calls. Data flow and JS/TS become fragile regex.
 - **(ii) `web-tree-sitter` (MIT, WASM) with the Python and TypeScript grammars.** One engine and query files per language, and Java/Go/Kotlin are easy to add later. Cost: about 0.3 MB of runtime plus about 1–2 MB of grammar `.wasm` per language in the npm package. WASM is not "other-language code" we write, so the TypeScript-only rule holds.
 - **(iii) The TypeScript compiler API for JS/TS** (the best accuracy for TS) plus (i) for Python. Cost: `typescript` becomes a runtime dependency (~9 MB).
-- **Decided: (ii) `web-tree-sitter`** (assistant's judgement under owner delegation, 2026-11-14; record as a DEC). One mechanism, multi-language, and fast enough to run on load with the `MAX_FILES` limit and a cache keyed by file sha1 (`codefs.ts` already has `sha1`). Start with the Python and TypeScript/JavaScript grammars, and keep the current import scan as the fallback when a grammar fails to load. Pin `web-tree-sitter` and the grammar packages to exact versions at least two weeks old. Load the `.wasm` files from the package directory on the server (the scan runs server-side), never from a CDN. Trade-off accepted: a larger npm package (a few MB) for accuracy and a path to more languages.
+- **Decided: (ii) `web-tree-sitter`** (assistant's judgement under owner delegation, 2026-11-14; record as a decision entry). One mechanism, multi-language, and fast enough to run on load with the `MAX_FILES` limit and a cache keyed by file sha1 (`codefs.ts` already has `sha1`). Start with the Python and TypeScript/JavaScript grammars, and keep the current import scan as the fallback when a grammar fails to load. Pin `web-tree-sitter` and the grammar packages to exact versions at least two weeks old. Load the `.wasm` files from the package directory on the server (the scan runs server-side), never from a CDN. Trade-off accepted: a larger npm package (a few MB) for accuracy and a path to more languages.
 
 **UI on the code level:**
 - **File box (collapsed)**: language logo (§3.3) · file name · folder · counts chip "6 ƒ · 2 in · 3 out" · lines. Collapsed is the default when there are more than 8 files.
@@ -258,11 +258,11 @@ Every scanned fact carries **confidence**: `exact` (a resolved import plus a cal
 - **Edge kinds** are distinguished by line style plus a small glyph (colour stays for overlays and selection): imports thin grey; **calls** solid with an arrow and ƒ glyph; **data flow** thicker, with a **continuous slow moving glow** in its direction (owner: yes; dimmer and slower than the selection glow, about 2.5 s per pass, static under reduced motion) and a ⇢ glyph; artefact links pass through the artefact pill; hand links have a pencil glyph. A "Code links" legend in the Dock toggles each kind; a **"Code" overlay** colours by kind when wanted.
 - **Selecting a function row** applies the selection focus (§4) at symbol level: callers and callees light up, everything else dims, and the panel shows "Called by (3) / Calls (5) / Data in / Data out".
 - **Selecting an edge** shows its **call sites** in the panel: `b.py:42` with a two-line code snippet. Clicking one opens the code at that line.
-- **Internal code view**: a **Code** tab in the right panel (or a split view on a wide screen). It is read-only by default, with syntax highlighting, line numbers, the selected symbol's range highlighted, and **clickable call sites** that jump on the diagram to the callee row. "Edit" switches to the existing editor (planned edits in drafts keep working). Highlighter trade-off: CodeMirror 6 gives editing and highlighting in one (~150 KB gz, MIT) and replaces the textarea; `highlight.js` with a few languages is a read-only view (~40 KB) with the textarea kept. **Decided: CodeMirror 6** (assistant's judgement under owner delegation, 2026-11-14; record as a DEC). It replaces the `<textarea>` in `CodeParts.tsx` with one component for both the read-only view and editing. Use the Python and JavaScript/TypeScript language packages and a dark theme built from our tokens, with the selected symbol's range and call sites as decorations. Trade-off accepted: about 150 KB gzipped in the UI bundle.
+- **Internal code view**: a **Code** tab in the right panel (or a split view on a wide screen). It is read-only by default, with syntax highlighting, line numbers, the selected symbol's range highlighted, and **clickable call sites** that jump on the diagram to the callee row. "Edit" switches to the existing editor (planned edits in drafts keep working). Highlighter trade-off: CodeMirror 6 gives editing and highlighting in one (~150 KB gz, MIT) and replaces the textarea; `highlight.js` with a few languages is a read-only view (~40 KB) with the textarea kept. **Decided: CodeMirror 6** (assistant's judgement under owner delegation, 2026-11-14; record as a decision entry). It replaces the `<textarea>` in `CodeParts.tsx` with one component for both the read-only view and editing. Use the Python and JavaScript/TypeScript language packages and a dark theme built from our tokens, with the selected symbol's range and call sites as decorations. Trade-off accepted: about 150 KB gzipped in the UI bundle.
 - **File "info" section** (panel, Details tab): Inputs (parameters of exported functions with types, env vars, files/tables/topics/routes read, CLI args); Outputs (return types, files/tables/topics written, routes served, events emitted); Exports; Imported by (N files); Imports (N files); Lines; last git change (author/date via `git.ts`, optional); test file (a `test_x.py` / `x.test.ts` naming match).
-- **Adding by hand**: the code-level palette has the coloured tiles from §3.2 (Function, Class, Interface, Module, Table, Artefact, File). Drag from any row or box handle to another to create a link, then pick its kind (calls, data flow, implements, extends, uses, reads, writes) in a small popover. Hand items that later match a scanned symbol (same file + name) show a "found in code ✓" badge. Hand links the scan contradicts (no call found) show a muted "not found in code" badge. That is the hook for future drift reports (Stage B stays in the Future stage, DEC-026).
+- **Adding by hand**: the code-level palette has the coloured tiles from §3.2 (Function, Class, Interface, Module, Table, Artefact, File). Drag from any row or box handle to another to create a link, then pick its kind (calls, data flow, implements, extends, uses, reads, writes) in a small popover. Hand items that later match a scanned symbol (same file + name) show a "found in code ✓" badge. Hand links the scan contradicts (no call found) show a muted "not found in code" badge. That is the hook for future drift reports (Stage B stays in the Future stage, COD-01).
 
-**Backend shape:** a new `src/core/codescan.ts` (symbols, calls, data flow, artefacts; pure functions over `CodeSource`, so drafts and git refs work, DEC-017/018); `code.ts` builds the richer diagram; `src/shared/types.ts` gets `CodeSymbol`, `CodeLink`, `CodeIO` on the code diagram response; hand-layer edits are new ops in `ops.ts` (add/rename/remove item, add/remove link; ids unique per component; link ends must exist or be scanned refs) with thin routes in `server/app.ts`. Tests: fixture code folders under `tests/` for each fact type, Python and TS.
+**Backend shape:** a new `src/core/codescan.ts` (symbols, calls, data flow, artefacts; pure functions over `CodeSource`, so drafts and git refs work, DRF-04/DRF-05); `code.ts` builds the richer diagram; `src/shared/types.ts` gets `CodeSymbol`, `CodeLink`, `CodeIO` on the code diagram response; hand-layer edits are new ops in `ops.ts` (add/rename/remove item, add/remove link; ids unique per component; link ends must exist or be scanned refs) with thin routes in `server/app.ts`. Tests: fixture code folders under `tests/` for each fact type, Python and TS.
 
 **What makes this not simple (risks):** static analysis is incomplete (dynamic dispatch, dependency injection, decorators, `getattr`), so be explicit in the UI about "exact vs likely". Large files produce many rows, so collapse by default and lazy-expand. Edges between rows multiply quickly, so bundle edges between the same two files into one with ×N until expanded.
 
@@ -270,7 +270,7 @@ Every scanned fact carries **confidence**: `exact` (a resolved import plus a cal
 
 ## 6. Prioritised backlog for the UI session [Proposal]
 
-Ordered by impact on goals 1–2 vs effort. Each item should be checked in the running app (`npm run dp -- serve`, `ui: npm run dev`) and covered by browser tests where it changes behaviour. Record the owner answers and the decisions marked "needs a DEC" in `docs/decisions.md` first.
+Ordered by impact on goals 1–2 vs effort. Each item should be checked in the running app (`npm run dp -- serve`, `ui: npm run dev`) and covered by browser tests where it changes behaviour. Record the owner answers and the decisions marked "needs a decision entry" in `docs/decisions.md` first.
 
 1. **Selection focus** (F4): dim non-neighbours and colour in/out edges, plus the moving glow. Highest value for "quickly understand".
 2. **Canvas space** (F1, F3, F14): **minimisable right panel** (rail + drawer, remembered); the Add palette collapses to a "+" rail; the sidebar is collapsible.
@@ -284,13 +284,13 @@ Ordered by impact on goals 1–2 vs effort. Each item should be checked in the r
 10. **Breadcrumb and lens banner** (F7, F8).
 11. **Flow player polish**: camera follows each step, step numbers stacked on labels, sender/receiver tint.
 
-Out of scope or not applicable (observed in the reference): live presence avatars, comments and Share. The app is local and single-user (DEC-001/DEC-006); read-only serve and static export cover sharing (DEC-024).
+Out of scope or not applicable (observed in the reference): live presence avatars, comments and Share. The app is local and single-user (PRO-01/STK-01); read-only serve and static export cover sharing (PRO-13).
 
 ---
 
 ## 7. Open questions for the owner
 
-All answered (2026-11-14). Record each as a DEC entry in `docs/decisions.md` before building:
+All answered (2026-11-14). Record each as a decision entry entry in `docs/decisions.md` before building:
 
 | Question | Answer | Decided by |
 |---|---|---|
@@ -304,4 +304,4 @@ All answered (2026-11-14). Record each as a DEC entry in `docs/decisions.md` bef
 | Moving glow | Yes: repeating glow on the selection's edges; continuous slow glow on code-level data-flow edges; static under reduced motion (§4, §5.3) | Owner |
 | Per-lens colour | No | Owner |
 
-No questions are open. Raise new ones only if building reveals a conflict with an existing DEC.
+No questions are open. Raise new ones only if building reveals a conflict with an existing decision entry.

@@ -29,10 +29,10 @@ This wave covers "other ways": the model and the code. Telemetry work is parked 
 
 ## What exists today [Fact]
 
-**Checklist rules (DEC-084)**
+**Checklist rules (REC-05)**
 - 16 rules, written as code (`src/core/checklistRules.ts:65-168`, `checkRules` up to `:189`; ids in `CHECKLIST_RULES`, `src/shared/types.ts:705-722`).
 - Two starter lists (`src/core/checklist.ts:85-134`).
-- DEC-084 says these rules are fixed and can only be skipped.
+- REC-05 says these rules are fixed and can only be skipped.
 
 **Model errors and `dp check`**
 - Model errors block any save that adds an error (`src/core/validate.ts:28-39`, `:42-150`; `src/core/project.ts:169-170`).
@@ -71,7 +71,7 @@ This wave covers "other ways": the model and the code. Telemetry work is parked 
    - a `check(ctx)` that returns Findings.
 
    `ctx` gives the rule the model index, the sidecar, the coupling numbers, the scan evidence and data usage. **No rule reads source code**: they run on the model, so they work for any language (owner, 2026-11-20). Checking the code against an anti-pattern is BMO's job (Wave 11), with the LLM on.
-2. **Migration** (★Q8.2). The 16 checklist rules move into the registry under the same ids, so checklist items keep working. This amends DEC-084 in a new DEC.
+2. **Migration** (★Q8.2). The 16 checklist rules move into the registry under the same ids, so checklist items keep working. This amends REC-05 in a new decision entry.
 3. **Presets** (★Q8.3), written in code:
 
    | Preset | Checks |
@@ -121,17 +121,17 @@ Each rule states its class: computed or heuristic. Heuristic findings are shown 
 Applied 2026-11-19: the owner answered Part A and left Part B blank, so every Q below uses its recommendation ([the questions section below](#questions-options-and-answers-moved-from-questionsmd)).
 
 - **Q8.1:** no. Rules make findings for the UI and `dp check`; they never block a save.
-- **Q8.2:** yes. The checklist's 16 rules move into one registry with the same ids; a new DEC amends DEC-084.
+- **Q8.2:** yes. The checklist's 16 rules move into one registry with the same ids; a new decision entry amends REC-05.
 - **Q8.3:** C4 basics on by default; the other presets opt-in.
 - **Q8.4:** silencing is acknowledging with a reason; `dp check` counts acknowledged findings.
 - **Q8.5:** heuristic detectors shown as hints only.
 - **Q8.6:** style templates later (the ideas list).
 - **2026-11-20 (best thinking, after the code-reading answers):** Q8.1 to Q8.6 hold as recommended. Two changes follow from the other answers: the "zone of pain or uselessness" detector is gone (it needs abstractness, which needs a per-language parser), and the thresholds for coupling that Wave 7 no longer carries become parameters of rules here.
-- **Vision:** feature L (anti-pattern detection). The Security basics and Data presets touch data and infrastructure. They stay: the data catalog and data access are kept in 1.0.0 (DEC-104, B1 and P4), and a preset reads only the model, which has no deployment diagrams until after 1.0.0 (P1). [Proposal: read from the scope decisions, not asked separately.]
+- **Vision:** feature L (anti-pattern detection). The Security basics and Data presets touch data and infrastructure. They stay: the data catalog and data access are kept in 1.0.0 (PRO-20, B1 and P4), and a preset reads only the model, which has no deployment diagrams until after 1.0.0 (P1). [Proposal: read from the scope decisions, not asked separately.]
 
 ## Questions, options and answers (moved from questions.md)
 
-*Moved from the deleted `questions.md` on 2026-11-20, with the owner's words as written. In the quotes, `future_tasks.md` and `backlog.md` mean the old backlog, now [planned_features.md](../planned_features.md) and the owner's private ideas list; `docs/waves/v1-scope-review.md` was decided in DEC-104.*
+*Moved from the deleted `questions.md` on 2026-11-20, with the owner's words as written. In the quotes, `future_tasks.md` and `backlog.md` mean the old backlog, now [planned_features.md](../planned_features.md) and the owner's private ideas list; `docs/waves/v1-scope-review.md` was decided in PRO-20.*
 
 ### ★Q8.1 Can a rule ever block a save?
 
@@ -147,13 +147,13 @@ Applied 2026-11-19: the owner answered Part A and left Part B blank, so every Q 
 
 **Analysis** [Fact]
 - 16 checklist rules exist as code (`src/core/checklistRules.ts:65-168`).
-- DEC-084 says those rules are fixed and can only be skipped.
+- REC-05 says those rules are fixed and can only be skipped.
 
-**Recommended.** Yes. One registry with the same ids, so checklist items keep working. This amends DEC-084 in a new DEC.
+**Recommended.** Yes. One registry with the same ids, so checklist items keep working. This amends REC-05 in a new decision entry.
 
 **Owner's thinking:** Go with what you think is best.
 
-**Applied [2026-11-20].** As recommended: the checklist's 16 rules move into one registry with the same ids, and a new DEC amends DEC-084.
+**Applied [2026-11-20].** As recommended: the checklist's 16 rules move into one registry with the same ids, and a new decision entry amends REC-05.
 
 ### ★Q8.3 Presets, and which are on by default
 
@@ -174,7 +174,7 @@ The sidecar holds which presets are on, plus the severity and settings of each r
 
 **Owner's thinking:** Go with what you think is best.
 
-**Applied [2026-11-20].** As recommended: C4 basics on by default, the others opt-in. The 'zone of pain or uselessness' detector is gone (it needs abstractness). The Data and Security basics presets touch data and infrastructure, which the scope review might have moved out; it did not (DEC-104: data stays, B1 and P4).
+**Applied [2026-11-20].** As recommended: C4 basics on by default, the others opt-in. The 'zone of pain or uselessness' detector is gone (it needs abstractness). The Data and Security basics presets touch data and infrastructure, which the scope review might have moved out; it did not (PRO-20: data stays, B1 and P4).
 
 ### ★Q8.4 Silencing a finding
 
@@ -244,7 +244,7 @@ The sidecar holds which presets are on, plus the severity and settings of each r
 
 ## Docs
 
-- **New DEC:** the registry; presets; rules never block a save; amends DEC-084.
+- **New decision entry:** the registry; presets; rules never block a save; amends REC-05.
 - **README:** rules and presets.
 - **CLAUDE.md:** `src/core/rules/`.
 - **The review file** (not the CHANGELOG, which the release change writes): this wave's entries.

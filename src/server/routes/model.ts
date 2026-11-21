@@ -184,7 +184,7 @@ export function registerModel(app: Hono, ctx: Ctx): void {
   });
 }
 
-/** Linked copies of shared catalog elements in a project (DEC-055): add, link, update from the catalog, unlink. */
+/** Linked copies of shared catalog elements in a project (HUB-06): add, link, update from the catalog, unlink. */
 export function registerCatalog(app: Hono, ctx: Ctx): void {
   const { edit, ok } = ctx;
   const catalog = () => {
@@ -245,7 +245,7 @@ export function registerFlows(app: Hono, ctx: Ctx): void {
   });
 }
 
-/** Linked work status (DEC-059, DEC-085): one button refreshes every link of the shown version that a connection
+/** Linked work status (WRK-01, WRK-02): one button refreshes every link of the shown version that a connection
  *  knows (GitHub, GitLab, SonarQube, Jira), wherever it is pinned. Optional body: {"tools": [...]} for some tools only. */
 export function registerWork(app: Hono, ctx: Ctx): void {
   app.post("/api/work/refresh", async (c) => {

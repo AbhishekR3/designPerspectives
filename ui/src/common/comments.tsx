@@ -1,5 +1,5 @@
 /**
- * Comments, ideas and questions (DEC-049): the server state (`useComments`), the discussion block shown in
+ * Comments, ideas and questions (REC-01): the server state (`useComments`), the discussion block shown in
  * the details panel for one object (`Discussion`), and the list for the diagram on screen (`DiagramComments`).
  *
  * Comments are kept next to the model, not in it: every role can write them (a viewer too), they have no undo

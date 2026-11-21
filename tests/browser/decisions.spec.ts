@@ -1,4 +1,4 @@
-/** Decision records in the browser (DEC-050): the page, a conditional decision, and the element panel. */
+/** Decision records in the browser (REC-04): the page, a conditional decision, and the element panel. */
 
 import fs from "node:fs";
 import path from "node:path";

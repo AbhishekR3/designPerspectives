@@ -1,5 +1,5 @@
 /**
- * The checks dp makes itself for checklist items with a rule (DEC-084). The model rules read the version shown
+ * The checks dp makes itself for checklist items with a rule (REC-05). The model rules read the version shown
  * (main, a draft, or a git version); the import rules read the project's import files (`architecture/import/`),
  * which belong to main. Each result says how many things fail and which elements and relationships they are, so
  * the checklist can show them one by one.

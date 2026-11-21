@@ -1,4 +1,4 @@
-/** Comparing with git (Stage C2, DEC-018): safe ref names, the model at a ref, comparing with a ref, and the model history. */
+/** Comparing with git (Stage C2, DRF-05): safe ref names, the model at a ref, comparing with a ref, and the model history. */
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";

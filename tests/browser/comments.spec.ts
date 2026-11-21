@@ -1,4 +1,4 @@
-/** Comments, ideas and questions in the browser (DEC-049). */
+/** Comments, ideas and questions in the browser (REC-01). */
 
 import { callAs, expect, node, openDiagram, ROLE_USERS, signIn, test, waitUntil } from "./fixtures.js";
 

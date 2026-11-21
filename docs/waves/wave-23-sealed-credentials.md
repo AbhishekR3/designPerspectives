@@ -2,12 +2,12 @@
 
 | | |
 |---|---|
-| **Status** | Planned 2026-11-20 from planned_features A7 (owner answer D6, DEC-101: "credentials saved in the tool, encrypted and secure, without a setup step"). The design is a Proposal. Two small questions below carry recommendations that hold if left blank. Ready to run after the 0.6.0 release change |
+| **Status** | Planned 2026-11-20 from planned_features A7 (owner answer D6, SEC-07: "credentials saved in the tool, encrypted and secure, without a setup step"). The design is a Proposal. Two small questions below carry recommendations that hold if left blank. Ready to run after the 0.6.0 release change |
 | **Branch** | `feat/w23-sealed-credentials`, from `main` |
 | **Size** | S–M |
-| **Release** | 0.6.1 (a security fix: values that sit as plain text become sealed, so a patch under DEC-098) |
+| **Release** | 0.6.1 (a security fix: values that sit as plain text become sealed, so a patch under PRO-11) |
 | **Depends on** | The 0.6.0 release change. Nothing else. Runs **before Wave 1** and before the owner's first real provider call (manual test plan U1), so the first key ever saved is already sealed |
-| **Owner items** | D6 and DEC-101. Feature J and L both keep secrets here (tool connections, BMO provider keys). [../planned_features.md](../planned_features.md) A7 |
+| **Owner items** | D6 and SEC-07. Feature J and L both keep secrets here (tool connections, BMO provider keys). [../planned_features.md](../planned_features.md) A7 |
 
 Read [README.md](README.md) first: its rules, agents and checks apply to this wave.
 
@@ -42,7 +42,7 @@ Computed: same key and value, a valid sealed value; the check for plain values i
 
 ## Owner answers
 
-None yet beyond D6 and DEC-101.
+None yet beyond D6 and SEC-07.
 
 ## Questions, options and answers
 
@@ -106,7 +106,7 @@ None yet beyond D6 and DEC-101.
 
 ## Docs
 
-- **New DEC** at the end of the secrets subtopic (SEC): the key source order and the refusal; it updates DEC-056 and DEC-063 with "Now:" lines. **README**, **CONTRIBUTING** security model, **CLAUDE.md**, **manual-test-plan** (MT-DRAFT-163, MT-DRAFT-181, G-36), **planned_features.md** A7: mark built. `docs/determinism.md` row. The review file's "Notes for the release entry" carry the 0.6.1 lines.
+- **New decision entry** at the end of the secrets subtopic (SEC): the key source order and the refusal; it updates SEC-06 and PRO-15 with "Now:" lines. **README**, **CONTRIBUTING** security model, **CLAUDE.md**, **manual-test-plan** (MT-DRAFT-163, MT-DRAFT-181, G-36), **planned_features.md** A7: mark built. `docs/determinism.md` row. The review file's "Notes for the release entry" carry the 0.6.1 lines.
 
 ## Out of scope
 

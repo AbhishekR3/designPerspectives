@@ -6,7 +6,7 @@
  * - `styles`:  colours/line styles per element or relationship ID (global, all diagrams)
  * - `layouts`: per-diagram data: box sizes, edge geometry (anchors, bend point, label position, routing),
  *              and, for diagrams Structurizr has no view for (connector detail, code), box positions
- * - `work`:    linked work settings: `severity`, how tools' severities become dp's (DEC-087)
+ * - `work`:    linked work settings: `severity`, how tools' severities become dp's (WRK-04)
  *
  * Tag *values* and descriptive fields live on the elements themselves, as Structurizr element
  * properties named `dp.*` (see modelEdits.ts).
@@ -74,7 +74,7 @@ const SEVERITY_TABLE_MAX = 50;
 const SEVERITY_NAME_MAX = 60;
 
 /**
- * The severity mapping from a file or a request (DEC-087). A table or the scores left out take the defaults;
+ * The severity mapping from a file or a request (WRK-04). A table or the scores left out take the defaults;
  * anything else that is wrong is an Error that says what. Names are trimmed and put in lower case.
  */
 export function cleanWorkSeverity(v: unknown): WorkSeverityMaps {
@@ -177,7 +177,7 @@ export interface Sidecar {
   lenses: Lens[];
   styles: Record<string, Style>;
   layouts: Record<string, DiagramLayout>;
-  /** Linked work settings (DEC-087); other keys a newer version writes are kept. */
+  /** Linked work settings (WRK-04); other keys a newer version writes are kept. */
   work: { severity: WorkSeverityMaps; [extra: string]: unknown };
   [extra: string]: unknown;
 }

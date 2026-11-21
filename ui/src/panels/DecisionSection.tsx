@@ -5,7 +5,7 @@ import { StatusBadge } from "../pages/DecisionsPage";
 import { DECISION_KIND_INFO } from "../types";
 import type { Common } from "./panelProps";
 
-/** The decisions about an element or relationship, and a button to record a new one (DEC-050). */
+/** The decisions about an element or relationship, and a button to record a new one (REC-04). */
 export function DecisionSection({ id, name, state, mutate, onOpenDecision }: Pick<Common, "state" | "mutate" | "onOpenDecision"> & { id: string; name: string }) {
   const about = state.decisions.filter((d) => d.affects.includes(id));
   const record = async () => {

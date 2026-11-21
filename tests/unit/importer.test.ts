@@ -1,4 +1,4 @@
-/** The importer (DEC-051): an import file becomes one draft; re-imports keep people's edits (the ledger). */
+/** The importer (COD-02): an import file becomes one draft; re-imports keep people's edits (the ledger). */
 
 import fs from "node:fs";
 import path from "node:path";

@@ -1,4 +1,4 @@
-/** Make room and Spread out (DEC-061): widening tight gaps between boxes, anchors, selected boxes, overlapping and fixed boxes. */
+/** Make room and Spread out (CAN-07): widening tight gaps between boxes, anchors, selected boxes, overlapping and fixed boxes. */
 import { describe, expect, test } from "vitest";
 import { crowdedPairs, selectionInput, spreadLayout, spreadSelected, type Box, type Pt, type Rect, type SpreadInput } from "../../ui/src/canvas/makeRoom.js";
 

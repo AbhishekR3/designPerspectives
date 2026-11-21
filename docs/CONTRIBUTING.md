@@ -81,7 +81,7 @@ remote and runs no checks.
 
 ## Git process
 
-Decided for this repository in DEC-063.
+Decided for this repository in PRO-15.
 
 - Branch from `main` for each change. Do not commit to `main`.
 - One pull request per change. No stacked branches.
@@ -93,20 +93,20 @@ Decided for this repository in DEC-063.
 
 ## More than one session in one checkout
 
-Decided 2026-11-20 (DEC-100, answer D9). It applies to people and to coding-agent sessions that share one working tree. The cost of breaking it has been a repair each time: a second session once had 27 uncommitted documentation edits on `main` while a clean-up ran, and `docs/reviews.md` records the same for DEC-050 and DEC-051.
+Decided 2026-11-20 (PRO-17, answer D9). It applies to people and to coding-agent sessions that share one working tree. The cost of breaking it has been a repair each time: a second session once had 27 uncommitted documentation edits on `main` while a clean-up ran, and `docs/reviews.md` records the same for REC-04 and COD-02.
 
 - **One branch per session.** Start on a branch of your own from `main`, or in your own worktree (`git worktree add ../dp-<topic> -b <branch> main`, then `npm ci` there). Never work on `main`.
 - **Never edit a file that another session has modified and not committed.** Run `git status --short` before you start and note what is already modified. A modified file you did not change is off limits: leave it, say so, and wait or work in a worktree. A shared file you must change anyway (`docs/decisions.md`, `docs/planned_features.md`) is edited in a worktree and merged by the owner.
 - **Commit by path.** `git add <path>…` and `git commit <path>…`, never `git add -A` or `git add .`. Before committing, `git diff --cached --stat` must list only your files.
 - **Never run `git stash`, `git reset --hard`, `git checkout -- <path>` or a force push.** Each destroys or hides another session's uncommitted work.
-- **Counters and generated files.** Check the next free DEC id in `docs/decisions.md` when you write an entry, not when you start. Regenerate `tests/TESTS.csv`, `demo/` and `static/` instead of merging them by hand, and build the UI and run browser tests one session at a time, because both write `static/`.
+- **Counters and generated files.** Check the next free number of the topic in `docs/decisions.md` when you write an entry, not when you start. Regenerate `tests/TESTS.csv`, `demo/` and `static/` instead of merging them by hand, and build the UI and run browser tests one session at a time, because both write `static/`.
 
 ## Making a release
 
-Decided 2026-11-20 (DEC-100, answer D7). The tag and the release are on GitHub, which holds the repository; the GitLab remote only runs CI (DEC-089). dp is installed from GitHub, not from npm (DEC-063), so the tag is the release. **Nothing below is pushed, merged or tagged until the owner says go.** The version is `0.X.Y` before 1.0.0 (DEC-098): a group of features raises X, a fix-only release raises Y. The first release made this way is 0.6.0, which also needs the version bump listed in step 2.
+Decided 2026-11-20 (PRO-17, answer D7). The tag and the release are on GitHub, which holds the repository; the GitLab remote only runs CI (PRO-10). dp is installed from GitHub, not from npm (PRO-15), so the tag is the release. **Nothing below is pushed, merged or tagged until the owner says go.** The version is `0.X.Y` before 1.0.0 (PRO-11): a group of features raises X, a fix-only release raises Y. The first release made this way is 0.6.0, which also needs the version bump listed in step 2.
 
 **Before you start**
-- Every wave of the group is merged to `main`, and its notes are in its review file (`docs/waves/wave-NN-review.md`, DEC-105; the older stages' limits are in section 31 of the manual test plan, and their full reviews are in git history: `git show 24bbca1:docs/reviews.md`).
+- Every wave of the group is merged to `main`, and its notes are in its review file (`docs/waves/wave-NN-review.md`, PRO-21; the older stages' limits are in section 31 of the manual test plan, and their full reviews are in git history: `git show 24bbca1:docs/reviews.md`).
 - `git fetch`; local `main` equals `origin/main`; `git status` is clean.
 - `gh auth status` shows the account that owns the repository.
 
@@ -116,7 +116,7 @@ Decided 2026-11-20 (DEC-100, answer D7). The tag and the release are on GitHub, 
    - `npm version x.y.z --no-git-tag-version` (changes `package.json` and `package-lock.json`, makes no tag).
    - The line `Version **x.y.z**` in `README.md`.
    - Once Wave 28a is merged ([wave plan](waves/wave-28-quality-for-1-0.md)): a compatibility fixture folder for the version being released, `tests/fixtures/compat/x.y.z/`, copied from a project that version wrote (the compatibility test then keeps every released version opening byte for byte), and a regenerated public-surface snapshot (`npm run surface:update`) if the release changed it on purpose.
-   - The section `## [x.y.z] - Month - DD - YYYY` at the top of `docs/CHANGELOG.md`, in the format of [DEC-098](decisions.md) and written from what shipped, using the "Notes for the release entry" in the review files of the group (and `docs/reviews.md` for the older stages). The date is the day the tag is made (0.6.0 keeps the date DEC-098 gave it). Only built, tested, working things are listed.
+   - The section `## [x.y.z] - Month - DD - YYYY` at the top of `docs/CHANGELOG.md`, in the format of [PRO-11](decisions.md) and written from what shipped, using the "Notes for the release entry" in the review files of the group (and `docs/reviews.md` for the older stages). The date is the day the tag is made (0.6.0 keeps the date PRO-11 gave it). Only built, tested, working things are listed.
 3. **Check.** `npm run ci` (the full run: typecheck, lint, format, tests, test list, UI build, browser tests, demo, package install). It must end with "All CI checks passed", and `static/`, `demo/` and `tests/TESTS.csv` must be unchanged from what is committed. Optional but recommended until the first GitLab pipeline has passed: push the branch to the GitLab remote (`git push gitlab release/x.y.z`) for the run on Linux with Node 20 and 22. A failure there blocks the release.
 4. **Walk the manual test plan** for what changed in this group ([manual-test-plan.md](manual-test-plan.md)), and at least the demo tour (`npm run dp -- serve --demo`). Write the result in the plan's Result column. A row that fails is fixed before the tag, or the release notes name it.
 5. **Pull request.** `git push origin release/x.y.z`, then `gh pr create --base main --title "Release x.y.z" --body-file <the changelog section>`. The owner reviews and merges (a merge commit, so the tagged commit is on `main`).
@@ -134,18 +134,18 @@ Decided 2026-11-20 (DEC-100, answer D7). The tag and the release are on GitHub, 
 - A tag is never moved or re-made. A mistake is fixed in the next version (a new `0.X.Y`), and the wrong release is edited to say so.
 - Only the latest release gets fixes ([Supported versions](#supported-versions)), so a fix release always branches from `main`.
 - Tag only a commit on `main` whose `static/`, `demo/` and `tests/TESTS.csv` are committed and current.
-- No `npm publish` (DEC-063). If that is ever decided, it is a seventh action after step 7 and gets its own decision.
-- **1.0.0** adds to the list: the 1.0.0 checklist (ideas list I2.0), the owner deleting the planning files in `docs/waves/` (DEC-090), and the static export working on the demo ([Wave 21](waves/wave-21-static-export.md)).
+- No `npm publish` (PRO-15). If that is ever decided, it is a seventh action after step 7 and gets its own decision.
+- **1.0.0** adds to the list: the 1.0.0 checklist (ideas list I2.0), the owner deleting the planning files in `docs/waves/` (PRO-05), and the static export working on the demo ([Wave 21](waves/wave-21-static-export.md)).
 
 ## Changelog standard
 
-Decided 2026-11-20 (DEC-098). `docs/CHANGELOG.md` follows [Semantic Versioning](https://semver.org).
+Decided 2026-11-20 (PRO-11). `docs/CHANGELOG.md` follows [Semantic Versioning](https://semver.org).
 
 - One file, newest version first. Each version is `## [x.y.z] - Month - DD - YYYY` (for example `## [0.6.0] - November - 17 - 2026`).
 - Under it, in this order and only the ones that are used: `### Added`, `### Fixed`, `### Changed`, `### Deprecated`, `### Remove`. Security items go under the heading they belong to, with the prefix "Security:".
 - Before 1.0.0 every release is `0.X.Y`, with no ceiling on X: a feature release raises X, a fix-only release raises Y.
 - Only what is built, tested and working in the repository is listed. There is no `Unreleased` section and planned work is never announced there (it belongs in [planned_features.md](planned_features.md)).
-- A line says what a person can now do or what changed for them, in one or two sentences. Keep the decision number in brackets (for example "(DEC-069)").
+- A line says what a person can now do or what changed for them, in one or two sentences. Keep the decision number in brackets (for example "(COD-05)").
 - The section for a version is written when the release is made (version in `package.json`, README and the heading, in one small change), from what shipped.
 - A release is a `vX.Y.Z` tag with notes taken from this file, copied word for word into a GitHub release ([Making a release](#making-a-release)). This repository has no tags yet; 0.6.0 will be the first.
 
@@ -164,7 +164,7 @@ Decided 2026-11-20 (DEC-098). `docs/CHANGELOG.md` follows [Semantic Versioning](
 - All edits to the model go through `src/core/modelEdits.ts`. Routes in `src/server/routes/` call it.
 - New per-object data is stored as `dp.*` properties in the workspace file, not in new files.
 - API response shapes live in `src/shared/types.ts`. The UI re-exports them, so `tsc` checks both sides.
-- A new file goes in the folder for its area (DEC-062). A file under about 50 lines with one user is folded into that user.
+- A new file goes in the folder for its area (STK-06). A file under about 50 lines with one user is folded into that user.
 - Do not name or compare other tools or products in repository files, commit messages or pull requests. Describe ideas in our own terms.
 
 ## Pull requests
@@ -246,14 +246,14 @@ designPerspectives is a local tool. In plain words:
 - To compare versions, it runs the `git` command. It only reads from git and never changes the repository.
 - In a hub (`dp serve --hub`), no project folder may hold the hub folder or another project, so one project's code routes cannot reach another's model, `hub.json` or the shared catalog. No project folder may be hidden (such as `.dp` or `.git`), as written or through a link, and a project added from the browser must be a folder inside the hub.
 - `hub.json` is trusted. It is checked when the hub loads, but a hand-written entry can still point outside the hub folder. Write only entries you trust.
-- Integration credentials are kept in `.dp/credentials.json` (mode 0600, ignored by git). They are plain text on disk unless `DP_SECRET_KEY` is set, which encrypts them with AES-256-GCM. Their values are never sent to the browser or printed; only architects manage them. **Planned (DEC-101, owner, 2026-11-20): values are always encrypted**, with `DP_SECRET_KEY` or a key file dp creates in the user's config folder, never in a project or hub folder; this paragraph changes when that is built.
+- Integration credentials are kept in `.dp/credentials.json` (mode 0600, ignored by git). They are plain text on disk unless `DP_SECRET_KEY` is set, which encrypts them with AES-256-GCM. Their values are never sent to the browser or printed; only architects manage them. **Planned (SEC-07, owner, 2026-11-20): values are always encrypted**, with `DP_SECRET_KEY` or a key file dp creates in the user's config folder, never in a project or hub folder; this paragraph changes when that is built.
 - Tool connections for linked work are kept in `.dp/integrations.json` (mode 0600 in a 0700 `.dp/`, ignored by git; the hub's in a hub) and changed by architects only (`dp integrations`, the integrations routes). They are never in the model or the sidecar, because an engineer can edit a draft and could otherwise point a token at another host. A connection names a stored credential by name only.
-- The severity mapping for linked work (DEC-087) is in the sidecar (`work.severity`) because it holds only names and levels, no host, token or path, so anyone with edit rights may change it. `GET /api/hub/work` (DEC-088) lists only the projects the user may see, the same rule as the home page (DEC-060).
+- The severity mapping for linked work (WRK-04) is in the sidecar (`work.severity`) because it holds only names and levels, no host, token or path, so anyone with edit rights may change it. `GET /api/hub/work` (WRK-05) lists only the projects the user may see, the same rule as the home page (SEC-05).
 - The server reaches out to the network in three cases only, each started by a person: **Refresh status** of linked work (below), a BMO run with the `direct` backend (below), and a call that passes an intercept point in System Testing mode (below).
 
 ## System Testing mode
 
-These rules apply when someone turns on **Test** and opens an intercept point (DEC-075).
+These rules apply when someone turns on **Test** and opens an intercept point (RUN-06).
 
 **What dp listens on.** Each intercept point is one more port on `127.0.0.1`, opened when a person asks for it. A point answers only requests addressed to itself on this machine; a request that reaches it under another host name gets 403.
 
@@ -269,7 +269,7 @@ These rules apply when someone turns on **Test** and opens an intercept point (D
 
 **A paused call cannot hang a system for ever.** It is released unchanged after 120 seconds (settable from 10 to 600), at most 20 calls are paused at once, and all are released when no testing page is open or dp stops.
 
-**The demo system.** `dp serve --demo` also starts five small services on `127.0.0.1`, ports 4200 to 4204 (DEC-077). They hold made-up data, serve only their own fixed files and call only each other, or an intercept point of the same dp. Without `--demo` nothing of this starts.
+**The demo system.** `dp serve --demo` also starts five small services on `127.0.0.1`, ports 4200 to 4204 (RUN-09). They hold made-up data, serve only their own fixed files and call only each other, or an intercept point of the same dp. Without `--demo` nothing of this starts.
 
 **Limits.** A point speaks plain HTTP/1.1. Bodies over 1 MB, compressed request bodies, event streams and WebSocket connections pass through and cannot be paused. dp removes `Accept-Encoding` from the requests it forwards. An allowed host name is not checked again after it is resolved.
 
@@ -310,7 +310,7 @@ rules. The review level is computed by dp from checkable evidence, not taken fro
 cannot verify stays unverified until a person accepts it. Nothing in an answer chooses an address, a provider,
 a file to read or a file to write. An answer is shown as text, never as HTML.
 
-## Linked work status (DEC-085)
+## Linked work status (WRK-02)
 
 These rules apply when someone presses **Refresh status** on linked work (on an object, or on the Work page).
 

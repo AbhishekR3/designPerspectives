@@ -1,5 +1,5 @@
 /**
- * Import routes (DEC-051): scan the code, the intake, check and bring in an import file as a draft, the BMO
+ * Import routes (COD-02): scan the code, the intake, check and bring in an import file as a draft, the BMO
  * handoff, the per-item review of an import draft, the ignore list and finalizing a level. The logic lives in
  * `src/import` and `src/assistant`; these routes parse the request, pick the role-checked action (auth.ts) and answer.
  * The state is kept under `<project>/architecture/import/`.

@@ -38,7 +38,7 @@ export function Sidebar({
   onRenameWorkspace(): void;
   /** The Drafts section (main model and planned changes). */
   draftsSection?: React.ReactNode;
-  /** The link back to the home page (DEC-053): the hub's name, or "Home". */
+  /** The link back to the home page (HUB-03): the hub's name, or "Home". */
   homeLabel?: string;
 }) {
   // Editing the model (names, lenses, tag groups, ratings): not on a git version, and not for a role that cannot change this version.

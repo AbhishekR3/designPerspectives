@@ -1,5 +1,5 @@
 /**
- * The BMO section of the credentials page (DEC-051, architects only): whether BMO may call a model itself, which one,
+ * The BMO section of the credentials page (COD-02, architects only): whether BMO may call a model itself, which one,
  * with which stored key, who may run it, and the limits. Saved to the server's own settings file, outside git.
  * The server checks every field; its answers are shown at the field.
  */

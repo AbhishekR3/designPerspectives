@@ -1,5 +1,5 @@
 /**
- * The checklist card (DEC-084): things to do, questions to answer and assumptions to confirm, docked over the right of
+ * The checklist card (REC-05): things to do, questions to answer and assumptions to confirm, docked over the right of
  * the canvas like the BMO chat so the diagram stays usable. Items come from a person, from a starter list or from BMO's
  * questions after an import. An item with a rule is checked by dp itself: it shows a mark instead of a checkbox, says
  * what fails, and steps through the failing objects on the diagram.

@@ -1,5 +1,5 @@
 /**
- * The handoff backend (DEC-051, built first): dp calls no model. It writes BMO's prompt to
+ * The handoff backend (COD-02, built first): dp calls no model. It writes BMO's prompt to
  * `architecture/import/handoff/`, a person gives `prompt.md` to their own coding agent ("Read this file and
  * follow it"), the agent writes `result.json` next to it, and dp checks that file with the same `validate`
  * as any other backend's answer.

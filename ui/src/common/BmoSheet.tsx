@@ -1,5 +1,5 @@
 /**
- * One sheet for every BMO run (DEC-051): 1. what would be sent and where, 2. running (can be cancelled), 3. the result.
+ * One sheet for every BMO run (COD-02): 1. what would be sent and where, 2. running (can be cancelled), 3. the result.
  * Everything BMO or a file says is shown as plain text. When BMO is off or not open to this person, the sheet
  * says why instead (and points to the handoff for the tasks that have one).
  */

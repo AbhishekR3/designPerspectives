@@ -1,4 +1,4 @@
-/** Decision record routes (DEC-050): list, read, create, change and delete decisions of the selected version. */
+/** Decision record routes (REC-04): list, read, create, change and delete decisions of the selected version. */
 
 import type { Hono } from "hono";
 import * as decisions from "../../core/decisions.js";

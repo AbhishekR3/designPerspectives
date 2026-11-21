@@ -22,16 +22,16 @@ An architect can turn an architecture change into a git commit from inside dp, w
 
 ## What exists today [Fact]
 
-- **dp only reads git** (DEC-018). `src/core/git.ts` has read functions: `findRepo`, `resolveRef`, `GitModels`, `logFor`, `uncommitted`, `gitUserName` (`:20-303`). The History page and `dp diff --base` use them (DEC-058, `src/core/history.ts`).
-- **A draft is the branch, apply is the merge** (DEC-016). `Drafts.apply` (`src/core/drafts.ts:336`) merges, writes code files first and the model second, with rollback (DEC-032), and is one undo step on main. A draft records its author (DEC-040). Drafts are folders meant to be committed.
+- **dp only reads git** (DRF-05). `src/core/git.ts` has read functions: `findRepo`, `resolveRef`, `GitModels`, `logFor`, `uncommitted`, `gitUserName` (`:20-303`). The History page and `dp diff --base` use them (DRF-06, `src/core/history.ts`).
+- **A draft is the branch, apply is the merge** (DRF-01). `Drafts.apply` (`src/core/drafts.ts:336`) merges, writes code files first and the model second, with rollback (DRF-02), and is one undo step on main. A draft records its author (DRF-03). Drafts are folders meant to be committed.
 - **`uncommitted(project, models)`** (`history.ts:35`) already summarises what is not committed.
 - **`dp diff`** writes a Markdown summary of model changes (`src/core/cliReports.ts`).
 - **Roles.** Apply is architect-only (`src/server/auth.ts`). A route with no `ROUTE_RULES` entry is architect-only.
-- **dp never commits catalog copies** (owner choice, DEC-057).
+- **dp never commits catalog copies** (owner choice, HUB-07).
 
 ## Design [Proposal]
 
-1. **A write module, kept apart from the readers** (`src/core/gitCommit.ts`, new). One function: commit given paths with a given message. `git.ts` stays read-only, so DEC-018's reading code keeps its guarantee. DEC-091 (already written) amends DEC-018: dp may commit, on request or by a setting, and nothing else.
+1. **A write module, kept apart from the readers** (`src/core/gitCommit.ts`, new). One function: commit given paths with a given message. `git.ts` stays read-only, so DRF-05's reading code keeps its guarantee. DRF-07 (already written) amends DRF-05: dp may commit, on request or by a setting, and nothing else.
 2. **What is committed.** Only paths under the project's model folder (`architecture/`), as `git commit -m … -- <paths>` through `execFile` with an argument list (no shell). That commits those paths only, whatever else is staged. Nothing outside the folder; never `git add -A`.
 3. **What is never done.** No push, no amend, no `--no-verify`, no branch switch, no reset, no stash. The repository's own hooks run, as for any commit; a failing hook is reported as the reason, and nothing is retried.
 4. **Refusals, each with a plain reason:** no repository; a merge, rebase or cherry-pick in progress; nothing to commit; git or its identity (`user.name`, `user.email`) missing; the folder not inside the repository's work tree; read-only mode.
@@ -45,7 +45,7 @@ An architect can turn an architecture change into a git commit from inside dp, w
 8. **Settings.** `.dp/commit.json` (mode 0600, outside git, changed by architects only, like `.dp/bmo.json`): `{commitOnApply: false}`. It is per machine because identity and habits are.
 9. **CLI.** `dp commit [-m MESSAGE] [PATH]` (refuses with the same reasons) and `dp commit --on-apply on|off`.
 10. **Undo.** Undo after a committed apply changes the working files and leaves the commit alone. The UI says so ("this change is committed; undo makes a new uncommitted change"). dp does not rewrite history.
-11. **Hub.** Per project; roles are per project (DEC-057).
+11. **Hub.** Per project; roles are per project (HUB-07).
 
 ## Determinism
 
@@ -56,30 +56,30 @@ An architect can turn an architecture change into a git commit from inside dp, w
 
 ## Owner answers
 
-- **C1:** yes. Option 2: commit on apply, opt-in, off by default, amending DEC-018. A manual commit is included.
+- **C1:** yes. Option 2: commit on apply, opt-in, off by default, amending DRF-05. A manual commit is included.
 - Open (assumed, change if wrong): the commit covers the whole `architecture/` folder (model, decisions, drafts, reference, attachments, import review files), not `.dp/`.
 
 ## Questions, options and answers (moved from questions.md)
 
-*Moved from the deleted `questions.md` on 2026-11-20, with the owner's words as written. In the quotes, `future_tasks.md` and `backlog.md` mean the old backlog, now [planned_features.md](../planned_features.md) and the owner's private ideas list; `docs/waves/v1-scope-review.md` was decided in DEC-104.*
+*Moved from the deleted `questions.md` on 2026-11-20, with the owner's words as written. In the quotes, `future_tasks.md` and `backlog.md` mean the old backlog, now [planned_features.md](../planned_features.md) and the owner's private ideas list; `docs/waves/v1-scope-review.md` was decided in PRO-20.*
 
 ### ★C1. What are "git-style commits for software architecture"?
 
 **Analysis** [Fact]
-- dp reads git and never writes it (DEC-018). The History page lists the commits that changed a model and what each changed (DEC-058, `src/core/history.ts`). `dp diff --base <ref>` summarises changes since a ref.
-- A draft is a copy of the model (like a branch). Applying it is a three-way merge and one undo step on main (DEC-016, DEC-032). A draft records its author (DEC-040).
-- So today: branches (drafts), diff, merge (apply) and log (History) exist. A commit with a message, made by dp, does not. Making one means changing DEC-018.
+- dp reads git and never writes it (DRF-05). The History page lists the commits that changed a model and what each changed (DRF-06, `src/core/history.ts`). `dp diff --base <ref>` summarises changes since a ref.
+- A draft is a copy of the model (like a branch). Applying it is a three-way merge and one undo step on main (DRF-01, DRF-02). A draft records its author (DRF-03).
+- So today: branches (drafts), diff, merge (apply) and log (History) exist. A commit with a message, made by dp, does not. Making one means changing DRF-05.
 
 **Options**
-1. **Keep git read-only.** History stays as built. Add a suggested commit message from the change list, so a person commits with git themselves. Nothing in DEC-018 changes.
+1. **Keep git read-only.** History stays as built. Add a suggested commit message from the change list, so a person commits with git themselves. Nothing in DRF-05 changes.
 2. **Commit on apply, opt-in.** An architect can switch on "commit when a draft is applied". dp commits only `architecture/` with a message built from the draft's title and description, never pushes, never touches other files. Off by default.
 3. **dp's own commit log, separate from git.** A message, an author and a date kept in the model, with revert. This duplicates git and drifts from it.
 
-**Recommended.** Option 2. It makes "draft → apply" read as "branch → commit" without a second history. It needs a DEC that amends DEC-018, a check that the working tree has no other staged changes, and a refusal when git is missing or the folder is not a repository. If you want git to stay read-only, take option 1.
+**Recommended.** Option 2. It makes "draft → apply" read as "branch → commit" without a second history. It needs a decision entry that amends DRF-05, a check that the working tree has no other staged changes, and a refusal when git is missing or the folder is not a repository. If you want git to stay read-only, take option 1.
 
 **Owner's thinking:** Yes.
 
-**Applied [2026-11-19].** Option 2. New [Wave 17](wave-17-architecture-commits.md): an opt-in "commit when a draft is applied", plus a manual Commit button and `dp commit`. dp commits only `architecture/`, never pushes, amends or skips hooks. DEC-091 amends DEC-018.
+**Applied [2026-11-19].** Option 2. New [Wave 17](wave-17-architecture-commits.md): an opt-in "commit when a draft is applied", plus a manual Commit button and `dp commit`. dp commits only `architecture/`, never pushes, amends or skips hooks. DRF-07 amends DRF-05.
 
 ## Stop and ask if
 
@@ -120,7 +120,7 @@ An architect can turn an architecture change into a git commit from inside dp, w
 
 ## Docs
 
-- **DEC:** DEC-091 already records the decision. Add a new entry only if the build changes it.
+- **decision entry:** DRF-07 already records the decision. Add a new entry only if the build changes it.
 - **The review file** (not the CHANGELOG, which the release change writes): entries. **README:** the History paragraph. **CLAUDE.md:** `gitCommit.ts`.
 - **docs/determinism.md:** a row.
 

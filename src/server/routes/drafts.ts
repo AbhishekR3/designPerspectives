@@ -50,7 +50,7 @@ export function registerDrafts(app: Hono, ctx: Ctx): void {
   app.post("/api/drafts/:id/apply", async (c) => {
     const b = await body(c);
     const outcome = drafts.apply(c.req.param("id"), { code: codeFlag(isObj(b) ? b.code : undefined) });
-    // `kept` and `held`: an import draft with items not accepted stays, with those items (DEC-051).
+    // `kept` and `held`: an import draft with items not accepted stays, with those items (COD-02).
     return c.json({ ok: true, ...outcome } satisfies ApplyResponse);
   });
 }

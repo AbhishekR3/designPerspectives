@@ -9,7 +9,7 @@
 | **Depends on** | Wave 1 (context packs, citations) and Wave 2 (the list of fixed BMO commands and `dp find`) |
 | **Owner items** | 14 (more languages) and 8 (config files, `tools.py`) ([README.md](README.md#where-each-item-went)) |
 
-Read [README.md](README.md) first: its rules, agents and checks apply to this wave. Also read [../import-design.md](../import-design.md) (what the import is for and what matters to C4 at each level) and the import choices N1 to N15 in [DEC-103](../decisions.md#pro-19--dec-103--code-import-and-bmo-choices-and-the-080-split-n1-to-n15), which change what this wave builds (see its "Decided" section if it has one).
+Read [README.md](README.md) first: its rules, agents and checks apply to this wave. Also read [../import-design.md](../import-design.md) (what the import is for and what matters to C4 at each level) and the import choices N1 to N15 in [PRO-19](../decisions.md#pro---19---code-import-and-bmo-choices-n1-to-n15), which change what this wave builds (see its "Decided" section if it has one).
 
 ## Goal
 
@@ -38,7 +38,7 @@ The owner's answers of 2026-11-20 ([the questions section below](#questions-opti
 
 **Code access**
 - `src/core/codeFiles.ts` reads code from the code root on disk, a draft's planned code edits, or a git commit. Paths are confined to the code root and symlinks are resolved.
-- Hidden paths are never read (DEC-031). The intake can close more (`mustNotOpen`, `scope.include`, `scope.exclude`, `src/import/intake.ts`), and DEC-064 says who may loosen it.
+- Hidden paths are never read (SEC-02). The intake can close more (`mustNotOpen`, `scope.include`, `scope.exclude`, `src/import/intake.ts`), and COD-03 says who may loosen it.
 - `redactText` (`src/assistant/redact.ts`) masks secret-looking values.
 - The code viewer is `FilePanel` in `ui/src/panels/MultiSelectAndFilePanels.tsx`. The file pickers are in `ui/src/panels/CodePickers.tsx`.
 
@@ -53,7 +53,7 @@ The owner's answers of 2026-11-20 ([the questions section below](#questions-opti
 
 **BMO**
 - Excerpts for a prompt are ranked by fixed rules (`src/assistant/codeExcerpts.ts:272-345`).
-- Wave 2 adds `src/assistant/commands.ts`, the fixed commands BMO answers with the LLM off (DEC-093), and `dp find`.
+- Wave 2 adds `src/assistant/commands.ts`, the fixed commands BMO answers with the LLM off (COD-10), and `dp find`.
 
 ## Design [Proposal; rewritten after the owner answers]
 
@@ -67,7 +67,7 @@ The owner's answers of 2026-11-20 ([the questions section below](#questions-opti
    - **What it reads:** the same gate as the code viewer: code root, draft or git commit; the hidden-path rule, the intake's closed paths, skip folders. A file over 1 MB, or with a NUL byte in its first 8 KB, is skipped. If a limit cuts the search, the result says "searched N of M files".
    - **Lines are masked** by `redactText`, as the viewer masks them [the re-anchor step checks].
 2. **Where it appears**
-   - BMO with the LLM off (DEC-093): a fixed command `where <name>`. Free text keeps running as `find`. Results are file chips that open the viewer at the line.
+   - BMO with the LLM off (COD-10): a fixed command `where <name>`. Free text keeps running as `find`. Results are file chips that open the viewer at the line.
    - `dp find <name> --code` (Wave 2's `dp find` gains the flag).
    - `GET /api/code/search?q=&scope=`, with the code viewer's roles.
    - A search box in the Key code section (item 4); each result has a **Pin** button.
@@ -107,7 +107,7 @@ The owner's answers of 2026-11-20 ([the questions section below](#questions-opti
 - **No Maven or Gradle reading, no `pom.xml` parsing.** They are manifests, not source code, and were not part of the owner's answer. Java source is read by the generic reader. (Say if you want the manifests read like `package.json` is.)
 - **No file roles** (test, config, build, generated, shared helper), **no hiding of shared helpers**, **no config facts** from settings files.
 - **No uncapped file walker, no content-hash cache.** Search has its own caps; Wave 14 hashes what it indexes.
-- **No language mix per object** (DEC-104, P8: dropped).
+- **No language mix per object** (PRO-20, P8: dropped).
 - **No complexity, LCOM or abstractness** (Wave 7): they need function bodies and field use, which regexes get badly wrong.
 
 ## Determinism
@@ -133,7 +133,7 @@ The owner's answers of 2026-11-20 ([the questions section below](#questions-opti
 
 ## Questions, options and answers (moved from questions.md)
 
-*Moved from the deleted `questions.md` on 2026-11-20, with the owner's words as written. In the quotes, `future_tasks.md` and `backlog.md` mean the old backlog, now [planned_features.md](../planned_features.md) and the owner's private ideas list; `docs/waves/v1-scope-review.md` was decided in DEC-104.*
+*Moved from the deleted `questions.md` on 2026-11-20, with the owner's words as written. In the quotes, `future_tasks.md` and `backlog.md` mean the old backlog, now [planned_features.md](../planned_features.md) and the owner's private ideas list; `docs/waves/v1-scope-review.md` was decided in PRO-20.*
 
 *The questions of this wave were asked about code facts, before the owner chose search and one generic reader (Q5.1, Q5.2, Q5.5, Q5.8). Wave 5 was then rewritten; the "Applied" lines say what changed.*
 
@@ -152,7 +152,7 @@ The owner's answers of 2026-11-20 ([the questions section below](#questions-opti
 
 **Owner's thinking:** Remove non-LLM reading of code. It can search and show you specific searches like if I search the name of a function in BMO offline (no-LLM) it'll show me the file for it. Much more simple for no-LLM code reading
 
-**Applied [2026-11-20].** **Revised later the same day (see Q5.8).** The first reading was 'dp reads no language at all'; your follow-up says regexes generalised to the major languages are wanted. Final: remove the per-language readers (tokenizers and resolvers) and replace them with **one generic regex reader**, a table of patterns for the major languages run the same way on every code file, with every result labelled approximate. Plain-text search comes first (offline BMO `where <name>`, `dp find <name> --code`), shows files and lines, and marks hits that look like a definition. Recorded as DEC-096. [Wave 5](wave-05-code-search.md) is rewritten as 'Code search, key code and one generic code reader'.
+**Applied [2026-11-20].** **Revised later the same day (see Q5.8).** The first reading was 'dp reads no language at all'; your follow-up says regexes generalised to the major languages are wanted. Final: remove the per-language readers (tokenizers and resolvers) and replace them with **one generic regex reader**, a table of patterns for the major languages run the same way on every code file, with every result labelled approximate. Plain-text search comes first (offline BMO `where <name>`, `dp find <name> --code`), shows files and lines, and marks hits that look like a definition. Recorded as COD-06. [Wave 5](wave-05-code-search.md) is rewritten as 'Code search, key code and one generic code reader'.
 
 ### ★Q5.2 Which languages after Java?
 
@@ -188,7 +188,7 @@ This depends on who dp is for (★A1).
 **Analysis** [Fact]
 - CLAUDE.md says: "Everything is TypeScript. Do not add Python or other-language code."
 - The demo already has Python sample code (`demo/sample_code/api`, `pipeline`). It is data that gets scanned, not dp code.
-- CI has no Java runtime, and the demo system's services are TypeScript (DEC-077).
+- CI has no Java runtime, and the demo system's services are TypeScript (RUN-09).
 
 **Options**
 1. Java only as test fixtures.
@@ -210,7 +210,7 @@ This depends on who dp is for (★A1).
   - no longer "unmapped" once they have the role.
 - **When shared code becomes a box:**
   - a "shared" component is proposed only above the threshold;
-  - code shared by several containers is proposed as its own container (DEC-023).
+  - code shared by several containers is proposed as its own container (MOD-02).
 - **Your overrides** go in the intake, for example `"roles": {"src/tools.py": "shared"}`.
 
 **Recommended.** Yes. Your thinking could set N (we suggest 3) and the folder names.
@@ -223,12 +223,12 @@ This depends on who dp is for (★A1).
 
 **Recommended**
 - Keep names and hosts only, passed through the same redaction as BMO (`src/assistant/redact.ts`). Never keep values.
-- `.env` and `.github/` stay closed (DEC-031).
+- `.env` and `.github/` stay closed (SEC-02).
 - This covers Java's `application.yml` and `.properties` files, and Python settings modules.
 
 **Owner's thinking:** (Answered with Q5.5.)
 
-**Applied [2026-11-20].** Config facts are dropped with the language readers. The scan's existing reading of env samples and compose stays as it is; `.env` and `.github/` stay closed (DEC-031).
+**Applied [2026-11-20].** Config facts are dropped with the language readers. The scan's existing reading of env samples and compose stays as it is; `.env` and `.github/` stay closed (SEC-02).
 
 ### Q5.7 Content hashes
 
@@ -268,7 +268,13 @@ This depends on who dp is for (★A1).
 
 ## Added by the 2026-11-20 split
 
-- **Deeper code check in the coding plan** (planned_features B3). The plan sees files and Python/JS/TS relative imports only. When the generic reader replaces those readers, find out whether `codingPlan.ts` uses them; if it does, it must use the new reader so the plan check does not regress. Adding HTTP, queue or injection checks to the plan is not in this wave (the import scan already reads more; feeding it into the plan check stays in planned_features B3).
+- **Deeper code check in the coding plan** (the former backlog B3 (now in the wave files)). The plan sees files and Python/JS/TS relative imports only. When the generic reader replaces those readers, find out whether `codingPlan.ts` uses them; if it does, it must use the new reader so the plan check does not regress. Adding HTTP, queue or injection checks to the plan is not in this wave (the import scan already reads more; feeding it into the plan check stays in the former backlog B3 (now in the wave files)).
+## Carried from the backlog (moved from planned_features.md, 2026-11-21)
+
+- **Deeper code check in the coding plan** (was B3; medium). The coding plan (`src/core/codingPlan.ts`) sees files and Python/JS/TS relative imports only. Calls through HTTP, queues or dependency injection are checked by hand. The import scan (0.5.0) already reads more (manifests, compose, hostnames); feeding it into the plan check is not done. [Source: planned-change.md limits; Proposal.] **This wave** checks that the plan does not regress when the generic reader replaces the Python and JS/TS readers; the HTTP, queue and injection checks stay later work.
+- **Scan languages beyond Python and JS/TS** (Java, Go, C#; was B4). Owner, 2026-11-17 (Java) and 2026-11-20 (answer): no code per language. Part C replaces the two readers with one generic regex reader, a pattern table for the major languages, approximate and labelled; Java is covered that way. Reading `pom.xml` and Gradle files (build manifests) is not planned; the owner can say if wanted.
+- **Massive codebases** (owner note of 2026-11-20; planned). Facts: a run over the token limit is refused; the step-by-step rule fires above 300 source files, 5 container candidates or 2 passes; passes are estimated tokens divided by the pass budget. This wave adds search and key code; [Wave 20](wave-20-system-conversation.md) adds rounds; [Wave 22](wave-22-digests.md) adds digests. Open: per-container scoping, sampling, incremental re-scan, and what "done" means on 10,000 files. Enterprise scale goes to the private ideas file.
+
 ## Stop and ask if
 
 - A language needs its own code (a tokenizer, a parser, a branch in the engine) to reach acceptable results. The answer then is a new pattern, or the language stays search-only; a parser is a new plan.
@@ -328,12 +334,12 @@ Only one agent builds the UI or runs `cd ui && npm run build` at a time.
 
 ## Docs
 
-- **DEC-096** records the decision (search, key code, one generic reader). Add a new DEC for key code (`dp.code.key`), its checks, the hints and the BMO proposal task.
+- **COD-06** records the decision (search, key code, one generic reader). Add a new decision entry for key code (`dp.code.key`), its checks, the hints and the BMO proposal task.
 - **README:** find code, key code, the languages the pattern table covers. **CLAUDE.md:** `codeSearch.ts`, `keyCode.ts`, `codeReader.ts`, `codePatterns.ts`, and the revised description of `codeMap.ts`.
 - **The review file** (not the CHANGELOG, which the release change writes): this wave's entries, including the list of differences from the old readers. **`docs/determinism.md`:** rows.
-- **planned_features.md:** B4's "Scan languages beyond Python and JS/TS" is done for the languages in the table.
+- **Backlog:** the "Scan languages beyond Python and JS/TS" item (see "Carried from the backlog" here) is done for the languages in the table.
 
-## Decided (DEC-103, 2026-11-20; assistant's reasoning, the owner may overrule)
+## Decided (PRO-19, 2026-11-20; assistant's reasoning, the owner may overrule)
 
 - **N2.** Entry points and public interfaces (`main`, route registrations, CLI commands, queue consumers, schedulers, exports) are one small generic pattern per kind in the pattern table. They are hints for key code, never components.
 - **N4.** The manifest table adds Cargo, Gemfile, Composer and .NET project files. Maven and Gradle stay out (Q5.3).

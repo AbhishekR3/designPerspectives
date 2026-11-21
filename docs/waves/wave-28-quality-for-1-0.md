@@ -2,12 +2,12 @@
 
 | | |
 |---|---|
-| **Status** | Added 2026-11-20 in the second look at the waves. The 1.0.0 checklist ([../release-1.0.0-checklist.md](../release-1.0.0-checklist.md), sections 3, 6, 7 and 9) names work that no wave carried: an accessibility audit, a scale check, models from older versions that must still open, a statement of what 1.0.0 keeps stable, and a check of what the package contains. DEC-106 left them off the wave list because they depend on the final UI; the owner then chose to add this wave, **without the light theme** (the app stays dark only, and the README says so). The design is a Proposal. The three questions below were settled on 2026-11-20 by the assistant's reasoning at the owner's request. **Two runs: 28a (guard rails) runs early; 28b (accessibility and the stable surface) runs last** |
+| **Status** | Added 2026-11-20 in the second look at the waves. The 1.0.0 checklist ([../release-1.0.0-checklist.md](../release-1.0.0-checklist.md), sections 3, 6, 7 and 9) names work that no wave carried: an accessibility audit, a scale check, models from older versions that must still open, a statement of what 1.0.0 keeps stable, and a check of what the package contains. PRO-22 left them off the wave list because they depend on the final UI; the owner then chose to add this wave, **without the light theme** (the app stays dark only, and the README says so). The design is a Proposal. The three questions below were settled on 2026-11-20 by the assistant's reasoning at the owner's request. **Two runs: 28a (guard rails) runs early; 28b (accessibility and the stable surface) runs last** |
 | **Branch** | `feat/w28a-guard-rails`, from `main` after the 0.6.0 release change; and, later, `feat/w28b-accessibility`, from `main` after Wave 21 |
 | **Size** | M in all. 28a S–M (steps 2 to 5), 28b S–M (steps 6 to 8). The file stays until both parts are built; write "28a built" in the README table in between |
 | **Release** | **28a: none of its own** (tests and scripts only): it ships with the first release after it is merged (0.6.1 if it is merged before Wave 23's release change, otherwise 0.7.0). **28b: 0.14.0**, the 1.0.0 candidate, after Wave 21's 0.13.0 |
 | **Depends on** | **28a:** the 0.6.0 release change only (its fixtures are the 0.6.0 state). **28b:** every other wave that changes the UI, the routes or the files, so it runs after Wave 21. Wave 7 reuses 28a's generated large model |
-| **Owner items** | The 1.0.0 checklist; DEC-106 ("Left unplaced on purpose": the light theme and the accessibility audit); planned_features B5 ("Light theme", "Automated accessibility audit") |
+| **Owner items** | The 1.0.0 checklist; PRO-22 ("Left unplaced on purpose": the light theme and the accessibility audit); the former backlog B5 (now in the wave files) ("Light theme", "Automated accessibility audit") |
 
 Read [README.md](README.md) first: its rules, agents and checks apply to this wave.
 
@@ -21,7 +21,7 @@ Make the quality checks of the 1.0.0 checklist that can be repeated into checks 
 ## What exists today [Fact; anchors to be confirmed by the re-anchor step]
 
 - The 1.0.0 checklist lists these as unticked: format compatibility (section 7), scale (section 6, "100+ container model", U24), accessibility (section 6, U18), a package-contents check (section 7), the stable-surface decision (section 1).
-- Light theme: the app is dark only (`color-scheme: dark` in `ui/src/styles/tokens.css`); narrow widths under 760 px are unsupported (checklist section 6, DEC-013, DEC-042).
+- Light theme: the app is dark only (`color-scheme: dark` in `ui/src/styles/tokens.css`); narrow widths under 760 px are unsupported (checklist section 6, MOD-14, CAN-05).
 - `npm run ci` typechecks, lints, checks formatting, runs Vitest and the browser tests, and checks that `static/`, `demo/` and `tests/TESTS.csv` are unchanged (CLAUDE.md, Commands). There is no check on the package contents, no snapshot of the public surface, no fixture from an older version and no large-model test.
 - `ROUTE_RULES` in `src/server/auth.ts` lists every non-GET route with its role, and a test fails for a route without an entry (`tests/unit/auth.test.ts`); the command tree is built in `src/cli.ts` with commander; the `dp.*` property list is in the header of `src/core/modelEdits.ts`; the import schema has a version (`src/import/schema.ts`, `IMPORT_SCHEMA`).
 - The README promises that files from the Python 0.2 version open unchanged; the checklist (section 7) says to keep or retract the claim. No fixture from that version exists.
@@ -42,7 +42,7 @@ Make the quality checks of the 1.0.0 checklist that can be repeated into checks 
 
 6. **An automated audit.** Playwright tests open every screen that exists by then (the home page, a diagram with a panel open, Decisions, Import, Work, History, and the pages the other waves added: Notes, Reference, Users, Rules, the access matrix, Findings, characteristics, the export dialog) and run an accessibility checker over each. **The exported single file of Wave 21 is audited too.** Violations are fixed or listed in the README under "Known limits"; a listed limit has a test marker so it cannot grow silently (see Q28.1 for the checker).
 7. **A keyboard-only walk.** One Playwright script per main task (model an element, make and apply a draft, write a decision, run the import interview, attach a file, export) that uses only the keyboard, as far as the canvas allows; what cannot be reached is fixed or written down as a limit. Focus traps in dialogs and Escape to close are checked on every dialog.
-8. **The stable surface, written down.** A DEC (a Proposal for the owner to accept or change) and a section in CONTRIBUTING say what 1.0.0 keeps stable: the formats under `architecture/` (including the `dp.*` property keys, decision files, `comments.json`, `checklist.json`), the import file schema v1, the `dp` commands, flags and exit codes, and the `/api/*` routes. Not promised: the look of the UI, `architecture/import/` review data, `.dp/` files, BMO prompts and the inside of an exported page. The snapshot of 28a is its enforcement; the file is regenerated once, here, and committed as the 1.0.0 baseline.
+8. **The stable surface, written down.** A decision entry (a Proposal for the owner to accept or change) and a section in CONTRIBUTING say what 1.0.0 keeps stable: the formats under `architecture/` (including the `dp.*` property keys, decision files, `comments.json`, `checklist.json`), the import file schema v1, the `dp` commands, flags and exit codes, and the `/api/*` routes. Not promised: the look of the UI, `architecture/import/` review data, `.dp/` files, BMO prompts and the inside of an exported page. The snapshot of 28a is its enforcement; the file is regenerated once, here, and committed as the 1.0.0 baseline.
 9. **Known limits in the README** (the owner chose no light theme): dark only; widths under 760 px unsupported; screen-reader support as far as the audit shows. Nothing in the README claims more than the audit found.
 
 ## Determinism
@@ -88,6 +88,11 @@ All computed: fixtures, snapshot, budgets and audits give the same result on the
 
 **Owner's thinking:** *(delegated, 2026-11-20: the recommendation is adopted)*
 
+## Carried from the backlog (moved from planned_features.md, 2026-11-21)
+
+- **Automated accessibility audit** (was B5; small to medium). Labels, focus and keyboard reach were checked by hand and only partly by tests. Part b of this wave, run after Wave 21 (0.14.0). [Source: review prod-p5.]
+- **Light theme** (was B5; medium). The app is dark only (`color-scheme: dark` in `ui/src/styles/tokens.css`). Owner, 2026-11-20 (PRO-23): not in 1.0.0; the README says "dark only" (part b). The light theme stays later work. [Source: review prod-p5.]
+
 ## Stop and ask if
 
 - A time budget fails because of a slow algorithm rather than a slow machine and the fix touches more than a few files (a separate plan, not a quiet rewrite inside this wave).
@@ -106,7 +111,7 @@ All computed: fixtures, snapshot, budgets and audits give the same result on the
 | 5 | **28a.** `scripts/check-package.ts` in `npm run ci`, and the docs of this part | general-purpose · Sonnet; docs by Haiku | `scripts/check-package.ts`, `scripts/ci-local.ts`, `.gitlab-ci.yml` (the same step), `tests/README.md`, README (Required in every wave), CONTRIBUTING | The check fails on a planted forbidden path and passes on the real package |
 | 6 | **28b.** Automated audit over every screen and the exported file | general-purpose · Sonnet | `tests/browser/a11y.spec.ts`, `package.json` (dev dependency, Q28.1) | Every screen is audited; violations are fixed or listed with a test marker |
 | 7 | **28b.** Fixes and the keyboard-only walk | general-purpose · Sonnet (Opus for canvas keyboard editing) | `ui/src/` as the findings say, `tests/browser/keyboard.spec.ts` | The main tasks run with the keyboard; focus traps hold; what cannot be reached is listed |
-| 8 | **28b.** The stable surface: DEC, CONTRIBUTING, regenerated snapshot, README known limits | general-purpose · Opus (the DEC); Haiku (docs) | `docs/decisions.md`, `docs/CONTRIBUTING.md`, `tests/fixtures/surface.json`, `README.md` | The owner reads the DEC; the snapshot is the 1.0.0 baseline |
+| 8 | **28b.** The stable surface: decision entry, CONTRIBUTING, regenerated snapshot, README known limits | general-purpose · Opus (the decision entry); Haiku (docs) | `docs/decisions.md`, `docs/CONTRIBUTING.md`, `tests/fixtures/surface.json`, `README.md` | The owner reads the decision entry; the snapshot is the 1.0.0 baseline |
 | 9 | Tests by another agent for steps 3 and 5 | general-purpose · Sonnet | `tests/unit/` | Each guard is shown to fail when it should (a planted route, a planted path, a changed byte in a fixture copy) |
 | 10 | Review, per part | main session | — | `/code-review` (high); `/security-review` for step 5 (what the package ships) |
 
@@ -117,7 +122,7 @@ Only one agent builds the UI or runs `cd ui && npm run build` at a time. Step 7 
 - **Routes.** None. The snapshot lists the routes that exist; it adds none.
 - **Hub and read-only mode.** Not affected (tests and scripts).
 - **Model data.** None. The fixtures are read-only copies; the test never writes into `tests/fixtures/` (it copies to a temporary folder first).
-- **Windows.** The snapshot and the package check must give the same result on Windows (forward slashes in every path they print). Running on Windows stays an owner step (manual test plan U15; GitLab CI is Linux only, DEC-089).
+- **Windows.** The snapshot and the package check must give the same result on Windows (forward slashes in every path they print). Running on Windows stays an owner step (manual test plan U15; GitLab CI is Linux only, PRO-10).
 - **Static export.** Not affected, except that 28b audits the exported page.
 - **Security model.** Step 5 closes a gap: nothing outside the allowlist ships in the package.
 
@@ -131,7 +136,7 @@ Only one agent builds the UI or runs `cd ui && npm run build` at a time. Step 7 
 
 ## Docs
 
-- **A new DEC** (STK topic) for the stable surface and one for the compatibility rule, written in step 8 and step 2 (Proposals for the owner).
+- **A new decision entry** (STK topic) for the stable surface and one for the compatibility rule, written in step 8 and step 2 (Proposals for the owner).
 - **README:** known limits; **CONTRIBUTING:** the compatibility rule, the snapshot, the fixture per release, the package check; **`tests/README.md`**.
 - **The 1.0.0 checklist:** tick only the boxes whose check ran, with the date and the result next to them; never on trust.
 - **The review file** (not the CHANGELOG, which the release change writes): notes for the release entry, the measured times and budgets, and the audit's listed limits.

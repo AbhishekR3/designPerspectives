@@ -1,4 +1,4 @@
-/** The linked work routes (DEC-085): list every item with what it is pinned to, replace one target's list, and
+/** The linked work routes (WRK-02): list every item with what it is pinned to, replace one target's list, and
  *  merge items that tools push or import. Status refresh from the tools is in routes/model.ts. */
 
 import type { Hono } from "hono";

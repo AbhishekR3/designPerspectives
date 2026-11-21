@@ -4,7 +4,7 @@
  * configuration sample into a named external system. It makes the first C1 and C2 candidates deterministic.
  *
  * It is a lookup, not a claim: a match says "this code mentions that product", not that it is used the way
- * the list's category suggests. The list needs upkeep (DEC-051); a project adds or overrides entries in the
+ * the list's category suggests. The list needs upkeep (COD-02); a project adds or overrides entries in the
  * intake (`services`). Entries of the intake are looked at first.
  *
  * Matching rules (`matchService`):

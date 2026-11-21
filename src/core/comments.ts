@@ -1,5 +1,5 @@
 /**
- * Comments, ideas and questions on the model (`architecture/comments.json`, DEC-049).
+ * Comments, ideas and questions on the model (`architecture/comments.json`, REC-01).
  *
  * A thread is anchored to an element, a relationship or a diagram by ID and holds replies. The file is
  * separate from the model: a comment is a conversation about the model, not part of it, so it has no undo

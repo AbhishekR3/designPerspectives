@@ -16,19 +16,19 @@
  *   draft.discard   yes         own drafts only        no
  *   draft.apply     yes         no                     no
  *   comment         yes         yes                    yes     comments, ideas, questions, replies, resolving (own text only to change or delete; an architect any)
- *   import          yes         yes                    no      scan the code, intake, check an import file, make an import draft (DEC-051)
+ *   import          yes         yes                    no      scan the code, intake, check an import file, make an import draft (COD-02)
  *   import.final    yes         no                     no      finalize or reopen an import level, the import ignore list
- *   bmo.run         yes         yes                    yes     preview and run a BMO task (DEC-051); also on a read-only server. Whether the role
+ *   bmo.run         yes         yes                    yes     preview and run a BMO task (COD-02); also on a read-only server. Whether the role
  *                                                              may run BMO at all is the settings' `allowedRoles` (assistant/settings.ts `canRun`), and a task
  *                                                              that makes a draft or changes one needs that draft right as well: the route asks `decide()`
  *                                                              again with "draft.create" or "edit" (routes/bmo.ts)
- *   testing         yes         yes                    no      open intercept points; pause, change, answer or resend live calls (DEC-075); any version
- *   checklist       yes         yes                    no      add, change, tick, answer and delete checklist items (DEC-084); any version
+ *   testing         yes         yes                    no      open intercept points; pause, change, answer or resend live calls (RUN-06); any version
+ *   checklist       yes         yes                    no      add, change, tick, answer and delete checklist items (REC-05); any version
  *   (unlisted)      yes         no                     no      deny by default
  *
  * An engineer's own drafts are those whose author is their user name (set by the server at creation);
  * every role reads every draft. A git version (`ref:`) is read-only for everyone; --read-only makes everyone a viewer.
- * Lenses stay a default view: every role can read everything (DEC-008).
+ * Lenses stay a default view: every role can read everything (MOD-11).
  */
 
 import crypto from "node:crypto";
@@ -106,26 +106,26 @@ export const ROUTE_RULES: Record<string, Action> = {
   "POST /api/flows": "edit",
   "PUT /api/flows/:key": "edit",
   "DELETE /api/flows/:key": "edit",
-  // routes/model.ts (catalog): linked copies of shared catalog elements (DEC-055)
+  // routes/model.ts (catalog): linked copies of shared catalog elements (HUB-06)
   "POST /api/elements/from-catalog": "edit",
   "POST /api/elements/:id/catalog": "edit",
   "POST /api/elements/:id/catalog/sync": "edit",
   "DELETE /api/elements/:id/catalog": "edit",
-  // routes/hub.ts (credentials): integration credentials, architects only (DEC-056)
+  // routes/hub.ts (credentials): integration credentials, architects only (SEC-06)
   "POST /api/credentials": "admin",
   "PUT /api/credentials/:name": "admin",
   "PATCH /api/credentials/:name": "admin",
   "DELETE /api/credentials/:name": "admin",
-  // routes/hub.ts (integrations): tool connections for linked work, architects only (DEC-085)
+  // routes/hub.ts (integrations): tool connections for linked work, architects only (WRK-02)
   "PUT /api/integrations": "admin",
   "DELETE /api/integrations/:id": "admin",
-  // routes/model.ts (work): linked work status from GitHub, written to the model (DEC-059)
+  // routes/model.ts (work): linked work status from GitHub, written to the model (WRK-01)
   "POST /api/work/refresh": "edit",
-  // routes/work.ts: linked work of any target, pushed by tools or scripts (DEC-085)
+  // routes/work.ts: linked work of any target, pushed by tools or scripts (WRK-02)
   "PUT /api/work/target": "edit",
   "POST /api/work/items": "edit",
   "POST /api/work/import": "edit",
-  // routes/decisions.ts: decision records are part of the model (DEC-050)
+  // routes/decisions.ts: decision records are part of the model (REC-04)
   "POST /api/decisions": "edit",
   "PUT /api/decisions/:id": "edit",
   "PATCH /api/decisions/:id/status": "edit",
@@ -138,19 +138,19 @@ export const ROUTE_RULES: Record<string, Action> = {
   "POST /api/code/file": "code",
   "DELETE /api/code/file": "code",
   "POST /api/code/revert": "code",
-  // routes/comments.ts: a conversation about the model, kept in its own file, not part of it (DEC-049)
+  // routes/comments.ts: a conversation about the model, kept in its own file, not part of it (REC-01)
   "POST /api/comments": "comment",
   "POST /api/comments/:id/replies": "comment",
   "PATCH /api/comments/:id": "comment",
   "DELETE /api/comments/:id": "comment",
   "DELETE /api/comments/:id/replies/:rid": "comment",
-  // routes/checklist.ts: kept next to the model, not part of it (DEC-084)
+  // routes/checklist.ts: kept next to the model, not part of it (REC-05)
   "POST /api/checklist": "checklist",
   "POST /api/checklist/starters/:id": "checklist",
   "PATCH /api/checklist/:id": "checklist",
   "DELETE /api/checklist/:id": "checklist",
   "POST /api/checklist/clear": "checklist",
-  // routes/testing.ts: intercept points and live calls (DEC-075); the model is not changed
+  // routes/testing.ts: intercept points and live calls (RUN-06); the model is not changed
   "POST /api/testing/points": "testing",
   "DELETE /api/testing/points/:id": "testing",
   "PUT /api/testing/breakpoints": "testing",
@@ -376,7 +376,7 @@ export class Auth {
     return this.users.get(name.toLowerCase())?.role ?? null;
   }
 
-  /** A signed-in user's role in a hub project (DEC-057): read live, so a change applies on the next request. */
+  /** A signed-in user's role in a hub project (HUB-07): read live, so a change applies on the next request. */
   roleIn(name: string, project: string): ProjectRole | null {
     this.refresh();
     const u = this.users.get(name.toLowerCase());
@@ -384,7 +384,7 @@ export class Auth {
   }
 
   /** Middleware for a hub project's app (after `authenticate`): the request acts with the user's role in that
-   *  project; a user with no access to it (DEC-060) is refused everything there, reading included. */
+   *  project; a user with no access to it (SEC-05) is refused everything there, reading included. */
   projectRole(project: string): MiddlewareHandler {
     return async (c, next) => {
       const w = c.get("dpWho");

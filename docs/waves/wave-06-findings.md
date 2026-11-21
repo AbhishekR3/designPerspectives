@@ -80,7 +80,7 @@ The Finding shape and acknowledgements come from answer A5 (2026-11-19) and stay
 
 ## Questions, options and answers (moved from questions.md)
 
-*Moved from the deleted `questions.md` on 2026-11-20, with the owner's words as written. In the quotes, `future_tasks.md` and `backlog.md` mean the old backlog, now [planned_features.md](../planned_features.md) and the owner's private ideas list; `docs/waves/v1-scope-review.md` was decided in DEC-104.*
+*Moved from the deleted `questions.md` on 2026-11-20, with the owner's words as written. In the quotes, `future_tasks.md` and `backlog.md` mean the old backlog, now [planned_features.md](../planned_features.md) and the owner's private ideas list; `docs/waves/v1-scope-review.md` was decided in PRO-20.*
 
 ### ★A5. One Finding and one way to acknowledge it, for every check?
 
@@ -102,7 +102,7 @@ The Finding shape and acknowledgements come from answer A5 (2026-11-19) and stay
 
 **Owner's thinking:** Go with whatever you think is best.
 
-**Applied [2026-11-19].** Yes. One Finding shape, and acknowledgements stored as model data (`dp.acks`). Wave 6 builds it and records the DEC. Waves 8, 11 and 13 reuse it. The parked runtime work (ideas list I2.7) would have too.
+**Applied [2026-11-19].** Yes. One Finding shape, and acknowledgements stored as model data (`dp.acks`). Wave 6 builds it and records the decision entry. Waves 8, 11 and 13 reuse it. The parked runtime work (ideas list I2.7) would have too.
 
 ### ★Q6.1 Acknowledgements as model data
 
@@ -141,7 +141,7 @@ The Finding shape and acknowledgements come from answer A5 (2026-11-19) and stay
 
 **Proposed**
 - **"Update the model from code"** writes an ordinary import file from the findings you pick.
-- **It reuses the import path.** The file goes through the existing checks, importer and review, so scan facts make those items "verified" by themselves (DEC-051, DEC-064). There is no second way into a draft.
+- **It reuses the import path.** The file goes through the existing checks, importer and review, so scan facts make those items "verified" by themselves (COD-02, COD-03). There is no second way into a draft.
 - **Names come from the code** (service and folder names). Placeholders are flagged.
 - **BMO can be asked to name and describe** the new objects, labelled as proposed.
 
@@ -161,7 +161,11 @@ The Finding shape and acknowledgements come from answer A5 (2026-11-19) and stay
 
 ## Added by the 2026-11-20 split
 
-- **Home page "needs a look" and proposed decisions (DEC-099, D15).** Owner, 2026-11-20: build the alignment with the next change that touches `src/core/homeSummary.ts` or the home page, and this wave does (findings feed "needs a look"). The server's list also includes proposed decisions, so the page and the top-bar badge (DEC-079) use one rule. Test: on the demo (which ships proposed decisions) the page's list and the badge give the same count. Source: planned_features B6.
+- **Home page "needs a look" and proposed decisions (PRO-16, D15).** Owner, 2026-11-20: build the alignment with the next change that touches `src/core/homeSummary.ts` or the home page, and this wave does (findings feed "needs a look"). The server's list also includes proposed decisions, so the page and the top-bar badge (CAN-10) use one rule. Test: on the demo (which ships proposed decisions) the page's list and the badge give the same count. Source: the former backlog B6 (now in the wave files).
+## Carried from the backlog (moved from planned_features.md, 2026-11-21)
+
+- **Home page "needs a look" and proposed decisions** (was B6; small). The server's list uses warning flags only; the top bar badge counts proposed decisions too (CAN-10). Decided (PRO-16, 2026-11-20): align them, so the server's list also includes proposed decisions and the page and the badge use one rule. Owner, 2026-11-20 (PRO-17, D15): build it with the next code change that touches `src/core/homeSummary.ts` or the home page, which this wave does. Add a test that the page's list and the badge give the same count on the demo (which ships proposed decisions). [Source: review.]
+
 ## Stop and ask if
 
 - ★Q6.1 or ★A5 prefers a side file for acknowledgements.
@@ -199,11 +203,11 @@ The Finding shape and acknowledgements come from answer A5 (2026-11-19) and stay
 
 ## Docs
 
-- **New DEC:** the Finding shape; acknowledgements as model data (A5); the existing warnings as the first findings; drift parked (DEC-097).
+- **New decision entry:** the Finding shape; acknowledgements as model data (A5); the existing warnings as the first findings; drift parked (COD-07).
 - **README:** findings and acknowledgements. **CLAUDE.md:** `findings.ts`, `FindingsPage.tsx`, `Findings.tsx`.
 - **The review file** (not the CHANGELOG, which the release change writes) and **`docs/determinism.md`** rows.
 
-## Decided (DEC-103, 2026-11-20; assistant's reasoning, the owner may overrule)
+## Decided (PRO-19, 2026-11-20; assistant's reasoning, the owner may overrule)
 
 - **N8.** A pinned key-code entry (Wave 5) that no longer matches (file gone, or the name gone) is a finding the person can acknowledge. It is never silent and never removed by dp; when only the name is gone and the file exists, the finding says so.
 

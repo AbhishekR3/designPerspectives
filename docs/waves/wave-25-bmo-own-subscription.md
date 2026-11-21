@@ -6,7 +6,7 @@
 | **Branch** | `feat/w25-bmo-own-subscription`, from `main` after Waves 1 and 2 are merged |
 | **Size** | M–L (split point: 25a handoff for text tasks, route status and the default; 25b the paste box) |
 | **Release** | 0.7.0 (with Waves 24, 1, 2, 29) |
-| **Depends on** | Wave 1 (the citation checker must also check a handoff result; **and Wave 1's real-run gate must have passed**, so the contract is known to work against a real model before BMO is switched on for everyone) and Wave 2 (the deterministic BMO and the "Use an LLM" setting of DEC-093, so "on" is useful with no LLM at all). Wave 2 deliberately leaves the default as one constant and writes no "off by default" text; this wave changes that constant and the tests that follow it (second look at the waves, 2026-11-20) |
+| **Depends on** | Wave 1 (the citation checker must also check a handoff result; **and Wave 1's real-run gate must have passed**, so the contract is known to work against a real model before BMO is switched on for everyone) and Wave 2 (the deterministic BMO and the "Use an LLM" setting of COD-10, so "on" is useful with no LLM at all). Wave 2 deliberately leaves the default as one constant and writes no "off by default" text; this wave changes that constant and the tests that follow it (second look at the waves, 2026-11-20) |
 | **Owner items** | "BMO is a fundamental part of dp, so it should be on from the start", and people with an LLM subscription but no API credits must be able to use it. Feature L of [../product-vision.md](../product-vision.md). [../planned_features.md](../planned_features.md) A2 and A4 |
 
 Read [README.md](README.md) first: its rules, agents and checks apply to this wave.
@@ -20,7 +20,7 @@ BMO is on from the start, and a person with a chat subscription and no API key c
 - `DEFAULT_SETTINGS.enabled` is `false` (`src/assistant/settings.ts`, near line 82); the default backend is `handoff`. `canRun` also refuses when the backend is not `direct` (near line 332), so with default settings the in-app buttons open an explanation instead of running.
 - `HANDOFF_TASKS` has three import tasks: `import-level`, `describe-to-model`, `suggest-labels` (`src/assistant/importTasks.ts`, near line 32). The text tasks (explain, challenge, ask, draft summary, decision from draft) have no handoff route.
 - The handoff writes `prompt.md`, `evidence-digest.md`, `schema.json`, `intake.json` and `feedback.json` to `architecture/import/handoff/` and expects `result.json`; a result is refused if its manifest hash does not match the prompt that was shown. The person gives their agent one line, which assumes an agent that can read and write files.
-- DEC-093 (accepted, not built; Wave 2 builds it) defines `enabled` as "Use an LLM", with a deterministic BMO that answers commands from the model.
+- COD-10 (accepted, not built; Wave 2 builds it) defines `enabled` as "Use an LLM", with a deterministic BMO that answers commands from the model.
 - Guarantees that exist and must stay: the server builds every prompt and picks every file; a run needs the hash of a preview; the CLI sends nothing without `--yes-send`; secrets are masked; cloud providers are pinned to their hosts; settings are outside git with mode 0600; only architects change settings; the handoff backend calls no model.
 - Places that assume "off by default": `README.md` (near line 101), `.claude/CLAUDE.md` (near line 74), `docs/CHANGELOG.md`, `demo/README.md`; unit tests `bmo-settings`, `bmo-api`, `cli-bmo`, `bmo-direct`; browser tests `bmo.spec.ts` and `import.spec.ts`.
 
@@ -29,8 +29,8 @@ BMO is on from the start, and a person with a chat subscription and no API key c
 **25a**
 1. **A default of "on" with `backend: handoff`**, using Wave 2's relabelled setting ("Use an LLM"; the deterministic BMO is available either way).
 2. **A route status** (`direct`, `handoff` or `none`) in the BMO status, so the UI says "ready through your own agent" instead of "cannot run".
-3. **Handoff for the text tasks.** The prompt is written to a file, the person's agent or chat answers, and the answer is read back from `result.json`, checked by the task's validator, Wave 1's citation checker and the hash in the manifest, then shown (a text answer is shown, not stored; DEC-065).
-4. **A new DEC** that supersedes the "off by default" wording of DEC-001, DEC-051, DEC-065 and DEC-093 (each gets a "Now:" line).
+3. **Handoff for the text tasks.** The prompt is written to a file, the person's agent or chat answers, and the answer is read back from `result.json`, checked by the task's validator, Wave 1's citation checker and the hash in the manifest, then shown (a text answer is shown, not stored; COD-08).
+4. **A new decision entry** that supersedes the "off by default" wording of PRO-01, COD-02, COD-08 and COD-10 (each gets a "Now:" line).
 
 **25b, the paste box (the first half of planned_features A4)**
 5. One copy button for one block, with the size shown against a limit the person can set.
@@ -53,7 +53,7 @@ The direction of A2 (2026-11-20).
 ### Q25.1. Are text answers that arrive by file stored?
 
 **Options**
-1. Shown, not stored (as for the direct route, DEC-065).
+1. Shown, not stored (as for the direct route, COD-08).
 2. Stored in `architecture/import/` with the manifest.
 
 **Recommended.** Option 1: one rule for both routes; nothing BMO wrote enters the repository by itself.
@@ -70,7 +70,7 @@ The direction of A2 (2026-11-20).
 
 ### Q25.3. Do `dp context` and an MCP server replace the file route later?
 
-**Recommended.** Keep the file route for people whose agent cannot read the folder; revisit with DEC-020 after Wave 2's `dp context` exists. Not part of this wave.
+**Recommended.** Keep the file route for people whose agent cannot read the folder; revisit with PRO-12 after Wave 2's `dp context` exists. Not part of this wave.
 
 **Owner's thinking:** *(blank: the recommendation holds)*
 
@@ -78,7 +78,7 @@ The direction of A2 (2026-11-20).
 
 - Turning the default on would send anything without a hash-checked preview.
 - A text task cannot be given a validator (it must not have a handoff route without one).
-- Wave 2 has changed the setting's name or meaning from DEC-093.
+- Wave 2 has changed the setting's name or meaning from COD-10.
 
 ## Steps and agents
 
@@ -107,7 +107,7 @@ The direction of A2 (2026-11-20).
 
 ## Docs
 
-- **New DEC** (COD topic, BMO) with "Now:" lines on DEC-001, DEC-051, DEC-065 and DEC-093. **README**, **CLAUDE.md**, **demo/README.md**, **manual-test-plan**, **planned_features.md** A2 and A4 (first half): mark built. `docs/determinism.md` rows.
+- **New decision entry** (COD topic, BMO) with "Now:" lines on PRO-01, COD-02, COD-08 and COD-10. **README**, **CLAUDE.md**, **demo/README.md**, **manual-test-plan**, **planned_features.md** A2 and A4 (first half): mark built. `docs/determinism.md` rows.
 
 ## Out of scope
 

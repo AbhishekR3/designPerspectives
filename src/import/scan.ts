@@ -1,7 +1,7 @@
 /**
- * The deterministic scan behind the import (Stage B, DEC-051): what a code folder shows about its own
+ * The deterministic scan behind the import (Stage B, COD-02): what a code folder shows about its own
  * architecture, with no model and no network. `scanRepo` walks the code through a `CodeSource` only
- * (so it stays inside the code root, resolves symlinks and never opens hidden paths, DEC-031) and writes
+ * (so it stays inside the code root, resolves symlinks and never opens hidden paths, SEC-02) and writes
  * down facts, each with a file path, per C4 level:
  *
  * - C1: `service-dependency` (a dependency that is in the known-services list), `service-host` /
@@ -924,8 +924,8 @@ export function scanRepo(code: CodeSource, intake: Intake, options: ScanOptions 
     }
   }
 
-  // CODEOWNERS in a hidden folder is never opened (DEC-031); the scan cannot tell whether it exists.
-  notParsed.push({ path: ".github/CODEOWNERS", reason: "hidden path, never read (DEC-031); if it exists, give the owners in the intake" });
+  // CODEOWNERS in a hidden folder is never opened (SEC-02); the scan cannot tell whether it exists.
+  notParsed.push({ path: ".github/CODEOWNERS", reason: "hidden path, never read (SEC-02); if it exists, give the owners in the intake" });
 
   // ---- C4 and C3
   const parsedSources = sources.filter((s) => s.parsed);

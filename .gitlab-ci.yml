@@ -1,4 +1,4 @@
-# CI for designPerspectives (DEC-089). Runs the same steps as `npm run ci` (scripts/ci-local.ts), on Linux with Node 20 and 22.
+# CI for designPerspectives (PRO-10). Runs the same steps as `npm run ci` (scripts/ci-local.ts), on Linux with Node 20 and 22.
 # The format, test list, built-UI, demo and package checks run on Node 22 only.
 #
 # NOT RUN YET: this file was written without access to a GitLab project. The first pipeline is its real test.

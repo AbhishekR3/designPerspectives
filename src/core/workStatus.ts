@@ -1,5 +1,5 @@
 /**
- * The status refresh of linked work (DEC-059, DEC-085): every link pinned anywhere in the model (elements,
+ * The status refresh of linked work (WRK-01, WRK-02): every link pinned anywhere in the model (elements,
  * relationships, diagrams, flows, the project) that a connection knows and its tool's adapter reads gets the
  * tool's status. Only on request (a button, POST /api/work/refresh). In three steps:
  *

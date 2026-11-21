@@ -1,5 +1,5 @@
 /**
- * The home page summary (DEC-053): a card per project, what needs a look, what is being watched,
+ * The home page summary (HUB-03): a card per project, what needs a look, what is being watched,
  * the latest decisions, and (in a hub) how the shared catalog is used. Read-only; computed from
  * each project's main model, cached by its revision.
  */

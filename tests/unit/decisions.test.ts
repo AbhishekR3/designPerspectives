@@ -1,4 +1,4 @@
-/** Decision records (DEC-050): the file format and its round trip, the decision API, and decisions inside drafts. */
+/** Decision records (REC-04): the file format and its round trip, the decision API, and decisions inside drafts. */
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";

@@ -1,4 +1,4 @@
-/** Linked work pinned to a diagram or a flow itself (DEC-085): the same section as for a box or a line, saved with `PUT /api/work/target`. */
+/** Linked work pinned to a diagram or a flow itself (WRK-02): the same section as for a box or a line, saved with `PUT /api/work/target`. */
 import { api } from "../api";
 import { isOpenWork } from "../../../src/shared/workLinks";
 import { Section } from "./formParts";

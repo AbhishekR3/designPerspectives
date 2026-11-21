@@ -1,4 +1,4 @@
-/** The form for one decision record: fields change with the kind (DEC-050). Saves the whole record at once. */
+/** The form for one decision record: fields change with the kind (REC-04). Saves the whole record at once. */
 
 import { useEffect, useState } from "react";
 import { TagInput } from "../panels/formParts";

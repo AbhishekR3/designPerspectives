@@ -1,8 +1,8 @@
 /**
- * What BMO may read, and what is hidden before anything is sent (DEC-051, plan section 5 "Defences").
+ * What BMO may read, and what is hidden before anything is sent (COD-02, plan section 5 "Defences").
  *
  * `selectFiles` decides which code files may be opened for BMO at all: only files the `CodeSource` reads
- * (it confines reads to the code root, resolves symlinks and refuses hidden paths, DEC-031), minus the
+ * (it confines reads to the code root, resolves symlinks and refuses hidden paths, SEC-02), minus the
  * intake's `mustNotOpen` and `scope.exclude` globs and the import ignore list, minus a deny-list of names that
  * usually hold secrets even when they are not hidden (`*secret*`, `*.pem`, `id_rsa*`, `credentials*`, `npmrc`,
  * real `.env`-style files, ...), minus binary files. Every file it hands out is redacted.

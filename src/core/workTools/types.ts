@@ -1,5 +1,5 @@
 /**
- * Live status of linked work (DEC-059, DEC-085): what every tool adapter (GitHub, GitLab, SonarQube, Jira)
+ * Live status of linked work (WRK-01, WRK-02): what every tool adapter (GitHub, GitLab, SonarQube, Jira)
  * provides, and the checks they share. An adapter turns a link into the API addresses that tell its status,
  * and the answers into a state. It never chooses where a token goes: the connection does (a built-in one, or
  * one an architect put in `.dp/integrations.json`), and every API address is built from encoded parts and
@@ -63,7 +63,7 @@ export interface WorkAdapter {
   /** Headers for every request; `token` is the credential's value (null: none). */
   headers(token: string | null, conn: Conn): Record<string, string>;
   /** The state from the answers (one per request, in order); throws a `ReadError` when they cannot be read.
-   *  `maps`: the model's severity mapping (DEC-087), for tools that give a severity. */
+   *  `maps`: the model's severity mapping (WRK-04), for tools that give a severity. */
   read(bodies: unknown[], p: Parsed, maps: WorkSeverityMaps): RemoteState;
 }
 

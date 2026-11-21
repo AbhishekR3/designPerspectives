@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Status** | Owner answers applied (2026-11-19; Part B questions Q1.1 to Q1.5 answered, the evaluation set deferred). **A real-run gate was added on 2026-11-20 (owner, the second look at the waves): the wave closes only after one real run through a route the owner uses (step 7, "The real-run gate").** Ready to run after Wave 23 |
-| **Branch** | `feat/w01-grounded-bmo`, from `main` (DEC-089, the CI move, is merged) |
+| **Branch** | `feat/w01-grounded-bmo`, from `main` (PRO-10, the CI move, is merged) |
 | **Size** | M–L (was L; the evaluation set left the wave) |
 | **Release** | 0.7.0 (with Waves 24, 2, 25, 29) |
 | **Depends on** | Nothing in the code. [Wave 23](wave-23-sealed-credentials.md) (sealed credentials, 0.6.1) **is merged first**, because the real-run gate saves a real key and the first key ever saved must already be sealed |
@@ -59,7 +59,7 @@ Every BMO text answer says what it is based on, and dp checks those citations. T
 - Preview and run go through `ui/src/common/BmoSheet.tsx` and `ui/src/hooks/useBmo.ts:111`.
 
 **Docs**
-- DEC-065 still says `src/bmo/settings.ts`; the file is `src/assistant/settings.ts`.
+- COD-08 still says `src/bmo/settings.ts`; the file is `src/assistant/settings.ts`.
 
 ## Design [Proposal; rewritten after the owner answers]
 
@@ -74,8 +74,8 @@ Every BMO text answer says what it is based on, and dp checks those citations. T
    - The first block is a **manifest**: what is included, what is left out and why.
    - It adds the decisions about the referenced objects (`decisionsAbout`, `src/core/decisions.ts:614-616`).
    - It adds Markdown docs under the code root through the existing file gate (Q1.5).
-   - Notes follow the lens as today in this wave. Wave 2 changes this: BMO always sees notes and comments (★Q2.2, DEC-092).
-   - **Screen parity** (owner, 2026-11-19, DEC-094): every kind of thing the UI shows about a scope must have a place in that scope's pack, by default or through the lens and preview choices, and the manifest says what was left out and why. The pack builder is written so a new kind of data is added in one place. Known gaps today: comments (Wave 2), sticky notes (Wave 2), attachments (Wave 16). The re-anchor step (step 1) lists any other panel data that no pack carries, and adds it to this brief before step 3 starts. A computed test walks the fields the panels show for an object and checks each is in the pack or named in the manifest.
+   - Notes follow the lens as today in this wave. Wave 2 changes this: BMO always sees notes and comments (★Q2.2, REC-03).
+   - **Screen parity** (owner, 2026-11-19, COD-11): every kind of thing the UI shows about a scope must have a place in that scope's pack, by default or through the lens and preview choices, and the manifest says what was left out and why. The pack builder is written so a new kind of data is added in one place. Known gaps today: comments (Wave 2), sticky notes (Wave 2), attachments (Wave 16). The re-anchor step (step 1) lists any other panel data that no pack carries, and adds it to this brief before step 3 starts. A computed test walks the fields the panels show for an object and checks each is in the pack or named in the manifest.
 3. **Citation contract.** Text tasks answer `{statements: [{text, cites: [{kind, ref, lines?, quote?}]}], unknowns: [string]}`.
    - `kind` is one of model, file, decision, note, doc or fact. Wave 2 adds comment and sticky; Wave 16 adds attachment.
    - The schema goes to providers through `providerSchema`. The handoff `result.json` uses the same shape.
@@ -99,7 +99,7 @@ Every BMO text answer says what it is based on, and dp checks those citations. T
    - the determinism classes (★A4);
    - the per-level table from questions 0.3;
    - one row per feature, which every later wave extends.
-8. Fix DEC-065's path to `src/assistant/settings.ts`.
+8. Fix COD-08's path to `src/assistant/settings.ts`.
 
 ## Determinism
 
@@ -112,7 +112,7 @@ Every BMO text answer says what it is based on, and dp checks those citations. T
 
 Applied 2026-11-19: the owner answered Part A and Q1.1 to Q1.5 ([the questions section below](#questions-options-and-answers-moved-from-questionsmd)).
 
-- **A4:** the four determinism classes are accepted; this wave writes `docs/determinism.md` and the DEC.
+- **A4:** the four determinism classes are accepted; this wave writes `docs/determinism.md` and the decision entry.
 - **Q1.1:** "Every statement needs a citation when referring to things." A statement that refers to a thing (an object, file, decision, note, doc section or number in the pack) must carry a valid cite, or it is held back under "N claims without a valid citation". General statements are shown, marked "general". Hidden-by-default is the assistant's reading of "needs"; showing them inline, marked, is the milder alternative.
 - **Q1.2:** templates live in code only, never per project, never written by an LLM.
 - **Q1.3:** **deferred.** The evaluation set (fixtures, scorer, `dp bmo eval`) is not in this wave. It is an idea in ideas list I2.0 ("Testing and evaluating BMO"). The wave still has ordinary unit tests of its own code, using canned answers from the fake backend.
@@ -122,7 +122,7 @@ Applied 2026-11-19: the owner answered Part A and Q1.1 to Q1.5 ([the questions s
 
 ## Questions, options and answers (moved from questions.md)
 
-*Moved from the deleted `questions.md` on 2026-11-20, with the owner's words as written. In the quotes, `future_tasks.md` and `backlog.md` mean the old backlog, now [planned_features.md](../planned_features.md) and the owner's private ideas list; `docs/waves/v1-scope-review.md` was decided in DEC-104.*
+*Moved from the deleted `questions.md` on 2026-11-20, with the owner's words as written. In the quotes, `future_tasks.md` and `backlog.md` mean the old backlog, now [planned_features.md](../planned_features.md) and the owner's private ideas list; `docs/waves/v1-scope-review.md` was decided in PRO-20.*
 
 ### 0.6 What makes a better fixed context prompt?
 
@@ -148,12 +148,12 @@ Proposed: Wave 1. See Q1.1 to Q1.4.
 
 **Recommended**
 - Labels appear in the UI and in review files only, for example: "BMO · model · 5 of 7 statements cited · not checked by a person".
-- Nothing is stored as a label in the model (DEC-051, DEC-064).
+- Nothing is stored as a label in the model (COD-02, COD-03).
 - Once you accept something, it is yours.
 
 **Owner's thinking:** Go with whatever you think is best.
 
-**Applied [2026-11-19].** As recommended: labels in the UI and review files only; nothing stored in the model (DEC-051, DEC-064).
+**Applied [2026-11-19].** As recommended: labels in the UI and review files only; nothing stored in the model (COD-02, COD-03).
 
 ### ★Q1.1 What must carry a citation, and what happens to a sentence without one?
 
@@ -235,7 +235,7 @@ Proposed: Wave 1. See Q1.1 to Q1.4.
 
 ### Q1.5 Can BMO cite the repository's own docs?
 
-**Recommended.** Yes. Markdown files under the code root (README, docs, ADRs kept in the repo) can be quoted and cited. They go through the same file gate as code: redaction, must-not-open, and DEC-064.
+**Recommended.** Yes. Markdown files under the code root (README, docs, ADRs kept in the repo) can be quoted and cited. They go through the same file gate as code: redaction, must-not-open, and COD-03.
 
 **Owner's thinking:** Yes.
 
@@ -280,7 +280,7 @@ Until now every BMO test in the repository runs against canned answers; no real 
 ## Required in this wave
 
 - **Routes.** No new route is planned. If one is added, it gets a `ROUTE_RULES` entry.
-- **Hub.** BMO settings live at hub level (DEC-064). Packs use the project's model.
+- **Hub.** BMO settings live at hub level (COD-03). Packs use the project's model.
 - **Read-only mode.** Text tasks still run; nothing writes.
 - **Security model.** In CONTRIBUTING, add: citations navigate only inside dp; repository text stays in data blocks.
 - **Static export.** Not affected.
@@ -309,7 +309,7 @@ Until now every BMO test in the repository runs against canned answers; no real 
 
 ## Docs
 
-- **New DEC:** grounded answers, the citation contract, and the determinism classes if ★A4 is yes.
+- **New decision entry:** grounded answers, the citation contract, and the determinism classes if ★A4 is yes.
 - **CHANGELOG:** nothing; the release change writes it (see README, Releases).
 - **The review file:** notes for the release entry, and the result of the real-run gate.
 - **CLAUDE.md:** `contextPack.ts` and `citations.ts` in the BMO paragraph.
@@ -322,7 +322,7 @@ Until now every BMO test in the repository runs against canned answers; no real 
 - Help about dp, sticky notes, and BMO always reading notes (Wave 2).
 - Retrieval by word index (Wave 14). No embeddings are planned.
 - Anti-pattern review, proposed ratings and suggested risks (Wave 11).
-- Multi-pass runs for very large repositories (planned_features B4).
+- Multi-pass runs for very large repositories (the former backlog B4 (now in the wave files)).
 - **The evaluation set** (fixtures with known answers, a scorer, `dp bmo eval`): deferred by the owner to ideas list I2.0.
 
 ## Start prompt

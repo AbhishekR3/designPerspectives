@@ -2,14 +2,14 @@
 
 | | |
 |---|---|
-| **Status** | Written 2026-11-20 from [import-design.md](../import-design.md) section 7 and DEC-103 (N13). The shape is the assistant's proposal; the owner may overrule it. Ready after Waves 5 and 15 |
+| **Status** | Written 2026-11-20 from [import-design.md](../import-design.md) section 7 and PRO-19 (N13). The shape is the assistant's proposal; the owner may overrule it. Ready after Waves 5 and 15 |
 | **Branch** | `feat/w22-digests`, from `main` after Waves 5 and 15 are merged |
 | **Size** | M–L. Split point: 22a is the computed digests, the hash and `dp digest` (steps 2 to 3); 22b is the BMO summary, the UI and `dp context --write` (steps 4 to 6) |
 | **Release** | 0.12.0 (with Waves 13, 14b, 20), run after Wave 14b and before Wave 20 (14b's word index chooses the excerpts of the one component in focus; digests cover everything else) |
 | **Depends on** | Wave 5 (key code, the generic reader's definitions and imports), Wave 15 (the scan's candidates and the N1 skip list). Wave 2 (`dp context`) is extended by step 6; if it is not merged, step 6 waits. Wave 20 uses the digests and is better with them; neither blocks the other |
-| **Owner items** | The open question of analysing a very large codebase (Q-C1b, N13; planned_features.md B4 "multi-pass summarising") |
+| **Owner items** | The open question of analysing a very large codebase (Q-C1b, N13; the former backlog B4 (now in the wave files) "multi-pass summarising") |
 
-Read [README.md](README.md) first: its rules, agents and checks apply to this wave. Also read [../import-design.md](../import-design.md) section 7 (the methods, the two kinds of document, the trade-offs) and [DEC-103](../decisions.md#pro-19--dec-103--code-import-and-bmo-choices-and-the-080-split-n1-to-n15), N13.
+Read [README.md](README.md) first: its rules, agents and checks apply to this wave. Also read [../import-design.md](../import-design.md) section 7 (the methods, the two kinds of document, the trade-offs) and [PRO-19](../decisions.md#pro---19---code-import-and-bmo-choices-n1-to-n15), N13.
 
 ## Goal
 
@@ -18,8 +18,8 @@ A very large repository costs one pass to understand and small runs afterwards. 
 ## What exists today [Fact]
 
 - **One digest per run, cut at a budget.** `src/assistant/codeExcerpts.ts` ranks excerpts (manifests, entry points, most-imported folders) and cuts at `passBudgetTokens` (default 100,000); what did not fit is listed as "left out". Nothing is remembered between runs.
-- **Review data lives in `architecture/import/`** and never in the model (DEC-051); `evidence.json` is the scan's facts. A new store there follows the same rule.
-- **Redaction and prompts are server-side** (`src/assistant/redact.ts`, `prompts.ts`, `runTask.ts`): a client sends selectors only, the preview returns the exact prompt and its hash, and a run is refused unless the hash matches (DEC-065).
+- **Review data lives in `architecture/import/`** and never in the model (COD-02); `evidence.json` is the scan's facts. A new store there follows the same rule.
+- **Redaction and prompts are server-side** (`src/assistant/redact.ts`, `prompts.ts`, `runTask.ts`): a client sends selectors only, the preview returns the exact prompt and its hash, and a run is refused unless the hash matches (COD-08).
 - **A price can be set** (`pricePerMTok`, `estimateCost` in `src/assistant/settings.ts`), and the preview shows an estimate.
 - Verify each anchor in step 1; line numbers move.
 
@@ -27,8 +27,8 @@ A very large repository costs one pass to understand and small runs afterwards. 
 
 1. **The store.** `architecture/import/digests/<id>.md` per container and component (the id is the model id, or the candidate id before an import), one `MAP.md` for the system, and `architecture/import/digests/index.json` with, per digest: scope, the list of `{path, sha256}` it was built from, the built date, and the summary state (`none`, `proposed`, `accepted`, `verified`). Review data, not model data.
 2. **The computed part** (class *computed*, or *approximate* where the reader is). The scan facts for the scope, entry points and key code (Wave 5), the names of definitions and the imports to and from the scope, the file count, the skipped folders (N1) and the hash. It never needs BMO and never calls the network.
-3. **The staleness hash.** The hash of the sorted `{path, sha256}` list. A digest is stale when the files in its scope differ from the list. dp lists stale digests (`dp digest status`, the Import page) and rebuilds one only when asked. This is a cache check, not drift detection (DEC-097).
-4. **The BMO summary** (class *proposed*). A new task `digest-summary`: a short summary of what the scope does, citing the files used, labelled proposed, written only after the person has seen the preview, the estimated tokens and (if a price is set) the estimated cost, and confirmed its hash (DEC-065, DEC-099). A person can mark a summary accepted or verified; an accepted summary can be promoted to the object's description or a note through the usual draft path. A digest is data, never instructions (DEC-064).
+3. **The staleness hash.** The hash of the sorted `{path, sha256}` list. A digest is stale when the files in its scope differ from the list. dp lists stale digests (`dp digest status`, the Import page) and rebuilds one only when asked. This is a cache check, not drift detection (COD-07).
+4. **The BMO summary** (class *proposed*). A new task `digest-summary`: a short summary of what the scope does, citing the files used, labelled proposed, written only after the person has seen the preview, the estimated tokens and (if a price is set) the estimated cost, and confirmed its hash (COD-08, PRO-16). A person can mark a summary accepted or verified; an accepted summary can be promoted to the object's description or a note through the usual draft path. A digest is data, never instructions (COD-03).
 5. **Use in runs.** `codeExcerpts.ts` takes an option to use digests: the model text, the digests of the scope and its neighbours (their lines in the model), and the code of only the component in focus. A stale digest is used with a visible "out of date" line, never silently; a missing digest falls back to today's behaviour.
 6. **The agent instructions file** (`dp context --write [PATH]`). Writes the Wave 2 context Markdown (systems, containers, where each lives, key code, the commands) to `PATH`, default `architecture/CONTEXT.md`. The file starts with a marker line; dp refuses to overwrite a file that does not carry it, so a person's own `CLAUDE.md` or `AGENTS.md` is never touched. It is written only on request, never after an apply.
 7. **Interfaces.**
@@ -47,13 +47,17 @@ A very large repository costs one pass to understand and small runs afterwards. 
 
 ## Owner answers
 
-- **N13 (2026-11-20, DEC-103; assistant's reasoning):** a wave of its own after Waves 5 and 15; a computed part first, a labelled BMO summary on top; a hash that marks staleness and never regenerates silently; the agent instructions file only on request.
+- **N13 (2026-11-20, PRO-19; assistant's reasoning):** a wave of its own after Waves 5 and 15; a computed part first, a labelled BMO summary on top; a hash that marks staleness and never regenerates silently; the agent instructions file only on request.
+
+## Carried from the backlog (moved from planned_features.md, 2026-11-21)
+
+- **Multi-pass summarising for very large repositories** (was B4; large). A run over the token limit is refused today; the user narrows the scope instead. [Wave 20](wave-20-system-conversation.md) plans rounds, each small enough to fit, with the person in the loop; a single-run whole-repository summary stays here. Proposal, 2026-11-20: cached per-container and per-component digests with a hash for staleness (`import-design.md` section 7, PRO-19, N13). [Source: COD-08.]
 
 ## Stop and ask if
 
-- A digest would have to be written into the model (DEC-051).
+- A digest would have to be written into the model (COD-02).
 - Anything wants to refresh digests without being asked, or to overwrite a file dp did not write.
-- The generic reader of Wave 5 is not merged and the computed part would need per-language code (DEC-096).
+- The generic reader of Wave 5 is not merged and the computed part would need per-language code (COD-06).
 
 ## Steps and agents
 
@@ -90,7 +94,7 @@ A very large repository costs one pass to understand and small runs afterwards. 
 
 ## Docs
 
-- **New DEC:** the store and its place outside the model; no silent regeneration; the file-overwrite rule of `dp context --write`.
+- **New decision entry:** the store and its place outside the model; no silent regeneration; the file-overwrite rule of `dp context --write`.
 - **README:** digests. **CLAUDE.md:** `digests.ts`, `routes/digests.ts`. **import-design.md** section 7: mark methods 9 and 10 built.
 - **The review file** (not the CHANGELOG, which the release change writes) and **`docs/determinism.md`** rows.
 

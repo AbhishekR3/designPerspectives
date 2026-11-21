@@ -1,4 +1,4 @@
-/** Comment routes: comments, ideas and questions on elements, relationships and diagrams (DEC-049). */
+/** Comment routes: comments, ideas and questions on elements, relationships and diagrams (REC-01). */
 
 import type { Context, Hono } from "hono";
 import { cleanAuthor, cleanText } from "../../core/comments.js";
